@@ -20,12 +20,15 @@ static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
 // Serial   : Programming USB port
 // SerialUSB: Native USB port. Baudrate setting gets ignored and is always as
 //            fast as possible.
+/* NOTE: simply connecting a USB cable from the PC to the other serial port 
+   already reduces the timing of the ISR by several microsec.
+*/
 #define Ser_data Serial     // Data channel
-#define Ser_ctrl SerialUSB  // Control channel
+//#define Ser_ctrl SerialUSB  // Control channel
 
 // Instantiate serial command listeners
-//DvG_SerialCommand sc_data(Ser_data);
-DvG_SerialCommand sc_ctrl(Ser_ctrl);
+DvG_SerialCommand sc_data(Ser_data);
+//DvG_SerialCommand sc_ctrl(Ser_ctrl);
 
 // Interrupt service routine clock
 // ISR_CLOCK: minimum 40 usec for only writing A0, no serial
@@ -48,8 +51,10 @@ const uint16_t N_BYTES_TIME  = BUFFER_SIZE * sizeof(buffer_time[0]);
 const uint16_t N_BYTES_REF_X = BUFFER_SIZE * sizeof(buffer_ref_X[0]);
 const uint16_t N_BYTES_SIG_I = BUFFER_SIZE * sizeof(buffer_sig_I[0]);
 
-volatile bool fSend_buffer_A = false;
-volatile bool fSend_buffer_B = false;
+//volatile bool fSend_buffer_A = false;
+//volatile bool fSend_buffer_B = false;
+bool fSend_buffer_A = false;
+bool fSend_buffer_B = false;
 
 // Serial transmission start and end messages
 const char SOM[] = {0x00, 0x00, 0x00, 0x00, 0xee}; // Start of message
@@ -99,7 +104,8 @@ void create_LUT() {
 /*------------------------------------------------------------------------------
     Interrupt service routine (isr) for phase-sentive detection (psd) 
 ------------------------------------------------------------------------------*/
-volatile bool fRunning = true;
+//volatile bool fRunning = false;
+bool fRunning = false;
 
 void isr_psd() {
   static uint16_t write_idx = 0;  // Current write index in double buffer
@@ -146,10 +152,10 @@ void isr_psd() {
 void setup() {
   #if Ser_data == Serial
     Ser_data.begin(1500000);
-    Ser_ctrl.begin(9600);
+    //Ser_ctrl.begin(9600);
   #else
     Ser_data.begin(9600);
-    Ser_ctrl.begin(1500000);
+    //Ser_ctrl.begin(1500000);
   #endif
   
   create_LUT();
@@ -184,26 +190,49 @@ void loop() {
   uint32_t prev_millis = 0;
 
   // Process commands on the data channel.
-  /* NOTE: The lock-in amp should not be runnning in order to correctly respond
-     to serial ASCII commands. When the amp would be running, the ASCII response
-     will likely be intermixed wih binary data.
+  /* NOTE: The lock-in amp should not be runnning in order to correctly reply
+     to serial ASCII commands. When the amp would be running, the ASCII reply
+     will likely be intermixed wih binary data. Normally, one would flush the
+     serial output buffer, but we can't do that here because the serial binary
+     write would then be blocking and interfere with the ISR clock timing. 
   */
-  /*
-  if (sc_data.available()) {
-    strCmd = sc_data.getCmd();
+  if ((millis() - prev_millis) > 1) {
+    prev_millis = millis();
 
-    if (strcmpi(strCmd, "id?") == 0) {
-      // Identity string
-      Ser_data.println("Lock-in amp: data");
-      Ser_data.flush();
-      delay(100);
-      fRunning = true;
+    if (sc_data.available()) {
+      strCmd = sc_data.getCmd();
+
+      if (strcmpi(strCmd, "id?") == 0) {
+        // Reply identity string
+        Ser_data.print("Lock-in amp: data ok\r\n");
+        
+      } else if (strcmpi(strCmd, "on") == 0) {
+        // Start lock-in amp
+        fRunning = true;
+      
+      } else if (strcmpi(strCmd, "off") == 0) {
+        // Stop lock-in amp
+        //Ser_data.flush();
+        fRunning = false;
+        fSend_buffer_A = false;
+        fSend_buffer_B = false;
+        Ser_data.flush();
+        delay(200);
+        Ser_data.flush();
+        Ser_data.print("ok\n");
+        //Ser_data.flush();
+        //delay(150);
+      
+      } else if (strcmpi(strCmd, "ref?") == 0) {
+        // Reply frequency of the output reference signal [Hz]
+        Ser_data.println(ref_freq);
+      }
     }
   }
-  */
 
   // Process commands on the control channel every 1 ms. Deliberately slowed
   // down to improve timing stability of the interrupt clock.
+  /*
   if ((millis() - prev_millis) > 1) {
     prev_millis = millis();
 
@@ -240,6 +269,7 @@ void loop() {
       }
     }
   }
+  */
 
   // Send buffers over the data channel
   if (fSend_buffer_A || fSend_buffer_B) {
@@ -262,11 +292,13 @@ void loop() {
     // to get the execution time of a complete buffer transmission. Will suspend
     // the interrupt timer.
     //noInterrupts(); // Uncomment only for debugging purposes
-    bytes_sent += Ser_data.write((uint8_t *) &SOM              , N_BYTES_SOM);
-    bytes_sent += Ser_data.write((uint8_t *) &buffer_time[idx] , N_BYTES_TIME);
-    bytes_sent += Ser_data.write((uint8_t *) &buffer_ref_X[idx], N_BYTES_REF_X);
-    bytes_sent += Ser_data.write((uint8_t *) &buffer_sig_I[idx], N_BYTES_SIG_I);
-    bytes_sent += Ser_data.write((uint8_t *) &EOM              , N_BYTES_EOM);
+    if (fRunning) {
+      bytes_sent += Ser_data.write((uint8_t *) &SOM              , N_BYTES_SOM);
+      bytes_sent += Ser_data.write((uint8_t *) &buffer_time[idx] , N_BYTES_TIME);
+      bytes_sent += Ser_data.write((uint8_t *) &buffer_ref_X[idx], N_BYTES_REF_X);
+      bytes_sent += Ser_data.write((uint8_t *) &buffer_sig_I[idx], N_BYTES_SIG_I);
+      bytes_sent += Ser_data.write((uint8_t *) &EOM              , N_BYTES_EOM);
+    }
     //interrupts();   // Uncomment only for debugging purposes
     if (fSend_buffer_A) {fSend_buffer_A = false;}
     if (fSend_buffer_B) {fSend_buffer_B = false;}
