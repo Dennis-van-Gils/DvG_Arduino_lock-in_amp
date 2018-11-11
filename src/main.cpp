@@ -48,7 +48,7 @@ DvG_SerialCommand sc_data(Ser_data);
 #define BUFFER_SIZE 200   // [samples] 200
 const uint16_t DOUBLE_BUFFER_SIZE = 2 * BUFFER_SIZE;
 
-volatile uint32_t buffer_time[DOUBLE_BUFFER_SIZE] = {0};
+volatile uint32_t buffer_time [DOUBLE_BUFFER_SIZE] = {0};
 volatile uint16_t buffer_ref_X[DOUBLE_BUFFER_SIZE] = {0};
 volatile uint16_t buffer_sig_I[DOUBLE_BUFFER_SIZE] = {0};
 
@@ -108,15 +108,17 @@ volatile bool fRunning = false;
 
 void isr_psd() {
   static bool fPrevRunning = fRunning;
-  static uint16_t write_idx = 0;    // Current write index in double buffer
+  static bool fStartup = true;
+  static uint16_t write_idx1 = 0;   // Current write index in double buffer
+  static uint16_t write_idx2 = 0;   // Current write index in double buffer
   
   if (fRunning != fPrevRunning) {
     fPrevRunning = fRunning;
     if (fRunning) {
       digitalWrite(PIN_LED, HIGH);  // Built-in LED on: lock-in amp running
+      fStartup = true;
     } else {
       digitalWrite(PIN_LED, LOW);   // Built-in LED on: lock-in amp off
-      write_idx = 0;
     }
   }
   if (!fRunning) {return;}
@@ -138,17 +140,29 @@ void isr_psd() {
   uint16_t sig_I = ADC->RESULT.reg;     // aka V_I without amplification (g = 1)
 
   // Store in buffers
-  buffer_time[write_idx]  = now;
-  buffer_ref_X[write_idx] = ref_X;
-  buffer_sig_I[write_idx] = sig_I;
-  write_idx++;
-
-  if (write_idx == BUFFER_SIZE) {
-    fSend_buffer_A = true;
-  } else if (write_idx == DOUBLE_BUFFER_SIZE) {
-    fSend_buffer_B = true;
-    write_idx = 0;
+  if (fStartup) {
+    buffer_time [0] = now;
+    buffer_ref_X[0] = ref_X;
+    buffer_sig_I[0] = sig_I;
+    write_idx1 = 1;
+    write_idx2 = 0;
+    fStartup = false;
+  } else {
+    buffer_time [write_idx1] = now;
+    buffer_ref_X[write_idx1] = ref_X;
+    buffer_sig_I[write_idx2] = sig_I;
+    write_idx1++;
+    write_idx2++;
   }
+  
+  if (write_idx1 == BUFFER_SIZE) {
+    fSend_buffer_A = true;
+  } else if (write_idx1 == DOUBLE_BUFFER_SIZE) {
+    fSend_buffer_B = true;
+    write_idx1 = 0;
+  }
+  
+  if (write_idx2 == DOUBLE_BUFFER_SIZE) {write_idx2 = 0;}
 }
 
 /*------------------------------------------------------------------------------
@@ -293,7 +307,7 @@ void loop() {
     // 'isr_psd()'.
     //noInterrupts(); // Uncomment only for debugging purposes
     bytes_sent += Ser_data.write((uint8_t *) &SOM              , N_BYTES_SOM);
-    bytes_sent += Ser_data.write((uint8_t *) &buffer_time[idx] , N_BYTES_TIME);
+    bytes_sent += Ser_data.write((uint8_t *) &buffer_time [idx], N_BYTES_TIME);
     bytes_sent += Ser_data.write((uint8_t *) &buffer_ref_X[idx], N_BYTES_REF_X);
     bytes_sent += Ser_data.write((uint8_t *) &buffer_sig_I[idx], N_BYTES_SIG_I);
     bytes_sent += Ser_data.write((uint8_t *) &EOM              , N_BYTES_EOM);
