@@ -95,11 +95,11 @@ if __name__ == "__main__":
     samples_received = np.array([], dtype=int)
 
     uber_counter = 0
-    while uber_counter < 2:
+    while uber_counter < 5:
         uber_counter += 1
         
-        if uber_counter == 2:
-            delayed_query("ref 200\n", ser)
+        #if uber_counter == 2:
+        #    delayed_query("ref 200\n", ser)
         
         full_time  = np.array([], dtype=int)
         full_ref_X = np.array([], dtype=int)
