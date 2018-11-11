@@ -51,10 +51,8 @@ const uint16_t N_BYTES_TIME  = BUFFER_SIZE * sizeof(buffer_time[0]);
 const uint16_t N_BYTES_REF_X = BUFFER_SIZE * sizeof(buffer_ref_X[0]);
 const uint16_t N_BYTES_SIG_I = BUFFER_SIZE * sizeof(buffer_sig_I[0]);
 
-//volatile bool fSend_buffer_A = false;
-//volatile bool fSend_buffer_B = false;
-bool fSend_buffer_A = false;
-bool fSend_buffer_B = false;
+volatile bool fSend_buffer_A = false;
+volatile bool fSend_buffer_B = false;
 
 // Serial transmission start and end messages
 const char SOM[] = {0x00, 0x00, 0x00, 0x00, 0xee}; // Start of message
@@ -104,8 +102,7 @@ void create_LUT() {
 /*------------------------------------------------------------------------------
     Interrupt service routine (isr) for phase-sentive detection (psd) 
 ------------------------------------------------------------------------------*/
-//volatile bool fRunning = false;
-bool fRunning = false;
+volatile bool fRunning = false;
 
 void isr_psd() {
   static uint16_t write_idx = 0;  // Current write index in double buffer
@@ -208,14 +205,19 @@ void loop() {
         
       } else if (strcmpi(strCmd, "on") == 0) {
         // Start lock-in amp
+        noInterrupts();
         fRunning = true;
+        interrupts();
       
       } else if (strcmpi(strCmd, "off") == 0) {
         // Stop lock-in amp
         //Ser_data.flush();
+        noInterrupts();
         fRunning = false;
         fSend_buffer_A = false;
         fSend_buffer_B = false;
+        // TO DO: clear interrupt flag
+        interrupts();
         Ser_data.flush();
         delay(200);
         Ser_data.flush();
