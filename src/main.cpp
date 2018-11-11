@@ -2,12 +2,15 @@
 Arduino lock-in amplifier
 
 Dennis van Gils
-10-11-2018
+11-11-2018
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
 #include "DvG_SerialCommand.h"
 #include "ZeroTimer.h"
+
+// Define for writing debugging info to the terminal: Slow!
+//#define DEBUG
 
 // Wait for synchronization of registers between the clock domains
 static __inline__ void syncDAC() __attribute__((always_inline, unused));
@@ -20,15 +23,17 @@ static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
 // Serial   : Programming USB port
 // SerialUSB: Native USB port. Baudrate setting gets ignored and is always as
 //            fast as possible.
-/* NOTE: simply connecting a USB cable from the PC to the other serial port 
-   already reduces the timing of the ISR by several microsec.
+/* NOTE: Simply connecting a USB cable from the PC to a second serial port on
+   the Arduino already reduces the timing accuracy of 'isr_psd()' by several
+   microsec. Hence, use only one serial port for best performance.
 */
-#define Ser_data Serial     // Data channel
-//#define Ser_ctrl SerialUSB  // Control channel
+#define Ser_data    Serial      // Data channel
+#ifdef DEBUG
+  #define Ser_debug SerialUSB   // Debug channel
+#endif
 
 // Instantiate serial command listeners
 DvG_SerialCommand sc_data(Ser_data);
-//DvG_SerialCommand sc_ctrl(Ser_ctrl);
 
 // Interrupt service routine clock
 // ISR_CLOCK: minimum 40 usec for only writing A0, no serial
@@ -64,17 +69,14 @@ const uint8_t N_BYTES_EOM = sizeof(EOM);
 #define ANALOG_WRITE_RESOLUTION 10      // [bits] Fixed to 10 on M0 Pro
 #define ANALOG_READ_RESOLUTION  12      // [bits] 10 or 12 on M0 Pro
 
-// Define for writing debugging info to the terminal: Slow!
-//#define DEBUG
-
 /*------------------------------------------------------------------------------
     Cosine wave look-up table (LUT)
 ------------------------------------------------------------------------------*/
 
 double ref_freq = 137.0;      // [Hz], aka f_R
 
-// Tip: limiting the output voltage range to slighty above 0.0 V will improve
-// the shape of the sine wave at it's minimum. Apparently, the analog out port
+// Tip: Limiting the output voltage range to slighty above 0.0 V will improve
+// the shape of the sine wave at its minimum. Apparently, the analog out port
 // has difficulty in cleanly dropping the output voltage completely to 0.0 V.
 #define A_REF        3.300    // [V] Analog voltage reference Arduino
 #define V_out_center 2.0      // [V] Center
@@ -105,12 +107,19 @@ void create_LUT() {
 volatile bool fRunning = false;
 
 void isr_psd() {
-  static uint16_t write_idx = 0;  // Current write index in double buffer
+  static bool fPrevRunning = fRunning;
+  static uint16_t write_idx = 0;    // Current write index in double buffer
   
-  if (!fRunning) {
-    write_idx = 0;
-    return;
+  if (fRunning != fPrevRunning) {
+    fPrevRunning = fRunning;
+    if (fRunning) {
+      digitalWrite(PIN_LED, HIGH);  // Built-in LED on: lock-in amp running
+    } else {
+      digitalWrite(PIN_LED, LOW);   // Built-in LED on: lock-in amp off
+      write_idx = 0;
+    }
   }
+  if (!fRunning) {return;}
 
   // Generate reference signals
   uint32_t now = micros();
@@ -135,10 +144,10 @@ void isr_psd() {
   write_idx++;
 
   if (write_idx == BUFFER_SIZE) {
-      fSend_buffer_A = true;
+    fSend_buffer_A = true;
   } else if (write_idx == DOUBLE_BUFFER_SIZE) {
-      fSend_buffer_B = true;
-      write_idx = 0;
+    fSend_buffer_B = true;
+    write_idx = 0;
   }
 }
 
@@ -147,15 +156,21 @@ void isr_psd() {
 ------------------------------------------------------------------------------*/
 
 void setup() {
+  #ifdef DEBUG
+    Ser_debug.begin(9600);
+  #endif
+
   #if Ser_data == Serial
     Ser_data.begin(1500000);
-    //Ser_ctrl.begin(9600);
   #else
     Ser_data.begin(9600);
-    //Ser_ctrl.begin(1500000);
   #endif
   
   create_LUT();
+
+  // Use built-in LED to signal running state of lock-in amp
+  pinMode(PIN_LED, OUTPUT);
+  digitalWrite(PIN_LED, fRunning);
 
   // DAC
   analogWriteResolution(ANALOG_WRITE_RESOLUTION);
@@ -186,92 +201,75 @@ void loop() {
   char* strCmd; // Incoming serial command string
   uint32_t prev_millis = 0;
 
-  // Process commands on the data channel.
-  /* NOTE: The lock-in amp should not be runnning in order to correctly reply
-     to serial ASCII commands. When the amp would be running, the ASCII reply
-     will likely be intermixed wih binary data. Normally, one would flush the
-     serial output buffer, but we can't do that here because the serial binary
-     write would then be blocking and interfere with the ISR clock timing. 
-  */
+  // Process commands on the data channel
+  // Deliberately slowed down to once every 1 ms to improve timing stability of
+  // 'isr_psd()'.
   if ((millis() - prev_millis) > 1) {
     prev_millis = millis();
 
     if (sc_data.available()) {
-      strCmd = sc_data.getCmd();
-
-      if (strcmpi(strCmd, "id?") == 0) {
-        // Reply identity string
-        Ser_data.print("Lock-in amp: data ok\r\n");
-        
-      } else if (strcmpi(strCmd, "on") == 0) {
-        // Start lock-in amp
-        noInterrupts();
-        fRunning = true;
-        interrupts();
-      
-      } else if (strcmpi(strCmd, "off") == 0) {
-        // Stop lock-in amp
-        //Ser_data.flush();
+      if (fRunning) {
+        // -------------------
+        //  Running
+        // -------------------
+        /* Any command received while running will switch the lock-in amp off.
+           The command string will not be checked in advance, because this
+           causes a lot of overhead, during which time the Arduino's serial-out
+           buffer could potentially flood the serial-in buffer at the PC side.
+           This will happen when the PC is not reading (and depleting) the
+           in-buffer as fast as possible because it is now waiting for the 'off'
+           reply to occur.
+        */
         noInterrupts();
         fRunning = false;
         fSend_buffer_A = false;
         fSend_buffer_B = false;
-        // TO DO: clear interrupt flag
         interrupts();
+
+        // Flush out any binary buffer data scheduled for sending, potentially
+        // flooding the receiving buffer at the PC side if 'fRunning' was not
+        // switched to false fast enough.
         Ser_data.flush();
-        delay(200);
+          
+        // Confirm at the PC side that the lock-in amp is off and is not longer
+        // sending binary data. The 'off' message might still be preceded with
+        // some left-over binary data when being read at the PC side.
+        Ser_data.print("off\n");
         Ser_data.flush();
-        Ser_data.print("ok\n");
-        //Ser_data.flush();
-        //delay(150);
-      
-      } else if (strcmpi(strCmd, "ref?") == 0) {
-        // Reply frequency of the output reference signal [Hz]
-        Ser_data.println(ref_freq);
+
+        // Flush out and ignore the command
+        sc_data.getCmd();
+      } else {
+        // -------------------
+        //  Not running
+        // -------------------
+        strCmd = sc_data.getCmd();
+        
+        if (strcmpi(strCmd, "id?") == 0) {
+          // Reply identity string
+          Ser_data.println("Lock-in amp: data");
+          
+        } else if (strcmpi(strCmd, "on") == 0) {
+          // Start lock-in amp
+          noInterrupts();
+          fRunning = true;
+          fSend_buffer_A = false;
+          fSend_buffer_B = false;
+          interrupts();
+        
+        } else if (strcmpi(strCmd, "ref?") == 0) {
+          // Reply frequency of the output reference signal [Hz]
+          Ser_data.println(ref_freq);
+        
+        } else if (strncmpi(strCmd, "ref", 3) == 0) {
+          // Set frequency of the output reference signal [Hz]
+          ref_freq = parseFloatInString(strCmd, 3);
+          LUT_micros2idx_factor = 1e-6 * ref_freq * N_LUT;
+          Ser_data.println(ref_freq);
+        }
       }
     }
   }
-
-  // Process commands on the control channel every 1 ms. Deliberately slowed
-  // down to improve timing stability of the interrupt clock.
-  /*
-  if ((millis() - prev_millis) > 1) {
-    prev_millis = millis();
-
-    if (sc_ctrl.available()) {
-      strCmd = sc_ctrl.getCmd();
-
-      if (strcmpi(strCmd, "id?") == 0) {
-        // Identity string
-        Ser_ctrl.println("Lock-in amp: control");
-      
-      } else if (strcmpi(strCmd, "on") == 0) {
-        // Start lock-in amplifier
-        fRunning = true;
-        Ser_ctrl.println("Lock-in amp: on");
-      
-      } else if (strcmpi(strCmd, "off") == 0) {
-        // Stop lock-in amplifier
-        fRunning = false;
-        Ser_ctrl.println("Lock-in amp: off");
-      
-      } else if (strcmpi(strCmd, "ref?") == 0) {
-        // Get frequency of the output reference signal [Hz]
-        Ser_ctrl.print("ref = ");
-        Ser_ctrl.print(ref_freq);
-        Ser_ctrl.println(" Hz");
-      
-      } else if (strncmpi(strCmd, "ref", 3) == 0) {
-        // Set frequency of the output reference signal [Hz]
-        ref_freq = parseFloatInString(strCmd, 3);
-        LUT_micros2idx_factor = 1e-6 * ref_freq * N_LUT;
-        Ser_ctrl.print("ref = ");
-        Ser_ctrl.print(ref_freq);
-        Ser_ctrl.println(" Hz");
-      }
-    }
-  }
-  */
 
   // Send buffers over the data channel
   if (fSend_buffer_A || fSend_buffer_B) {
@@ -281,32 +279,30 @@ void loop() {
     if (fSend_buffer_A) {
       idx = 0;
       #ifdef DEBUG
-        Ser_ctrl.print("A: ");
+        Ser_debug.print("A: ");
       #endif
     } else {
       idx = BUFFER_SIZE;
       #ifdef DEBUG
-        Ser_ctrl.print("B: ");
+        Ser_debug.print("B: ");
       #endif
     }
 
     // Uncomment 'noInterrupts()' and 'interrupts()' only for debugging purposes
     // to get the execution time of a complete buffer transmission. Will suspend
-    // the interrupt timer.
+    // 'isr_psd()'.
     //noInterrupts(); // Uncomment only for debugging purposes
-    if (fRunning) {
-      bytes_sent += Ser_data.write((uint8_t *) &SOM              , N_BYTES_SOM);
-      bytes_sent += Ser_data.write((uint8_t *) &buffer_time[idx] , N_BYTES_TIME);
-      bytes_sent += Ser_data.write((uint8_t *) &buffer_ref_X[idx], N_BYTES_REF_X);
-      bytes_sent += Ser_data.write((uint8_t *) &buffer_sig_I[idx], N_BYTES_SIG_I);
-      bytes_sent += Ser_data.write((uint8_t *) &EOM              , N_BYTES_EOM);
-    }
+    bytes_sent += Ser_data.write((uint8_t *) &SOM              , N_BYTES_SOM);
+    bytes_sent += Ser_data.write((uint8_t *) &buffer_time[idx] , N_BYTES_TIME);
+    bytes_sent += Ser_data.write((uint8_t *) &buffer_ref_X[idx], N_BYTES_REF_X);
+    bytes_sent += Ser_data.write((uint8_t *) &buffer_sig_I[idx], N_BYTES_SIG_I);
+    bytes_sent += Ser_data.write((uint8_t *) &EOM              , N_BYTES_EOM);
     //interrupts();   // Uncomment only for debugging purposes
     if (fSend_buffer_A) {fSend_buffer_A = false;}
     if (fSend_buffer_B) {fSend_buffer_B = false;}
 
     #ifdef DEBUG
-      Ser_ctrl.println(bytes_sent);
+      Ser_debug.println(bytes_sent);
     #endif
   }
 }

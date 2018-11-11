@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Nov  8 14:19:05 2018
-
-@author: Dennis_van_Gils
+11-11-2018
+Dennis_van_Gils
 """
 
 import sys
@@ -27,49 +26,35 @@ import DvG_dev_Arduino__fun_serial as Ard_fun
 
 SOM = bytes([0x00, 0x00, 0x00, 0x00, 0xee]) # Start of message
 EOM = bytes([0x00, 0x00, 0x00, 0x00, 0xff]) # End of message
-
 fn_log = "log.txt"
-fDrawPlot = False
+fDrawPlot = True
 
 def delayed_query(msg_str: str, ser: serial.Serial):
-    #ser.flushInput()
-    #ser.flushOutput()
-    #ser.flush()
-    
     # OFF
     # ---------
-    ser.write("off\n".encode())
-    #ser.flush()
-    #ser.flushOutput()
-    #ser.flushInput()
-
+    ser.write("\n".encode())
+    ser.flushOutput()
+   
     # OFF?
     # ---------    
-    ser.read_until("ok\n".encode())
-    ser.flushInput()
+    ans_bytes = ser.read_until("off\n".encode())
+    #print("     off bytes %5d: %s" % (len(ans_bytes), ans_bytes))
+    print("     off bytes %5d" % len(ans_bytes))
     
-    # IDN?
+    # Query
     # ---------
-    #ser.flush()
-    #ser.flushInput()
-    #ser.flushOutput()
-    
-    Time.sleep(0.2)
-    ser.flushInput()
-    print(ser.inWaiting())
-    
     ser.write(msg_str.encode())
     
-    # IDN reply
+    # Reply
     # ---------
-    ans_bytes = ser.read_until("ok\r\n".encode())    
-    print(ans_bytes)
+    ans_bytes = ser.read_until('\n'.encode())    
+    #print("     id? bytes %5d: %s" % (len(ans_bytes), ans_bytes))
+    print("     id? bytes %5d" % len(ans_bytes))
     ans_str = ans_bytes.decode('utf8').strip()
     
     # ON
     # ---------
     ser.write("on\n".encode())
-    ser.flushOutput()
     
     return ans_str
 
@@ -96,7 +81,7 @@ if __name__ == "__main__":
     #ser = serial.Serial("COM4")
     f_log = open(fn_log, 'w')
     
-    #ser.write("on\n".encode())
+    ser.write("on\n".encode())
     
     if fDrawPlot:
         plt.ion()
@@ -109,62 +94,56 @@ if __name__ == "__main__":
     samples_received = np.array([], dtype=int)
 
     uber_counter = 0
-    while uber_counter < 3:
+    while uber_counter < 20:
         uber_counter += 1
         full_time    = np.array([], dtype=int)
-        full_ref_out = np.array([], dtype=int)
-        full_sig_in  = np.array([], dtype=int)
+        full_ref_X = np.array([], dtype=int)
+        full_sig_I  = np.array([], dtype=int)
     
-        counter = 0
-        N_count = 50
         time_start = 0;
         buffers_received = 0;
+        counter = 0
+        N_count = 50
         while counter < N_count:
-            print("%d %s" % (counter, delayed_query("id?\n", ser)))
             counter += 1
             
             #if msvcrt.kbhit() and msvcrt.getch().decode() == chr(27):
             #    sys.exit(0)
             
             ans_bytes = ser.read_until(EOM)
-            ans_bytes = ans_bytes[:-5]      # Remove EOM
-            
             if (ans_bytes[:5] == SOM):
+                ans_bytes = ans_bytes[5:-5] # Remove EOM & SOM
                 buffers_received += 1
+                
                 if time_start == 0:
                     time_start = Time.time()
                 
-                ans_bytes = ans_bytes[5:]      # Remove SOM
                 N_samples = int(len(ans_bytes) / struct.calcsize('LHH'))
-                s_byte_time    = 0;
-                e_byte_time    = N_samples * struct.calcsize('L');
-                s_byte_ref_out = e_byte_time;
-                e_byte_ref_out = s_byte_ref_out + N_samples * struct.calcsize('H')
-                s_byte_sig_in  = e_byte_ref_out;
-                e_byte_sig_in  = s_byte_sig_in + N_samples * struct.calcsize('H')
-                time_bytes    = ans_bytes[s_byte_time   :e_byte_time]
-                ref_out_bytes = ans_bytes[s_byte_ref_out:e_byte_ref_out]
-                sig_in_bytes  = ans_bytes[s_byte_sig_in :e_byte_sig_in]
+                samples_received = np.append(samples_received, N_samples)
+                
+                e_byte_time  = N_samples * struct.calcsize('L');
+                e_byte_ref_X = e_byte_time + N_samples * struct.calcsize('H')
+                e_byte_sig_I = e_byte_ref_X + N_samples * struct.calcsize('H')
+                bytes_time  = ans_bytes[0            : e_byte_time]
+                bytes_ref_X = ans_bytes[e_byte_time  : e_byte_ref_X]
+                bytes_sig_I = ans_bytes[e_byte_ref_X : e_byte_sig_I]
                 try:
-                    time    = struct.unpack('<' + 'L'*N_samples, time_bytes)
-                    ref_out = struct.unpack('<' + 'H'*N_samples, ref_out_bytes)
-                    sig_in  = struct.unpack('<' + 'H'*N_samples, sig_in_bytes)
+                    time  = struct.unpack('<' + 'L'*N_samples, bytes_time)
+                    ref_X = struct.unpack('<' + 'H'*N_samples, bytes_ref_X)
+                    sig_I = struct.unpack('<' + 'H'*N_samples, bytes_sig_I)
                 except Exception as err:
                     ser.close()
                     f_log.close()
                     raise(err)
                 
-                samples_received = np.append(samples_received, N_samples)
-                full_time    = np.append(full_time   , time)
-                full_ref_out = np.append(full_ref_out, ref_out)
-                full_sig_in  = np.append(full_sig_in , sig_in)
+                full_time  = np.append(full_time , time)
+                full_ref_X = np.append(full_ref_X, ref_X)
+                full_sig_I = np.append(full_sig_I, sig_I)
                 
-                print("%3d: %d" % (counter, N_samples))
-                #print("%10i\t%7.4f" % (time[0], ref_out[0]))
+                #print("%3d: %d" % (counter, N_samples))
                 f_log.write("samples received: %i\n" % N_samples)
                 for i in range(N_samples):
-                    f_log.write("%i\t%i\t%i\n" % 
-                                (time[i], ref_out[i], sig_in[i]))
+                    f_log.write("%i\t%i\t%i\n" % (time[i], ref_X[i], sig_I[i]))
         
         time_end = Time.time()
         f_log.write("draw\n")
@@ -174,27 +153,30 @@ if __name__ == "__main__":
         dt = np.diff(full_time)
         #print(np.where(dt != 200))
         Fs = 1/np.mean(dt)*1e6
-        str_info = ("Fs = %.2f Hz    dt_min = %d us    dt_max = %d us" % 
-                   (Fs, np.min(dt), np.max(dt)))
-        str_info += ("    N_buf = %d     %.2f buf/s" % 
-                     (buffers_received,
-                      buffers_received/(time_end - time_start)))
-        print(str_info)
+        str_info1 = ("Fs = %.2f Hz    dt_min = %d us    dt_max = %d us" % 
+                    (Fs, np.min(dt), np.max(dt)))
+        str_info2 = ("N_buf = %d     %.2f buf/s" % 
+                    (buffers_received,
+                     buffers_received/(time_end - time_start)))
+        print(str_info1 + "    " + str_info2)
         
         if fDrawPlot:
             ax.cla()
-            ax.plot(full_time/1e3, full_ref_out/(2**10)*3.3, 'x-k')
-            ax.plot(full_time/1e3, full_sig_in/(2**12)*3.3, 'x-r')
-            ax.set(xlabel='time (ms)', ylabel='y', title=str_info)
-            ax.grid()
-            #ax.set(xlim=(0, 80))
+            ax.plot(full_time/1e3, full_ref_X/(2**10)*3.3, 'x-k')
+            ax.plot(full_time/1e3, full_sig_I/(2**12)*3.3, 'x-r')
+            ax.set(xlabel='time (ms)', ylabel='y',
+                   title=(str_info1 + '\n' + str_info2))
+            ax.grid()            
             ax.set(xlim=(0, 100))
             
-            #I = full_ref_out / (2**10)*3.3 * full_sig_in / (2**12)*3.3
+            #I = full_ref_X / (2**10)*3.3 * full_sig_I / (2**12)*3.3
             #ax.plot(full_time, I, '.-m')    
             
             fig.canvas.draw()
             plt.pause(0.1)
+    
+    # Turn lock-in amp off
+    ser.write("\n".encode())
     
     f_log.close()
     ser.close()
