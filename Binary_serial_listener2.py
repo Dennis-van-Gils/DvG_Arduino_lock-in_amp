@@ -45,11 +45,11 @@ def delayed_query(msg_str: str, ser: serial.Serial):
     # ---------
     ser.write(msg_str.encode())
     
-    # Reply
+    # Answer
     # ---------
     ans_bytes = ser.read_until('\n'.encode())    
-    #print("     id? bytes %5d: %s" % (len(ans_bytes), ans_bytes))
-    print("     id? bytes %5d" % len(ans_bytes))
+    print("     ans bytes %5d: %s" % (len(ans_bytes), ans_bytes))
+    #print("     ans bytes %5d" % len(ans_bytes))
     ans_str = ans_bytes.decode('utf8').strip()
     
     # ON
@@ -81,6 +81,7 @@ if __name__ == "__main__":
     #ser = serial.Serial("COM4")
     f_log = open(fn_log, 'w')
     
+    ser.write("ref 100\n".encode())
     ser.write("on\n".encode())
     
     if fDrawPlot:
@@ -94,11 +95,15 @@ if __name__ == "__main__":
     samples_received = np.array([], dtype=int)
 
     uber_counter = 0
-    while uber_counter < 20:
+    while uber_counter < 2:
         uber_counter += 1
-        full_time    = np.array([], dtype=int)
+        
+        if uber_counter == 2:
+            delayed_query("ref 200\n", ser)
+        
+        full_time  = np.array([], dtype=int)
         full_ref_X = np.array([], dtype=int)
-        full_sig_I  = np.array([], dtype=int)
+        full_sig_I = np.array([], dtype=int)
     
         time_start = 0;
         buffers_received = 0;
@@ -167,7 +172,7 @@ if __name__ == "__main__":
             ax.set(xlabel='time (ms)', ylabel='y',
                    title=(str_info1 + '\n' + str_info2))
             ax.grid()            
-            ax.set(xlim=(0, 100))
+            ax.set(xlim=(0, 5))
             
             #I = full_ref_X / (2**10)*3.3 * full_sig_I / (2**12)*3.3
             #ax.plot(full_time, I, '.-m')    
