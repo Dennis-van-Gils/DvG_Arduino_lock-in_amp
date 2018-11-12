@@ -9,7 +9,6 @@ import os
 import sys
 import struct
 import msvcrt
-import serial
 import psutil
 import time as Time
 from pathlib import Path
@@ -22,28 +21,16 @@ import matplotlib.pyplot as plt
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 from DvG_debug_functions import print_fancy_traceback as pft
 
-SOM = bytes([0x00, 0x00, 0x00, 0x00, 0xee]) # Start of message
-EOM = bytes([0x00, 0x00, 0x00, 0x00, 0xff]) # End of message
 fn_log = "log.txt"
 fDrawPlot = True
 
 if __name__ == "__main__":
     p = psutil.Process(os.getpid())
     p.nice(psutil.HIGH_PRIORITY_CLASS)
-    
-    try: ser.close()
-    except: pass
-    
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1.5e6)
-    if lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
-        ser = lockin.ser;
-    else:
-        sys.exit(0)
 
-    f_log = open(fn_log, 'w')
-    
-    lockin.set_ref_freq(137)
-    lockin.turn_on()
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1.5e6)
+    if not lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
+        sys.exit(0)
     
     if fDrawPlot:
         plt.ion()
@@ -53,14 +40,14 @@ if __name__ == "__main__":
         fig.show()
         fig.canvas.draw()
 
-    samples_received = np.array([], dtype=int)
+    f_log = open(fn_log, 'w')
+    
+    lockin.set_ref_freq(0)
+    lockin.turn_on()
 
-    uber_counter = 0
-    while uber_counter < 5:
-        uber_counter += 1
-        
-        #if uber_counter == 2:
-        #    delayed_query("ref 200\n", ser)
+    samples_received = np.array([], dtype=int)
+    for uber_counter in range(5): 
+        #if uber_counter == 2: lockin.set_ref_freq(20)
         
         full_time  = np.array([], dtype=int)
         full_ref_X = np.array([], dtype=int)
@@ -68,17 +55,13 @@ if __name__ == "__main__":
     
         time_start = 0;
         buffers_received = 0;
-        counter = 0
         N_count = 50
-        while counter < N_count:
-            counter += 1
-            
+        for counter in range(N_count):            
             #if msvcrt.kbhit() and msvcrt.getch().decode() == chr(27):
             #    sys.exit(0)
             
-            ans_bytes = ser.read_until(EOM)
-            if (ans_bytes[:5] == SOM):
-                ans_bytes = ans_bytes[5:-5] # Remove EOM & SOM
+            [success, ans_bytes] = lockin.listen_received_buffer()
+            if success:
                 buffers_received += 1
                 
                 if time_start == 0:
@@ -98,7 +81,7 @@ if __name__ == "__main__":
                     ref_X = struct.unpack('<' + 'H'*N_samples, bytes_ref_X)
                     sig_I = struct.unpack('<' + 'H'*N_samples, bytes_sig_I)
                 except Exception as err:
-                    ser.close()
+                    lockin.close()
                     f_log.close()
                     raise(err)
                 
@@ -117,7 +100,6 @@ if __name__ == "__main__":
         full_time = full_time - full_time[0]
         
         dt = np.diff(full_time)
-        #print(np.where(dt != 200))
         Fs = 1/np.mean(dt)*1e6
         str_info1 = ("Fs = %.2f Hz    dt_min = %d us    dt_max = %d us" % 
                     (Fs, np.min(dt), np.max(dt)))
@@ -128,8 +110,8 @@ if __name__ == "__main__":
         
         if fDrawPlot:
             ax.cla()
-            ax.plot(full_time/1e3, full_ref_X/(2**10)*3.3, 'x-k')
-            ax.plot(full_time/1e3, full_sig_I/(2**12)*3.3, 'x-r')
+            ax.plot(full_time/1e3, full_ref_X/(2**10 - 1)*3.3, 'x-k')
+            ax.plot(full_time/1e3, full_sig_I/(2**12 - 1)*3.3, 'x-r')
             ax.set(xlabel='time (ms)', ylabel='y',
                    title=(str_info1 + '\n' + str_info2))
             ax.grid()            
@@ -144,8 +126,8 @@ if __name__ == "__main__":
     # Turn lock-in amp off
     lockin.turn_off()
     
+    lockin.close()
     f_log.close()
-    ser.close()
     
     print("\nSamples received per buffer: [min, max] = [%d, %d]" % 
           (np.min(samples_received), np.max(samples_received)))

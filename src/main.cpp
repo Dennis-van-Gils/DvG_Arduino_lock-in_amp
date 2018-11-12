@@ -267,7 +267,7 @@ void loop() {
 
         } else if (strcmpi(strCmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
-          Ser_data.println("off");
+          Ser_data.print("already_off\n");
 
         } else if (strcmpi(strCmd, "on") == 0) {
           // Start lock-in amp

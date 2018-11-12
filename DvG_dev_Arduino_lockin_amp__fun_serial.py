@@ -51,13 +51,14 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                 Reply received from the device. [None] if unsuccessful.
         """
         success = False
+        was_off = None
         ans_str = None
 
-        [success, ans_str] = self.turn_off(timeout_warning_style=1)
-        if success:
-            # Reset success for upcoming query
-            success = False
-        else:
+        # We must make sure the lock-in is off to prevent binary data being sent
+        # continuously by the lock-in.
+        [successful_off, was_off, ans_bytes] = \
+            self.turn_off(timeout_warning_style=1)
+        if not(successful_off):
             return [success, ans_str]
         
         if self.write(msg_str, timeout_warning_style):
@@ -91,13 +92,24 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                     else:
                         success = True
 
+        if not(was_off):
+            self.turn_on()
+
         return [success, ans_str]
     
     def turn_on(self):
         self.write("on")
         
     def turn_off(self, timeout_warning_style=1):
+        """
+        Returns:
+            success
+            was_off
+            ans_bytes
+        """
         success = False
+        was_off = True
+        ans_bytes = b''
         
         # First ensure the lock-in amp will switch off if not already so.
         if self.write("off", timeout_warning_style):
@@ -123,9 +135,26 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                     elif timeout_warning_style == 2:
                         raise(serial.SerialTimeoutException)
                 else:
+                    try:
+                        was_off = (ans_bytes[-12:] == b"already_off\n")
+                    except:
+                        pass
                     success = True
     
-        return [success, ans_bytes]
+        return [success, was_off, ans_bytes]
     
     def set_ref_freq(self, freq):
         return self.query("ref %f" % freq)
+    
+    def listen_received_buffer(self):
+        """
+        Returns:
+            success
+            ans_bytes
+        """
+        ans_bytes = self.ser.read_until(EOM)
+        if (ans_bytes[:5] == SOM):
+            ans_bytes = ans_bytes[5:-5] # Remove EOM & SOM
+            return [True, ans_bytes]
+        
+        return [False, b'']
