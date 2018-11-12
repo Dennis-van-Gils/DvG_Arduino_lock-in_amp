@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     f_log = open(fn_log, 'w')
     
-    lockin.set_ref_freq(0)
+    lockin.set_ref_freq(137)
     lockin.turn_on()
 
     samples_received = np.array([], dtype=int)
