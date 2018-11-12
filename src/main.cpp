@@ -261,8 +261,12 @@ void loop() {
         
         if (strcmpi(strCmd, "id?") == 0) {
           // Reply identity string
-          Ser_data.println("Lock-in amp: data");
-          
+          Ser_data.println("Arduino lock-in amp");
+
+        } else if (strcmpi(strCmd, "off") == 0) {
+          // Lock-in amp is already off and we reply with an acknowledgement
+          Ser_data.println("off");
+
         } else if (strcmpi(strCmd, "on") == 0) {
           // Start lock-in amp
           noInterrupts();
@@ -278,7 +282,9 @@ void loop() {
         } else if (strncmpi(strCmd, "ref", 3) == 0) {
           // Set frequency of the output reference signal [Hz]
           ref_freq = parseFloatInString(strCmd, 3);
+          noInterrupts();
           LUT_micros2idx_factor = 1e-6 * ref_freq * N_LUT;
+          interrupts();
           Ser_data.println(ref_freq);
         }
       }

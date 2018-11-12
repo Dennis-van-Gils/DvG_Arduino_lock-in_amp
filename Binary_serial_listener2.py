@@ -5,24 +5,22 @@
 Dennis_van_Gils
 """
 
+import os
 import sys
-import serial
 import struct
 import msvcrt
-
-import os
+import serial
 import psutil
-
-import matplotlib
-#matplotlib.use('GTKAgg')
-#matplotlib.use('Qt5Agg')
-import matplotlib.pyplot as plt
-
-import numpy as np
 import time as Time
 from pathlib import Path
 
-import DvG_dev_Arduino__fun_serial as Ard_fun
+import numpy as np
+import matplotlib
+#matplotlib.use('Qt5Agg')
+import matplotlib.pyplot as plt
+
+import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
+from DvG_debug_functions import print_fancy_traceback as pft
 
 SOM = bytes([0x00, 0x00, 0x00, 0x00, 0xee]) # Start of message
 EOM = bytes([0x00, 0x00, 0x00, 0x00, 0xff]) # End of message
@@ -65,24 +63,16 @@ if __name__ == "__main__":
     try: ser.close()
     except: pass
     
-    """
-    ard = Ard_fun.Arduino(baudrate=1.5e6)
-    if ard.auto_connect(Path("port_data.txt"), "Lock-in amp: data"):
-        ser = ard.ser;
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1.5e6)
+    if lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
+        ser = lockin.ser;
     else:
         sys.exit(0)
-    """
 
-    ser = serial.Serial("COM3",
-                        baudrate=1.5e6,
-                        timeout=4,
-                        write_timeout=4)
-    #ser = serial.Serial("COM6", baudrate=1e6)
-    #ser = serial.Serial("COM4")
     f_log = open(fn_log, 'w')
     
-    ser.write("ref 100\n".encode())
-    ser.write("on\n".encode())
+    lockin.query("ref 137")
+    lockin.write("on")
     
     if fDrawPlot:
         plt.ion()
@@ -172,7 +162,7 @@ if __name__ == "__main__":
             ax.set(xlabel='time (ms)', ylabel='y',
                    title=(str_info1 + '\n' + str_info2))
             ax.grid()            
-            ax.set(xlim=(0, 5))
+            ax.set(xlim=(0, 30))
             
             #I = full_ref_X / (2**10)*3.3 * full_sig_I / (2**12)*3.3
             #ax.plot(full_time, I, '.-m')    
@@ -181,7 +171,7 @@ if __name__ == "__main__":
             plt.pause(0.1)
     
     # Turn lock-in amp off
-    ser.write("\n".encode())
+    lockin.write("off")
     
     f_log.close()
     ser.close()
