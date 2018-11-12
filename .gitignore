@@ -5,4 +5,5 @@
 .clang_complete
 .gcc-flags.json
 log.txt
-__pycache__
+*.pyc
+**/__pycache__/

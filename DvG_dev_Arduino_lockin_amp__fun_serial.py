@@ -29,10 +29,9 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         self.write_timeout = write_timeout
         self.read_term_char  = read_term_char
         self.write_term_char = write_term_char
-        
-        self.query = self.lockin_amp_query
-    
-    def lockin_amp_query(self, msg_str, timeout_warning_style=1):
+
+    """ Overload query"""    
+    def query(self, msg_str, timeout_warning_style=1):
         """Send a message to the serial device and subsequently read the reply.
 
         Args:
@@ -54,48 +53,12 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         success = False
         ans_str = None
 
-        # First ensure the lock-in amp will switch off if not already so.
-        if self.write("off", timeout_warning_style):
-            self.ser.flushOutput()
-            
-            # Check for acknowledgement reply        
-            try:
-                ans_bytes = self.ser.read_until("off\n".encode())
-            except (serial.SerialTimeoutException,
-                    serial.SerialException) as err:
-                # Note though: The Serial library does not throw an
-                # exception when it actually times out! We will check for
-                # zero received bytes as indication for timeout, later.
-                pft(err, 3)
-            except Exception as err:
-                pft(err, 3)
-                sys.exit(1)
-            else:
-                if (len(ans_bytes) == 0):
-                    # Received 0 bytes, probably due to a timeout.
-                    if timeout_warning_style == 1:
-                        pft("Received 0 bytes. Read probably timed out.", 3)
-                    elif timeout_warning_style == 2:
-                        raise(serial.SerialTimeoutException)
-                else:
-                    try:
-                        ans_str = ans_bytes.decode('utf8').strip()
-                    except UnicodeDecodeError as err:
-                        # Print error and struggle on
-                        pft(err, 3)
-                    except Exception as err:
-                        pft(err, 3)
-                        sys.exit(1)
-                    else:
-                        success = True
-
-        if not(success):
+        [success, ans_str] = self.turn_off(timeout_warning_style=1)
+        if success:
+            # Reset success for upcoming query
+            success = False
+        else:
             return [success, ans_str]
-        
-        # There could be a lock-in amp on the serial port as the device
-        # responded with 'off' as expected of a lock-in amp. 
-        # Now send the query contained in the message string.
-        success = False  # Must reset success for the next stage to come
         
         if self.write(msg_str, timeout_warning_style):
             try:
@@ -129,3 +92,40 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                         success = True
 
         return [success, ans_str]
+    
+    def turn_on(self):
+        self.write("on")
+        
+    def turn_off(self, timeout_warning_style=1):
+        success = False
+        
+        # First ensure the lock-in amp will switch off if not already so.
+        if self.write("off", timeout_warning_style):
+            self.ser.flushOutput()
+            
+            # Check for acknowledgement reply        
+            try:
+                ans_bytes = self.ser.read_until("off\n".encode())
+            except (serial.SerialTimeoutException,
+                    serial.SerialException) as err:
+                # Note though: The Serial library does not throw an
+                # exception when it actually times out! We will check for
+                # zero received bytes as indication for timeout, later.
+                pft(err, 3)
+            except Exception as err:
+                pft(err, 3)
+                sys.exit(1)
+            else:
+                if (len(ans_bytes) == 0):
+                    # Received 0 bytes, probably due to a timeout.
+                    if timeout_warning_style == 1:
+                        pft("Received 0 bytes. Read probably timed out.", 3)
+                    elif timeout_warning_style == 2:
+                        raise(serial.SerialTimeoutException)
+                else:
+                    success = True
+    
+        return [success, ans_bytes]
+    
+    def set_ref_freq(self, freq):
+        return self.query("ref %f" % freq)

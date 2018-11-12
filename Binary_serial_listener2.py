@@ -27,35 +27,6 @@ EOM = bytes([0x00, 0x00, 0x00, 0x00, 0xff]) # End of message
 fn_log = "log.txt"
 fDrawPlot = True
 
-def delayed_query(msg_str: str, ser: serial.Serial):
-    # OFF
-    # ---------
-    ser.write("\n".encode())
-    ser.flushOutput()
-   
-    # OFF?
-    # ---------    
-    ans_bytes = ser.read_until("off\n".encode())
-    #print("     off bytes %5d: %s" % (len(ans_bytes), ans_bytes))
-    print("     off bytes %5d" % len(ans_bytes))
-    
-    # Query
-    # ---------
-    ser.write(msg_str.encode())
-    
-    # Answer
-    # ---------
-    ans_bytes = ser.read_until('\n'.encode())    
-    print("     ans bytes %5d: %s" % (len(ans_bytes), ans_bytes))
-    #print("     ans bytes %5d" % len(ans_bytes))
-    ans_str = ans_bytes.decode('utf8').strip()
-    
-    # ON
-    # ---------
-    ser.write("on\n".encode())
-    
-    return ans_str
-
 if __name__ == "__main__":
     p = psutil.Process(os.getpid())
     p.nice(psutil.HIGH_PRIORITY_CLASS)
@@ -71,8 +42,8 @@ if __name__ == "__main__":
 
     f_log = open(fn_log, 'w')
     
-    lockin.query("ref 100")
-    lockin.write("on")
+    lockin.set_ref_freq(137)
+    lockin.turn_on()
     
     if fDrawPlot:
         plt.ion()
@@ -171,7 +142,7 @@ if __name__ == "__main__":
             plt.pause(0.1)
     
     # Turn lock-in amp off
-    lockin.write("off")
+    lockin.turn_off()
     
     f_log.close()
     ser.close()
