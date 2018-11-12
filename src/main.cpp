@@ -2,7 +2,7 @@
 Arduino lock-in amplifier
 
 Dennis van Gils
-11-11-2018
+12-11-2018
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -115,10 +115,12 @@ void isr_psd() {
   if (fRunning != fPrevRunning) {
     fPrevRunning = fRunning;
     if (fRunning) {
-      digitalWrite(PIN_LED, HIGH);  // Built-in LED on: lock-in amp running
+      digitalWrite(PIN_LED, HIGH);  // Indicate lock-in amp is running
       fStartup = true;
     } else {
-      digitalWrite(PIN_LED, LOW);   // Built-in LED on: lock-in amp off
+      digitalWrite(PIN_LED, LOW);   // Indicate lock-in amp is off
+      syncDAC();
+      DAC->DATA.reg = 0 & 0x3FF;    // Set output voltage to 0
     }
   }
   if (!fRunning) {return;}

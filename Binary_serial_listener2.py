@@ -71,7 +71,7 @@ if __name__ == "__main__":
 
     f_log = open(fn_log, 'w')
     
-    lockin.query("ref 137")
+    lockin.query("ref 100")
     lockin.write("on")
     
     if fDrawPlot:
