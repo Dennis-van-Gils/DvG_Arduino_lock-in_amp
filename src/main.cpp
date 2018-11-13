@@ -48,13 +48,13 @@ DvG_SerialCommand sc_data(Ser_data);
 #define BUFFER_SIZE 200   // [samples] 200
 const uint16_t DOUBLE_BUFFER_SIZE = 2 * BUFFER_SIZE;
 
-volatile uint32_t buffer_time [DOUBLE_BUFFER_SIZE] = {0};
-volatile uint16_t buffer_ref_X[DOUBLE_BUFFER_SIZE] = {0};
-volatile uint16_t buffer_sig_I[DOUBLE_BUFFER_SIZE] = {0};
+volatile uint32_t buffer_time       [DOUBLE_BUFFER_SIZE] = {0};
+volatile uint16_t buffer_ref_X_phase[DOUBLE_BUFFER_SIZE] = {0};
+volatile uint16_t buffer_sig_I      [DOUBLE_BUFFER_SIZE] = {0};
 
-const uint16_t N_BYTES_TIME  = BUFFER_SIZE * sizeof(buffer_time[0]);
-const uint16_t N_BYTES_REF_X = BUFFER_SIZE * sizeof(buffer_ref_X[0]);
-const uint16_t N_BYTES_SIG_I = BUFFER_SIZE * sizeof(buffer_sig_I[0]);
+const uint16_t N_BYTES_TIME        = BUFFER_SIZE*sizeof(buffer_time[0]);
+const uint16_t N_BYTES_REF_X_PHASE = BUFFER_SIZE*sizeof(buffer_ref_X_phase[0]);
+const uint16_t N_BYTES_SIG_I       = BUFFER_SIZE*sizeof(buffer_sig_I[0]);
 
 volatile bool fSend_buffer_A = false;
 volatile bool fSend_buffer_B = false;
@@ -82,10 +82,10 @@ double ref_freq = 137.0;      // [Hz], aka f_R
 #define V_out_center 2.0      // [V] Center
 #define V_out_p2p    2.0      // [V] Peak to peak
 
-#define N_LUT 2048  // Number of samples for one full period. Use power of 2.
+#define N_LUT 8192  // Number of samples for one full period.
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * N_LUT;
 uint16_t LUT_cos[N_LUT] = {0};
-uint16_t LUT_sin[N_LUT] = {0};
+//uint16_t LUT_sin[N_LUT] = {0};
 
 void create_LUT() {
   double offset = V_out_center / A_REF;
@@ -96,15 +96,20 @@ void create_LUT() {
                  (offset + amplitude * cos(2*PI*i/N_LUT)));
   }
 
+  /*
   for (uint16_t i = 0; i < N_LUT; i++) {
     LUT_sin[i] = LUT_cos[(i + N_LUT/4*3) % N_LUT];
   }
+  */
 }
 
 /*------------------------------------------------------------------------------
     Interrupt service routine (isr) for phase-sentive detection (psd) 
 ------------------------------------------------------------------------------*/
 volatile bool fRunning = false;
+
+volatile double T_period_micros_dbl = 1 / ref_freq * 1e6;
+volatile uint32_t T_period_micros_int = ceil(T_period_micros_dbl);
 
 void isr_psd() {
   static bool fPrevRunning = fRunning;
@@ -127,9 +132,45 @@ void isr_psd() {
 
   // Generate reference signals
   uint32_t now = micros();
-  uint16_t LUT_idx = ((uint16_t) round(now * LUT_micros2idx_factor)) % N_LUT;
+  //uint16_t LUT_idx = ((uint16_t) round(now * LUT_micros2idx_factor)) % N_LUT;
+  // [uint32_t] 32 bits: now
+  // [double]   32 bits: LUT_micros2idx_factor
+  // [uint16_t] 16 bits: N_LUT
+  // NOTE: (now * LUT_micros2idx_factor) can cause loss of information when now is large, namely when above 2**16
+  //uint16_t LUT_idx = ((uint16_t) round(now * LUT_micros2idx_factor)) % N_LUT;
+  //(now * LUT_micros2idx_factor - floor(now * LUT_micros2idx_factor /  N_LUT) * N_LUT)
+  
+  /*
+    In a world without floating number truncation or integer overflow, the
+    following would be okay:
+    
+    uint16_t LUT_idx = ((uint32_t) round(now * LUT_micros2idx_factor)) % N_LUT;
+    
+    However, the Atmel SAMD only features 32 bit arithmetic.
+    Hence, operation (now * LUT_micros2idx_factor) can cause float truncation
+    when the value of 'now' gets too large.
+    Also, casting the multiplication result to (uint32_t) will overflow when
+    'now' is too large.
+    We have to be clever in our arithmetic to prevent truncation and overflow.
+  */
+  /*
+  static uint32_t N_periods_to_subtract = 0;
+
+  uint32_t now_subtract = round(N_periods_to_subtract * T_period_micros_dbl);
+  if ((now - now_subtract - T_period_micros_int) > now) {
+    // Underflow occured
+  } else {
+    // Legit
+    N_periods_to_subtract++;
+    now_subtract += T_period_micros_int;
+  }
+
+  uint16_t LUT_idx = ((uint32_t) round((now - now_subtract) * LUT_micros2idx_factor)) % N_LUT;
+  */
+  
+  uint16_t LUT_idx = ((uint32_t) round(now * LUT_micros2idx_factor)) % N_LUT;
+   
   uint16_t ref_X = LUT_cos[LUT_idx];    // aka v_RX
-  //uint16_t ref_Y = LUT_sin[LUT_idx];  // aka v_RY
 
   // Output reference signal
   syncDAC();
@@ -144,14 +185,14 @@ void isr_psd() {
   // Store in buffers
   if (fStartup) {
     buffer_time [0] = now;
-    buffer_ref_X[0] = ref_X;
+    buffer_ref_X_phase[0] = LUT_idx;
     buffer_sig_I[0] = sig_I;
     write_idx1 = 1;
     write_idx2 = 0;
     fStartup = false;
   } else {
     buffer_time [write_idx1] = now;
-    buffer_ref_X[write_idx1] = ref_X;
+    buffer_ref_X_phase[write_idx1] = LUT_idx;
     buffer_sig_I[write_idx2] = sig_I;
     write_idx1++;
     write_idx2++;
@@ -314,11 +355,16 @@ void loop() {
     // to get the execution time of a complete buffer transmission. Will suspend
     // 'isr_psd()'.
     //noInterrupts(); // Uncomment only for debugging purposes
-    bytes_sent += Ser_data.write((uint8_t *) &SOM              , N_BYTES_SOM);
-    bytes_sent += Ser_data.write((uint8_t *) &buffer_time [idx], N_BYTES_TIME);
-    bytes_sent += Ser_data.write((uint8_t *) &buffer_ref_X[idx], N_BYTES_REF_X);
-    bytes_sent += Ser_data.write((uint8_t *) &buffer_sig_I[idx], N_BYTES_SIG_I);
-    bytes_sent += Ser_data.write((uint8_t *) &EOM              , N_BYTES_EOM);
+    bytes_sent += Ser_data.write((uint8_t *) &SOM, \
+                                 N_BYTES_SOM);
+    bytes_sent += Ser_data.write((uint8_t *) &buffer_time [idx], \
+                                 N_BYTES_TIME);
+    bytes_sent += Ser_data.write((uint8_t *) &buffer_ref_X_phase[idx], \
+                                 N_BYTES_REF_X_PHASE);
+    bytes_sent += Ser_data.write((uint8_t *) &buffer_sig_I[idx], \
+                                 N_BYTES_SIG_I);
+    bytes_sent += Ser_data.write((uint8_t *) &EOM, \
+                                 N_BYTES_EOM);
     //interrupts();   // Uncomment only for debugging purposes
     if (fSend_buffer_A) {fSend_buffer_A = false;}
     if (fSend_buffer_B) {fSend_buffer_B = false;}

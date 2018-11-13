@@ -42,11 +42,11 @@ if __name__ == "__main__":
 
     f_log = open(fn_log, 'w')
     
-    lockin.set_ref_freq(137)
+    lockin.set_ref_freq(100)
     lockin.turn_on()
 
     samples_received = np.array([], dtype=int)
-    for uber_counter in range(5): 
+    for uber_counter in range(1): 
         #if uber_counter == 2: lockin.set_ref_freq(20)
         
         full_time  = np.array([], dtype=int)
@@ -61,6 +61,7 @@ if __name__ == "__main__":
             #    sys.exit(0)
             
             [success, ans_bytes] = lockin.listen_received_buffer()
+            #print(success)
             if success:
                 buffers_received += 1
                 
@@ -84,6 +85,9 @@ if __name__ == "__main__":
                     lockin.close()
                     f_log.close()
                     raise(err)
+                
+                ref_X = np.array(ref_X)
+                ref_X = 2 + np.cos(2*np.pi*ref_X/8192)
                 
                 full_time  = np.append(full_time , time)
                 full_ref_X = np.append(full_ref_X, ref_X)
@@ -110,7 +114,8 @@ if __name__ == "__main__":
         
         if fDrawPlot:
             ax.cla()
-            ax.plot(full_time/1e3, full_ref_X/(2**10 - 1)*3.3, 'x-k')
+            #ax.plot(full_time/1e3, full_ref_X/(2**10 - 1)*3.3, 'x-k')
+            ax.plot(full_time/1e3, full_ref_X, 'x-k')
             ax.plot(full_time/1e3, full_sig_I/(2**12 - 1)*3.3, 'x-r')
             ax.set(xlabel='time (ms)', ylabel='y',
                    title=(str_info1 + '\n' + str_info2))
