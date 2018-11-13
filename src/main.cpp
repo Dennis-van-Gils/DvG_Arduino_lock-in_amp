@@ -168,7 +168,12 @@ void isr_psd() {
   uint16_t LUT_idx = ((uint32_t) round((now - now_subtract) * LUT_micros2idx_factor)) % N_LUT;
   */
   
-  uint16_t LUT_idx = ((uint32_t) round(now * LUT_micros2idx_factor)) % N_LUT;
+  //* try 2 using fmod
+  uint32_t now_less = now - (uint32_t) (round((floor(now / T_period_micros_dbl) * T_period_micros_dbl)));
+  uint16_t LUT_idx = round(now_less * LUT_micros2idx_factor);
+  //*/
+  
+  //uint16_t LUT_idx = ((uint32_t) round(now * LUT_micros2idx_factor)) % N_LUT;
    
   uint16_t ref_X = LUT_cos[LUT_idx];    // aka v_RX
 
