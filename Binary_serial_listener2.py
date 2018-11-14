@@ -42,7 +42,7 @@ if __name__ == "__main__":
 
     f_log = open(fn_log, 'w')
     
-    lockin.set_ref_freq(99.99)
+    lockin.set_ref_freq(137)
     lockin.turn_on()
 
     samples_received = np.array([], dtype=int)
@@ -91,8 +91,8 @@ if __name__ == "__main__":
                 for i in range(N_samples):
                     f_log.write("%i\t%i\t%i\n" % (time[i], ref_X[i], sig_I[i]))
                 
-                #ref_X = np.array(ref_X)
-                #ref_X = 2 + np.cos(2*np.pi*ref_X/8192)
+                ref_X = np.array(ref_X)
+                ref_X = np.cos(2*np.pi*ref_X/12288)
                 
                 full_time  = np.append(full_time , time)
                 full_ref_X = np.append(full_ref_X, ref_X)
@@ -116,11 +116,11 @@ if __name__ == "__main__":
             ax.cla()
             #ax.plot(full_time/1e3, full_ref_X/(2**10 - 1)*3.3, 'x-k')
             ax.plot(full_time/1e3, full_ref_X, 'x-k')
-            ax.plot(full_time/1e3, full_sig_I/(2**12 - 1)*3.3, 'x-r')
+            ax.plot(full_time/1e3, full_sig_I/(2**12 - 1)*3.3 - 2, 'x-r')
             ax.set(xlabel='time (ms)', ylabel='y',
                    title=(str_info1 + '\n' + str_info2))
             ax.grid()            
-            ax.set(xlim=(0, 2000))
+            ax.set(xlim=(0, 80))
             
             #I = full_ref_X / (2**10)*3.3 * full_sig_I / (2**12)*3.3
             #ax.plot(full_time, I, '.-m')    

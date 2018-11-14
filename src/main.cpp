@@ -82,7 +82,7 @@ double ref_freq = 137.0;      // [Hz], aka f_R
 #define V_out_center 2.0      // [V] Center
 #define V_out_p2p    2.0      // [V] Peak to peak
 
-#define N_LUT 8192  // Number of samples for one full period.
+#define N_LUT 12288  // Number of samples for one full period.
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
 volatile double T_period_micros_dbl = 1.0 / ref_freq * 1e6;
 uint16_t LUT_cos[N_LUT] = {0};
@@ -130,11 +130,8 @@ void isr_psd() {
 
   // Generate reference signals
   uint32_t now = micros();
-  //uint32_t now_less = round(fmod(now, T_period_micros_dbl));
-  //volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * N_LUT;
-  //volatile double T_period_micros_dbl = 1.0 / ref_freq * 1e6;
-  uint16_t LUT_idx = round(fmod(now, T_period_micros_dbl) * LUT_micros2idx_factor); // Why floor not round?
-   
+  uint16_t LUT_idx = round(fmod(now, T_period_micros_dbl) * \
+                           LUT_micros2idx_factor);
   uint16_t ref_X = LUT_cos[LUT_idx];    // aka v_RX
 
   // Output reference signal
