@@ -83,7 +83,8 @@ double ref_freq = 137.0;      // [Hz], aka f_R
 #define V_out_p2p    2.0      // [V] Peak to peak
 
 #define N_LUT 8192  // Number of samples for one full period.
-volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * N_LUT;
+volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
+volatile double T_period_micros_dbl = 1.0 / ref_freq * 1e6;
 uint16_t LUT_cos[N_LUT] = {0};
 //uint16_t LUT_sin[N_LUT] = {0};
 
@@ -108,9 +109,6 @@ void create_LUT() {
 ------------------------------------------------------------------------------*/
 volatile bool fRunning = false;
 
-volatile double T_period_micros_dbl = 1 / ref_freq * 1e6;
-volatile uint32_t T_period_micros_int = ceil(T_period_micros_dbl);
-
 void isr_psd() {
   static bool fPrevRunning = fRunning;
   static bool fStartup = true;
@@ -132,48 +130,10 @@ void isr_psd() {
 
   // Generate reference signals
   uint32_t now = micros();
-  //uint16_t LUT_idx = ((uint16_t) round(now * LUT_micros2idx_factor)) % N_LUT;
-  // [uint32_t] 32 bits: now
-  // [double]   32 bits: LUT_micros2idx_factor
-  // [uint16_t] 16 bits: N_LUT
-  // NOTE: (now * LUT_micros2idx_factor) can cause loss of information when now is large, namely when above 2**16
-  //uint16_t LUT_idx = ((uint16_t) round(now * LUT_micros2idx_factor)) % N_LUT;
-  //(now * LUT_micros2idx_factor - floor(now * LUT_micros2idx_factor /  N_LUT) * N_LUT)
-  
-  /*
-    In a world without floating number truncation or integer overflow, the
-    following would be okay:
-    
-    uint16_t LUT_idx = ((uint32_t) round(now * LUT_micros2idx_factor)) % N_LUT;
-    
-    However, the Atmel SAMD only features 32 bit arithmetic.
-    Hence, operation (now * LUT_micros2idx_factor) can cause float truncation
-    when the value of 'now' gets too large.
-    Also, casting the multiplication result to (uint32_t) will overflow when
-    'now' is too large.
-    We have to be clever in our arithmetic to prevent truncation and overflow.
-  */
-  /*
-  static uint32_t N_periods_to_subtract = 0;
-
-  uint32_t now_subtract = round(N_periods_to_subtract * T_period_micros_dbl);
-  if ((now - now_subtract - T_period_micros_int) > now) {
-    // Underflow occured
-  } else {
-    // Legit
-    N_periods_to_subtract++;
-    now_subtract += T_period_micros_int;
-  }
-
-  uint16_t LUT_idx = ((uint32_t) round((now - now_subtract) * LUT_micros2idx_factor)) % N_LUT;
-  */
-  
-  //* try 2 using fmod
-  uint32_t now_less = now - (uint32_t) (round((floor(now / T_period_micros_dbl) * T_period_micros_dbl)));
-  uint16_t LUT_idx = round(now_less * LUT_micros2idx_factor);
-  //*/
-  
-  //uint16_t LUT_idx = ((uint32_t) round(now * LUT_micros2idx_factor)) % N_LUT;
+  //uint32_t now_less = round(fmod(now, T_period_micros_dbl));
+  //volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * N_LUT;
+  //volatile double T_period_micros_dbl = 1.0 / ref_freq * 1e6;
+  uint16_t LUT_idx = round(fmod(now, T_period_micros_dbl) * LUT_micros2idx_factor); // Why floor not round?
    
   uint16_t ref_X = LUT_cos[LUT_idx];    // aka v_RX
 
@@ -331,7 +291,8 @@ void loop() {
           // Set frequency of the output reference signal [Hz]
           ref_freq = parseFloatInString(strCmd, 3);
           noInterrupts();
-          LUT_micros2idx_factor = 1e-6 * ref_freq * N_LUT;
+          LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
+          T_period_micros_dbl = 1.0 / ref_freq * 1e6;
           interrupts();
           Ser_data.println(ref_freq);
         }

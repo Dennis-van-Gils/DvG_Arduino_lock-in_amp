@@ -31,8 +31,12 @@ time  = a[:, 0]
 ref_X = a[:, 1]
 sig_I = a[:, 2]
 
+ref_X = np.array(ref_X)
+ref_X = 2 + np.cos(2*np.pi*ref_X/8192)
+
 plt.plot(time - time[0], ref_X/2**10*3.3, 'x-k')
 plt.plot(time - time[0], sig_I/2**12*3.3, 'x-r')
+plt.grid()
 
 while (1):
     plt.pause(0.5)
