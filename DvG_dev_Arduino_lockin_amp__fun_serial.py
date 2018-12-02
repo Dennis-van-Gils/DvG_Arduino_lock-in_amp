@@ -32,7 +32,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
 
     """ Overload query"""    
     def query(self, msg_str, timeout_warning_style=1):
-        """Send a message to the serial device and subsequently read the reply.
+        """First, switch off the lock-in amp if it isn't already. Next, send a
+        message to the lock-in amp and subsequently read the reply.
 
         Args:
             msg_str (str):
@@ -98,7 +99,11 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         return [success, ans_str]
     
     def turn_on(self):
-        self.write("on")
+        """
+        Returns:
+            success
+        """
+        return self.write("on")
         
     def turn_off(self, timeout_warning_style=1):
         """
@@ -146,8 +151,12 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
     def set_ref_freq(self, freq):
         return self.query("ref %f" % freq)
     
-    def listen_received_buffer(self):
-        """
+    def listen_to_lockin_amp(self):
+        """Reads incoming data packets coming from the lock-in amp. These
+        packets should binary decode the time-stamp, reference signal and input 
+        signal as send by the lock-in amp. This method is blocking until it
+        receives an 'end-of-message' sentinel.
+        
         Returns:
             success
             ans_bytes

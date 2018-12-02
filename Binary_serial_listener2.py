@@ -60,7 +60,7 @@ if __name__ == "__main__":
             #if msvcrt.kbhit() and msvcrt.getch().decode() == chr(27):
             #    sys.exit(0)
             
-            [success, ans_bytes] = lockin.listen_received_buffer()
+            [success, ans_bytes] = lockin.listen_to_lockin_amp()
             #print(success)
             if success:
                 buffers_received += 1
