@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-11-11-2018
+02-12-2018
 Dennis_van_Gils
 """
 
@@ -14,12 +14,9 @@ import time as Time
 from pathlib import Path
 
 import numpy as np
-import matplotlib
-#matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
-from DvG_debug_functions import print_fancy_traceback as pft
 
 fn_log = "log.txt"
 fDrawPlot = True
@@ -46,7 +43,7 @@ if __name__ == "__main__":
     lockin.turn_on()
 
     samples_received = np.array([], dtype=int)
-    for uber_counter in range(1): 
+    for uber_counter in range(10): 
         #if uber_counter == 2: lockin.set_ref_freq(20)
         
         full_time  = np.array([], dtype=int)
