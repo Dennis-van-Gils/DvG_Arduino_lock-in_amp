@@ -70,11 +70,11 @@ class Arduino_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     """
     def __init__(self,
                  dev: Arduino_functions.Arduino,
-                 DAQ_update_interval_ms,
+                 DAQ_update_interval_ms=1000,
                  DAQ_function_to_run_each_update=None,
                  DAQ_critical_not_alive_count=3,
                  DAQ_timer_type=QtCore.Qt.PreciseTimer,
-                 DAQ_trigger_by=Dev_Base_pyqt_lib.DAQ_trigger.INTERNAL_TIMER,
+                 DAQ_trigger_by=Dev_Base_pyqt_lib.DAQ_trigger.CONTINUOUS,
                  parent=None):
         super(Arduino_pyqt, self).__init__(parent=parent)
 

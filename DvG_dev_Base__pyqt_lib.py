@@ -41,11 +41,13 @@ MAIN CONTENTS:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "19-09-2018"
-__version__     = "1.1.0"
+__date__        = "03-12-2018"
+__version__     = "1.2.0"
 
 from enum import IntEnum, unique
 import queue
+import time
+
 import numpy as np
 from PyQt5 import QtCore
 from DvG_debug_functions import ANSI, dprint, print_fancy_traceback as pft
@@ -55,7 +57,7 @@ def curThreadName(): return QtCore.QThread.currentThread().objectName()
 
 @unique
 class DAQ_trigger(IntEnum):
-    [INTERNAL_TIMER, EXTERNAL_WAKE_UP_CALL] = range(2)
+    [INTERNAL_TIMER, EXTERNAL_WAKE_UP_CALL, CONTINUOUS] = range(3)
 
 # ------------------------------------------------------------------------------
 #   InnerClassDescriptor
@@ -295,6 +297,9 @@ class Dev_Base_pyqt(QtCore.QObject):
                 DAQ_trigger.EXTERNAL_WAKE_UP_CALL):
                 self.worker_DAQ.stop()
                 self.worker_DAQ.qwc.wakeAll()
+            elif (self.worker_DAQ.trigger_by ==
+                DAQ_trigger.CONTINUOUS):
+                self.worker_DAQ.stop()
             self.thread_DAQ.quit()
             print("Closing thread %s " %
                   "{:.<16}".format(self.thread_DAQ.objectName()), end='')
@@ -395,7 +400,7 @@ class Dev_Base_pyqt(QtCore.QObject):
                 unintentionally.
         """
         def __init__(self,
-                     DAQ_update_interval_ms,
+                     DAQ_update_interval_ms=1000,
                      DAQ_function_to_run_each_update=None,
                      DAQ_critical_not_alive_count=1,
                      DAQ_timer_type=QtCore.Qt.CoarseTimer,
@@ -416,6 +421,9 @@ class Dev_Base_pyqt(QtCore.QObject):
                 self.qwc = QtCore.QWaitCondition()
                 self.mutex_wait = QtCore.QMutex()
                 self.running = True
+            elif self.trigger_by == DAQ_trigger.CONTINUOUS:
+                self.running = True
+                self.paused = True
 
             self.calc_DAQ_rate_every_N_iter = max(
                     round(1e3/self.update_interval_ms), 1)
@@ -457,12 +465,43 @@ class Dev_Base_pyqt(QtCore.QObject):
                 if self.DEBUG:
                     dprint("Worker_DAQ  %s: done running" % self.dev.name,
                            self.DEBUG_color)
+            
+            # CONTINUOUS
+            elif self.trigger_by == DAQ_trigger.CONTINUOUS:
+                while self.running:
+                    if self.paused:
+                        time.sleep(1e-3)  # Do not hog the CPU
+                    else:
+                        self.update()
 
         @QtCore.pyqtSlot()
-        def stop(self):
-            """Only useful with DAQ_trigger.EXTERNAL_WAKE_UP_CALL
+        def unpause(self):
+            """Only useful with DAQ_trigger.CONTINUOUS
             """
-            self.running = False
+            if self.trigger_by == DAQ_trigger.CONTINUOUS:
+                if self.DEBUG:
+                    dprint("Worker_DAQ  %s: unpaused" % 
+                           self.dev.name, self.DEBUG_color)
+                            
+                self.paused = False
+            
+        @QtCore.pyqtSlot()
+        def pause(self):
+            """Only useful with DAQ_trigger.CONTINUOUS
+            """
+            if self.trigger_by == DAQ_trigger.CONTINUOUS:
+                if self.DEBUG:
+                    dprint("Worker_DAQ  %s: paused" % 
+                           self.dev.name, self.DEBUG_color)
+                    
+                self.paused = True
+                
+        @QtCore.pyqtSlot()
+        def stop(self):
+            """Only useful with DAQ_trigger.EXTERNAL_WAKE_UP_CALL or
+            DAQ_trigger.CONTINUOUS
+            """
+            self.running = False # Regardless of checking 'self.trigger_by'
 
         @QtCore.pyqtSlot()
         def update(self):

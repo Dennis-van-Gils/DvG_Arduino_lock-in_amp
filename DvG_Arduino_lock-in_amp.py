@@ -27,13 +27,13 @@ from DvG_pyqt_controls     import create_Toggle_button, SS_GROUP
 from DvG_debug_functions   import dprint, print_fancy_traceback as pft
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
-import DvG_dev_Arduino__pyqt_lib   as Arduino_pyqt_lib
+import DvG_dev_Arduino__pyqt_lib as Arduino_pyqt_lib
 
 # Constants
 LOCKIN_BUFFER_SIZE = 200
-UPDATE_INTERVAL_ARDUINO = 10  # 10 [ms]
-UPDATE_INTERVAL_CHART   = 10  # 10 [ms]
-CHART_HISTORY_TIME      = 10  # 10 [s]
+UPDATE_INTERVAL_ARDUINO = 10  # 10  [ms]
+UPDATE_INTERVAL_GUI_WHEN_IDLE = 100 # 100 [ms]
+CHART_HISTORY_TIME      = 10  # 10  [s]
 
 # Global variables for date-time keeping
 cur_date_time = QDateTime.currentDateTime()
@@ -226,12 +226,16 @@ class MainWindow(QtWid.QWidget):
     def process_qpbt_ENA_lockin(self):
         if self.qpbt_ENA_lockin.isChecked():
             self.qpbt_ENA_lockin.setText("lock-in ON")
-            success = ard.turn_on()
-            app.processEvents()
+            ard.turn_on()
+            #ard.ser.flush()
+            ard_pyqt.worker_DAQ.unpause()
+            #app.processEvents()
         else:
             self.qpbt_ENA_lockin.setText("lock-in OFF")
-            [success, was_off, ans_bytes] = ard.turn_off()            
-            app.processEvents()
+            ard_pyqt.worker_DAQ.pause()
+            ard.turn_off()
+            #ard.ser.flush()
+            #app.processEvents()
 
     @QtCore.pyqtSlot()
     def process_qpbt_clear_chart(self):
@@ -263,6 +267,13 @@ class MainWindow(QtWid.QWidget):
 
 @QtCore.pyqtSlot()
 def update_GUI():
+    if ard_pyqt.worker_DAQ.paused:
+        # Date-time keeping
+        global cur_date_time, str_cur_date, str_cur_time
+        cur_date_time = QDateTime.currentDateTime()
+        str_cur_date = cur_date_time.toString("dd-MM-yyyy")
+        str_cur_time = cur_date_time.toString("HH:mm:ss")
+    
     window.qlbl_cur_date_time.setText("%s    %s" % (str_cur_date, str_cur_time))
     window.qlbl_update_counter.setText("%i" % ard_pyqt.DAQ_update_counter)
     window.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
@@ -303,9 +314,9 @@ def stop_running():
     ard_pyqt.close_all_threads()
     file_logger.close_log()
 
-    #print("Stopping timers: ", end='')
-    #timer_chart.stop()
-    #print("done.")
+    print("Stopping timers: ", end='')
+    timer_GUI.stop()
+    print("done.")
 
 @QtCore.pyqtSlot()
 def notify_connection_lost():
@@ -362,7 +373,7 @@ def lockin_DAQ_update():
         time        = np.array(struct.unpack('<' + 'L'*N_samples, bytes_time))
         phase_ref_X = np.array(struct.unpack('<' + 'H'*N_samples, bytes_ref_X))
         sig_I       = np.array(struct.unpack('<' + 'H'*N_samples, bytes_sig_I))
-    except Exception as err:
+    except Exception:
         return False
     
     ref_X = np.cos(2*np.pi*phase_ref_X/12288)
@@ -465,10 +476,10 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
 
     # Create workers and threads
-    ard_pyqt = Arduino_pyqt_lib.Arduino_pyqt(ard,
-                                             UPDATE_INTERVAL_ARDUINO,
-                                             lockin_DAQ_update,
-                                             DAQ_critical_not_alive_count=np.nan)
+    ard_pyqt = Arduino_pyqt_lib.Arduino_pyqt(
+            dev=ard,
+            DAQ_function_to_run_each_update=lockin_DAQ_update,
+            DAQ_critical_not_alive_count=np.nan)
 
     # Connect signals to slots
     ard_pyqt.signal_DAQ_updated.connect(update_GUI)
@@ -482,11 +493,9 @@ if __name__ == '__main__':
     #   Create timers
     # --------------------------------------------------------------------------
 
-    """
-    timer_chart = QtCore.QTimer()
-    timer_chart.timeout.connect(update_chart)
-    timer_chart.start(UPDATE_INTERVAL_CHART)
-    """
+    timer_GUI = QtCore.QTimer()
+    timer_GUI.timeout.connect(update_GUI)
+    timer_GUI.start(UPDATE_INTERVAL_GUI_WHEN_IDLE)
 
     # --------------------------------------------------------------------------
     #   Start the main GUI event loop
