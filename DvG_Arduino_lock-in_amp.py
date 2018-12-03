@@ -32,7 +32,7 @@ import DvG_dev_Arduino__pyqt_lib as Arduino_pyqt_lib
 # Constants
 LOCKIN_BUFFER_SIZE = 200
 UPDATE_INTERVAL_ARDUINO = 10  # 10  [ms]
-UPDATE_INTERVAL_GUI_WHEN_IDLE = 100 # 100 [ms]
+UPDATE_INTERVAL_GUI_WALL_CLOCK = 100 # 100 [ms]
 CHART_HISTORY_TIME      = 10  # 10  [s]
 
 # Global variables for date-time keeping
@@ -266,15 +266,12 @@ class MainWindow(QtWid.QWidget):
 # ------------------------------------------------------------------------------
 
 @QtCore.pyqtSlot()
-def update_GUI():
-    if ard_pyqt.worker_DAQ.paused:
-        # Date-time keeping
-        global cur_date_time, str_cur_date, str_cur_time
-        cur_date_time = QDateTime.currentDateTime()
-        str_cur_date = cur_date_time.toString("dd-MM-yyyy")
-        str_cur_time = cur_date_time.toString("HH:mm:ss")
-    
+def update_GUI_wall_clock():
     window.qlbl_cur_date_time.setText("%s    %s" % (str_cur_date, str_cur_time))
+
+@QtCore.pyqtSlot()
+def update_GUI():
+    #window.qlbl_cur_date_time.setText("%s    %s" % (str_cur_date, str_cur_time))
     window.qlbl_update_counter.setText("%i" % ard_pyqt.DAQ_update_counter)
     window.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
                                  ard_pyqt.obtained_DAQ_rate_Hz)
@@ -315,7 +312,7 @@ def stop_running():
     file_logger.close_log()
 
     print("Stopping timers: ", end='')
-    timer_GUI.stop()
+    timer_GUI_wall_clock.stop()
     print("done.")
 
 @QtCore.pyqtSlot()
@@ -493,9 +490,9 @@ if __name__ == '__main__':
     #   Create timers
     # --------------------------------------------------------------------------
 
-    timer_GUI = QtCore.QTimer()
-    timer_GUI.timeout.connect(update_GUI)
-    timer_GUI.start(UPDATE_INTERVAL_GUI_WHEN_IDLE)
+    timer_GUI_wall_clock = QtCore.QTimer()
+    timer_GUI_wall_clock.timeout.connect(update_GUI_wall_clock)
+    timer_GUI_wall_clock.start(UPDATE_INTERVAL_GUI_WALL_CLOCK)
 
     # --------------------------------------------------------------------------
     #   Start the main GUI event loop
