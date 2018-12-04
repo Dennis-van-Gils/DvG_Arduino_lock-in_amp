@@ -43,7 +43,7 @@ if __name__ == "__main__":
     lockin.turn_on()
 
     samples_received = np.array([], dtype=int)
-    for uber_counter in range(10): 
+    for uber_counter in range(40): 
         #if uber_counter == 2: lockin.set_ref_freq(20)
         
         full_time  = np.array([], dtype=int)
