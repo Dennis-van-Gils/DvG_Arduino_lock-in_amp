@@ -41,7 +41,7 @@ MAIN CONTENTS:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "03-12-2018"
+__date__        = "04-12-2018"
 __version__     = "1.2.0"
 
 from enum import IntEnum, unique
@@ -470,7 +470,8 @@ class Dev_Base_pyqt(QtCore.QObject):
             elif self.trigger_by == DAQ_trigger.CONTINUOUS:
                 while self.running:
                     if self.paused:
-                        time.sleep(1e-3)  # Do not hog the CPU
+                        time.sleep(0.01)  # Do not hog the CPU
+                        pass
                     else:
                         self.update()
 
@@ -521,11 +522,8 @@ class Dev_Base_pyqt(QtCore.QObject):
             self.prev_tick_DAQ_update = now
 
             # Keep track of the obtained DAQ rate
-            # Start at iteration 5 to ensure we have stabilized
-            if self.outer.DAQ_update_counter == 5:
-                self.prev_tick_DAQ_rate = now
-            elif (self.outer.DAQ_update_counter %
-                  self.calc_DAQ_rate_every_N_iter == 5):
+            if (self.outer.DAQ_update_counter %
+                self.calc_DAQ_rate_every_N_iter == 0):
                 self.outer.obtained_DAQ_rate_Hz = (
                         self.calc_DAQ_rate_every_N_iter /
                         (now - self.prev_tick_DAQ_rate) * 1e3)
@@ -541,7 +539,8 @@ class Dev_Base_pyqt(QtCore.QObject):
                 locker.unlock()
                 if self.trigger_by == DAQ_trigger.INTERNAL_TIMER:
                     self.timer.stop()
-                elif self.trigger_by == DAQ_trigger.EXTERNAL_WAKE_UP_CALL:
+                elif (self.trigger_by == DAQ_trigger.EXTERNAL_WAKE_UP_CALL or
+                      self.trigger_by == DAQ_trigger.CONTINUOUS):
                     self.stop()
                 self.outer.signal_DAQ_updated.emit()
                 self.outer.signal_connection_lost.emit()
