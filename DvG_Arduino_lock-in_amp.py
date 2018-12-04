@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "02-12-2018"
+__date__        = "04-12-2018"
 __version__     = "1.0.0"
 
 import os
@@ -30,15 +30,9 @@ import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Arduino__pyqt_lib as Arduino_pyqt_lib
 
 # Constants
-LOCKIN_BUFFER_SIZE = 200
-UPDATE_INTERVAL_ARDUINO = 10  # 10  [ms]
-UPDATE_INTERVAL_GUI_WALL_CLOCK = 100 # 100 [ms]
-CHART_HISTORY_TIME      = 10  # 10  [s]
-
-# Global variables for date-time keeping
-cur_date_time = QDateTime.currentDateTime()
-str_cur_date  = cur_date_time.toString("dd-MM-yyyy")
-str_cur_time  = cur_date_time.toString("HH:mm:ss")
+LOCKIN_BUFFER_SIZE = 100
+UPDATE_INTERVAL_GUI_WALL_CLOCK = 50 # 100 [ms]
+CHART_HISTORY_TIME = 10  # 10  [s]
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
@@ -267,6 +261,9 @@ class MainWindow(QtWid.QWidget):
 
 @QtCore.pyqtSlot()
 def update_GUI_wall_clock():
+    cur_date_time = QDateTime.currentDateTime()
+    str_cur_date  = cur_date_time.toString("dd-MM-yyyy")
+    str_cur_time  = cur_date_time.toString("HH:mm:ss")
     window.qlbl_cur_date_time.setText("%s    %s" % (str_cur_date, str_cur_time))
 
 @QtCore.pyqtSlot()
@@ -345,16 +342,14 @@ def about_to_quit():
 # ------------------------------------------------------------------------------
 
 def lockin_DAQ_update():
-    # Date-time keeping
-    global cur_date_time, str_cur_date, str_cur_time
     cur_date_time = QDateTime.currentDateTime()
-    str_cur_date = cur_date_time.toString("dd-MM-yyyy")
-    str_cur_time = cur_date_time.toString("HH:mm:ss")
+    str_cur_date  = cur_date_time.toString("dd-MM-yyyy")
+    str_cur_time  = cur_date_time.toString("HH:mm:ss")
     
     [success, ans_bytes] = ard.listen_to_lockin_amp()
     if not(success):
-        #dprint("'%s' reports IOError @ %s %s" %
-        #       (ard.name, str_cur_date, str_cur_time))
+        dprint("'%s' reports IOError @ %s %s" %
+               (ard.name, str_cur_date, str_cur_time))
         return False
     
     state.buffers_received += 1
@@ -389,13 +384,9 @@ def lockin_DAQ_update():
     state.ref_Y = ref_Y
     state.sig_I = sig_I
     
-    # HACK: directly write readings to chart histories
-    window.CH_ref_X._x = state.time
-    window.CH_ref_X._y = state.ref_X
-    window.CH_ref_Y._x = state.time
-    window.CH_ref_Y._y = state.ref_Y
-    window.CH_sig_I._x = state.time
-    window.CH_sig_I._y = state.sig_I
+    window.CH_ref_X.add_new_readings(state.time, state.ref_X)
+    window.CH_ref_Y.add_new_readings(state.time, state.ref_Y)
+    window.CH_sig_I.add_new_readings(state.time, state.sig_I)
     
     # Logging to file
     if file_logger.starting:
@@ -412,7 +403,7 @@ def lockin_DAQ_update():
 
     if file_logger.is_recording:
         #log_elapsed_time = (state.time - file_logger.start_time)/1e3  # [sec]
-        #file_logger.write("samples received: %i\n" % N_samples)
+        file_logger.write("samples received: %i\n" % N_samples)
         for i in range(N_samples):
             file_logger.write("%i\t%.4f\t%.4f\t%.4f\n" % 
                               (time[i], ref_X[i], ref_Y[i], sig_I[i]))
@@ -485,6 +476,9 @@ if __name__ == '__main__':
     # Start threads
     ard_pyqt.start_thread_worker_DAQ(QtCore.QThread.TimeCriticalPriority)
     ard_pyqt.start_thread_worker_send()
+    
+    # HACK
+    ard_pyqt.worker_DAQ.calc_DAQ_rate_every_N_iter = 25
 
     # --------------------------------------------------------------------------
     #   Create timers
