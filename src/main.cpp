@@ -2,7 +2,7 @@
 Arduino lock-in amplifier
 
 Dennis van Gils
-12-11-2018
+04-12-2018
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -38,14 +38,14 @@ DvG_SerialCommand sc_data(Ser_data);
 // Interrupt service routine clock
 // ISR_CLOCK: minimum 40 usec for only writing A0, no serial
 //            minimum 50 usec for writing A0 and reading A1 combined, no serial
-#define ISR_CLOCK 200     // 200 [usec]
+#define ISR_CLOCK 400     // 200 [usec]
 
 // Buffers
 // The buffer that will be send each transmission is BUFFER_SIZE samples long
 // for each variable. Double the amount of memory is reserved to employ a double
 // buffer technique, where alternatingly the first buffer half (buffer A) is
 // being written to and the second buffer half (buffer B) is being sent.
-#define BUFFER_SIZE 200   // [samples] 200
+#define BUFFER_SIZE 100   // [samples] 200
 const uint16_t DOUBLE_BUFFER_SIZE = 2 * BUFFER_SIZE;
 
 volatile uint32_t buffer_time       [DOUBLE_BUFFER_SIZE] = {0};
@@ -180,7 +180,7 @@ void setup() {
   #endif
 
   #if Ser_data == Serial
-    Ser_data.begin(1500000);
+    Ser_data.begin(1.5e6);
   #else
     Ser_data.begin(9600);
   #endif
