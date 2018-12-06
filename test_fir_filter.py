@@ -63,6 +63,25 @@ def array_for_N(fun, N, x):
         
     return out
 
+class FilterFIR():
+    def __init__(self, b):
+        self.b = b
+        self.v = np.zeros(len(b))
+    
+    def step(self, x):
+        self.v[0] = self.v[1];
+        self.v[1] = self.v[2];
+        self.v[2] = (self.b[0] * x +
+                     self.b[1] * self.v[0] +
+                     self.b[2] * self.v[1])
+		
+        return (self.v[0] + self.v[2] + 2* self.v[1])
+
+ntaps=3
+b_LP = firwin(ntaps, [0.0001, 0.05], width=0.05, fs=Fs, pass_zero=False)
+filterFIR = FilterFIR(b_LP)
+sig_LP4 = array_map(filterFIR.step, sig)
+
 filterBuLp2 = FilterBuLp2()
 filterBuHp2 = FilterBuHp2()
         
@@ -84,6 +103,7 @@ plt.plot(time - correct_phase_lag, sig_LP, 'r')
     
 plt.plot(time - correct_phase_lag, sig_LP2, 'g')
 plt.plot(time - correct_phase_lag, sig_LP3, 'b')
+plt.plot(time - correct_phase_lag, sig_LP4, 'y')
 
 # -----------------------------------------
 #   FIR filters
