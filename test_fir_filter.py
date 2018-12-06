@@ -77,6 +77,7 @@ class FilterFIR():
 		
         return (self.v[0] + self.v[2] + 2* self.v[1])
 
+#https://stackoverflow.com/questions/40483518/how-to-real-time-filter-with-scipy-and-lfilter
 ntaps=3
 b_LP = firwin(ntaps, [0.0001, 0.05], width=0.05, fs=Fs, pass_zero=False)
 filterFIR = FilterFIR(b_LP)
