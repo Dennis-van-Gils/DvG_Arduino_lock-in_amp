@@ -13,13 +13,13 @@ import sys
 import struct
 from pathlib import Path
 
-import numpy as np
 import psutil
 
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
+import numpy as np
 
 from DvG_pyqt_FileLogger   import FileLogger
 from DvG_pyqt_ChartHistory import ChartHistory
@@ -52,6 +52,27 @@ class State(object):
         self.ref_X = np.array([], float)
         self.ref_Y = np.array([], float)
         self.sig_I = np.array([], float)
+
+        """
+        These arrays are double the buffer size of the Arduino in order to
+        facilitate preventing start/end effects due to FIR filtering.
+        A small shifting window will walk over these arrays and a FIR filter
+        using convolution will be applied, keeping only the valid samples (no
+        zero padding).
+        
+        Each time a complete buffer of BLOCK_SIZE samples is received from the
+        Arduino, it is appended to the end of these arrays after the oldest
+        data is shifted towards the beginning.
+        
+            hist_time = [received_buffer_1; received_buffer 2]
+            hist_time = [received_buffer_2; received_buffer 3]
+            hist_time = [received_buffer_3; received_buffer 4]
+            etc...
+        """
+        self.hist_time  = np.array([], int)      # [ms]
+        self.hist_ref_X = np.array([], float)
+        self.hist_ref_Y = np.array([], float)
+        self.hist_sig_I = np.array([], float)
 
         # Mutex for proper multithreading. If the state variables are not
         # atomic or thread-safe, you should lock and unlock this mutex for each
