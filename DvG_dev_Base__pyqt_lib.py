@@ -41,7 +41,7 @@ MAIN CONTENTS:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "04-12-2018"
+__date__        = "08-12-2018"
 __version__     = "1.2.0"
 
 from enum import IntEnum, unique
@@ -405,6 +405,7 @@ class Dev_Base_pyqt(QtCore.QObject):
                      DAQ_critical_not_alive_count=1,
                      DAQ_timer_type=QtCore.Qt.CoarseTimer,
                      DAQ_trigger_by=DAQ_trigger.INTERNAL_TIMER,
+                     calc_DAQ_rate_every_N_iter = 25,
                      DEBUG=False):
             super().__init__(None)
             self.DEBUG = DEBUG
@@ -417,16 +418,24 @@ class Dev_Base_pyqt(QtCore.QObject):
             self.timer_type = DAQ_timer_type
             self.trigger_by = DAQ_trigger_by
 
-            if self.trigger_by == DAQ_trigger.EXTERNAL_WAKE_UP_CALL:
+            # INTERNAL TIMER
+            if self.trigger_by == DAQ_trigger.INTERNAL_TIMER:
+                self.calc_DAQ_rate_every_N_iter = max(
+                        round(1e3/self.update_interval_ms), 1)
+            
+            # EXTERNAL WAKE UP
+            elif self.trigger_by == DAQ_trigger.EXTERNAL_WAKE_UP_CALL:
+                self.calc_DAQ_rate_every_N_iter = calc_DAQ_rate_every_N_iter
                 self.qwc = QtCore.QWaitCondition()
                 self.mutex_wait = QtCore.QMutex()
                 self.running = True
+            
+            # CONTINUOUS
             elif self.trigger_by == DAQ_trigger.CONTINUOUS:
+                self.calc_DAQ_rate_every_N_iter = calc_DAQ_rate_every_N_iter
                 self.running = True
                 self.paused = True
-
-            self.calc_DAQ_rate_every_N_iter = max(
-                    round(1e3/self.update_interval_ms), 1)
+                
             self.prev_tick_DAQ_update = 0
             self.prev_tick_DAQ_rate = 0
 
