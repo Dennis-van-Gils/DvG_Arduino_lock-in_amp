@@ -39,6 +39,7 @@ if __name__ == "__main__":
 
     f_log = open(fn_log, 'w')
     
+    lockin.begin()
     lockin.set_ref_freq(137)
     lockin.turn_on()
 
