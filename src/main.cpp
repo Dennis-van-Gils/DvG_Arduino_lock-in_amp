@@ -2,7 +2,7 @@
 Arduino lock-in amplifier
 
 Dennis van Gils
-04-12-2018
+08-12-2018
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -38,14 +38,14 @@ DvG_SerialCommand sc_data(Ser_data);
 // Interrupt service routine clock
 // ISR_CLOCK: minimum 40 usec for only writing A0, no serial
 //            minimum 50 usec for writing A0 and reading A1 combined, no serial
-#define ISR_CLOCK 400     // 200 [usec]
+#define ISR_CLOCK 400     // [usec], 200 is critically stable, 400 is stable
 
 // Buffers
 // The buffer that will be send each transmission is BUFFER_SIZE samples long
 // for each variable. Double the amount of memory is reserved to employ a double
 // buffer technique, where alternatingly the first buffer half (buffer A) is
 // being written to and the second buffer half (buffer B) is being sent.
-#define BUFFER_SIZE 100   // [samples] 200
+#define BUFFER_SIZE 250   // [samples]
 const uint16_t DOUBLE_BUFFER_SIZE = 2 * BUFFER_SIZE;
 
 volatile uint32_t buffer_time       [DOUBLE_BUFFER_SIZE] = {0};
@@ -268,12 +268,18 @@ void loop() {
           // Reply identity string
           Ser_data.println("Arduino lock-in amp");
 
+        } else if (strcmpi(strCmd, "ISR_CLOCK?") == 0) {
+          Ser_data.println(ISR_CLOCK);
+
+        } else if (strcmpi(strCmd, "BUFFER_SIZE?") == 0) {
+          Ser_data.println(BUFFER_SIZE);
+
         } else if (strcmpi(strCmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
           Ser_data.print("already_off\n");
 
         } else if (strcmpi(strCmd, "on") == 0) {
-          // Start lock-in amp
+          // Start lock-in amp          
           noInterrupts();
           fRunning = true;
           fSend_buffer_A = false;
