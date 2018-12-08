@@ -6,8 +6,8 @@ acquisition for an Arduino(-like) device.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "02-12-2018"
-__version__     = "1.1.0"
+__date__        = "08-12-2018"
+__version__     = "1.2.0"
 
 from PyQt5 import QtCore
 import DvG_dev_Arduino__fun_serial as Arduino_functions
@@ -75,6 +75,7 @@ class Arduino_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                  DAQ_critical_not_alive_count=3,
                  DAQ_timer_type=QtCore.Qt.PreciseTimer,
                  DAQ_trigger_by=Dev_Base_pyqt_lib.DAQ_trigger.CONTINUOUS,
+                 calc_DAQ_rate_every_N_iter=25,
                  parent=None):
         super(Arduino_pyqt, self).__init__(parent=parent)
 
@@ -85,6 +86,7 @@ class Arduino_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                                DAQ_critical_not_alive_count,
                                DAQ_timer_type,
                                DAQ_trigger_by,
+                               calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
                                DEBUG=DEBUG_worker_DAQ)
 
         self.create_worker_send(DEBUG=DEBUG_worker_send)
