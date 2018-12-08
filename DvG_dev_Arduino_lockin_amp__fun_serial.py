@@ -2,6 +2,9 @@
 # -*- coding: utf-8 -*-
 """Module to communicate with an Arduino lock-in amp device over a serial
 connection.
+
+Dennis van Gils
+08-12-2018
 """
 
 import sys
@@ -29,6 +32,9 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         self.write_timeout = write_timeout
         self.read_term_char  = read_term_char
         self.write_term_char = write_term_char
+        
+        self.ISR_CLOCK = 0          # [s]
+        self.BUFFER_SIZE = 0        # [number of samples]
 
     """ Overload query"""    
     def query(self, msg_str, timeout_warning_style=1):
@@ -98,6 +104,21 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
 
         return [success, ans_str]
     
+    def begin(self):
+        """
+        Returns:
+            success
+        """
+        [success, ans_str] = self.query("ISR_CLOCK?")
+        if success:
+            self.ISR_CLOCK = int(ans_str)/1e6   # transform [us] to [s]
+        
+            [success, ans_str] = self.query("BUFFER_SIZE?")
+            if success:
+                self.BUFFER_SIZE = int(ans_str)
+
+        return success
+    
     def turn_on(self):
         """
         Returns:
@@ -149,6 +170,11 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         return [success, was_off, ans_bytes]
     
     def set_ref_freq(self, freq):
+        """
+        Returns:
+            success
+            ans_str
+        """
         return self.query("ref %f" % freq)
     
     def listen_to_lockin_amp(self):

@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "04-12-2018"
+__date__        = "08-12-2018"
 __version__     = "1.0.0"
 
 import os
@@ -30,7 +30,6 @@ import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Arduino__pyqt_lib as Arduino_pyqt_lib
 
 # Constants
-LOCKIN_BUFFER_SIZE = 100
 UPDATE_INTERVAL_GUI_WALL_CLOCK = 50 # 100 [ms]
 CHART_HISTORY_TIME = 10  # 10  [s]
 
@@ -46,6 +45,7 @@ class State(object):
     Arduino(s). There should only be one instance of the State class.
     """
     def __init__(self):
+        self.lockin_paused = True
         self.buffers_received = 0
         
         self.time  = np.array([], int)      # [ms]
@@ -61,6 +61,15 @@ class State(object):
 
 state = State()
 
+# ------------------------------------------------------------------------------
+#   current_date_time_strings()
+# ------------------------------------------------------------------------------
+
+def current_date_time_strings():
+    cur_date_time = QDateTime.currentDateTime()
+    return (cur_date_time.toString("dd-MM-yyyy"),
+            cur_date_time.toString("HH:mm:ss"))
+    
 # ------------------------------------------------------------------------------
 #   MainWindow
 # ------------------------------------------------------------------------------
@@ -78,13 +87,19 @@ class MainWindow(QtWid.QWidget):
 
         # Left box
         self.qlbl_update_counter = QtWid.QLabel("0")
+        self.qlbl_sample_rate = QtWid.QLabel("SAMPLE RATE: nan")
+        self.qlbl_buffer_size = QtWid.QLabel("BUFFER SIZE: nan")
         self.qlbl_DAQ_rate = QtWid.QLabel("Buffers/s: nan")
         self.qlbl_DAQ_rate.setMinimumWidth(100)
 
         vbox_left = QtWid.QVBoxLayout()
-        vbox_left.addWidget(self.qlbl_update_counter, stretch=0)
+        #vbox_left.addWidget(self.qlbl_update_counter, stretch=0)
+        #vbox_left.addStretch(1)
+        vbox_left.addWidget(self.qlbl_sample_rate, stretch=0)
+        vbox_left.addWidget(self.qlbl_buffer_size, stretch=0)
         vbox_left.addStretch(1)
         vbox_left.addWidget(self.qlbl_DAQ_rate, stretch=0)
+        vbox_left.addWidget(self.qlbl_update_counter, stretch=0)
 
          # Middle box
         self.qlbl_title = QtWid.QLabel("Arduino lock-in amplifier",
@@ -106,8 +121,12 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_exit.clicked.connect(self.close)
         self.qpbt_exit.setMinimumHeight(30)
 
+        p = {'alignment': QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter}
         vbox_right = QtWid.QVBoxLayout()
         vbox_right.addWidget(self.qpbt_exit, stretch=0)
+        vbox_right.addStretch(1)
+        vbox_right.addWidget(QtWid.QLabel("Dennis van Gils", **p), stretch=0)
+        vbox_right.addWidget(QtWid.QLabel("08-12-2018", **p), stretch=0)
         vbox_right.addStretch(1)
 
         # Round up top frame
@@ -135,18 +154,19 @@ class MainWindow(QtWid.QWidget):
         #self.pi_chart.setRange(xRange=[-40, 0],
         #                       yRange=[.9, 3.1],
         #                       disableAutoRange=True)
-        self.pi_chart.setXRange(-40, 0, padding=0)
+        self.pi_chart.setXRange(-ard.BUFFER_SIZE * ard.ISR_CLOCK * 1e3, 0,
+                                padding=0)
         self.pi_chart.setYRange(1, 3, padding=0.05)
 
         # Create ChartHistory and PlotDataItem and link them together
         PEN_01 = pg.mkPen(color=[255, 0  , 0], width=3)
         PEN_02 = pg.mkPen(color=[255, 125, 0], width=3)
         PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
-        self.CH_ref_X = ChartHistory(LOCKIN_BUFFER_SIZE,
+        self.CH_ref_X = ChartHistory(ard.BUFFER_SIZE,
                                      self.pi_chart.plot(pen=PEN_01))
-        self.CH_ref_Y = ChartHistory(LOCKIN_BUFFER_SIZE,
+        self.CH_ref_Y = ChartHistory(ard.BUFFER_SIZE,
                                      self.pi_chart.plot(pen=PEN_02))
-        self.CH_sig_I = ChartHistory(LOCKIN_BUFFER_SIZE,
+        self.CH_sig_I = ChartHistory(ard.BUFFER_SIZE,
                                      self.pi_chart.plot(pen=PEN_03))
         self.CH_ref_X.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_ref_Y.x_axis_divisor = 1000     # From [us] to [ms]
@@ -164,14 +184,18 @@ class MainWindow(QtWid.QWidget):
         self.qlin_sig_I = QtWid.QLineEdit(**p)
 
         grid = QtWid.QGridLayout()
-        grid.addWidget(QtWid.QLabel("time [0]") , 0, 0)
-        grid.addWidget(self.qlin_time           , 0, 1)
-        grid.addWidget(QtWid.QLabel("ref_X [0]"), 1, 0)
-        grid.addWidget(self.qlin_ref_X          , 1, 1)
-        grid.addWidget(QtWid.QLabel("ref_Y [0]"), 2, 0)
-        grid.addWidget(self.qlin_ref_Y          , 2, 1)
-        grid.addWidget(QtWid.QLabel("sig_I [0]"), 3, 0)
-        grid.addWidget(self.qlin_sig_I          , 3, 1)
+        grid.addWidget(QtWid.QLabel("time [0]:") , 0, 0)
+        grid.addWidget(self.qlin_time            , 0, 1)
+        grid.addWidget(QtWid.QLabel("us")        , 0, 2)
+        grid.addWidget(QtWid.QLabel("ref_X [0]:"), 1, 0)
+        grid.addWidget(self.qlin_ref_X           , 1, 1)
+        grid.addWidget(QtWid.QLabel("V")         , 1, 2)
+        grid.addWidget(QtWid.QLabel("ref_Y [0]:"), 2, 0)
+        grid.addWidget(self.qlin_ref_Y           , 2, 1)
+        grid.addWidget(QtWid.QLabel("V")         , 2, 2)
+        grid.addWidget(QtWid.QLabel("sig_I [0]:"), 3, 0)
+        grid.addWidget(self.qlin_sig_I           , 3, 1)
+        grid.addWidget(QtWid.QLabel("V")         , 3, 2)
         grid.setAlignment(QtCore.Qt.AlignTop)
 
         qgrp_readings = QtWid.QGroupBox("Readings")
@@ -219,17 +243,21 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbt_ENA_lockin(self):
         if self.qpbt_ENA_lockin.isChecked():
-            self.qpbt_ENA_lockin.setText("lock-in ON")
-            ard.turn_on()
-            #ard.ser.flush()
-            ard_pyqt.worker_DAQ.unpause()
-            #app.processEvents()
+            if ard.turn_on():
+                self.qpbt_ENA_lockin.setText("lock-in ON")
+                state.lockin_paused = False
+                #ard.ser.flush()
+                ard_pyqt.worker_DAQ.unpause()
+                #app.processEvents()
         else:
             self.qpbt_ENA_lockin.setText("lock-in OFF")
+            state.lockin_paused = True
             ard_pyqt.worker_DAQ.pause()
             ard.turn_off()
             #ard.ser.flush()
             #app.processEvents()
+            
+            window.qlbl_DAQ_rate.setText("Buffers/s: paused")
 
     @QtCore.pyqtSlot()
     def process_qpbt_clear_chart(self):
@@ -248,7 +276,9 @@ class MainWindow(QtWid.QWidget):
     def process_qpbt_record(self):
         if self.qpbt_record.isChecked():
             file_logger.starting = True
+            file_logger.stopping = False
         else:
+            file_logger.starting = False
             file_logger.stopping = True
 
     @QtCore.pyqtSlot(str)
@@ -261,26 +291,25 @@ class MainWindow(QtWid.QWidget):
 
 @QtCore.pyqtSlot()
 def update_GUI_wall_clock():
-    cur_date_time = QDateTime.currentDateTime()
-    str_cur_date  = cur_date_time.toString("dd-MM-yyyy")
-    str_cur_time  = cur_date_time.toString("HH:mm:ss")
+    str_cur_date, str_cur_time = current_date_time_strings()
     window.qlbl_cur_date_time.setText("%s    %s" % (str_cur_date, str_cur_time))
 
 @QtCore.pyqtSlot()
 def update_GUI():
-    #window.qlbl_cur_date_time.setText("%s    %s" % (str_cur_date, str_cur_time))
     window.qlbl_update_counter.setText("%i" % ard_pyqt.DAQ_update_counter)
-    window.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
-                                 ard_pyqt.obtained_DAQ_rate_Hz)
     
-    if window.qpbt_ENA_lockin.isChecked():
+    if not state.lockin_paused:
+        window.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
+                                     ard_pyqt.obtained_DAQ_rate_Hz)
         window.qlin_time.setText("%i" % state.time[0])
         window.qlin_ref_X.setText("%.4f" % state.ref_X[0])
         window.qlin_ref_Y.setText("%.4f" % state.ref_Y[0])
         window.qlin_sig_I.setText("%.4f" % state.sig_I[0])
+        
+        window.CH_ref_X.update_curve()
+        window.CH_ref_Y.update_curve()
+        window.CH_sig_I.update_curve()
     
-    update_chart()
-
 # ------------------------------------------------------------------------------
 #   update_chart
 # ------------------------------------------------------------------------------
@@ -290,10 +319,7 @@ def update_chart():
     if DEBUG:
         tick = QDateTime.currentDateTime()
 
-    if window.qpbt_ENA_lockin.isChecked():
-        window.CH_ref_X.update_curve()
-        window.CH_ref_Y.update_curve()
-        window.CH_sig_I.update_curve()
+    # For future charts
 
     if DEBUG:
         tack = QDateTime.currentDateTime()
@@ -319,6 +345,7 @@ def notify_connection_lost():
     excl = "    ! ! ! ! ! ! ! !    "
     window.qlbl_title.setText("%sLOST CONNECTION%s" % (excl, excl))
 
+    str_cur_date, str_cur_time = current_date_time_strings()
     str_msg = (("%s %s\n"
                 "Lost connection to Arduino(s).\n"
                 "  '%s', '%s': %salive") %
@@ -342,19 +369,25 @@ def about_to_quit():
 # ------------------------------------------------------------------------------
 
 def lockin_DAQ_update():
-    cur_date_time = QDateTime.currentDateTime()
-    str_cur_date  = cur_date_time.toString("dd-MM-yyyy")
-    str_cur_time  = cur_date_time.toString("HH:mm:ss")
+    str_cur_date, str_cur_time = current_date_time_strings()
     
     [success, ans_bytes] = ard.listen_to_lockin_amp()
+
+    # Prevent throwings errors when the lock-in was just set to pause
+    if state.lockin_paused:
+        return False
+    
     if not(success):
         dprint("'%s' reports IOError @ %s %s" %
                (ard.name, str_cur_date, str_cur_time))
         return False
     
     state.buffers_received += 1
-            
-    N_samples = int(len(ans_bytes) / struct.calcsize('LHH'))    
+    N_samples = int(len(ans_bytes) / struct.calcsize('LHH'))
+    if not(N_samples == ard.BUFFER_SIZE):
+        print("Wrong bumber of samples received")
+        return False
+    
     e_byte_time  = N_samples * struct.calcsize('L');
     e_byte_ref_X = e_byte_time + N_samples * struct.calcsize('H')
     e_byte_sig_I = e_byte_ref_X + N_samples * struct.calcsize('H')
@@ -390,7 +423,7 @@ def lockin_DAQ_update():
     
     # Logging to file
     if file_logger.starting:
-        fn_log = cur_date_time.toString("yyMMdd_HHmmss") + ".txt"
+        fn_log = QDateTime.currentDateTime().toString("yyMMdd_HHmmss") + ".txt"
         if file_logger.create_log(state.time, fn_log, mode='w'):
             file_logger.signal_set_recording_text.emit(
                 "Recording to file: " + fn_log)
@@ -403,7 +436,7 @@ def lockin_DAQ_update():
 
     if file_logger.is_recording:
         #log_elapsed_time = (state.time - file_logger.start_time)/1e3  # [sec]
-        file_logger.write("samples received: %i\n" % N_samples)
+        #file_logger.write("samples received: %i\n" % N_samples)
         for i in range(N_samples):
             file_logger.write("%i\t%.4f\t%.4f\t%.4f\n" % 
                               (time[i], ref_X[i], ref_Y[i], sig_I[i]))
@@ -432,7 +465,7 @@ if __name__ == '__main__':
     if not ard.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
         sys.exit(0)
         
-    ard.turn_off()
+    ard.begin()
     ard.set_ref_freq(100)
 
     """if not(ard.is_alive):
@@ -451,6 +484,8 @@ if __name__ == '__main__':
     app.aboutToQuit.connect(about_to_quit)
 
     window = MainWindow()
+    window.qlbl_sample_rate.setText("SAMPLE RATE: %.2f Hz" % (1/ard.ISR_CLOCK))
+    window.qlbl_buffer_size.setText("BUFFER SIZE  : %i" % ard.BUFFER_SIZE)
 
     # --------------------------------------------------------------------------
     #   File logger
@@ -467,7 +502,8 @@ if __name__ == '__main__':
     ard_pyqt = Arduino_pyqt_lib.Arduino_pyqt(
             dev=ard,
             DAQ_function_to_run_each_update=lockin_DAQ_update,
-            DAQ_critical_not_alive_count=np.nan)
+            DAQ_critical_not_alive_count=np.nan,
+            calc_DAQ_rate_every_N_iter=10)
 
     # Connect signals to slots
     ard_pyqt.signal_DAQ_updated.connect(update_GUI)
@@ -476,9 +512,6 @@ if __name__ == '__main__':
     # Start threads
     ard_pyqt.start_thread_worker_DAQ(QtCore.QThread.TimeCriticalPriority)
     ard_pyqt.start_thread_worker_send()
-    
-    # HACK
-    ard_pyqt.worker_DAQ.calc_DAQ_rate_every_N_iter = 25
 
     # --------------------------------------------------------------------------
     #   Create timers
