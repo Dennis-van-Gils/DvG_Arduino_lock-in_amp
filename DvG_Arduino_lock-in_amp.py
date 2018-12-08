@@ -21,6 +21,8 @@ from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 import numpy as np
 
+from collections import deque
+
 from DvG_pyqt_FileLogger   import FileLogger
 from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_controls     import create_Toggle_button, SS_GROUP
@@ -54,31 +56,45 @@ class State(object):
         self.sig_I = np.array([], float)
 
         """
-        These arrays are double the buffer size of the Arduino in order to
+        These arrays are N times the buffer size of the Arduino in order to
         facilitate preventing start/end effects due to FIR filtering.
-        A small shifting window will walk over these arrays and a FIR filter
-        using convolution will be applied, keeping only the valid samples (no
-        zero padding).
+        A smaller shifting window can walk over these arrays and a FIR filter
+        using convolution can be applied, where only the valid samples are kept
+        (no zero padding).
         
         Each time a complete buffer of BLOCK_SIZE samples is received from the
-        Arduino, it is appended to the end of these arrays after the oldest
-        data is shifted towards the beginning.
+        Arduino, it is appended to the end of these arrays (FIFO shift buffer).
         
-            hist_time = [received_buffer_1; received_buffer 2]
-            hist_time = [received_buffer_2; received_buffer 3]
-            hist_time = [received_buffer_3; received_buffer 4]
-            etc...
+            i.e. N = 3    
+                hist_time = [buffer_1; received_buffer_2; buffer_3]
+                hist_time = [buffer_2; received_buffer_3; buffer_4]
+                hist_time = [buffer_3; received_buffer_4; buffer_5]
+                etc...
         """
-        self.hist_time  = np.array([], int)      # [ms]
-        self.hist_ref_X = np.array([], float)
-        self.hist_ref_Y = np.array([], float)
-        self.hist_sig_I = np.array([], float)
+        self.hist_time  =  deque()
+        self.hist_ref_X = deque()
+        self.hist_ref_Y = deque()
+        self.hist_sig_I = deque()
+        self.hist_mix_X = deque()
+        self.hist_mix_Y = deque()
+        self.hist_out_amp = deque()
+        self.hist_out_phi = deque()
 
         # Mutex for proper multithreading. If the state variables are not
         # atomic or thread-safe, you should lock and unlock this mutex for each
         # read and write operation. In this demo we don't need it, but I keep it
         # as reminder.
         self.mutex = QtCore.QMutex()
+        
+    def init_shift_buffers(self, N):
+        self.hist_time  = deque(maxlen=N * ard.BUFFER_SIZE)
+        self.hist_ref_X = deque(maxlen=N * ard.BUFFER_SIZE)
+        self.hist_ref_Y = deque(maxlen=N * ard.BUFFER_SIZE)
+        self.hist_sig_I = deque(maxlen=N * ard.BUFFER_SIZE)
+        self.hist_mix_X = deque(maxlen=N * ard.BUFFER_SIZE)
+        self.hist_mix_Y = deque(maxlen=N * ard.BUFFER_SIZE)
+        self.hist_out_amp = deque(maxlen=N * ard.BUFFER_SIZE)
+        self.hist_out_phi = deque(maxlen=N * ard.BUFFER_SIZE)
 
 state = State()
 
@@ -427,20 +443,29 @@ def lockin_DAQ_update():
     ref_Y = np.sin(2*np.pi*phase_ref_X/12288)
     ref_Y = 2 + ref_Y                   # [V]
     sig_I = sig_I / (2**12 - 1)*3.3     # [V]
+    mix_X = ref_X * sig_I
+    mix_Y = ref_Y * sig_I
     
-    """
-    state.time  = np.append(state.time , time)
-    state.ref_X = np.append(state.ref_X, ref_X)
-    state.sig_I = np.append(state.sig_I, sig_I)
-    """
+    hist_out_amp = 2 * np.sqrt(mix_X**2 + mix_Y**2)
+    hist_out_phi = np.arctan(mix_Y / mix_X)
+    
     state.time  = time
     state.ref_X = ref_X
     state.ref_Y = ref_Y
     state.sig_I = sig_I
     
-    window.CH_ref_X.add_new_readings(state.time, state.ref_X)
-    window.CH_ref_Y.add_new_readings(state.time, state.ref_Y)
-    window.CH_sig_I.add_new_readings(state.time, state.sig_I)
+    state.hist_time.extend(time)
+    state.hist_ref_X.extend(ref_X)
+    state.hist_ref_Y.extend(ref_Y)
+    state.hist_sig_I.extend(sig_I)
+    state.hist_mix_X.extend(mix_X)
+    state.hist_mix_Y.extend(mix_Y)
+    state.hist_out_amp.extend(hist_out_amp)
+    state.hist_out_phi.extend(hist_out_phi)
+    
+    window.CH_ref_X.add_new_readings(time, ref_X)
+    window.CH_ref_Y.add_new_readings(time, ref_Y)
+    window.CH_sig_I.add_new_readings(time, sig_I)
     
     # Logging to file
     if file_logger.starting:
@@ -488,6 +513,8 @@ if __name__ == '__main__':
         
     ard.begin()
     ard.set_ref_freq(100)
+    
+    state.init_shift_buffers(N=3)
 
     """if not(ard.is_alive):
         print("\nCheck connection and try resetting the Arduino.")
