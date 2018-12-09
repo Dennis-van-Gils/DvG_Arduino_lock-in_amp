@@ -35,6 +35,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         self.ISR_CLOCK = 0          # [s]
         self.BUFFER_SIZE = 0        # [number of samples]
+        self.ref_freq = 0           # [Hz]
 
     """ Overload query"""    
     def query(self, msg_str, timeout_warning_style=1):
@@ -109,16 +110,13 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         Returns:
             success
         """
-        [success, ans_str] = self.query("ISR_CLOCK?")
-        if success:
-            self.ISR_CLOCK = int(ans_str)/1e6   # transform [us] to [s]
+        if self.get_ISR_CLOCK():
+            if self.get_BUFFER_SIZE():
+                if self.get_ref_freq():
+                    return True
         
-            [success, ans_str] = self.query("BUFFER_SIZE?")
-            if success:
-                self.BUFFER_SIZE = int(ans_str)
-
-        return success
-    
+        return False
+        
     def turn_on(self):
         """
         Returns:
@@ -169,13 +167,45 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
     
         return [success, was_off, ans_bytes]
     
+    def get_ISR_CLOCK(self):
+        """
+        Returns:
+            success
+        """
+        [success, ans_str] = self.query("ISR_CLOCK?")
+        if success:
+            self.ISR_CLOCK = int(ans_str)/1e6   # transform [us] to [s]
+        return success
+    
+    def get_BUFFER_SIZE(self):
+        """
+        Returns:
+            success
+        """
+        [success, ans_str] = self.query("BUFFER_SIZE?")
+        if success: 
+            self.BUFFER_SIZE = int(ans_str)
+        return success
+    
+    def get_ref_freq(self):
+        """
+        Returns:
+            success
+        """
+        [success, ans_str] = self.query("ref?")
+        if success:
+            self.ref_freq = float(ans_str)
+        return success
+    
     def set_ref_freq(self, freq):
         """
         Returns:
             success
-            ans_str
         """
-        return self.query("ref %f" % freq)
+        [success, ans_str] = self.query("ref %f" % freq)
+        if success:
+            self.ref_freq = float(ans_str)        
+        return success
     
     def listen_to_lockin_amp(self):
         """Reads incoming data packets coming from the lock-in amp. These
