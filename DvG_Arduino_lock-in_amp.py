@@ -22,6 +22,7 @@ import pyqtgraph as pg
 import numpy as np
 
 from collections import deque
+import time as Time
 
 from DvG_pyqt_FileLogger   import FileLogger
 from DvG_pyqt_ChartHistory import ChartHistory
@@ -412,8 +413,19 @@ class MainWindow(QtWid.QWidget):
         if not (ref_freq == ard.ref_freq):
             # TO DO: make special instruction on the Send worker queue
             # to pause, send, retrieve and unpause
+            was_paused = state.lockin_paused
+            
+            state.lockin_paused = True
+            ard_pyqt.worker_DAQ.pause()
+            app.processEvents()
+            Time.sleep(0.1)
+                
             ard.set_ref_freq(ref_freq) # HACK: Not thread safe !!!!!!
             window.qlin_read_ref_freq.setText("%.2f" % ard.ref_freq)
+
+            if not was_paused:
+                state.lockin_paused = False
+                ard_pyqt.worker_DAQ.unpause()
         
     @QtCore.pyqtSlot()
     def process_chkbs_refsig(self):
@@ -474,6 +486,9 @@ def update_chart_refsig():
 
 def stop_running():
     app.processEvents()
+    state.lockin_paused = True
+    ard_pyqt.worker_DAQ.pause()
+    ard.turn_off()
     ard_pyqt.close_all_threads()
     file_logger.close_log()
 
