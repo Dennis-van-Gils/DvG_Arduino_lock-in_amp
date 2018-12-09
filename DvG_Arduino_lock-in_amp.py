@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "08-12-2018"
+__date__        = "09-12-2018"
 __version__     = "1.0.0"
 
 import os
@@ -25,7 +25,9 @@ from collections import deque
 
 from DvG_pyqt_FileLogger   import FileLogger
 from DvG_pyqt_ChartHistory import ChartHistory
-from DvG_pyqt_controls     import create_Toggle_button, SS_GROUP
+from DvG_pyqt_controls     import (create_Toggle_button,
+                                   SS_GROUP,
+                                   SS_TEXTBOX_READ_ONLY)
 from DvG_debug_functions   import dprint, print_fancy_traceback as pft
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
@@ -96,17 +98,6 @@ class State(object):
         self.hist_out_amp = deque(maxlen=N * ard.BUFFER_SIZE)
         self.hist_out_phi = deque(maxlen=N * ard.BUFFER_SIZE)
 
-state = State()
-
-# ------------------------------------------------------------------------------
-#   current_date_time_strings()
-# ------------------------------------------------------------------------------
-
-def current_date_time_strings():
-    cur_date_time = QDateTime.currentDateTime()
-    return (cur_date_time.toString("dd-MM-yyyy"),
-            cur_date_time.toString("HH:mm:ss"))
-    
 # ------------------------------------------------------------------------------
 #   MainWindow
 # ------------------------------------------------------------------------------
@@ -117,26 +108,29 @@ class MainWindow(QtWid.QWidget):
 
         self.setGeometry(50, 50, 800, 660)
         self.setWindowTitle("Arduino lock-in amplifier")
+        self.setStyleSheet(SS_TEXTBOX_READ_ONLY)
 
-        # -------------------------
-        #   Top frame
-        # -------------------------
+        # -----------------------------------
+        # -----------------------------------
+        #   Frame top
+        # -----------------------------------
+        # -----------------------------------
 
         # Left box
         self.qlbl_update_counter = QtWid.QLabel("0")
-        self.qlbl_sample_rate = QtWid.QLabel("SAMPLE RATE: nan")
-        self.qlbl_buffer_size = QtWid.QLabel("BUFFER SIZE: nan")
+        self.qlbl_sample_rate = QtWid.QLabel("SAMPLE RATE: %.2f Hz" %
+                                             (1/ard.ISR_CLOCK))
+        self.qlbl_buffer_size = QtWid.QLabel("BUFFER SIZE  : %i" %
+                                             ard.BUFFER_SIZE)
         self.qlbl_DAQ_rate = QtWid.QLabel("Buffers/s: nan")
         self.qlbl_DAQ_rate.setMinimumWidth(100)
 
         vbox_left = QtWid.QVBoxLayout()
-        #vbox_left.addWidget(self.qlbl_update_counter, stretch=0)
-        #vbox_left.addStretch(1)
-        vbox_left.addWidget(self.qlbl_sample_rate, stretch=0)
-        vbox_left.addWidget(self.qlbl_buffer_size, stretch=0)
+        vbox_left.addWidget(self.qlbl_sample_rate)
+        vbox_left.addWidget(self.qlbl_buffer_size)
         vbox_left.addStretch(1)
-        vbox_left.addWidget(self.qlbl_DAQ_rate, stretch=0)
-        vbox_left.addWidget(self.qlbl_update_counter, stretch=0)
+        vbox_left.addWidget(self.qlbl_DAQ_rate)
+        vbox_left.addWidget(self.qlbl_update_counter)
 
          # Middle box
         self.qlbl_title = QtWid.QLabel("Arduino lock-in amplifier",
@@ -160,87 +154,178 @@ class MainWindow(QtWid.QWidget):
 
         p = {'alignment': QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter}
         vbox_right = QtWid.QVBoxLayout()
-        vbox_right.addWidget(self.qpbt_exit, stretch=0)
+        vbox_right.addWidget(self.qpbt_exit)
         vbox_right.addStretch(1)
-        vbox_right.addWidget(QtWid.QLabel("Dennis van Gils", **p), stretch=0)
-        vbox_right.addWidget(QtWid.QLabel("08-12-2018", **p), stretch=0)
-        vbox_right.addStretch(1)
+        vbox_right.addWidget(QtWid.QLabel("Dennis van Gils", **p))
+        vbox_right.addWidget(QtWid.QLabel("08-12-2018", **p))
 
-        # Round up top frame
+        # Round up frame
         hbox_top = QtWid.QHBoxLayout()
-        hbox_top.addLayout(vbox_left, stretch=0)
+        hbox_top.addLayout(vbox_left)
         hbox_top.addStretch(1)
-        hbox_top.addLayout(vbox_middle, stretch=0)
+        hbox_top.addLayout(vbox_middle)
         hbox_top.addStretch(1)
-        hbox_top.addLayout(vbox_right, stretch=0)
+        hbox_top.addLayout(vbox_right)
 
-        # -------------------------
-        #   Bottom frame
-        # -------------------------
-
-        # Create PlotItem
-        self.gw_chart = pg.GraphicsWindow()
-        self.gw_chart.setBackground([20, 20, 20])
-        self.pi_chart = self.gw_chart.addPlot()
+        # -----------------------------------
+        # -----------------------------------
+        #   Frame 'Reference and signal'
+        # -----------------------------------
+        # -----------------------------------
+        
+        # Chart 'Reference and signal'
+        self.gw_refsig = pg.GraphicsWindow()
+        self.gw_refsig.setBackground([20, 20, 20])
+        self.pi_refsig = self.gw_refsig.addPlot()
 
         p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_chart.showGrid(x=1, y=1)
-        self.pi_chart.setTitle('Arduino timeseries', **p)
-        self.pi_chart.setLabel('bottom', text='time (ms)', **p)
-        self.pi_chart.setLabel('left', text='voltage (V)', **p)
-        #self.pi_chart.setRange(xRange=[-40, 0],
-        #                       yRange=[.9, 3.1],
-        #                       disableAutoRange=True)
-        self.pi_chart.setXRange(-ard.BUFFER_SIZE * ard.ISR_CLOCK * 1e3, 0,
-                                padding=0)
-        self.pi_chart.setYRange(1, 3, padding=0.05)
+        self.pi_refsig.showGrid(x=1, y=1)
+        self.pi_refsig.setTitle('Reference and signal', **p)
+        self.pi_refsig.setLabel('bottom', text='time (ms)', **p)
+        self.pi_refsig.setLabel('left', text='voltage (V)', **p)
+        self.pi_refsig.setXRange(-ard.BUFFER_SIZE * ard.ISR_CLOCK * 1e3,
+                                 0, padding=0)
+        self.pi_refsig.setYRange(1, 3, padding=0.05)
+        self.pi_refsig.setAutoVisible(x=True, y=True)
+        self.pi_refsig.setClipToView(True)
 
-        # Create ChartHistory and PlotDataItem and link them together
-        PEN_01 = pg.mkPen(color=[255, 0  , 0], width=3)
-        PEN_02 = pg.mkPen(color=[255, 125, 0], width=3)
+        PEN_01 = pg.mkPen(color=[255, 0  , 0  ], width=3)
+        PEN_02 = pg.mkPen(color=[255, 125, 0  ], width=3)
         PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
+        PEN_04 = pg.mkPen(color=[255, 255, 255], width=3)
         self.CH_ref_X = ChartHistory(ard.BUFFER_SIZE,
-                                     self.pi_chart.plot(pen=PEN_01))
+                                     self.pi_refsig.plot(pen=PEN_01))
         self.CH_ref_Y = ChartHistory(ard.BUFFER_SIZE,
-                                     self.pi_chart.plot(pen=PEN_02))
+                                     self.pi_refsig.plot(pen=PEN_02))
         self.CH_sig_I = ChartHistory(ard.BUFFER_SIZE,
-                                     self.pi_chart.plot(pen=PEN_03))
+                                     self.pi_refsig.plot(pen=PEN_03))
         self.CH_ref_X.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_ref_Y.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_sig_I.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CHs_refsig = [self.CH_ref_X, self.CH_ref_Y, self.CH_sig_I]
 
         # 'On/off'
         self.qpbt_ENA_lockin = create_Toggle_button("lock-in OFF")
         self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
 
-        # 'Readings'
-        p = {'readOnly': True}
+        # 'Reference frequency'
+        self.qlin_set_ref_freq  = QtWid.QLineEdit("%.2f" % ard.ref_freq)
+        self.qlin_read_ref_freq = QtWid.QLineEdit("%.2f" % ard.ref_freq, 
+                                                  readOnly=True)
+        self.qlin_set_ref_freq.editingFinished.connect(
+                self.process_qlin_set_ref_freq)
+        
+        p = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
+        grid = QtWid.QGridLayout()
+        grid.addWidget(QtWid.QLabel("Set f_ref:", **p) , 0, 1)
+        grid.addWidget(self.qlin_set_ref_freq          , 0, 2)
+        grid.addWidget(QtWid.QLabel("Hz")              , 0, 3)
+        grid.addWidget(QtWid.QLabel("Read f_ref:", **p), 1, 1)
+        grid.addWidget(self.qlin_read_ref_freq         , 1, 2)
+        grid.addWidget(QtWid.QLabel("Hz")              , 1, 3)
+        
+        qgrp_ref_freq = QtWid.QGroupBox("Reference frequency")
+        qgrp_ref_freq.setStyleSheet(SS_GROUP)
+        qgrp_ref_freq.setLayout(grid)
+
+        # 'Reference and signal' readings
+        p = {'layoutDirection': QtCore.Qt.LeftToRight}
+        self.chkbs_refsig = [
+                QtWid.QCheckBox("(red) ref_X [0]:", **p, checked=True),
+                QtWid.QCheckBox("(ora) ref_Y [0]:", **p, checked=False),
+                QtWid.QCheckBox("(cya) sig_I [0]:", **p, checked=True)]
+        ([chkb.clicked.connect(self.process_chkbs_refsig) for chkb
+          in self.chkbs_refsig])
+        
+        p = {'readOnly': True, 'maximumWidth': 100}
         self.qlin_time  = QtWid.QLineEdit(**p)
         self.qlin_ref_X = QtWid.QLineEdit(**p)
         self.qlin_ref_Y = QtWid.QLineEdit(**p)
         self.qlin_sig_I = QtWid.QLineEdit(**p)
+        
+        self.qpbt_full_axes = QtWid.QPushButton("full axes")
+        self.qpbt_full_axes.clicked.connect(self.process_qpbt_full_axes)
+        self.qpbt_autoscale_y = QtWid.QPushButton("autoscale y-axis")
+        self.qpbt_autoscale_y.clicked.connect(self.process_qpbtn_autoscale_y)
 
         grid = QtWid.QGridLayout()
-        grid.addWidget(QtWid.QLabel("time [0]:") , 0, 0)
-        grid.addWidget(self.qlin_time            , 0, 1)
-        grid.addWidget(QtWid.QLabel("us")        , 0, 2)
-        grid.addWidget(QtWid.QLabel("ref_X [0]:"), 1, 0)
-        grid.addWidget(self.qlin_ref_X           , 1, 1)
-        grid.addWidget(QtWid.QLabel("V")         , 1, 2)
-        grid.addWidget(QtWid.QLabel("ref_Y [0]:"), 2, 0)
-        grid.addWidget(self.qlin_ref_Y           , 2, 1)
-        grid.addWidget(QtWid.QLabel("V")         , 2, 2)
-        grid.addWidget(QtWid.QLabel("sig_I [0]:"), 3, 0)
-        grid.addWidget(self.qlin_sig_I           , 3, 1)
-        grid.addWidget(QtWid.QLabel("V")         , 3, 2)
+        grid.addWidget(QtWid.QLabel("time [0]:"), 0, 0)
+        grid.addWidget(self.qlin_time           , 0, 1)
+        grid.addWidget(QtWid.QLabel("us")       , 0, 2)
+        grid.addWidget(self.chkbs_refsig[0]     , 1, 0)
+        grid.addWidget(self.qlin_ref_X          , 1, 1)
+        grid.addWidget(QtWid.QLabel("V")        , 1, 2)
+        grid.addWidget(self.chkbs_refsig[1]     , 2, 0)
+        grid.addWidget(self.qlin_ref_Y          , 2, 1)
+        grid.addWidget(QtWid.QLabel("V")        , 2, 2)
+        grid.addWidget(self.chkbs_refsig[2]     , 3, 0)
+        grid.addWidget(self.qlin_sig_I          , 3, 1)
+        grid.addWidget(QtWid.QLabel("V")        , 3, 2)
+        grid.addWidget(self.qpbt_full_axes      , 4, 0, 1, 2)
+        grid.addWidget(self.qpbt_autoscale_y    , 5, 0, 1, 2)
         grid.setAlignment(QtCore.Qt.AlignTop)
 
-        qgrp_readings = QtWid.QGroupBox("Readings")
-        qgrp_readings.setStyleSheet(SS_GROUP)
-        qgrp_readings.setLayout(grid)
+        qgrp_refsig = QtWid.QGroupBox("Reference and signal")
+        qgrp_refsig.setStyleSheet(SS_GROUP)
+        qgrp_refsig.setLayout(grid)
+        
+        # Round up frame
+        vbox_refsig = QtWid.QVBoxLayout()
+        vbox_refsig.addWidget(self.qpbt_ENA_lockin)
+        vbox_refsig.addWidget(qgrp_ref_freq)
+        vbox_refsig.addWidget(qgrp_refsig)
+        vbox_refsig.addStretch()
 
+        hbox_refsig = QtWid.QHBoxLayout()
+        hbox_refsig.addWidget(self.gw_refsig, stretch=1)
+        hbox_refsig.addLayout(vbox_refsig)
+        
+        # -----------------------------------
+        # -----------------------------------
+        #   Frame 'Mixer and filters'
+        # -----------------------------------
+        # -----------------------------------
+        
+        # Chart 'Mixer and filters'
+        self.gw_mixer = pg.GraphicsWindow()
+        self.gw_mixer.setBackground([20, 20, 20])
+        self.pi_mixer = self.gw_mixer.addPlot()
+        
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_mixer.showGrid(x=1, y=1)
+        self.pi_mixer.setTitle('Mixer', **p)
+        self.pi_mixer.setLabel('bottom', text='time (ms)', **p)
+        self.pi_mixer.setLabel('left', text='AC ampl. (V%s)' % chr(0xb2), 
+                               **p)
+        self.pi_mixer.setXRange(-ard.BUFFER_SIZE * ard.ISR_CLOCK * 1e3,
+                                 0, padding=0)
+        self.pi_mixer.setYRange(-1, 1, padding=0.05)
+        self.pi_mixer.setAutoVisible(x=True, y=True)
+        self.pi_mixer.setClipToView(True)
+        
+        self.CH_mix_X = ChartHistory(ard.BUFFER_SIZE,
+                                     self.pi_mixer.plot(pen=PEN_03))
+        self.CH_mix_Y = ChartHistory(ard.BUFFER_SIZE,
+                                     self.pi_mixer.plot(pen=PEN_04))
+        self.CH_mix_X.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CH_mix_Y.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CHs_mixer = [self.CH_mix_X, self.CH_mix_Y]
+        
+        # Round up frame
         """
-        # 'Chart'
+        vbox_mixer = QtWid.QVBoxLayout()
+        vbox_mixer.addWidget(self.qpbt_ENA_lockin)
+        vbox_mixer.addWidget(qgrp_ref_freq)
+        vbox_mixer.addWidget(qgrp_refsig)
+        vbox_mixer.addStretch()
+        """
+
+        hbox_mixer = QtWid.QHBoxLayout()
+        hbox_mixer.addWidget(self.gw_mixer, stretch=1)
+        #hbox_mixer.addLayout(vbox_mixer)
+        
+        """
+        # Chart 'Mixer and filters'
         self.qpbt_clear_chart = QtWid.QPushButton("Clear")
         self.qpbt_clear_chart.clicked.connect(self.process_qpbt_clear_chart)
 
@@ -253,25 +338,17 @@ class MainWindow(QtWid.QWidget):
         qgrp_chart.setLayout(grid)
         """
 
-        vbox = QtWid.QVBoxLayout()
-        vbox.addWidget(self.qpbt_ENA_lockin)
-        vbox.addWidget(qgrp_readings)
-        #vbox.addWidget(qgrp_chart)
-        vbox.addStretch()
-
-        # Round up bottom frame
-        hbox_bot = QtWid.QHBoxLayout()
-        hbox_bot.addWidget(self.gw_chart, 1)
-        hbox_bot.addLayout(vbox, 0)
-
-        # -------------------------
+        # -----------------------------------
+        # -----------------------------------
         #   Round up full window
-        # -------------------------
-
+        # -----------------------------------
+        # -----------------------------------
+        
         vbox = QtWid.QVBoxLayout(self)
-        vbox.addLayout(hbox_top, stretch=0)
+        vbox.addLayout(hbox_top)
         vbox.addSpacerItem(QtWid.QSpacerItem(0, 20))
-        vbox.addLayout(hbox_bot, stretch=1)
+        vbox.addLayout(hbox_refsig, stretch=1)
+        vbox.addLayout(hbox_mixer, stretch=1)
 
     # --------------------------------------------------------------------------
     #   Handle controls
@@ -287,14 +364,13 @@ class MainWindow(QtWid.QWidget):
                 ard_pyqt.worker_DAQ.unpause()
                 #app.processEvents()
         else:
+            window.qlbl_DAQ_rate.setText("Buffers/s: paused")
             self.qpbt_ENA_lockin.setText("lock-in OFF")
             state.lockin_paused = True
             ard_pyqt.worker_DAQ.pause()
             ard.turn_off()
             #ard.ser.flush()
             #app.processEvents()
-            
-            window.qlbl_DAQ_rate.setText("Buffers/s: paused")
 
     @QtCore.pyqtSlot()
     def process_qpbt_clear_chart(self):
@@ -321,10 +397,48 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot(str)
     def set_text_qpbt_record(self, text_str):
         self.qpbt_record.setText(text_str)
+        
+    @QtCore.pyqtSlot()
+    def process_qlin_set_ref_freq(self):
+        try:
+            ref_freq = float(window.qlin_set_ref_freq.text())
+        except ValueError:
+            ref_freq = ard.ref_freq
+
+        # Clip between 0 and the Nyquist frequency of the lock-in sampling rate
+        ref_freq = np.clip(ref_freq, 0, 1/ard.ISR_CLOCK/2)
+        window.qlin_set_ref_freq.setText("%.2f" % ref_freq)
+        
+        if not (ref_freq == ard.ref_freq):
+            # TO DO: make special instruction on the Send worker queue
+            # to pause, send, retrieve and unpause
+            ard.set_ref_freq(ref_freq) # HACK: Not thread safe !!!!!!
+            window.qlin_read_ref_freq.setText("%.2f" % ard.ref_freq)
+        
+    @QtCore.pyqtSlot()
+    def process_chkbs_refsig(self):
+        if state.lockin_paused:
+            update_chart_refsig()  # Force update graph
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_full_axes(self):
+        self.pi_refsig.setXRange(-ard.BUFFER_SIZE * ard.ISR_CLOCK * 1e3, 0,
+                                 padding=0)
+        self.process_qpbtn_autoscale_y()
+
+    @QtCore.pyqtSlot()
+    def process_qpbtn_autoscale_y(self):
+        self.pi_refsig.enableAutoRange('y', True)
+        self.pi_refsig.enableAutoRange('y', False)
 
 # ------------------------------------------------------------------------------
-#   update_GUI
+#   Update GUI routines
 # ------------------------------------------------------------------------------
+
+def current_date_time_strings():
+    cur_date_time = QDateTime.currentDateTime()
+    return (cur_date_time.toString("dd-MM-yyyy"),
+            cur_date_time.toString("HH:mm:ss"))
 
 @QtCore.pyqtSlot()
 def update_GUI_wall_clock():
@@ -343,25 +457,17 @@ def update_GUI():
         window.qlin_ref_Y.setText("%.4f" % state.ref_Y[0])
         window.qlin_sig_I.setText("%.4f" % state.sig_I[0])
         
-        window.CH_ref_X.update_curve()
-        window.CH_ref_Y.update_curve()
-        window.CH_sig_I.update_curve()
-    
-# ------------------------------------------------------------------------------
-#   update_chart
-# ------------------------------------------------------------------------------
+        update_chart_refsig()
+        
+        [CH.update_curve() for CH in window.CHs_mixer]
 
 @QtCore.pyqtSlot()
-def update_chart():
-    if DEBUG:
-        tick = QDateTime.currentDateTime()
-
-    # For future charts
-
-    if DEBUG:
-        tack = QDateTime.currentDateTime()
-        dprint("  update_curve done in %d ms" % tick.msecsTo(tack))
-
+def update_chart_refsig():
+    [CH.update_curve() for CH in window.CHs_refsig]
+    for i in range(3):
+        window.CHs_refsig[i].curve.setVisible(
+                window.chkbs_refsig[i].isChecked())
+        
 # ------------------------------------------------------------------------------
 #   Program termination routines
 # ------------------------------------------------------------------------------
@@ -409,20 +515,19 @@ def lockin_DAQ_update():
     str_cur_date, str_cur_time = current_date_time_strings()
     
     [success, ans_bytes] = ard.listen_to_lockin_amp()
-
-    # Prevent throwings errors when the lock-in was just set to pause
-    if state.lockin_paused:
+    if state.lockin_paused:     # Prevent throwings errors if just paused
         return False
     
     if not(success):
-        dprint("'%s' reports IOError @ %s %s" %
+        dprint("'%s' ERROR I/O       @ %s %s" %
                (ard.name, str_cur_date, str_cur_time))
         return False
     
     state.buffers_received += 1
     N_samples = int(len(ans_bytes) / struct.calcsize('LHH'))
     if not(N_samples == ard.BUFFER_SIZE):
-        print("Wrong bumber of samples received")
+        dprint("'%s' ERROR N_samples @ %s %s" %
+               (ard.name, str_cur_date, str_cur_time))
         return False
     
     e_byte_time  = N_samples * struct.calcsize('L');
@@ -443,11 +548,18 @@ def lockin_DAQ_update():
     ref_Y = np.sin(2*np.pi*phase_ref_X/12288)
     ref_Y = 2 + ref_Y                   # [V]
     sig_I = sig_I / (2**12 - 1)*3.3     # [V]
-    mix_X = ref_X * sig_I
-    mix_Y = ref_Y * sig_I
     
-    hist_out_amp = 2 * np.sqrt(mix_X**2 + mix_Y**2)
-    hist_out_phi = np.arctan(mix_Y / mix_X)
+    mix_X = (ref_X - 2) * (sig_I - 2)
+    mix_Y = (ref_Y - 2) * (sig_I - 2)
+    
+    out_amp = 2 * np.sqrt(mix_X**2 + mix_Y**2)
+    # NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a division
+    # by (mix_X = 0) is handled correctly due to 'numpy.inf'.
+    # Likewise, 'numpy.arctan(numpy.inf)' will result in pi/2.
+    # We suppress the RuntimeWarning: divide by zero encountered in true_divide.
+    np.seterr(divide='ignore')
+    out_phi = np.arctan(mix_Y / mix_X)
+    np.seterr(divide='warn')
     
     state.time  = time
     state.ref_X = ref_X
@@ -460,12 +572,15 @@ def lockin_DAQ_update():
     state.hist_sig_I.extend(sig_I)
     state.hist_mix_X.extend(mix_X)
     state.hist_mix_Y.extend(mix_Y)
-    state.hist_out_amp.extend(hist_out_amp)
-    state.hist_out_phi.extend(hist_out_phi)
+    state.hist_out_amp.extend(out_amp)
+    state.hist_out_phi.extend(out_phi)
     
     window.CH_ref_X.add_new_readings(time, ref_X)
     window.CH_ref_Y.add_new_readings(time, ref_Y)
     window.CH_sig_I.add_new_readings(time, sig_I)
+    
+    window.CH_mix_X.add_new_readings(time, mix_X)
+    window.CH_mix_Y.add_new_readings(time, mix_Y)
     
     # Logging to file
     if file_logger.starting:
@@ -481,8 +596,6 @@ def lockin_DAQ_update():
         file_logger.close_log()
 
     if file_logger.is_recording:
-        #log_elapsed_time = (state.time - file_logger.start_time)/1e3  # [sec]
-        #file_logger.write("samples received: %i\n" % N_samples)
         for i in range(N_samples):
             file_logger.write("%i\t%.4f\t%.4f\t%.4f\n" % 
                               (time[i], ref_X[i], ref_Y[i], sig_I[i]))
@@ -514,6 +627,7 @@ if __name__ == '__main__':
     ard.begin()
     ard.set_ref_freq(100)
     
+    state = State()
     state.init_shift_buffers(N=3)
 
     """if not(ard.is_alive):
@@ -532,8 +646,6 @@ if __name__ == '__main__':
     app.aboutToQuit.connect(about_to_quit)
 
     window = MainWindow()
-    window.qlbl_sample_rate.setText("SAMPLE RATE: %.2f Hz" % (1/ard.ISR_CLOCK))
-    window.qlbl_buffer_size.setText("BUFFER SIZE  : %i" % ard.BUFFER_SIZE)
 
     # --------------------------------------------------------------------------
     #   File logger
