@@ -4,7 +4,7 @@
 connection.
 
 Dennis van Gils
-08-12-2018
+09-12-2018
 """
 
 import sys
@@ -110,10 +110,12 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         Returns:
             success
         """
-        if self.get_ISR_CLOCK():
-            if self.get_BUFFER_SIZE():
-                if self.get_ref_freq():
-                    return True
+        [success, foo, bar] = self.turn_off()
+        if success:
+            if self.get_ISR_CLOCK():
+                if self.get_BUFFER_SIZE():
+                    if self.get_ref_freq():
+                        return True
         
         return False
         
@@ -208,10 +210,9 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         return success
     
     def listen_to_lockin_amp(self):
-        """Reads incoming data packets coming from the lock-in amp. These
-        packets should binary decode the time-stamp, reference signal and input 
-        signal as send by the lock-in amp. This method is blocking until it
-        receives an 'end-of-message' sentinel.
+        """Reads incoming data packets coming from the lock-in amp. This method
+        is blocking until it receives an 'end-of-message' sentinel or until it
+        times out.
         
         Returns:
             success
