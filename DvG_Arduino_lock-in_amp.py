@@ -107,7 +107,7 @@ class MainWindow(QtWid.QWidget):
     def __init__(self, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
-        self.setGeometry(50, 50, 800, 660)
+        self.setGeometry(50, 50, 900, 800)
         self.setWindowTitle("Arduino lock-in amplifier")
         self.setStyleSheet(SS_TEXTBOX_READ_ONLY)
 
