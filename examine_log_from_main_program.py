@@ -35,7 +35,7 @@ with open(fn, 'w') as file:
   file.write(filedata)
 
 a = np.loadtxt(fn, skiprows=1)
-time  = np.array(a[:, 0])
+time  = np.array(a[:, 0])/1e3
 ref_X = np.array(a[:, 1])
 ref_Y = np.array(a[:, 2])
 sig_I = np.array(a[:, 3])
@@ -44,7 +44,7 @@ plt.plot(time - time[0], ref_X, 'x-r')
 plt.plot(time - time[0], ref_Y, 'x-y')
 plt.plot(time - time[0], sig_I, 'x-b')
 plt.grid()
-plt.xlabel("time (us)")
+plt.xlabel("time (ms)")
 plt.ylabel("voltage (V)")
 plt.title(fn)
 
