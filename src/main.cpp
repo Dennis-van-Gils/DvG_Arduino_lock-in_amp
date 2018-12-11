@@ -305,7 +305,8 @@ void loop() {
   }
 
   // Send buffers over the data channel
-  if (fSend_buffer_A || fSend_buffer_B) {
+  // IDEA: should also test for fRunning here, 11-12-2018 DvG
+  if (fRunning && (fSend_buffer_A || fSend_buffer_B)) {
     uint16_t bytes_sent = 0;
     uint16_t idx;
 
