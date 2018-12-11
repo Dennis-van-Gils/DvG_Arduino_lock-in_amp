@@ -36,6 +36,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         self.ISR_CLOCK = 0          # [s]
         self.BUFFER_SIZE = 0        # [number of samples]
         self.ref_freq = 0           # [Hz]
+        self.lockin_paused = True
 
     """ Overload query"""    
     def query(self, msg_str, timeout_warning_style=1):
