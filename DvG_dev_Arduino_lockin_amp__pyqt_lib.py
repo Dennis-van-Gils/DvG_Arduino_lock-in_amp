@@ -95,6 +95,44 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         self.create_worker_send(alt_process_jobs_function=
                                 self.alt_process_jobs_function,
                                 DEBUG=DEBUG_worker_send)
+        
+    def turn_on(self):
+        """
+        Returns:
+            success
+        """
+        locker = QtCore.QMutexLocker(self.dev.mutex)
+        #self.dev.ser.flush() # Clear potentially left over binary data
+        #self.dev.ser.flushInput()
+        #self.dev.ser.flushOutput()
+        if self.dev.turn_on():
+            self.dev.lockin_paused = False
+            self.worker_DAQ.unpause()
+            return True
+        
+        locker.unlock()
+        return False
+    
+    def turn_off(self):
+        """
+        Returns:
+            success
+        """
+        self.dev.lockin_paused = True
+        self.worker_DAQ.pause() # Stop retrieving binary data buffers
+        
+        #self.dev.ser.flush()    # Clear potentially left over binary data
+        #self.dev.ser.flushInput()
+        #self.dev.ser.flushOutput()
+        locker = QtCore.QMutexLocker(self.dev.mutex)
+        [success, foo, bar] = self.dev.turn_off()
+        locker.unlock()
+        #self.dev.ser.flush()    # Clear potentially left over binary data
+        
+        return success
+    
+    def set_ref_freq(self, ref_freq):
+        self.worker_send.queued_instruction("set_ref_freq", ref_freq)
     
     # --------------------------------------------------------------------------
     #   alt_process_jobs_function
@@ -106,16 +144,12 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             
             if not (ref_freq == self.dev.ref_freq):
                 was_paused = self.dev.lockin_paused
-                
-                self.dev.lockin_paused = True
-                self.worker_DAQ.pause()
-                    
+                self.turn_off()
                 self.dev.set_ref_freq(ref_freq)
                 self.signal_ref_freq_is_set.emit()
     
                 if not was_paused:
-                    self.dev.lockin_paused = False
-                    self.worker_DAQ.unpause()
+                    self.dev.turn_on()
 
         else:
             # Default job handling

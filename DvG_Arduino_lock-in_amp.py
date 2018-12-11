@@ -357,20 +357,12 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbt_ENA_lockin(self):
         if self.qpbt_ENA_lockin.isChecked():
-            if lockin.turn_on():
+            if lockin_pyqt.turn_on():
                 self.qpbt_ENA_lockin.setText("lock-in ON")
-                lockin.lockin_paused = False
-                #lockin.ser.flush()
-                lockin_pyqt.worker_DAQ.unpause()
-                #app.processEvents()
         else:
-            window.qlbl_DAQ_rate.setText("Buffers/s: paused")
-            self.qpbt_ENA_lockin.setText("lock-in OFF")
-            lockin.lockin_paused = True
-            lockin_pyqt.worker_DAQ.pause()
-            lockin.turn_off()
-            #lockin.ser.flush()
-            #app.processEvents()
+            if lockin_pyqt.turn_off():
+                self.qlbl_DAQ_rate.setText("Buffers/s: paused")
+                self.qpbt_ENA_lockin.setText("lock-in OFF")
 
     @QtCore.pyqtSlot()
     def process_qpbt_clear_chart(self):
@@ -409,7 +401,7 @@ class MainWindow(QtWid.QWidget):
         ref_freq = np.clip(ref_freq, 0, 1/lockin.ISR_CLOCK/2)        
         
         self.qlin_set_ref_freq.setText("%.2f" % ref_freq)
-        lockin_pyqt.worker_send.queued_instruction("set_ref_freq", ref_freq)
+        lockin_pyqt.set_ref_freq(ref_freq)
         app.processEvents()
         
     @QtCore.pyqtSlot()
@@ -475,9 +467,7 @@ def update_chart_refsig():
 
 def stop_running():
     app.processEvents()
-    lockin.lockin_paused = True
-    lockin_pyqt.worker_DAQ.pause()
-    lockin.turn_off()
+    lockin_pyqt.turn_off()
     lockin_pyqt.close_all_threads()
     file_logger.close_log()
 

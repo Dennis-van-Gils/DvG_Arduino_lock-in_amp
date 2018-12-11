@@ -38,74 +38,6 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         self.ref_freq = 0           # [Hz]
         self.lockin_paused = True
 
-    """ Overload query"""    
-    def query(self, msg_str, timeout_warning_style=1):
-        """First, switch off the lock-in amp if it isn't already. Next, send a
-        message to the lock-in amp and subsequently read the reply.
-
-        Args:
-            msg_str (str):
-                Message to be sent to the serial device.
-            timeout_warning_style (int, optional):
-                Work-around for the Serial library not throwing an exception
-                when read has timed out.
-                1 (default): Will print a traceback error message on screen and
-                continue.
-                2: Will raise the exception again.
-
-        Returns:
-            success (bool):
-                True if successful, False otherwise.
-            ans_str (str):
-                Reply received from the device. [None] if unsuccessful.
-        """
-        success = False
-        was_off = None
-        ans_str = None
-
-        # We must make sure the lock-in is off to prevent binary data being sent
-        # continuously by the lock-in.
-        [successful_off, was_off, ans_bytes] = \
-            self.turn_off(timeout_warning_style=1)
-        if not(successful_off):
-            return [success, ans_str]
-        
-        if self.write(msg_str, timeout_warning_style):
-            try:
-                ans_bytes = self.ser.read_until(self.read_term_char.encode())
-            except (serial.SerialTimeoutException,
-                    serial.SerialException) as err:
-                # Note though: The Serial library does not throw an
-                # exception when it actually times out! We will check for
-                # zero received bytes as indication for timeout, later.
-                pft(err, 3)
-            except Exception as err:
-                pft(err, 3)
-                sys.exit(1)
-            else:
-                if (len(ans_bytes) == 0):
-                    # Received 0 bytes, probably due to a timeout.
-                    if timeout_warning_style == 1:
-                        pft("Received 0 bytes. Read probably timed out.", 3)
-                    elif timeout_warning_style == 2:
-                        raise(serial.SerialTimeoutException)
-                else:
-                    try:
-                        ans_str = ans_bytes.decode('utf8').strip()
-                    except UnicodeDecodeError as err:
-                        # Print error and struggle on
-                        pft(err, 3)
-                    except Exception as err:
-                        pft(err, 3)
-                        sys.exit(1)
-                    else:
-                        success = True
-
-        if not(was_off):
-            self.turn_on()
-
-        return [success, ans_str]
-    
     def begin(self):
         """
         Returns:
@@ -139,12 +71,18 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         ans_bytes = b''
         
         # First ensure the lock-in amp will switch off if not already so.
+        self.ser.flushInput()
         if self.write("off", timeout_warning_style):
             self.ser.flushOutput()
+            #self.ser.flush()
             
             # Check for acknowledgement reply        
             try:
+                self.ser.timeout = 3
                 ans_bytes = self.ser.read_until("off\n".encode())
+                print(ans_bytes)
+                print(ans_bytes[-4:].decode())
+                print("found off")
             except (serial.SerialTimeoutException,
                     serial.SerialException) as err:
                 # Note though: The Serial library does not throw an
