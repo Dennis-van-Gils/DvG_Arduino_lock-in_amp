@@ -249,6 +249,7 @@ void loop() {
         // flooding the receiving buffer at the PC side if 'fRunning' was not
         // switched to false fast enough.
         Ser_data.flush();
+        //delayMicroseconds(500);
           
         // Confirm at the PC side that the lock-in amp is off and is not longer
         // sending binary data. The 'off' message might still be preceded with
