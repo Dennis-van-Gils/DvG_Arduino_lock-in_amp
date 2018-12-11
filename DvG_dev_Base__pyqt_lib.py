@@ -41,7 +41,7 @@ MAIN CONTENTS:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "08-12-2018"
+__date__        = "11-12-2018"
 __version__     = "1.2.0"
 
 from enum import IntEnum, unique
@@ -173,6 +173,7 @@ class Dev_Base_pyqt(QtCore.QObject):
         super(Dev_Base_pyqt, self).__init__(parent=parent)
 
         self.dev = self.NoAttachedDevice()
+        self.dev.mutex = QtCore.QMutex()
         self.worker_DAQ = None
         self.worker_send = None
 
@@ -185,7 +186,6 @@ class Dev_Base_pyqt(QtCore.QObject):
     class NoAttachedDevice():
         name = "NoAttachedDevice"
         is_alive = False
-        mutex = None
 
     # --------------------------------------------------------------------------
     #   attach_device
@@ -196,7 +196,6 @@ class Dev_Base_pyqt(QtCore.QObject):
         """
         if type(self.dev) == self.NoAttachedDevice:
             self.dev = dev
-            self.dev.mutex = QtCore.QMutex()
         else:
             pft("Device can be attached only once. Already attached to '%s'." %
                 self.dev.name)
