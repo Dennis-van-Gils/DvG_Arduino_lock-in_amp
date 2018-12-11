@@ -6,7 +6,7 @@ acquisition for an Arduino(-like) device.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "08-12-2018"
+__date__        = "11-12-2018"
 __version__     = "1.2.0"
 
 from PyQt5 import QtCore
