@@ -56,7 +56,6 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         was_paused = self.lockin_paused
         
         if not was_paused:
-            print("safe off init")
             self.turn_off()
         
         [success, ans_str] = self.query(msg_str, timeout_warning_style)
@@ -96,11 +95,10 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             
             # Check for acknowledgement reply        
             try:
-                #self.ser.read_timeout = 3
                 ans_bytes = self.ser.read_until("off\n".encode())
-                print(len(ans_bytes))
-                print("found off: ", end ='')
-                print(ans_bytes[-4:])
+                #print(len(ans_bytes))
+                #print("found off: ", end ='')
+                #print(ans_bytes[-4:])
             except (serial.SerialTimeoutException,
                     serial.SerialException) as err:
                 # Note though: The Serial library does not throw an

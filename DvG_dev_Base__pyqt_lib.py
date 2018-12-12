@@ -434,6 +434,7 @@ class Dev_Base_pyqt(QtCore.QObject):
                 self.calc_DAQ_rate_every_N_iter = calc_DAQ_rate_every_N_iter
                 self.running = True
                 self.paused = True
+                self.paused_finally = True
                 
             self.prev_tick_DAQ_update = 0
             self.prev_tick_DAQ_rate = 0
@@ -478,9 +479,11 @@ class Dev_Base_pyqt(QtCore.QObject):
             elif self.trigger_by == DAQ_trigger.CONTINUOUS:
                 while self.running:
                     if self.paused:
+                        self.paused_finally = True
                         time.sleep(0.01)  # Do not hog the CPU
                         pass
                     else:
+                        self.paused_finally = False
                         self.update()
 
         @QtCore.pyqtSlot()

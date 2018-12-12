@@ -6,15 +6,13 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "08-12-2018"
+__date__        = "12-12-2018"
 __version__     = "1.2.0"
 
 from PyQt5 import QtCore, QtWidgets as QtWid
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
-
-import time as Time
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG_worker_DAQ  = False
@@ -104,12 +102,11 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             success
         """
         locker = QtCore.QMutexLocker(self.dev.mutex)
-        #self.dev.ser.flush() # Clear potentially left over binary data
-        #self.dev.ser.flushInput()
-        #self.dev.ser.flushOutput()
+        
         if self.dev.turn_on():
             self.worker_DAQ.unpause()
-            return True
+            QtWid.QApplication.processEvents()
+            return True        
         
         locker.unlock()
         return False
@@ -119,18 +116,14 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         Returns:
             success
         """
-        self.worker_DAQ.pause() # Stop retrieving binary data buffers
-        QtWid.QApplication.processEvents()
-        Time.sleep(0.1)
+        self.worker_DAQ.pause() # Stop retrieving binary data buffers        
+        while not self.worker_DAQ.paused_finally:
+            QtWid.QApplication.processEvents()
         
-        #self.dev.ser.flush()    # Clear potentially left over binary data
-        #self.dev.ser.flushInput()
-        #self.dev.ser.flushOutput()
         locker = QtCore.QMutexLocker(self.dev.mutex)
         [success, foo, bar] = self.dev.turn_off()
         locker.unlock()
-        #self.dev.ser.flush()    # Clear potentially left over binary data
-        
+
         return success
     
     def set_ref_freq(self, ref_freq):
@@ -149,8 +142,8 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 
                 if not was_paused:
                     self.worker_DAQ.pause() # Stop retrieving binary data buffers
-                    QtWid.QApplication.processEvents()
-                    Time.sleep(0.1)
+                    while not self.worker_DAQ.paused_finally:
+                        QtWid.QApplication.processEvents()
                 
                 self.dev.set_ref_freq(ref_freq)
                 self.signal_ref_freq_is_set.emit()
