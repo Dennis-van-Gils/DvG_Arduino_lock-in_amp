@@ -614,7 +614,7 @@ if __name__ == '__main__':
     #   Connect to Arduino
     # --------------------------------------------------------------------------
 
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1.5e6, read_timeout=.5)
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=3e5, read_timeout=5)
     if not lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
         sys.exit(0)
         

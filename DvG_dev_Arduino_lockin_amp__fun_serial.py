@@ -19,7 +19,7 @@ EOM = bytes([0x00, 0x00, 0x00, 0x00, 0xff]) # End of message
 class Arduino_lockin_amp(Arduino_functions.Arduino):
     def __init__(self, 
                  name="Lockin",
-                 baudrate=1500000,
+                 baudrate=3e5,
                  read_timeout=1,
                  write_timeout=1,
                  read_term_char='\n',
@@ -51,38 +51,56 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                         return True
         
         return False
+    
+    def safe_query(self, msg_str, timeout_warning_style=1):
+        was_paused = self.lockin_paused
+        
+        if not was_paused:
+            print("safe off init")
+            self.turn_off()
+        
+        [success, ans_str] = self.query(msg_str, timeout_warning_style)
+            
+        if success and not was_paused:
+            self.turn_on()
+            
+        return [success, ans_str]
         
     def turn_on(self):
         """
         Returns:
             success
         """
-        return self.write("on")
+        success = self.write("on")
+        if success:
+            self.lockin_paused = False
+        
+        return success
         
     def turn_off(self, timeout_warning_style=1):
         """
         Returns:
             success
             was_off
-            ans_bytes
+            ans_bytes: for debugging purposes
         """
         success = False
         was_off = True
         ans_bytes = b''
         
         # First ensure the lock-in amp will switch off if not already so.
-        self.ser.flushInput()
+        self.ser.flushInput() # Essential to clear potential large amount of
+                              # binary data waiting in the buffer to be read
         if self.write("off", timeout_warning_style):
-            self.ser.flushOutput()
-            #self.ser.flush()
+            self.ser.flushOutput() # Send out 'off' as fast as possible
             
             # Check for acknowledgement reply        
             try:
-                self.ser.timeout = 3
+                #self.ser.read_timeout = 3
                 ans_bytes = self.ser.read_until("off\n".encode())
-                print(ans_bytes)
-                print(ans_bytes[-4:].decode())
-                print("found off")
+                print(len(ans_bytes))
+                print("found off: ", end ='')
+                print(ans_bytes[-4:])
             except (serial.SerialTimeoutException,
                     serial.SerialException) as err:
                 # Note though: The Serial library does not throw an
@@ -105,6 +123,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                     except:
                         pass
                     success = True
+                    self.lockin_paused = True
     
         return [success, was_off, ans_bytes]
     
@@ -113,7 +132,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         Returns:
             success
         """
-        [success, ans_str] = self.query("ISR_CLOCK?")
+        [success, ans_str] = self.safe_query("ISR_CLOCK?")
         if success:
             self.ISR_CLOCK = int(ans_str)/1e6   # transform [us] to [s]
         return success
@@ -123,7 +142,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         Returns:
             success
         """
-        [success, ans_str] = self.query("BUFFER_SIZE?")
+        [success, ans_str] = self.safe_query("BUFFER_SIZE?")
         if success: 
             self.BUFFER_SIZE = int(ans_str)
         return success
@@ -133,7 +152,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         Returns:
             success
         """
-        [success, ans_str] = self.query("ref?")
+        [success, ans_str] = self.safe_query("ref?")
         if success:
             self.ref_freq = float(ans_str)
         return success
@@ -143,7 +162,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         Returns:
             success
         """
-        [success, ans_str] = self.query("ref %f" % freq)
+        [success, ans_str] = self.safe_query("ref %f" % freq)
         if success:
             self.ref_freq = float(ans_str)        
         return success

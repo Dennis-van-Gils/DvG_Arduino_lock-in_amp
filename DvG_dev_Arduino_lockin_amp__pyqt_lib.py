@@ -9,10 +9,12 @@ __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
 __date__        = "08-12-2018"
 __version__     = "1.2.0"
 
-from PyQt5 import QtCore
+from PyQt5 import QtCore, QtWidgets as QtWid
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
+
+import time as Time
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG_worker_DAQ  = False
@@ -106,7 +108,6 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         #self.dev.ser.flushInput()
         #self.dev.ser.flushOutput()
         if self.dev.turn_on():
-            self.dev.lockin_paused = False
             self.worker_DAQ.unpause()
             return True
         
@@ -118,8 +119,9 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         Returns:
             success
         """
-        self.dev.lockin_paused = True
         self.worker_DAQ.pause() # Stop retrieving binary data buffers
+        QtWid.QApplication.processEvents()
+        Time.sleep(0.1)
         
         #self.dev.ser.flush()    # Clear potentially left over binary data
         #self.dev.ser.flushInput()
@@ -144,12 +146,18 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             
             if not (ref_freq == self.dev.ref_freq):
                 was_paused = self.dev.lockin_paused
-                self.turn_off()
+                
+                if not was_paused:
+                    self.worker_DAQ.pause() # Stop retrieving binary data buffers
+                    QtWid.QApplication.processEvents()
+                    Time.sleep(0.1)
+                
                 self.dev.set_ref_freq(ref_freq)
                 self.signal_ref_freq_is_set.emit()
     
                 if not was_paused:
-                    self.dev.turn_on()
+                    self.worker_DAQ.unpause()
+                    QtWid.QApplication.processEvents()
 
         else:
             # Default job handling
