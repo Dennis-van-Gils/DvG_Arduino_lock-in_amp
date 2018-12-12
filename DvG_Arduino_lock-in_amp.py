@@ -534,10 +534,10 @@ def lockin_DAQ_update():
         time        = np.array(struct.unpack('<' + 'L'*N_samples, bytes_time))
         phase_ref_X = np.array(struct.unpack('<' + 'H'*N_samples, bytes_ref_X))
         sig_I       = np.array(struct.unpack('<' + 'H'*N_samples, bytes_sig_I))
-    except Exception:
+    except:
         return False
     
-    ref_X = np.cos(2*np.pi*phase_ref_X/12288)
+    ref_X = np.cos(2*np.pi*phase_ref_X/12288)  # TO DO: get 12288 value from Arduino, do not hard code
     ref_X = 2 + ref_X                   # [V]
     ref_Y = np.sin(2*np.pi*phase_ref_X/12288)
     ref_Y = 2 + ref_Y                   # [V]
@@ -547,10 +547,11 @@ def lockin_DAQ_update():
     mix_Y = (ref_Y - 2) * (sig_I - 2)
     
     out_amp = 2 * np.sqrt(mix_X**2 + mix_Y**2)
-    # NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a division
-    # by (mix_X = 0) is handled correctly due to 'numpy.inf'.
-    # Likewise, 'numpy.arctan(numpy.inf)' will result in pi/2.
-    # We suppress the RuntimeWarning: divide by zero encountered in true_divide.
+    """NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
+    division by (mix_X = 0) is handled correctly due to 'numpy.inf'. Likewise,
+    'numpy.arctan(numpy.inf)' will result in pi/2. We suppress the
+    RuntimeWarning: divide by zero encountered in true_divide.
+    """
     np.seterr(divide='ignore')
     out_phi = np.arctan(mix_Y / mix_X)
     np.seterr(divide='warn')
