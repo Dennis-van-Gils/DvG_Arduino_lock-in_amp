@@ -433,8 +433,8 @@ class Dev_Base_pyqt(QtCore.QObject):
             elif self.trigger_by == DAQ_trigger.CONTINUOUS:
                 self.calc_DAQ_rate_every_N_iter = calc_DAQ_rate_every_N_iter
                 self.running = True
-                self.paused = True
-                self.paused_finally = True
+                self.paused = True          # TO DO: change name to 'suspend'
+                self.paused_finally = True  # TO DO: change name to 'suspend_effective'
                 
             self.prev_tick_DAQ_update = 0
             self.prev_tick_DAQ_rate = 0
@@ -487,7 +487,7 @@ class Dev_Base_pyqt(QtCore.QObject):
                         self.update()
 
         @QtCore.pyqtSlot()
-        def unpause(self):
+        def unpause(self): # TO DO: change name to 'unsuspend'
             """Only useful with DAQ_trigger.CONTINUOUS
             """
             if self.trigger_by == DAQ_trigger.CONTINUOUS:
@@ -498,7 +498,7 @@ class Dev_Base_pyqt(QtCore.QObject):
                 self.paused = False
             
         @QtCore.pyqtSlot()
-        def pause(self):
+        def pause(self):  # TO DO: change name to 'suspend'
             """Only useful with DAQ_trigger.CONTINUOUS
             """
             if self.trigger_by == DAQ_trigger.CONTINUOUS:
