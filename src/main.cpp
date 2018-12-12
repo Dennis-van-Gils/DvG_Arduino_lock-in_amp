@@ -180,7 +180,7 @@ void setup() {
   #endif
 
   #if Ser_data == Serial
-    Ser_data.begin(1.5e6);
+    Ser_data.begin(3e5);
   #else
     Ser_data.begin(9600);
   #endif
@@ -249,13 +249,11 @@ void loop() {
         // flooding the receiving buffer at the PC side if 'fRunning' was not
         // switched to false fast enough.
         Ser_data.flush();
-        //delayMicroseconds(500);
           
         // Confirm at the PC side that the lock-in amp is off and is not longer
         // sending binary data. The 'off' message might still be preceded with
         // some left-over binary data when being read at the PC side.
         Ser_data.print("off\n");
-        Ser_data.flush();
 
         // Flush out and ignore the command
         sc_data.getCmd();
@@ -304,8 +302,7 @@ void loop() {
     }
   }
 
-  // Send buffers over the data channel
-  // IDEA: should also test for fRunning here, 11-12-2018 DvG
+  // Send buffers over the data channel  
   if (fRunning && (fSend_buffer_A || fSend_buffer_B)) {
     uint16_t bytes_sent = 0;
     uint16_t idx;
