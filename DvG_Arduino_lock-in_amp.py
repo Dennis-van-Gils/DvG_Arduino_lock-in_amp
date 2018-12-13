@@ -49,7 +49,7 @@ class State(object):
     """Reflects the actual readings, parsed into separate variables, of the
     Arduino(s). There should only be one instance of the State class.
     """
-    def __init__(self):
+    def __init__(self, N_shift_buffers=10):
         self.buffers_received = 0
         
         self.time  = np.array([], int)      # [ms]
@@ -73,14 +73,14 @@ class State(object):
                 hist_time = [buffer_3; received_buffer_4; buffer_5]
                 etc...
         """
-        self.hist_time  =  deque()
-        self.hist_ref_X = deque()
-        self.hist_ref_Y = deque()
-        self.hist_sig_I = deque()
-        self.hist_mix_X = deque()
-        self.hist_mix_Y = deque()
-        self.hist_out_amp = deque()
-        self.hist_out_phi = deque()
+        self.hist_time  = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
+        self.hist_ref_X = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
+        self.hist_ref_Y = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
+        self.hist_sig_I = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
+        self.hist_mix_X = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
+        self.hist_mix_Y = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
+        self.hist_out_amp = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
+        self.hist_out_phi = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
 
         # Mutex for proper multithreading. If the state variables are not
         # atomic or thread-safe, you should lock and unlock this mutex for each
@@ -88,16 +88,6 @@ class State(object):
         # as reminder.
         self.mutex = QtCore.QMutex()
         
-    def init_shift_buffers(self, N):
-        self.hist_time  = deque(maxlen=N * lockin.BUFFER_SIZE)
-        self.hist_ref_X = deque(maxlen=N * lockin.BUFFER_SIZE)
-        self.hist_ref_Y = deque(maxlen=N * lockin.BUFFER_SIZE)
-        self.hist_sig_I = deque(maxlen=N * lockin.BUFFER_SIZE)
-        self.hist_mix_X = deque(maxlen=N * lockin.BUFFER_SIZE)
-        self.hist_mix_Y = deque(maxlen=N * lockin.BUFFER_SIZE)
-        self.hist_out_amp = deque(maxlen=N * lockin.BUFFER_SIZE)
-        self.hist_out_phi = deque(maxlen=N * lockin.BUFFER_SIZE)
-
 # ------------------------------------------------------------------------------
 #   MainWindow
 # ------------------------------------------------------------------------------
@@ -401,8 +391,9 @@ class MainWindow(QtWid.QWidget):
         ref_freq = np.clip(ref_freq, 0, 1/lockin.ISR_CLOCK/2)        
         
         self.qlin_set_ref_freq.setText("%.2f" % ref_freq)
-        lockin_pyqt.set_ref_freq(ref_freq)
-        app.processEvents()
+        if ref_freq != lockin.ref_freq:
+            lockin_pyqt.set_ref_freq(ref_freq)
+            app.processEvents()
         
     @QtCore.pyqtSlot()
     def update_qlin_read_ref_freq(self):
@@ -619,11 +610,9 @@ if __name__ == '__main__':
     if not lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
         sys.exit(0)
         
-    lockin.begin()
-    lockin.set_ref_freq(100)
+    lockin.begin(ref_freq=100)
     
-    state = State()
-    state.init_shift_buffers(N=3)
+    state = State(N_shift_buffers=10)    
 
     """if not(lockin.is_alive):
         print("\nCheck connection and try resetting the Arduino.")

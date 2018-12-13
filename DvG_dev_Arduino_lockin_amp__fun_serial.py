@@ -38,7 +38,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         self.ref_freq = 0           # [Hz]
         self.lockin_paused = True
 
-    def begin(self):
+    def begin(self, ref_freq=None):
         """
         Returns:
             success
@@ -47,8 +47,12 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         if success:
             if self.get_ISR_CLOCK():
                 if self.get_BUFFER_SIZE():
-                    if self.get_ref_freq():
-                        return True
+                    if ref_freq == None:
+                        if self.get_ref_freq():
+                            return True
+                    else:
+                        if self.set_ref_freq(ref_freq):
+                            return True
         
         return False
     

@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "12-12-2018"
+__date__        = "13-12-2018"
 __version__     = "1.2.0"
 
 from PyQt5 import QtCore, QtWidgets as QtWid
@@ -104,7 +104,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         locker = QtCore.QMutexLocker(self.dev.mutex)
         
         if self.dev.turn_on():
-            self.worker_DAQ.unpause()
+            self.worker_DAQ.schedule_suspend(False)
             QtWid.QApplication.processEvents()
             return True        
         
@@ -116,8 +116,8 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         Returns:
             success
         """
-        self.worker_DAQ.pause() # Stop retrieving binary data buffers        
-        while not self.worker_DAQ.paused_finally:
+        self.worker_DAQ.schedule_suspend()
+        while not self.worker_DAQ.suspended:
             QtWid.QApplication.processEvents()
         
         locker = QtCore.QMutexLocker(self.dev.mutex)
@@ -141,15 +141,15 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 was_paused = self.dev.lockin_paused
                 
                 if not was_paused:
-                    self.worker_DAQ.pause() # Stop retrieving binary data buffers
-                    while not self.worker_DAQ.paused_finally:
+                    self.worker_DAQ.schedule_suspend()
+                    while not self.worker_DAQ.suspended:
                         QtWid.QApplication.processEvents()
                 
                 self.dev.set_ref_freq(ref_freq)
                 self.signal_ref_freq_is_set.emit()
     
                 if not was_paused:
-                    self.worker_DAQ.unpause()
+                    self.worker_DAQ.schedule_suspend(False)
                     QtWid.QApplication.processEvents()
 
         else:
