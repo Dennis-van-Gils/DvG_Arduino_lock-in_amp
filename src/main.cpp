@@ -79,8 +79,8 @@ double ref_freq = 137.0;      // [Hz], aka f_R
 // the shape of the sine wave at its minimum. Apparently, the analog out port
 // has difficulty in cleanly dropping the output voltage completely to 0.0 V.
 #define A_REF        3.300    // [V] Analog voltage reference Arduino
-#define V_out_center 2.0      // [V] Center
-#define V_out_p2p    2.0      // [V] Peak to peak
+double V_ref_center = 2.0;    // [V] Center
+double V_ref_p2p    = 2.0;    // [V] Peak to peak
 
 #define N_LUT 12288  // Number of samples for one full period.
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
@@ -89,8 +89,8 @@ uint16_t LUT_cos[N_LUT] = {0};
 //uint16_t LUT_sin[N_LUT] = {0};
 
 void create_LUT() {
-  double offset = V_out_center / A_REF;
-  double amplitude = 0.5 / A_REF * V_out_p2p;
+  double offset = V_ref_center / A_REF;
+  double amplitude = 0.5 / A_REF * V_ref_p2p;
 
   for (uint16_t i = 0; i < N_LUT; i++) {
     LUT_cos[i] = (uint16_t) round((pow(2, ANALOG_WRITE_RESOLUTION) - 1) * \
@@ -266,6 +266,26 @@ void loop() {
         if (strcmpi(strCmd, "id?") == 0) {
           // Reply identity string
           Ser_data.println("Arduino lock-in amp");
+
+        } else if (strcmpi(strCmd, "PARAMS?") == 0) {
+          Ser_data.print(ISR_CLOCK);
+          Ser_data.print('\t');
+          Ser_data.print(BUFFER_SIZE);
+          Ser_data.print('\t');
+          Ser_data.print(N_LUT);
+          Ser_data.print('\t');
+          Ser_data.print(ANALOG_WRITE_RESOLUTION);
+          Ser_data.print('\t');
+          Ser_data.print(ANALOG_READ_RESOLUTION);
+          Ser_data.print('\t');
+          Ser_data.print(A_REF);
+          Ser_data.print('\t');
+          Ser_data.print(V_ref_center);
+          Ser_data.print('\t');
+          Ser_data.print(V_ref_p2p);
+          Ser_data.print('\t');
+          Ser_data.print(ref_freq);
+          Ser_data.print('\n');
 
         } else if (strcmpi(strCmd, "ISR_CLOCK?") == 0) {
           Ser_data.println(ISR_CLOCK);
