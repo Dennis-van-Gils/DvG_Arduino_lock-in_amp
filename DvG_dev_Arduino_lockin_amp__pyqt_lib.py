@@ -137,7 +137,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         if func == "set_ref_freq":
             ref_freq = args[0]
             
-            if not (ref_freq == self.dev.ref_freq):
+            if not (ref_freq == self.dev.config.ref_freq):
                 was_paused = self.dev.lockin_paused
                 
                 if not was_paused:

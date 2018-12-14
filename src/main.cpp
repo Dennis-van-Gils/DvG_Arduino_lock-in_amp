@@ -82,7 +82,7 @@ double ref_freq = 137.0;      // [Hz], aka f_R
 double V_ref_center = 2.0;    // [V] Center
 double V_ref_p2p    = 2.0;    // [V] Peak to peak
 
-#define N_LUT 12288  // Number of samples for one full period.
+#define N_LUT 12288  // (12288) Number of samples for one full period.
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
 volatile double T_period_micros_dbl = 1.0 / ref_freq * 1e6;
 uint16_t LUT_cos[N_LUT] = {0};
@@ -267,7 +267,7 @@ void loop() {
           // Reply identity string
           Ser_data.println("Arduino lock-in amp");
 
-        } else if (strcmpi(strCmd, "PARAMS?") == 0) {
+        } else if (strcmpi(strCmd, "config?") == 0) {
           Ser_data.print(ISR_CLOCK);
           Ser_data.print('\t');
           Ser_data.print(BUFFER_SIZE);
@@ -287,12 +287,6 @@ void loop() {
           Ser_data.print(ref_freq);
           Ser_data.print('\n');
 
-        } else if (strcmpi(strCmd, "ISR_CLOCK?") == 0) {
-          Ser_data.println(ISR_CLOCK);
-
-        } else if (strcmpi(strCmd, "BUFFER_SIZE?") == 0) {
-          Ser_data.println(BUFFER_SIZE);
-
         } else if (strcmpi(strCmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
           Ser_data.print("already_off\n");
@@ -304,10 +298,6 @@ void loop() {
           fSend_buffer_A = false;
           fSend_buffer_B = false;
           interrupts();
-        
-        } else if (strcmpi(strCmd, "ref?") == 0) {
-          // Reply frequency of the output reference signal [Hz]
-          Ser_data.println(ref_freq);
         
         } else if (strncmpi(strCmd, "ref", 3) == 0) {
           // Set frequency of the output reference signal [Hz]

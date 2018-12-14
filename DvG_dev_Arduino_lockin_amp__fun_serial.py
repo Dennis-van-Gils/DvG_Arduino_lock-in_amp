@@ -4,7 +4,7 @@
 connection.
 
 Dennis van Gils
-09-12-2018
+14-12-2018
 """
 
 import sys
@@ -17,6 +17,17 @@ SOM = bytes([0x00, 0x00, 0x00, 0x00, 0xee]) # Start of message
 EOM = bytes([0x00, 0x00, 0x00, 0x00, 0xff]) # End of message
 
 class Arduino_lockin_amp(Arduino_functions.Arduino):
+    class Config():
+        ISR_CLOCK               = 0    # [s]
+        BUFFER_SIZE             = 0    # [number of samples]
+        N_LUT                   = 0    # [number of samples]
+        ANALOG_WRITE_RESOLUTION = 0    # [bits]
+        ANALOG_READ_RESOLUTION  = 0    # [bits]
+        A_REF                   = 0    # [V] Analog voltage reference of Arduino
+        V_ref_center            = 0    # [V] Center voltage of cosine reference signal
+        V_ref_p2p               = 0    # [V] Peak-to-peak voltage of cosine reference signal
+        ref_freq                = 0    # [Hz] Frequency of cosine reference signal
+    
     def __init__(self, 
                  name="Lockin",
                  baudrate=3e5,
@@ -33,9 +44,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         self.read_term_char  = read_term_char
         self.write_term_char = write_term_char
         
-        self.ISR_CLOCK = 0          # [s]
-        self.BUFFER_SIZE = 0        # [number of samples]
-        self.ref_freq = 0           # [Hz]
+        self.config = self.Config()
         self.lockin_paused = True
 
     def begin(self, ref_freq=None):
@@ -45,14 +54,12 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         """
         [success, foo, bar] = self.turn_off()
         if success:
-            if self.get_ISR_CLOCK():
-                if self.get_BUFFER_SIZE():
-                    if ref_freq == None:
-                        if self.get_ref_freq():
-                            return True
-                    else:
-                        if self.set_ref_freq(ref_freq):
-                            return True
+            if self.get_config():
+                if ref_freq != None:
+                    if self.set_ref_freq(ref_freq):
+                        return True
+                else:
+                    return True
         
         return False
     
@@ -129,35 +136,30 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
     
         return [success, was_off, ans_bytes]
     
-    def get_ISR_CLOCK(self):
+    def get_config(self):
         """
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("ISR_CLOCK?")
+        [success, ans_str] = self.safe_query("config?")
         if success:
-            self.ISR_CLOCK = int(ans_str)/1e6   # transform [us] to [s]
-        return success
-    
-    def get_BUFFER_SIZE(self):
-        """
-        Returns:
-            success
-        """
-        [success, ans_str] = self.safe_query("BUFFER_SIZE?")
-        if success: 
-            self.BUFFER_SIZE = int(ans_str)
-        return success
-    
-    def get_ref_freq(self):
-        """
-        Returns:
-            success
-        """
-        [success, ans_str] = self.safe_query("ref?")
-        if success:
-            self.ref_freq = float(ans_str)
-        return success
+            try:
+                ans_list = ans_str.split('\t')
+                self.config.ISR_CLOCK               = float(ans_list[0]) * 1e-6
+                self.config.BUFFER_SIZE             = int(ans_list[1])
+                self.config.N_LUT                   = int(ans_list[2])
+                self.config.ANALOG_WRITE_RESOLUTION = int(ans_list[3])
+                self.config.ANALOG_READ_RESOLUTION  = int(ans_list[4] )
+                self.config.A_REF                   = float(ans_list[5])
+                self.config.V_ref_center            = float(ans_list[6])
+                self.config.V_ref_p2p               = float(ans_list[7])
+                self.config.ref_freq                = float(ans_list[8])
+                return True
+            except Exception as err:
+                raise(err)
+                return False
+        
+        return False
     
     def set_ref_freq(self, freq):
         """
@@ -166,7 +168,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         """
         [success, ans_str] = self.safe_query("ref %f" % freq)
         if success:
-            self.ref_freq = float(ans_str)        
+            self.config.ref_freq = float(ans_str)        
         return success
     
     def listen_to_lockin_amp(self):

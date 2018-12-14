@@ -73,14 +73,14 @@ class State(object):
                 hist_time = [buffer_3; received_buffer_4; buffer_5]
                 etc...
         """
-        self.hist_time  = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
-        self.hist_ref_X = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
-        self.hist_ref_Y = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
-        self.hist_sig_I = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
-        self.hist_mix_X = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
-        self.hist_mix_Y = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
-        self.hist_out_amp = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
-        self.hist_out_phi = deque(maxlen=N_shift_buffers * lockin.BUFFER_SIZE)
+        self.hist_time  = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
+        self.hist_ref_X = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
+        self.hist_ref_Y = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
+        self.hist_sig_I = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
+        self.hist_mix_X = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
+        self.hist_mix_Y = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
+        self.hist_out_amp = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
+        self.hist_out_phi = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
 
         # Mutex for proper multithreading. If the state variables are not
         # atomic or thread-safe, you should lock and unlock this mutex for each
@@ -109,9 +109,9 @@ class MainWindow(QtWid.QWidget):
         # Left box
         self.qlbl_update_counter = QtWid.QLabel("0")
         self.qlbl_sample_rate = QtWid.QLabel("SAMPLE RATE: %.2f Hz" %
-                                             (1/lockin.ISR_CLOCK))
+                                             (1/lockin.config.ISR_CLOCK))
         self.qlbl_buffer_size = QtWid.QLabel("BUFFER SIZE  : %i" %
-                                             lockin.BUFFER_SIZE)
+                                             lockin.config.BUFFER_SIZE)
         self.qlbl_DAQ_rate = QtWid.QLabel("Buffers/s: nan")
         self.qlbl_DAQ_rate.setMinimumWidth(100)
 
@@ -173,7 +173,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setTitle('Reference and signal', **p)
         self.pi_refsig.setLabel('bottom', text='time (ms)', **p)
         self.pi_refsig.setLabel('left', text='voltage (V)', **p)
-        self.pi_refsig.setXRange(-lockin.BUFFER_SIZE * lockin.ISR_CLOCK * 1e3,
+        self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
+                                 lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0)
         self.pi_refsig.setYRange(1, 3, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
@@ -183,11 +184,11 @@ class MainWindow(QtWid.QWidget):
         PEN_02 = pg.mkPen(color=[255, 125, 0  ], width=3)
         PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
         PEN_04 = pg.mkPen(color=[255, 255, 255], width=3)
-        self.CH_ref_X = ChartHistory(lockin.BUFFER_SIZE,
+        self.CH_ref_X = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_refsig.plot(pen=PEN_01))
-        self.CH_ref_Y = ChartHistory(lockin.BUFFER_SIZE,
+        self.CH_ref_Y = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_refsig.plot(pen=PEN_02))
-        self.CH_sig_I = ChartHistory(lockin.BUFFER_SIZE,
+        self.CH_sig_I = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_refsig.plot(pen=PEN_03))
         self.CH_ref_X.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_ref_Y.x_axis_divisor = 1000     # From [us] to [ms]
@@ -199,8 +200,8 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
 
         # 'Reference frequency'
-        self.qlin_set_ref_freq  = QtWid.QLineEdit("%.2f" % lockin.ref_freq)
-        self.qlin_read_ref_freq = QtWid.QLineEdit("%.2f" % lockin.ref_freq, 
+        self.qlin_set_ref_freq  = QtWid.QLineEdit("%.2f" % lockin.config.ref_freq)
+        self.qlin_read_ref_freq = QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, 
                                                   readOnly=True)
         self.qlin_set_ref_freq.editingFinished.connect(
                 self.process_qlin_set_ref_freq)
@@ -287,15 +288,16 @@ class MainWindow(QtWid.QWidget):
         self.pi_mixer.setLabel('bottom', text='time (ms)', **p)
         self.pi_mixer.setLabel('left', text='AC ampl. (V%s)' % chr(0xb2), 
                                **p)
-        self.pi_mixer.setXRange(-lockin.BUFFER_SIZE * lockin.ISR_CLOCK * 1e3,
+        self.pi_mixer.setXRange(-lockin.config.BUFFER_SIZE *
+                                lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0)
         self.pi_mixer.setYRange(-1, 1, padding=0.05)
         self.pi_mixer.setAutoVisible(x=True, y=True)
         self.pi_mixer.setClipToView(True)
         
-        self.CH_mix_X = ChartHistory(lockin.BUFFER_SIZE,
+        self.CH_mix_X = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_mixer.plot(pen=PEN_03))
-        self.CH_mix_Y = ChartHistory(lockin.BUFFER_SIZE,
+        self.CH_mix_Y = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_mixer.plot(pen=PEN_04))
         self.CH_mix_X.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_mix_Y.x_axis_divisor = 1000     # From [us] to [ms]
@@ -385,19 +387,19 @@ class MainWindow(QtWid.QWidget):
         try:
             ref_freq = float(self.qlin_set_ref_freq.text())
         except ValueError:
-            ref_freq = lockin.ref_freq
+            ref_freq = lockin.config.ref_freq
         
         # Clip between 0 and the Nyquist frequency of the lock-in sampling rate
-        ref_freq = np.clip(ref_freq, 0, 1/lockin.ISR_CLOCK/2)        
+        ref_freq = np.clip(ref_freq, 0, 1/lockin.config.ISR_CLOCK/2)        
         
         self.qlin_set_ref_freq.setText("%.2f" % ref_freq)
-        if ref_freq != lockin.ref_freq:
+        if ref_freq != lockin.config.ref_freq:
             lockin_pyqt.set_ref_freq(ref_freq)
             app.processEvents()
         
     @QtCore.pyqtSlot()
     def update_qlin_read_ref_freq(self):
-        self.qlin_read_ref_freq.setText("%.2f" % lockin.ref_freq)    
+        self.qlin_read_ref_freq.setText("%.2f" % lockin.config.ref_freq)    
 
     @QtCore.pyqtSlot()
     def process_chkbs_refsig(self):
@@ -406,7 +408,8 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def process_qpbt_full_axes(self):
-        self.pi_refsig.setXRange(-lockin.BUFFER_SIZE * lockin.ISR_CLOCK * 1e3, 0,
+        self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE *
+                                 lockin.config.ISR_CLOCK * 1e3, 0,
                                  padding=0)
         self.process_qpbtn_autoscale_y()
 
@@ -508,15 +511,17 @@ def lockin_DAQ_update():
                (lockin.name, str_cur_date, str_cur_time))
         return False
     
+    c = lockin.config
+    
     state.buffers_received += 1
     N_samples = int(len(ans_bytes) / struct.calcsize('LHH'))
-    if not(N_samples == lockin.BUFFER_SIZE):
+    if not(N_samples == c.BUFFER_SIZE):
         dprint("'%s' ERROR N_samples @ %s %s" %
                (lockin.name, str_cur_date, str_cur_time))
         return False
     
     e_byte_time  = N_samples * struct.calcsize('L');
-    e_byte_ref_X = e_byte_time + N_samples * struct.calcsize('H')
+    e_byte_ref_X = e_byte_time  + N_samples * struct.calcsize('H')
     e_byte_sig_I = e_byte_ref_X + N_samples * struct.calcsize('H')
     bytes_time  = ans_bytes[0            : e_byte_time]
     bytes_ref_X = ans_bytes[e_byte_time  : e_byte_ref_X]
@@ -528,14 +533,15 @@ def lockin_DAQ_update():
     except:
         return False
     
-    ref_X = np.cos(2*np.pi*phase_ref_X/12288)  # TO DO: get 12288 value from Arduino, do not hard code
-    ref_X = 2 + ref_X                   # [V]
-    ref_Y = np.sin(2*np.pi*phase_ref_X/12288)
-    ref_Y = 2 + ref_Y                   # [V]
-    sig_I = sig_I / (2**12 - 1)*3.3     # [V]
+    phi   = 2 * np.pi * phase_ref_X / c.N_LUT
+    ref_X = np.cos(phi)
+    ref_X = c.V_ref_center + c.V_ref_p2p / 2 * ref_X
+    ref_Y = np.sin(phi)
+    ref_Y = c.V_ref_center + c.V_ref_p2p / 2 * ref_Y
+    sig_I = sig_I / (2**c.ANALOG_READ_RESOLUTION - 1) * c.A_REF
     
-    mix_X = (ref_X - 2) * (sig_I - 2)
-    mix_Y = (ref_Y - 2) * (sig_I - 2)
+    mix_X = (ref_X - c.V_ref_center) * (sig_I - c.V_ref_center)
+    mix_Y = (ref_Y - c.V_ref_center) * (sig_I - c.V_ref_center)
     
     out_amp = 2 * np.sqrt(mix_X**2 + mix_Y**2)
     """NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
@@ -611,7 +617,6 @@ if __name__ == '__main__':
         sys.exit(0)
         
     lockin.begin(ref_freq=100)
-    
     state = State(N_shift_buffers=10)    
 
     """if not(lockin.is_alive):
