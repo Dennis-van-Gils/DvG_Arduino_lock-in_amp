@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "09-12-2018"
+__date__        = "14-01-2019"
 __version__     = "1.0.0"
 
 import os
@@ -146,8 +146,8 @@ class MainWindow(QtWid.QWidget):
         vbox_right = QtWid.QVBoxLayout()
         vbox_right.addWidget(self.qpbt_exit)
         vbox_right.addStretch(1)
-        vbox_right.addWidget(QtWid.QLabel("Dennis van Gils", **p))
-        vbox_right.addWidget(QtWid.QLabel("08-12-2018", **p))
+        vbox_right.addWidget(QtWid.QLabel(__author__, **p))
+        vbox_right.addWidget(QtWid.QLabel(__date__, **p))
 
         # Round up frame
         hbox_top = QtWid.QHBoxLayout()
@@ -535,13 +535,13 @@ def lockin_DAQ_update():
     
     phi   = 2 * np.pi * phase_ref_X / c.N_LUT
     ref_X = np.cos(phi)
-    ref_X = c.V_ref_center + c.V_ref_p2p / 2 * ref_X
+    ref_X = c.ref_V_center + c.ref_V_p2p / 2 * ref_X
     ref_Y = np.sin(phi)
-    ref_Y = c.V_ref_center + c.V_ref_p2p / 2 * ref_Y
+    ref_Y = c.ref_V_center + c.ref_V_p2p / 2 * ref_Y
     sig_I = sig_I / (2**c.ANALOG_READ_RESOLUTION - 1) * c.A_REF
     
-    mix_X = (ref_X - c.V_ref_center) * (sig_I - c.V_ref_center)
-    mix_Y = (ref_Y - c.V_ref_center) * (sig_I - c.V_ref_center)
+    mix_X = (ref_X - c.ref_V_center) * (sig_I - c.ref_V_center)
+    mix_Y = (ref_Y - c.ref_V_center) * (sig_I - c.ref_V_center)
     
     out_amp = 2 * np.sqrt(mix_X**2 + mix_Y**2)
     """NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a

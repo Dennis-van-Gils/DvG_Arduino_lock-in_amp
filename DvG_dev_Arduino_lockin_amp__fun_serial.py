@@ -4,7 +4,7 @@
 connection.
 
 Dennis van Gils
-14-12-2018
+14-01-2019
 """
 
 import sys
@@ -24,8 +24,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         ANALOG_WRITE_RESOLUTION = 0    # [bits]
         ANALOG_READ_RESOLUTION  = 0    # [bits]
         A_REF                   = 0    # [V] Analog voltage reference of Arduino
-        V_ref_center            = 0    # [V] Center voltage of cosine reference signal
-        V_ref_p2p               = 0    # [V] Peak-to-peak voltage of cosine reference signal
+        ref_V_center            = 0    # [V] Center voltage of cosine reference signal
+        ref_V_p2p               = 0    # [V] Peak-to-peak voltage of cosine reference signal
         ref_freq                = 0    # [Hz] Frequency of cosine reference signal
     
     def __init__(self, 
@@ -151,8 +151,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                 self.config.ANALOG_WRITE_RESOLUTION = int(ans_list[3])
                 self.config.ANALOG_READ_RESOLUTION  = int(ans_list[4] )
                 self.config.A_REF                   = float(ans_list[5])
-                self.config.V_ref_center            = float(ans_list[6])
-                self.config.V_ref_p2p               = float(ans_list[7])
+                self.config.ref_V_center            = float(ans_list[6])
+                self.config.ref_V_p2p               = float(ans_list[7])
                 self.config.ref_freq                = float(ans_list[8])
                 return True
             except Exception as err:
@@ -161,14 +161,34 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         return False
     
-    def set_ref_freq(self, freq):
+    def set_ref_freq(self, ref_freq):
         """
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("ref %f" % freq)
+        [success, ans_str] = self.safe_query("ref_freq %f" % ref_freq)
         if success:
             self.config.ref_freq = float(ans_str)        
+        return success
+    
+    def set_ref_V_center(self, ref_V_center):
+        """
+        Returns:
+            success
+        """
+        [success, ans_str] = self.safe_query("ref_V_center %f" % ref_V_center)
+        if success:
+            self.config.ref_V_center = float(ans_str)        
+        return success
+    
+    def set_ref_V_p2p(self, ref_V_p2p):
+        """
+        Returns:
+            success
+        """
+        [success, ans_str] = self.safe_query("ref_V_p2p %f" % ref_V_p2p)
+        if success:
+            self.config.ref_V_p2p = float(ans_str)        
         return success
     
     def listen_to_lockin_amp(self):
