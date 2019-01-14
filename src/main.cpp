@@ -79,8 +79,8 @@ double ref_freq = 137.0;      // [Hz], aka f_R
 // the shape of the sine wave at its minimum. Apparently, the analog out port
 // has difficulty in cleanly dropping the output voltage completely to 0.0 V.
 #define A_REF        3.300    // [V] Analog voltage reference Arduino
-double V_ref_center = 2.0;    // [V] Center
-double V_ref_p2p    = 2.0;    // [V] Peak to peak
+double ref_V_center = 2.0;    // [V] Center voltage of cosine reference signal
+double ref_V_p2p    = 2.0;    // [V] Peak-to-peak voltage of cosine reference signal
 
 #define N_LUT 12288  // (12288) Number of samples for one full period.
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
@@ -89,8 +89,8 @@ uint16_t LUT_cos[N_LUT] = {0};
 //uint16_t LUT_sin[N_LUT] = {0};
 
 void create_LUT() {
-  double offset = V_ref_center / A_REF;
-  double amplitude = 0.5 / A_REF * V_ref_p2p;
+  double offset = ref_V_center / A_REF;
+  double amplitude = 0.5 / A_REF * ref_V_p2p;
 
   for (uint16_t i = 0; i < N_LUT; i++) {
     LUT_cos[i] = (uint16_t) round((pow(2, ANALOG_WRITE_RESOLUTION) - 1) * \
@@ -280,9 +280,9 @@ void loop() {
           Ser_data.print('\t');
           Ser_data.print(A_REF);
           Ser_data.print('\t');
-          Ser_data.print(V_ref_center);
+          Ser_data.print(ref_V_center);
           Ser_data.print('\t');
-          Ser_data.print(V_ref_p2p);
+          Ser_data.print(ref_V_p2p);
           Ser_data.print('\t');
           Ser_data.print(ref_freq);
           Ser_data.print('\n');
@@ -299,15 +299,36 @@ void loop() {
           fSend_buffer_B = false;
           interrupts();
         
-        } else if (strncmpi(strCmd, "ref", 3) == 0) {
+        } else if (strncmpi(strCmd, "ref_freq", 8) == 0) {
           // Set frequency of the output reference signal [Hz]
-          ref_freq = parseFloatInString(strCmd, 3);
+          ref_freq = parseFloatInString(strCmd, 8);
           noInterrupts();
           LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
           T_period_micros_dbl = 1.0 / ref_freq * 1e6;
           interrupts();
           Ser_data.println(ref_freq);
+        
+        } else if (strncmpi(strCmd, "ref_V_center", 12) == 0) {
+          // Set center voltage of cosine reference signal [V]
+          ref_V_center = parseFloatInString(strCmd, 12);
+          ref_V_center = max(ref_V_center, 0.0);
+          ref_V_center = min(ref_V_center, A_REF);
+          noInterrupts();
+          create_LUT();
+          interrupts();
+          Ser_data.println(ref_V_center);
+        
+        } else if (strncmpi(strCmd, "ref_V_p2p", 9) == 0) {
+          // Set peak-to-peak voltage of cosine reference signal [V]
+          ref_V_p2p = parseFloatInString(strCmd, 9);
+          ref_V_p2p = max(ref_V_p2p, 0.0);
+          ref_V_p2p = min(ref_V_center, A_REF/2);
+          noInterrupts();
+          create_LUT();
+          interrupts();
+          Ser_data.println(ref_V_p2p);
         }
+
       }
     }
   }
