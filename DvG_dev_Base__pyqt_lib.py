@@ -41,7 +41,7 @@ MAIN CONTENTS:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "08-12-2018"
+__date__        = "11-12-2018"
 __version__     = "1.2.0"
 
 from enum import IntEnum, unique
@@ -173,6 +173,7 @@ class Dev_Base_pyqt(QtCore.QObject):
         super(Dev_Base_pyqt, self).__init__(parent=parent)
 
         self.dev = self.NoAttachedDevice()
+        self.dev.mutex = QtCore.QMutex()
         self.worker_DAQ = None
         self.worker_send = None
 
@@ -185,7 +186,6 @@ class Dev_Base_pyqt(QtCore.QObject):
     class NoAttachedDevice():
         name = "NoAttachedDevice"
         is_alive = False
-        mutex = None
 
     # --------------------------------------------------------------------------
     #   attach_device
@@ -196,7 +196,6 @@ class Dev_Base_pyqt(QtCore.QObject):
         """
         if type(self.dev) == self.NoAttachedDevice:
             self.dev = dev
-            self.dev.mutex = QtCore.QMutex()
         else:
             pft("Device can be attached only once. Already attached to '%s'." %
                 self.dev.name)
@@ -417,6 +416,16 @@ class Dev_Base_pyqt(QtCore.QObject):
             self.critical_not_alive_count = DAQ_critical_not_alive_count
             self.timer_type = DAQ_timer_type
             self.trigger_by = DAQ_trigger_by
+            
+            # Members specificly for EXTERNAL WAKE UP
+            self.qwc = QtCore.QWaitCondition()
+            self.mutex_wait = QtCore.QMutex()
+            self.running = True
+            
+            # Members specifically for CONTINUOUS
+            #self.running = True # Already defined above
+            self.suspend = True
+            self.suspended = True
 
             # INTERNAL TIMER
             if self.trigger_by == DAQ_trigger.INTERNAL_TIMER:
@@ -426,15 +435,10 @@ class Dev_Base_pyqt(QtCore.QObject):
             # EXTERNAL WAKE UP
             elif self.trigger_by == DAQ_trigger.EXTERNAL_WAKE_UP_CALL:
                 self.calc_DAQ_rate_every_N_iter = calc_DAQ_rate_every_N_iter
-                self.qwc = QtCore.QWaitCondition()
-                self.mutex_wait = QtCore.QMutex()
-                self.running = True
-            
+                
             # CONTINUOUS
             elif self.trigger_by == DAQ_trigger.CONTINUOUS:
                 self.calc_DAQ_rate_every_N_iter = calc_DAQ_rate_every_N_iter
-                self.running = True
-                self.paused = True
                 
             self.prev_tick_DAQ_update = 0
             self.prev_tick_DAQ_rate = 0
@@ -478,34 +482,29 @@ class Dev_Base_pyqt(QtCore.QObject):
             # CONTINUOUS
             elif self.trigger_by == DAQ_trigger.CONTINUOUS:
                 while self.running:
-                    if self.paused:
+                    if self.suspend:
+                        if (self.DEBUG & (self.suspend != self.suspended)):
+                            dprint("Worker_DAQ  %s: suspended" % 
+                                   self.dev.name, self.DEBUG_color)
+                        
+                        self.suspended = True
                         time.sleep(0.01)  # Do not hog the CPU
                         pass
                     else:
+                        self.suspended = False
                         self.update()
 
-        @QtCore.pyqtSlot()
-        def unpause(self):
+        @QtCore.pyqtSlot(bool)
+        def schedule_suspend(self, state=True):
             """Only useful with DAQ_trigger.CONTINUOUS
             """
             if self.trigger_by == DAQ_trigger.CONTINUOUS:
-                if self.DEBUG:
-                    dprint("Worker_DAQ  %s: unpaused" % 
-                           self.dev.name, self.DEBUG_color)
-                            
-                self.paused = False
-            
-        @QtCore.pyqtSlot()
-        def pause(self):
-            """Only useful with DAQ_trigger.CONTINUOUS
-            """
-            if self.trigger_by == DAQ_trigger.CONTINUOUS:
-                if self.DEBUG:
-                    dprint("Worker_DAQ  %s: paused" % 
-                           self.dev.name, self.DEBUG_color)
-                    
-                self.paused = True
+                self.suspend = state
                 
+                if self.DEBUG:
+                    dprint("Worker_DAQ  %s: schedule suspend=%s" % 
+                           (self.dev.name, state), self.DEBUG_color)
+                        
         @QtCore.pyqtSlot()
         def stop(self):
             """Only useful with DAQ_trigger.EXTERNAL_WAKE_UP_CALL or
@@ -519,7 +518,7 @@ class Dev_Base_pyqt(QtCore.QObject):
             self.outer.DAQ_update_counter += 1
 
             if self.DEBUG:
-                dprint("Worker_DAQ  %s: lock %i" %
+                dprint("Worker_DAQ  %s: lock   # %i" %
                        (self.dev.name, self.outer.DAQ_update_counter),
                        self.DEBUG_color)
 
@@ -568,7 +567,8 @@ class Dev_Base_pyqt(QtCore.QObject):
             # ----------------------------------
 
             if self.DEBUG:
-                dprint("Worker_DAQ  %s: unlocked" % self.dev.name,
+                dprint("Worker_DAQ  %s: unlock # %i" % 
+                       (self.dev.name, self.outer.DAQ_update_counter),
                        self.DEBUG_color)
 
             locker.unlock()
@@ -695,7 +695,7 @@ class Dev_Base_pyqt(QtCore.QObject):
                 self.update_counter += 1
 
                 if self.DEBUG:
-                    dprint("Worker_send %s: lock %i" %
+                    dprint("Worker_send %s: lock   # %i" %
                            (self.dev.name, self.update_counter),
                            self.DEBUG_color)
 
@@ -734,7 +734,8 @@ class Dev_Base_pyqt(QtCore.QObject):
                     self.queue.put(self.sentinel)
 
                 if self.DEBUG:
-                    dprint("Worker_send %s: unlocked" % self.dev.name,
+                    dprint("Worker_send %s: unlock # %i" % 
+                           (self.dev.name, self.update_counter),
                            self.DEBUG_color)
 
                 locker.unlock()
