@@ -64,14 +64,15 @@ class State(object):
                 hist_time = [buffer_3; received_buffer_4; buffer_5]
                 etc...
         """
-        self.hist_time  = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
-        self.hist_ref_X = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
-        self.hist_ref_Y = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
-        self.hist_sig_I = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
-        self.hist_mix_X = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
-        self.hist_mix_Y = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
-        self.hist_out_amp = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
-        self.hist_out_phi = deque(maxlen=N_shift_buffers * lockin.config.BUFFER_SIZE)
+        maxlen = N_shift_buffers * lockin.config.BUFFER_SIZE
+        self.hist_time    = deque(maxlen=maxlen)
+        self.hist_ref_X   = deque(maxlen=maxlen)
+        self.hist_ref_Y   = deque(maxlen=maxlen)
+        self.hist_sig_I   = deque(maxlen=maxlen)
+        self.hist_mix_X   = deque(maxlen=maxlen)
+        self.hist_mix_Y   = deque(maxlen=maxlen)
+        self.hist_out_amp = deque(maxlen=maxlen)
+        self.hist_out_phi = deque(maxlen=maxlen)
 
         # Mutex for proper multithreading. If the state variables are not
         # atomic or thread-safe, you should lock and unlock this mutex for each
