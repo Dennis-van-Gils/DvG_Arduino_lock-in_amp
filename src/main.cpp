@@ -89,12 +89,16 @@ uint16_t LUT_cos[N_LUT] = {0};
 //uint16_t LUT_sin[N_LUT] = {0};
 
 void create_LUT() {
+  uint16_t ANALOG_WRITE_MAX_BITVAL = pow(2, ANALOG_WRITE_RESOLUTION) - 1;
   double offset = ref_V_center / A_REF;
   double amplitude = 0.5 / A_REF * ref_V_p2p;
+  double cosine_value;
 
   for (uint16_t i = 0; i < N_LUT; i++) {
-    LUT_cos[i] = (uint16_t) round((pow(2, ANALOG_WRITE_RESOLUTION) - 1) * \
-                 (offset + amplitude * cos(2*PI*i/N_LUT)));
+    cosine_value = offset + amplitude * cos(2*PI*i/N_LUT);
+    cosine_value = max(cosine_value, 0.0);
+    cosine_value = min(cosine_value, 1.0);
+    LUT_cos[i] = (uint16_t) round(ANALOG_WRITE_MAX_BITVAL * cosine_value);
   }
 
   /*
@@ -322,7 +326,7 @@ void loop() {
           // Set peak-to-peak voltage of cosine reference signal [V]
           ref_V_p2p = parseFloatInString(strCmd, 9);
           ref_V_p2p = max(ref_V_p2p, 0.0);
-          ref_V_p2p = min(ref_V_center, A_REF/2);
+          ref_V_p2p = min(ref_V_p2p, A_REF);
           noInterrupts();
           create_LUT();
           interrupts();

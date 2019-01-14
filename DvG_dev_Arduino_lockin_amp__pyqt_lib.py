@@ -69,7 +69,9 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         (*) signal_DAQ_updated()
         (*) signal_connection_lost()
     """
-    signal_ref_freq_is_set = QtCore.pyqtSignal()
+    signal_ref_freq_is_set     = QtCore.pyqtSignal()
+    signal_ref_V_center_is_set = QtCore.pyqtSignal()
+    signal_ref_V_p2p_is_set    = QtCore.pyqtSignal()
     
     def __init__(self,
                  dev: lockin_functions.Arduino_lockin_amp,
@@ -128,30 +130,52 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     
     def set_ref_freq(self, ref_freq):
         self.worker_send.queued_instruction("set_ref_freq", ref_freq)
+        
+    def set_ref_V_center(self, ref_V_center):
+        self.worker_send.queued_instruction("set_ref_V_center", ref_V_center)
+        
+    def set_ref_V_p2p(self, ref_V_p2p):
+        self.worker_send.queued_instruction("set_ref_V_p2p", ref_V_p2p)
     
     # --------------------------------------------------------------------------
     #   alt_process_jobs_function
     # --------------------------------------------------------------------------
 
     def alt_process_jobs_function(self, func, args):
-        if func == "set_ref_freq":
-            ref_freq = args[0]
-            
-            if not (ref_freq == self.dev.config.ref_freq):
+        if func[:8] == "set_ref_":
+            set_value = args[0]
+        
+            if func == "set_ref_freq":
+                current_value = self.dev.config.ref_freq
+            elif func == "set_ref_V_center":
+                current_value = self.dev.config.ref_V_center
+            elif func == "set_ref_V_p2p":
+                current_value = self.dev.config.ref_V_p2p
+            else:
+                current_value = 0
+        
+            if not (set_value == current_value):
                 was_paused = self.dev.lockin_paused
                 
                 if not was_paused:
                     self.worker_DAQ.schedule_suspend()
                     while not self.worker_DAQ.suspended:
                         QtWid.QApplication.processEvents()
+        
+                if func == "set_ref_freq":
+                    self.dev.set_ref_freq(set_value)
+                    self.signal_ref_freq_is_set.emit()
+                elif func == "set_ref_V_center":
+                    self.dev.set_ref_V_center(set_value)
+                    self.signal_ref_V_center_is_set.emit()
+                elif func == "set_ref_V_p2p":
+                    self.dev.set_ref_V_p2p(set_value)
+                    self.signal_ref_V_p2p_is_set.emit()
                 
-                self.dev.set_ref_freq(ref_freq)
-                self.signal_ref_freq_is_set.emit()
-    
                 if not was_paused:
                     self.worker_DAQ.schedule_suspend(False)
                     QtWid.QApplication.processEvents()
-
+                    
         else:
             # Default job handling
             func(*args)

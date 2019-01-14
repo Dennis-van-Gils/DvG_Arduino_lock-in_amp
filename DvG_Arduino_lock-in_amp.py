@@ -163,14 +163,14 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
         
-        # Chart 'Reference and signal'
+        # Chart 'Readings'
         self.gw_refsig = pg.GraphicsWindow()
         self.gw_refsig.setBackground([20, 20, 20])
         self.pi_refsig = self.gw_refsig.addPlot()
 
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_refsig.showGrid(x=1, y=1)
-        self.pi_refsig.setTitle('Reference and signal', **p)
+        self.pi_refsig.setTitle('Readings', **p)
         self.pi_refsig.setLabel('bottom', text='time (ms)', **p)
         self.pi_refsig.setLabel('left', text='voltage (V)', **p)
         self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
@@ -199,23 +199,62 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_ENA_lockin = create_Toggle_button("lock-in OFF")
         self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
 
-        # 'Reference frequency'
-        self.qlin_set_ref_freq  = QtWid.QLineEdit("%.2f" % lockin.config.ref_freq)
-        self.qlin_read_ref_freq = QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, 
-                                                  readOnly=True)
+        # 'Reference signal'
+        num_chars = 8  # Limit the width of the textboxes to N characters wide
+        e = QtGui.QLineEdit()
+        w = (8 + num_chars * e.fontMetrics().width('x') + 
+             e.textMargins().left()     + e.textMargins().right() + 
+             e.contentsMargins().left() + e.contentsMargins().right())
+        del e
+        
+        p1 = {'maximumWidth': w}
+        p2 = {**p1, 'readOnly': True}
+        self.qlin_set_ref_freq = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p1))
+        self.qlin_read_ref_freq = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p2))
+        self.qlin_set_ref_V_center = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_center, **p1))
+        self.qlin_read_ref_V_center = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_center, **p2))
+        self.qlin_set_ref_V_p2p = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_p2p, **p1))
+        self.qlin_read_ref_V_p2p = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_p2p, **p2))
+
         self.qlin_set_ref_freq.editingFinished.connect(
                 self.process_qlin_set_ref_freq)
+        self.qlin_set_ref_V_center.editingFinished.connect(
+                self.process_qlin_set_ref_V_center)
+        self.qlin_set_ref_V_p2p.editingFinished.connect(
+                self.process_qlin_set_ref_V_p2p)
         
-        p = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
+        p  = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
+        p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter}
+        i = 0;
         grid = QtWid.QGridLayout()
-        grid.addWidget(QtWid.QLabel("Set f_ref:", **p) , 0, 1)
-        grid.addWidget(self.qlin_set_ref_freq          , 0, 2)
-        grid.addWidget(QtWid.QLabel("Hz")              , 0, 3)
-        grid.addWidget(QtWid.QLabel("Read f_ref:", **p), 1, 1)
-        grid.addWidget(self.qlin_read_ref_freq         , 1, 2)
-        grid.addWidget(QtWid.QLabel("Hz")              , 1, 3)
+        grid.setVerticalSpacing(4)
+        grid.addWidget(QtWid.QLabel("ref_X: cosine  |  ref_Y: sine", **p2)
+                                                     , i, 0, 1, 4); i+=1
+        grid.addWidget(QtWid.QLabel("Analog voltage limits: [0, %.2f] V" %
+                                    lockin.config.A_REF, **p2), i, 0, 1, 4); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 4)         , i, 0); i+=1
+        grid.addWidget(QtWid.QLabel("Set")           , i, 1)
+        grid.addWidget(QtWid.QLabel("Read")          , i, 2); i+=1
+        grid.addWidget(QtWid.QLabel("freq:", **p)    , i, 0)
+        grid.addWidget(self.qlin_set_ref_freq        , i, 1)
+        grid.addWidget(self.qlin_read_ref_freq       , i, 2)
+        grid.addWidget(QtWid.QLabel("Hz")            , i, 3); i+=1
+        grid.addWidget(QtWid.QLabel("V_center:", **p), i, 0)
+        grid.addWidget(self.qlin_set_ref_V_center    , i, 1)
+        grid.addWidget(self.qlin_read_ref_V_center   , i, 2)
+        grid.addWidget(QtWid.QLabel("V")             , i, 3); i+=1
+        grid.addWidget(QtWid.QLabel("V_p2p:", **p)   , i, 0)
+        grid.addWidget(self.qlin_set_ref_V_p2p       , i, 1)
+        grid.addWidget(self.qlin_read_ref_V_p2p      , i, 2)
+        grid.addWidget(QtWid.QLabel("V")             , i, 3)
         
-        qgrp_ref_freq = QtWid.QGroupBox("Reference frequency")
+        qgrp_ref_freq = QtWid.QGroupBox("Reference signal")
         qgrp_ref_freq.setStyleSheet(SS_GROUP)
         qgrp_ref_freq.setLayout(grid)
 
@@ -239,24 +278,27 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_autoscale_y = QtWid.QPushButton("autoscale y-axis")
         self.qpbt_autoscale_y.clicked.connect(self.process_qpbtn_autoscale_y)
 
+        i = 0
         grid = QtWid.QGridLayout()
-        grid.addWidget(QtWid.QLabel("time [0]:"), 0, 0)
-        grid.addWidget(self.qlin_time           , 0, 1)
-        grid.addWidget(QtWid.QLabel("us")       , 0, 2)
-        grid.addWidget(self.chkbs_refsig[0]     , 1, 0)
-        grid.addWidget(self.qlin_ref_X          , 1, 1)
-        grid.addWidget(QtWid.QLabel("V")        , 1, 2)
-        grid.addWidget(self.chkbs_refsig[1]     , 2, 0)
-        grid.addWidget(self.qlin_ref_Y          , 2, 1)
-        grid.addWidget(QtWid.QLabel("V")        , 2, 2)
-        grid.addWidget(self.chkbs_refsig[2]     , 3, 0)
-        grid.addWidget(self.qlin_sig_I          , 3, 1)
-        grid.addWidget(QtWid.QLabel("V")        , 3, 2)
-        grid.addWidget(self.qpbt_full_axes      , 4, 0, 1, 2)
-        grid.addWidget(self.qpbt_autoscale_y    , 5, 0, 1, 2)
+        grid.setVerticalSpacing(4)
+        grid.addWidget(QtWid.QLabel("time [0]:"), i, 0)
+        grid.addWidget(self.qlin_time           , i, 1)
+        grid.addWidget(QtWid.QLabel("us")       , i, 2); i+=1
+        grid.addWidget(self.chkbs_refsig[0]     , i, 0)
+        grid.addWidget(self.qlin_ref_X          , i, 1)
+        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
+        grid.addWidget(self.chkbs_refsig[1]     , i, 0)
+        grid.addWidget(self.qlin_ref_Y          , i, 1)
+        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
+        grid.addWidget(self.chkbs_refsig[2]     , i, 0)
+        grid.addWidget(self.qlin_sig_I          , i, 1)
+        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 4)    , i, 0); i+=1
+        grid.addWidget(self.qpbt_full_axes      , i, 0, 1, 2); i+=1
+        grid.addWidget(self.qpbt_autoscale_y    , i, 0, 1, 2)
         grid.setAlignment(QtCore.Qt.AlignTop)
 
-        qgrp_refsig = QtWid.QGroupBox("Reference and signal")
+        qgrp_refsig = QtWid.QGroupBox("Readings")
         qgrp_refsig.setStyleSheet(SS_GROUP)
         qgrp_refsig.setLayout(grid)
         
@@ -396,10 +438,48 @@ class MainWindow(QtWid.QWidget):
         if ref_freq != lockin.config.ref_freq:
             lockin_pyqt.set_ref_freq(ref_freq)
             app.processEvents()
+            
+    @QtCore.pyqtSlot()
+    def process_qlin_set_ref_V_center(self):
+        try:
+            ref_V_center = float(self.qlin_set_ref_V_center.text())
+        except ValueError:
+            ref_V_center = lockin.config.ref_V_center
+        
+        # Clip between 0 and the analog voltage reference
+        ref_V_center = np.clip(ref_V_center, 0, lockin.config.A_REF)
+        
+        self.qlin_set_ref_V_center.setText("%.2f" % ref_V_center)
+        if ref_V_center != lockin.config.ref_V_center:
+            lockin_pyqt.set_ref_V_center(ref_V_center)
+            app.processEvents()
+            
+    @QtCore.pyqtSlot()
+    def process_qlin_set_ref_V_p2p(self):
+        try:
+            ref_V_p2p = float(self.qlin_set_ref_V_p2p.text())
+        except ValueError:
+            ref_V_p2p = lockin.config.ref_V_p2p
+        
+        # Clip between 0 and the analog voltage reference
+        ref_V_p2p = np.clip(ref_V_p2p, 0, lockin.config.A_REF)
+        
+        self.qlin_set_ref_V_p2p.setText("%.2f" % ref_V_p2p)
+        if ref_V_p2p != lockin.config.ref_V_p2p:
+            lockin_pyqt.set_ref_V_p2p(ref_V_p2p)
+            app.processEvents()
         
     @QtCore.pyqtSlot()
     def update_qlin_read_ref_freq(self):
-        self.qlin_read_ref_freq.setText("%.2f" % lockin.config.ref_freq)    
+        self.qlin_read_ref_freq.setText("%.2f" % lockin.config.ref_freq)
+        
+    @QtCore.pyqtSlot()
+    def update_qlin_read_ref_V_center(self):
+        self.qlin_read_ref_V_center.setText("%.2f" % lockin.config.ref_V_center)
+        
+    @QtCore.pyqtSlot()
+    def update_qlin_read_ref_V_p2p(self):
+        self.qlin_read_ref_V_p2p.setText("%.2f" % lockin.config.ref_V_p2p)
 
     @QtCore.pyqtSlot()
     def process_chkbs_refsig(self):
@@ -534,10 +614,8 @@ def lockin_DAQ_update():
         return False
     
     phi   = 2 * np.pi * phase_ref_X / c.N_LUT
-    ref_X = np.cos(phi)
-    ref_X = c.ref_V_center + c.ref_V_p2p / 2 * ref_X
-    ref_Y = np.sin(phi)
-    ref_Y = c.ref_V_center + c.ref_V_p2p / 2 * ref_Y
+    ref_X = (c.ref_V_center + c.ref_V_p2p / 2 * np.cos(phi)).clip(0, c.A_REF)
+    ref_Y = (c.ref_V_center + c.ref_V_p2p / 2 * np.sin(phi)).clip(0, c.A_REF)
     sig_I = sig_I / (2**c.ANALOG_READ_RESOLUTION - 1) * c.A_REF
     
     mix_X = (ref_X - c.ref_V_center) * (sig_I - c.ref_V_center)
@@ -657,7 +735,12 @@ if __name__ == '__main__':
     # Connect signals to slots
     lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
     lockin_pyqt.signal_connection_lost.connect(notify_connection_lost)
-    lockin_pyqt.signal_ref_freq_is_set.connect(window.update_qlin_read_ref_freq)
+    lockin_pyqt.signal_ref_freq_is_set.connect(
+            window.update_qlin_read_ref_freq)
+    lockin_pyqt.signal_ref_V_center_is_set.connect(
+            window.update_qlin_read_ref_V_center)
+    lockin_pyqt.signal_ref_V_p2p_is_set.connect(
+            window.update_qlin_read_ref_V_p2p)
 
     # Start threads
     lockin_pyqt.start_thread_worker_DAQ(QtCore.QThread.TimeCriticalPriority)
