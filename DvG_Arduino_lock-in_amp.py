@@ -146,6 +146,12 @@ class MainWindow(QtWid.QWidget):
         vbox_right = QtWid.QVBoxLayout()
         vbox_right.addWidget(self.qpbt_exit)
         vbox_right.addStretch(1)
+        self.qlbl_GitHub = QtWid.QLabel("<a href=\"%s\">GitHub source</a>" %
+                                        __url__, **p)
+        self.qlbl_GitHub.setTextFormat(QtCore.Qt.RichText)
+        self.qlbl_GitHub.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
+        self.qlbl_GitHub.setOpenExternalLinks(True)
+        vbox_right.addWidget(self.qlbl_GitHub)
         vbox_right.addWidget(QtWid.QLabel(__author__, **p))
         vbox_right.addWidget(QtWid.QLabel(__date__, **p))
 
