@@ -1,8 +1,13 @@
 /*------------------------------------------------------------------------------
 Arduino lock-in amplifier
 
+Pins:
+A0: output reference signal
+A1: input signal, differential +
+A2: input signal, differential -
+
 Dennis van Gils
-08-12-2018
+15-01-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -50,7 +55,7 @@ const uint16_t DOUBLE_BUFFER_SIZE = 2 * BUFFER_SIZE;
 
 volatile uint32_t buffer_time       [DOUBLE_BUFFER_SIZE] = {0};
 volatile uint16_t buffer_ref_X_phase[DOUBLE_BUFFER_SIZE] = {0};
-volatile uint16_t buffer_sig_I      [DOUBLE_BUFFER_SIZE] = {0};
+volatile int16_t  buffer_sig_I      [DOUBLE_BUFFER_SIZE] = {0};
 
 const uint16_t N_BYTES_TIME        = BUFFER_SIZE*sizeof(buffer_time[0]);
 const uint16_t N_BYTES_REF_X_PHASE = BUFFER_SIZE*sizeof(buffer_ref_X_phase[0]);
@@ -60,8 +65,8 @@ volatile bool fSend_buffer_A = false;
 volatile bool fSend_buffer_B = false;
 
 // Serial transmission start and end messages
-const char SOM[] = {0x00, 0x00, 0x00, 0x00, 0xee}; // Start of message
-const char EOM[] = {0x00, 0x00, 0x00, 0x00, 0xff}; // End of message
+const char SOM[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xee}; // Start of message
+const char EOM[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff}; // End of message
 const uint8_t N_BYTES_SOM = sizeof(SOM);
 const uint8_t N_BYTES_EOM = sizeof(EOM);
 
@@ -146,7 +151,7 @@ void isr_psd() {
   syncADC();
   ADC->SWTRIG.bit.START = 1;
   while (ADC->INTFLAG.bit.RESRDY == 0); // Wait for conversion to complete
-  uint16_t sig_I = ADC->RESULT.reg;     // aka V_I without amplification (g = 1)
+  int16_t sig_I = ADC->RESULT.reg;      // aka V_I without amplification (g = 1)
 
   // Store in buffers
   if (fStartup) {
@@ -204,48 +209,62 @@ void setup() {
   // Setting smaller divisors than DIV16 results in ADC errors.
   ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV16_Val;
   analogReadResolution(ANALOG_READ_RESOLUTION);
-  analogRead(A1);
+  analogRead(A1); // Differential +
+  analogRead(A2); // Differential -
 
+  // Set differential mode on A1(+) and A2(-)
+  ADC->CTRLB.bit.DIFFMODE = 1;
+  ADC->INPUTCTRL.bit.MUXPOS = 2; // 2 == AIN2 on SAMD21 = A1 on Arduino board
+  ADC->INPUTCTRL.bit.MUXNEG = 3; // 3 == AIN3 on SAMD21 = A2 on Arduino board
+  
+  // Experimental
+  ADC->INPUTCTRL.bit.GAIN = 0; // = 0
+  ADC->REFCTRL.bit.REFSEL = 0; // = 0
+
+
+  // Prepare for software-triggered acquisition
   syncADC();
   ADC->CTRLA.bit.ENABLE = 0x01;
   syncADC();
   ADC->SWTRIG.bit.START = 1;
   ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
 
-  /*
+  //*
+  // Show debugging information
+  Ser_data.println("--------------");
   Ser_data.println("Up and running");
+  Ser_data.println("--------------");
   
-  Ser_data.println("- CTRLA");
-  Ser_data.print(".RUNSTDBY : "); Ser_data.println(ADC->CTRLA.bit.RUNSTDBY);    // 0
-  Ser_data.print(".ENABLE   : "); Ser_data.println(ADC->CTRLA.bit.ENABLE);      // 1
-  Ser_data.print(".SWRST    : "); Ser_data.println(ADC->CTRLA.bit.SWRST);       // 0
+  Ser_data.println("CTRLA");
+  Ser_data.print("  .RUNSTDBY : "); Ser_data.println(ADC->CTRLA.bit.RUNSTDBY);    // 0
+  Ser_data.print("  .ENABLE   : "); Ser_data.println(ADC->CTRLA.bit.ENABLE);      // 1
+  Ser_data.print("  .SWRST    : "); Ser_data.println(ADC->CTRLA.bit.SWRST);       // 0
 
-  Ser_data.println("- REFCTRL");
-  Ser_data.print(".REFCOMP  : "); Ser_data.println(ADC->REFCTRL.bit.REFCOMP);   // 0
-  Ser_data.print(".REFSEL   : "); Ser_data.println(ADC->REFCTRL.bit.REFSEL);    // 2 (== INTVCC1_Val; 1/2 VDDANA = 0.5* 3V3 = 1.65V)
+  Ser_data.println("REFCTRL");
+  Ser_data.print("  .REFCOMP  : "); Ser_data.println(ADC->REFCTRL.bit.REFCOMP);   // 0
+  Ser_data.print("  .REFSEL   : "); Ser_data.println(ADC->REFCTRL.bit.REFSEL);    // 2 (== INTVCC1; 1/2 VDDANA = 0.5* 3V3 = 1.65V)
 
-  Ser_data.println("- AVGVTRL");
-  Ser_data.print(".ADJRES   : "); Ser_data.println(ADC->AVGCTRL.bit.ADJRES);    // 0
-  Ser_data.print(".SAMPLENUM: "); Ser_data.println(ADC->AVGCTRL.bit.SAMPLENUM); // 0
+  Ser_data.println("AVGVTRL");
+  Ser_data.print("  .ADJRES   : "); Ser_data.println(ADC->AVGCTRL.bit.ADJRES);    // 0
+  Ser_data.print("  .SAMPLENUM: "); Ser_data.println(ADC->AVGCTRL.bit.SAMPLENUM); // 0
   
-  Ser_data.println("- SAMPCTRL");
-  Ser_data.print(".SAMPLEN  : "); Ser_data.println(ADC->SAMPCTRL.bit.SAMPLEN);  // 63 (0x3f)
+  Ser_data.println("SAMPCTRL");
+  Ser_data.print("  .SAMPLEN  : "); Ser_data.println(ADC->SAMPCTRL.bit.SAMPLEN);  // 63 (0x3f)
   
-  Ser_data.println("- CTRLB");
-  Ser_data.print(".PRESCALER: "); Ser_data.println(ADC->CTRLB.bit.PRESCALER);   // 2
-  Ser_data.print(".RESSEL   : "); Ser_data.println(ADC->CTRLB.bit.RESSEL);      // 0
-  Ser_data.print(".CORREN   : "); Ser_data.println(ADC->CTRLB.bit.CORREN);      // 0
-  Ser_data.print(".FREERUN  : "); Ser_data.println(ADC->CTRLB.bit.FREERUN);     // 0
-  Ser_data.print(".LEFTADJ  : "); Ser_data.println(ADC->CTRLB.bit.LEFTADJ);     // 0
-  Ser_data.print(".DIFFMODE : "); Ser_data.println(ADC->CTRLB.bit.DIFFMODE);    // 0
+  Ser_data.println("CTRLB");
+  Ser_data.print("  .PRESCALER: "); Ser_data.println(ADC->CTRLB.bit.PRESCALER);   // 2 (== DIV16)
+  Ser_data.print("  .RESSEL   : "); Ser_data.println(ADC->CTRLB.bit.RESSEL);      // 0
+  Ser_data.print("  .CORREN   : "); Ser_data.println(ADC->CTRLB.bit.CORREN);      // 0
+  Ser_data.print("  .FREERUN  : "); Ser_data.println(ADC->CTRLB.bit.FREERUN);     // 0
+  Ser_data.print("  .LEFTADJ  : "); Ser_data.println(ADC->CTRLB.bit.LEFTADJ);     // 0
+  Ser_data.print("  .DIFFMODE : "); Ser_data.println(ADC->CTRLB.bit.DIFFMODE);    // 0
  
-  Ser_data.println("- INPUTCTRL");
-  Ser_data.print(".GAIN       : "); Ser_data.println(ADC->INPUTCTRL.bit.GAIN);        // 15 (0x0f == ADC_INPUTCTRL_GAIN_DIV2_Val)
-  Ser_data.print(".INPUTOFFSET: "); Ser_data.println(ADC->INPUTCTRL.bit.INPUTOFFSET); // 0
-  Ser_data.print(".INPUTSCAN  : "); Ser_data.println(ADC->INPUTCTRL.bit.INPUTSCAN);   // 0
-  Ser_data.print(".MUXNEG     : "); Ser_data.println(ADC->INPUTCTRL.bit.MUXNEG);      // 24 (0x18)
-  Ser_data.print(".MUXPOS     : "); Ser_data.println(ADC->INPUTCTRL.bit.MUXPOS);      // 2
-  */
+  Ser_data.println("INPUTCTRL");
+  Ser_data.print("  .GAIN       : "); Ser_data.println(ADC->INPUTCTRL.bit.GAIN);        // 15 (0x0f == ADC_INPUTCTRL_GAIN_DIV2)
+  Ser_data.print("  .INPUTOFFSET: "); Ser_data.println(ADC->INPUTCTRL.bit.INPUTOFFSET); // 0
+  Ser_data.print("  .INPUTSCAN  : "); Ser_data.println(ADC->INPUTCTRL.bit.INPUTSCAN);   // 0
+  Ser_data.print("  .MUXNEG     : "); Ser_data.println(ADC->INPUTCTRL.bit.MUXNEG);      // 24 (0x18)
+  Ser_data.print("  .MUXPOS     : "); Ser_data.println(ADC->INPUTCTRL.bit.MUXPOS);      // 2
 
   // Start the interrupt timer
   TC.startTimer(ISR_CLOCK, isr_psd);

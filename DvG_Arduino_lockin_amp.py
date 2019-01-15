@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "14-01-2019"
+__date__        = "15-01-2019"
 __version__     = "1.0.0"
 
 import os
@@ -161,18 +161,19 @@ def lockin_DAQ_update():
     if not(N_samples == c.BUFFER_SIZE):
         dprint("'%s' ERROR N_samples @ %s %s" %
                (lockin.name, str_cur_date, str_cur_time))
+        dprint("Received: %i" % N_samples)
         return False
     
     e_byte_time  = N_samples * struct.calcsize('L');
     e_byte_ref_X = e_byte_time  + N_samples * struct.calcsize('H')
-    e_byte_sig_I = e_byte_ref_X + N_samples * struct.calcsize('H')
+    e_byte_sig_I = e_byte_ref_X + N_samples * struct.calcsize('h')
     bytes_time  = ans_bytes[0            : e_byte_time]
     bytes_ref_X = ans_bytes[e_byte_time  : e_byte_ref_X]
     bytes_sig_I = ans_bytes[e_byte_ref_X : e_byte_sig_I]
     try:
         time        = np.array(struct.unpack('<' + 'L'*N_samples, bytes_time))
         phase_ref_X = np.array(struct.unpack('<' + 'H'*N_samples, bytes_ref_X))
-        sig_I       = np.array(struct.unpack('<' + 'H'*N_samples, bytes_sig_I))
+        sig_I       = np.array(struct.unpack('<' + 'h'*N_samples, bytes_sig_I))
     except:
         return False
     
@@ -193,6 +194,8 @@ def lockin_DAQ_update():
     np.seterr(divide='ignore')
     out_phi = np.arctan(mix_Y / mix_X)
     np.seterr(divide='warn')
+    
+    sig_I = sig_I * 2
     
     state.time  = time
     state.ref_X = ref_X
