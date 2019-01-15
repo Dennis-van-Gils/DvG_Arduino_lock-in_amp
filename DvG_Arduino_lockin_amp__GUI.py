@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "14-01-2019"
+__date__        = "15-01-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -465,15 +465,18 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def process_qpbt_full_axes(self):
-        self.pi_refsig.setXRange(-self.lockin.config.BUFFER_SIZE *
-                                 self.lockin.config.ISR_CLOCK * 1e3, 0,
-                                 padding=0)
+        time_min = -(self.lockin.config.BUFFER_SIZE * 
+                     self.lockin.config.ISR_CLOCK * 1e3)
+        self.pi_refsig.setXRange(time_min, 0, padding=0)
+        self.pi_mixer.setXRange(time_min, 0, padding=0)
         self.process_qpbtn_autoscale_y()
 
     @QtCore.pyqtSlot()
     def process_qpbtn_autoscale_y(self):
         self.pi_refsig.enableAutoRange('y', True)
         self.pi_refsig.enableAutoRange('y', False)
+        self.pi_mixer.enableAutoRange('y', True)
+        self.pi_mixer.enableAutoRange('y', False)
         
     @QtCore.pyqtSlot()
     def process_qpbt_clear_chart(self):

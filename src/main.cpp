@@ -40,6 +40,10 @@ static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
 // Instantiate serial command listeners
 DvG_SerialCommand sc_data(Ser_data);
 
+// For printing debug info to terminal
+static __inline__ void report_hex(uint16_t) __attribute__((always_inline, unused));
+static void report_hex(uint16_t hex_val) {Ser_data.println(hex_val, HEX);}
+
 // Interrupt service routine clock
 // ISR_CLOCK: minimum 40 usec for only writing A0, no serial
 //            minimum 50 usec for writing A0 and reading A1 combined, no serial
@@ -50,7 +54,7 @@ DvG_SerialCommand sc_data(Ser_data);
 // for each variable. Double the amount of memory is reserved to employ a double
 // buffer technique, where alternatingly the first buffer half (buffer A) is
 // being written to and the second buffer half (buffer B) is being sent.
-#define BUFFER_SIZE 250   // [samples]
+#define BUFFER_SIZE 250   // [samples], 250
 const uint16_t DOUBLE_BUFFER_SIZE = 2 * BUFFER_SIZE;
 
 volatile uint32_t buffer_time       [DOUBLE_BUFFER_SIZE] = {0};
@@ -85,7 +89,7 @@ double ref_freq = 137.0;      // [Hz], aka f_R
 // has difficulty in cleanly dropping the output voltage completely to 0.0 V.
 #define A_REF        3.300    // [V] Analog voltage reference Arduino
 double ref_V_center = 2.0;    // [V] Center voltage of cosine reference signal
-double ref_V_p2p    = 2.0;    // [V] Peak-to-peak voltage of cosine reference signal
+double ref_V_p2p    = 0.4;    // [V] Peak-to-peak voltage of cosine reference signal
 
 #define N_LUT 12288  // (12288) Number of samples for one full period.
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
@@ -193,8 +197,6 @@ void setup() {
   #else
     Ser_data.begin(9600);
   #endif
-  
-  create_LUT();
 
   // Use built-in LED to signal running state of lock-in amp
   pinMode(PIN_LED, OUTPUT);
@@ -217,10 +219,9 @@ void setup() {
   ADC->INPUTCTRL.bit.MUXPOS = 2; // 2 == AIN2 on SAMD21 = A1 on Arduino board
   ADC->INPUTCTRL.bit.MUXNEG = 3; // 3 == AIN3 on SAMD21 = A2 on Arduino board
   
-  // Experimental
-  ADC->INPUTCTRL.bit.GAIN = 0; // = 0
-  ADC->REFCTRL.bit.REFSEL = 0; // = 0
-
+  // Experiment
+  ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;    // = 0
+  ADC->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // = 0
 
   // Prepare for software-triggered acquisition
   syncADC();
@@ -229,42 +230,38 @@ void setup() {
   ADC->SWTRIG.bit.START = 1;
   ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
 
-  //*
+  ///*
   // Show debugging information
-  Ser_data.println("--------------");
-  Ser_data.println("Up and running");
-  Ser_data.println("--------------");
-  
+  Ser_data.println("------------------");
   Ser_data.println("CTRLA");
-  Ser_data.print("  .RUNSTDBY : "); Ser_data.println(ADC->CTRLA.bit.RUNSTDBY);    // 0
-  Ser_data.print("  .ENABLE   : "); Ser_data.println(ADC->CTRLA.bit.ENABLE);      // 1
-  Ser_data.print("  .SWRST    : "); Ser_data.println(ADC->CTRLA.bit.SWRST);       // 0
-
+  Ser_data.print("  .RUNSTDBY   : "); report_hex(ADC->CTRLA.bit.RUNSTDBY);      // 0
+  Ser_data.print("  .ENABLE     : "); report_hex(ADC->CTRLA.bit.ENABLE);        // 1
+  Ser_data.print("  .SWRST      : "); report_hex(ADC->CTRLA.bit.SWRST);         // 0
   Ser_data.println("REFCTRL");
-  Ser_data.print("  .REFCOMP  : "); Ser_data.println(ADC->REFCTRL.bit.REFCOMP);   // 0
-  Ser_data.print("  .REFSEL   : "); Ser_data.println(ADC->REFCTRL.bit.REFSEL);    // 2 (== INTVCC1; 1/2 VDDANA = 0.5* 3V3 = 1.65V)
-
+  Ser_data.print("  .REFCOMP    : "); report_hex(ADC->REFCTRL.bit.REFCOMP);     // 0
+  Ser_data.print("  .REFSEL     : "); report_hex(ADC->REFCTRL.bit.REFSEL);      // 2 == ADC_REFCTRL_REFSEL_INTVCC1_Val; 1/2 VDDANA = 0.5* 3V3 = 1.65V
   Ser_data.println("AVGVTRL");
-  Ser_data.print("  .ADJRES   : "); Ser_data.println(ADC->AVGCTRL.bit.ADJRES);    // 0
-  Ser_data.print("  .SAMPLENUM: "); Ser_data.println(ADC->AVGCTRL.bit.SAMPLENUM); // 0
-  
+  Ser_data.print("  .ADJRES     : "); report_hex(ADC->AVGCTRL.bit.ADJRES);      // 0
+  Ser_data.print("  .SAMPLENUM  : "); report_hex(ADC->AVGCTRL.bit.SAMPLENUM);   // 0
   Ser_data.println("SAMPCTRL");
-  Ser_data.print("  .SAMPLEN  : "); Ser_data.println(ADC->SAMPCTRL.bit.SAMPLEN);  // 63 (0x3f)
-  
+  Ser_data.print("  .SAMPLEN    : "); report_hex(ADC->SAMPCTRL.bit.SAMPLEN);    // 0x3f
   Ser_data.println("CTRLB");
-  Ser_data.print("  .PRESCALER: "); Ser_data.println(ADC->CTRLB.bit.PRESCALER);   // 2 (== DIV16)
-  Ser_data.print("  .RESSEL   : "); Ser_data.println(ADC->CTRLB.bit.RESSEL);      // 0
-  Ser_data.print("  .CORREN   : "); Ser_data.println(ADC->CTRLB.bit.CORREN);      // 0
-  Ser_data.print("  .FREERUN  : "); Ser_data.println(ADC->CTRLB.bit.FREERUN);     // 0
-  Ser_data.print("  .LEFTADJ  : "); Ser_data.println(ADC->CTRLB.bit.LEFTADJ);     // 0
-  Ser_data.print("  .DIFFMODE : "); Ser_data.println(ADC->CTRLB.bit.DIFFMODE);    // 0
- 
+  Ser_data.print("  .PRESCALER  : "); report_hex(ADC->CTRLB.bit.PRESCALER);     // 2 == ADC_CTRLB_PRESCALER_DIV16_Val
+  Ser_data.print("  .RESSEL     : "); report_hex(ADC->CTRLB.bit.RESSEL);        // 0
+  Ser_data.print("  .CORREN     : "); report_hex(ADC->CTRLB.bit.CORREN);        // 0
+  Ser_data.print("  .FREERUN    : "); report_hex(ADC->CTRLB.bit.FREERUN);       // 0
+  Ser_data.print("  .LEFTADJ    : "); report_hex(ADC->CTRLB.bit.LEFTADJ);       // 0
+  Ser_data.print("  .DIFFMODE   : "); report_hex(ADC->CTRLB.bit.DIFFMODE);      // 0
   Ser_data.println("INPUTCTRL");
-  Ser_data.print("  .GAIN       : "); Ser_data.println(ADC->INPUTCTRL.bit.GAIN);        // 15 (0x0f == ADC_INPUTCTRL_GAIN_DIV2)
-  Ser_data.print("  .INPUTOFFSET: "); Ser_data.println(ADC->INPUTCTRL.bit.INPUTOFFSET); // 0
-  Ser_data.print("  .INPUTSCAN  : "); Ser_data.println(ADC->INPUTCTRL.bit.INPUTSCAN);   // 0
-  Ser_data.print("  .MUXNEG     : "); Ser_data.println(ADC->INPUTCTRL.bit.MUXNEG);      // 24 (0x18)
-  Ser_data.print("  .MUXPOS     : "); Ser_data.println(ADC->INPUTCTRL.bit.MUXPOS);      // 2
+  Ser_data.print("  .GAIN       : "); report_hex(ADC->INPUTCTRL.bit.GAIN);        // 0x0f == ADC_INPUTCTRL_GAIN_DIV2_Val
+  Ser_data.print("  .INPUTOFFSET: "); report_hex(ADC->INPUTCTRL.bit.INPUTOFFSET); // 0
+  Ser_data.print("  .INPUTSCAN  : "); report_hex(ADC->INPUTCTRL.bit.INPUTSCAN);   // 0
+  Ser_data.print("  .MUXNEG     : "); report_hex(ADC->INPUTCTRL.bit.MUXNEG);      // 0x18 == ADC_INPUTCTRL_MUXNEG_GND_Val
+  Ser_data.print("  .MUXPOS     : "); report_hex(ADC->INPUTCTRL.bit.MUXPOS);      // 2
+  //*/
+
+  // Create the cosine lookup table
+  create_LUT();
 
   // Start the interrupt timer
   TC.startTimer(ISR_CLOCK, isr_psd);

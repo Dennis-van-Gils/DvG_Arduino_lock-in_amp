@@ -182,6 +182,9 @@ def lockin_DAQ_update():
     ref_Y = (c.ref_V_center + c.ref_V_p2p / 2 * np.sin(phi)).clip(0, c.A_REF)
     sig_I = sig_I / (2**c.ANALOG_READ_RESOLUTION - 1) * c.A_REF
     
+    # Compensate for differential mode of Arduino. Exact cause unknown.
+    sig_I = sig_I * 2
+    
     mix_X = (ref_X - c.ref_V_center) * (sig_I - c.ref_V_center)
     mix_Y = (ref_Y - c.ref_V_center) * (sig_I - c.ref_V_center)
     
@@ -194,8 +197,6 @@ def lockin_DAQ_update():
     np.seterr(divide='ignore')
     out_phi = np.arctan(mix_Y / mix_X)
     np.seterr(divide='warn')
-    
-    sig_I = sig_I * 2
     
     state.time  = time
     state.ref_X = ref_X
