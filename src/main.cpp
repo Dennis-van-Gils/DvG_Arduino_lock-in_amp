@@ -212,6 +212,41 @@ void setup() {
   ADC->SWTRIG.bit.START = 1;
   ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
 
+  /*
+  Ser_data.println("Up and running");
+  
+  Ser_data.println("- CTRLA");
+  Ser_data.print(".RUNSTDBY : "); Ser_data.println(ADC->CTRLA.bit.RUNSTDBY);    // 0
+  Ser_data.print(".ENABLE   : "); Ser_data.println(ADC->CTRLA.bit.ENABLE);      // 1
+  Ser_data.print(".SWRST    : "); Ser_data.println(ADC->CTRLA.bit.SWRST);       // 0
+
+  Ser_data.println("- REFCTRL");
+  Ser_data.print(".REFCOMP  : "); Ser_data.println(ADC->REFCTRL.bit.REFCOMP);   // 0
+  Ser_data.print(".REFSEL   : "); Ser_data.println(ADC->REFCTRL.bit.REFSEL);    // 2 (== INTVCC1_Val; 1/2 VDDANA = 0.5* 3V3 = 1.65V)
+
+  Ser_data.println("- AVGVTRL");
+  Ser_data.print(".ADJRES   : "); Ser_data.println(ADC->AVGCTRL.bit.ADJRES);    // 0
+  Ser_data.print(".SAMPLENUM: "); Ser_data.println(ADC->AVGCTRL.bit.SAMPLENUM); // 0
+  
+  Ser_data.println("- SAMPCTRL");
+  Ser_data.print(".SAMPLEN  : "); Ser_data.println(ADC->SAMPCTRL.bit.SAMPLEN);  // 63 (0x3f)
+  
+  Ser_data.println("- CTRLB");
+  Ser_data.print(".PRESCALER: "); Ser_data.println(ADC->CTRLB.bit.PRESCALER);   // 2
+  Ser_data.print(".RESSEL   : "); Ser_data.println(ADC->CTRLB.bit.RESSEL);      // 0
+  Ser_data.print(".CORREN   : "); Ser_data.println(ADC->CTRLB.bit.CORREN);      // 0
+  Ser_data.print(".FREERUN  : "); Ser_data.println(ADC->CTRLB.bit.FREERUN);     // 0
+  Ser_data.print(".LEFTADJ  : "); Ser_data.println(ADC->CTRLB.bit.LEFTADJ);     // 0
+  Ser_data.print(".DIFFMODE : "); Ser_data.println(ADC->CTRLB.bit.DIFFMODE);    // 0
+ 
+  Ser_data.println("- INPUTCTRL");
+  Ser_data.print(".GAIN       : "); Ser_data.println(ADC->INPUTCTRL.bit.GAIN);        // 15 (0x0f == ADC_INPUTCTRL_GAIN_DIV2_Val)
+  Ser_data.print(".INPUTOFFSET: "); Ser_data.println(ADC->INPUTCTRL.bit.INPUTOFFSET); // 0
+  Ser_data.print(".INPUTSCAN  : "); Ser_data.println(ADC->INPUTCTRL.bit.INPUTSCAN);   // 0
+  Ser_data.print(".MUXNEG     : "); Ser_data.println(ADC->INPUTCTRL.bit.MUXNEG);      // 24 (0x18)
+  Ser_data.print(".MUXPOS     : "); Ser_data.println(ADC->INPUTCTRL.bit.MUXPOS);      // 2
+  */
+
   // Start the interrupt timer
   TC.startTimer(ISR_CLOCK, isr_psd);
 }
