@@ -34,7 +34,7 @@ static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
    microsec. Hence, use only one serial port for best performance.
 */
 #define SERIAL_DATA_BAUDRATE 8e5  // Only used when '#define Ser_data Serial'
-#define Ser_data    SerialUSB
+#define Ser_data    Serial
 #ifdef DEBUG
   #define Ser_debug Serial
 #endif
@@ -56,14 +56,22 @@ DvG_SerialCommand sc_data(Ser_data);
 #define BUFFER_SIZE 500   // [samples]
 
 /* Tested settings
-Case A: critically stable
-  ISR_CLOCK   200
-  BUFFER_SIZE 500
+Case A: critically stable on computer Onera
+  ISR_CLOCK   250
+  BUFFER_SIZE 400
+  DAQ --> 4000 Hz 
   Min. required baudrate 7e5
 
-Case B: safely stable
+Case B: critically stable on laptop work
+  ISR_CLOCK   200
+  BUFFER_SIZE 500
+  DAQ --> 5000 Hz 
+  Min. required baudrate 7e5
+
+Case B: safely stable on laptop work
   ISR_CLOCK   400
   BUFFER_SIZE 250
+  DAQ --> 2500 Hz 
   Min. required baudrate 3e5
 */
 
