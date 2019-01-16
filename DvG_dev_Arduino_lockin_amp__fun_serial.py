@@ -4,17 +4,17 @@
 connection.
 
 Dennis van Gils
-15-01-2019
+16-01-2019
 """
 
 import sys
 import serial
 
 import DvG_dev_Arduino__fun_serial as Arduino_functions
-from DvG_debug_functions import print_fancy_traceback as pft
+from DvG_debug_functions import dprint, print_fancy_traceback as pft
 
-SOM = bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xee]) # Start of message
-EOM = bytes([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff]) # End of message
+SOM = bytes([0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80]) # Start of message
+EOM = bytes([0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f]) # End of message
 N_BYTES_SOM = len(SOM)
 N_BYTES_EOM = len(EOM)
 
@@ -203,8 +203,11 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             ans_bytes
         """
         ans_bytes = self.ser.read_until(EOM)
+        #dprint("EOM found with %i bytes and..." % len(ans_bytes))
         if (ans_bytes[:N_BYTES_SOM] == SOM):
+            #dprint("SOM okay")
             ans_bytes = ans_bytes[N_BYTES_SOM:-N_BYTES_EOM] # Remove EOM & SOM
             return [True, ans_bytes]
         
+        #dprint("no SOM found!")
         return [False, b'']

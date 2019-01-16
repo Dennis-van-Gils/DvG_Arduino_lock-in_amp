@@ -7,15 +7,13 @@ A1: input signal, differential +
 A2: input signal, differential -
 
 Dennis van Gils
-15-01-2019
+16-01-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
 #include "DvG_SerialCommand.h"
 #include "ZeroTimer.h"
-
-// Define for writing debugging info to the terminal: Slow!
-//#define DEBUG
+#include "Streaming.h"
 
 // Wait for synchronization of registers between the clock domains
 static __inline__ void syncDAC() __attribute__((always_inline, unused));
@@ -25,6 +23,9 @@ static void syncDAC() {while (DAC->STATUS.bit.SYNCBUSY == 1);}
 static __inline__ void syncADC() __attribute__((always_inline, unused));
 static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
 
+// Define for writing debugging info to the terminal: Slow!
+//#define DEBUG
+
 // Serial   : Programming USB port
 // SerialUSB: Native USB port. Baudrate setting gets ignored and is always as
 //            fast as possible.
@@ -32,31 +33,41 @@ static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
    the Arduino already reduces the timing accuracy of 'isr_psd()' by several
    microsec. Hence, use only one serial port for best performance.
 */
-#define Ser_data    Serial      // Data channel
+#define SERIAL_DATA_BAUDRATE 8e5  // Only used when '#define Ser_data Serial'
+#define Ser_data    SerialUSB
 #ifdef DEBUG
-  #define Ser_debug SerialUSB   // Debug channel
+  #define Ser_debug Serial
 #endif
 
 // Instantiate serial command listeners
 DvG_SerialCommand sc_data(Ser_data);
 
-// For printing debug info to terminal
-static __inline__ void report_hex(uint16_t) __attribute__((always_inline, unused));
-static void report_hex(uint16_t hex_val) {Ser_data.println(hex_val, HEX);}
-
 // Interrupt service routine clock
-// ISR_CLOCK: minimum 40 usec for only writing A0, no serial
-//            minimum 50 usec for writing A0 and reading A1 combined, no serial
-#define ISR_CLOCK 400     // [usec], 200 is critically stable, 400 is stable
+// ISR_CLOCK: min.  40 usec for only writing A0, no serial
+//            min.  50 usec for writing A0 and reading A1, no serial
+//            min. 200 usec for writing A0 and reading A1, with serial
+#define ISR_CLOCK 200     // [usec]
 
 // Buffers
 // The buffer that will be send each transmission is BUFFER_SIZE samples long
 // for each variable. Double the amount of memory is reserved to employ a double
 // buffer technique, where alternatingly the first buffer half (buffer A) is
 // being written to and the second buffer half (buffer B) is being sent.
-#define BUFFER_SIZE 250   // [samples], 250
-const uint16_t DOUBLE_BUFFER_SIZE = 2 * BUFFER_SIZE;
+#define BUFFER_SIZE 500   // [samples]
 
+/* Tested settings
+Case A: critically stable
+  ISR_CLOCK   200
+  BUFFER_SIZE 500
+  Min. required baudrate 7e5
+
+Case B: safely stable
+  ISR_CLOCK   400
+  BUFFER_SIZE 250
+  Min. required baudrate 3e5
+*/
+
+const uint16_t DOUBLE_BUFFER_SIZE = 2 * BUFFER_SIZE;
 volatile uint32_t buffer_time       [DOUBLE_BUFFER_SIZE] = {0};
 volatile uint16_t buffer_ref_X_phase[DOUBLE_BUFFER_SIZE] = {0};
 volatile int16_t  buffer_sig_I      [DOUBLE_BUFFER_SIZE] = {0};
@@ -68,9 +79,9 @@ const uint16_t N_BYTES_SIG_I       = BUFFER_SIZE*sizeof(buffer_sig_I[0]);
 volatile bool fSend_buffer_A = false;
 volatile bool fSend_buffer_B = false;
 
-// Serial transmission start and end messages
-const char SOM[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xee}; // Start of message
-const char EOM[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff}; // End of message
+// Serial transmission sentinels: start and end of message
+const char SOM[] = {0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80};
+const char EOM[] = {0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f};
 const uint8_t N_BYTES_SOM = sizeof(SOM);
 const uint8_t N_BYTES_EOM = sizeof(EOM);
 
@@ -89,9 +100,9 @@ double ref_freq = 137.0;      // [Hz], aka f_R
 // has difficulty in cleanly dropping the output voltage completely to 0.0 V.
 #define A_REF        3.300    // [V] Analog voltage reference Arduino
 double ref_V_center = 2.0;    // [V] Center voltage of cosine reference signal
-double ref_V_p2p    = 0.4;    // [V] Peak-to-peak voltage of cosine reference signal
+double ref_V_p2p    = 0.4;    // [V] Peak-to-peak voltage of cosine ref. signal
 
-#define N_LUT 12288  // (12288) Number of samples for one full period.
+#define N_LUT 9000  // (9000) Number of samples for one full period.
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
 volatile double T_period_micros_dbl = 1.0 / ref_freq * 1e6;
 uint16_t LUT_cos[N_LUT] = {0};
@@ -102,6 +113,10 @@ void create_LUT() {
   double offset = ref_V_center / A_REF;
   double amplitude = 0.5 / A_REF * ref_V_p2p;
   double cosine_value;
+
+  #ifdef DEBUG
+    Ser_debug << "Creating LUT...";
+  #endif
 
   for (uint16_t i = 0; i < N_LUT; i++) {
     cosine_value = offset + amplitude * cos(2*PI*i/N_LUT);
@@ -115,6 +130,10 @@ void create_LUT() {
     LUT_sin[i] = LUT_cos[(i + N_LUT/4*3) % N_LUT];
   }
   */
+
+  #ifdef DEBUG
+    Ser_debug << " done." << endl;
+  #endif
 }
 
 /*------------------------------------------------------------------------------
@@ -190,10 +209,11 @@ void isr_psd() {
 void setup() {
   #ifdef DEBUG
     Ser_debug.begin(9600);
+    while (!Ser_debug) {;}
   #endif
 
   #if Ser_data == Serial
-    Ser_data.begin(3e5);
+    Ser_data.begin(SERIAL_DATA_BAUDRATE);
   #else
     Ser_data.begin(9600);
   #endif
@@ -218,10 +238,8 @@ void setup() {
   ADC->CTRLB.bit.DIFFMODE = 1;
   ADC->INPUTCTRL.bit.MUXPOS = 2; // 2 == AIN2 on SAMD21 = A1 on Arduino board
   ADC->INPUTCTRL.bit.MUXNEG = 3; // 3 == AIN3 on SAMD21 = A2 on Arduino board
-  
-  // Experiment
-  ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;    // = 0
-  ADC->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // = 0
+  ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
+  ADC->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val;
 
   // Prepare for software-triggered acquisition
   syncADC();
@@ -230,35 +248,48 @@ void setup() {
   ADC->SWTRIG.bit.START = 1;
   ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
 
-  ///*
   // Show debugging information
-  Ser_data.println("------------------");
-  Ser_data.println("CTRLA");
-  Ser_data.print("  .RUNSTDBY   : "); report_hex(ADC->CTRLA.bit.RUNSTDBY);      // 0
-  Ser_data.print("  .ENABLE     : "); report_hex(ADC->CTRLA.bit.ENABLE);        // 1
-  Ser_data.print("  .SWRST      : "); report_hex(ADC->CTRLA.bit.SWRST);         // 0
-  Ser_data.println("REFCTRL");
-  Ser_data.print("  .REFCOMP    : "); report_hex(ADC->REFCTRL.bit.REFCOMP);     // 0
-  Ser_data.print("  .REFSEL     : "); report_hex(ADC->REFCTRL.bit.REFSEL);      // 2 == ADC_REFCTRL_REFSEL_INTVCC1_Val; 1/2 VDDANA = 0.5* 3V3 = 1.65V
-  Ser_data.println("AVGVTRL");
-  Ser_data.print("  .ADJRES     : "); report_hex(ADC->AVGCTRL.bit.ADJRES);      // 0
-  Ser_data.print("  .SAMPLENUM  : "); report_hex(ADC->AVGCTRL.bit.SAMPLENUM);   // 0
-  Ser_data.println("SAMPCTRL");
-  Ser_data.print("  .SAMPLEN    : "); report_hex(ADC->SAMPCTRL.bit.SAMPLEN);    // 0x3f
-  Ser_data.println("CTRLB");
-  Ser_data.print("  .PRESCALER  : "); report_hex(ADC->CTRLB.bit.PRESCALER);     // 2 == ADC_CTRLB_PRESCALER_DIV16_Val
-  Ser_data.print("  .RESSEL     : "); report_hex(ADC->CTRLB.bit.RESSEL);        // 0
-  Ser_data.print("  .CORREN     : "); report_hex(ADC->CTRLB.bit.CORREN);        // 0
-  Ser_data.print("  .FREERUN    : "); report_hex(ADC->CTRLB.bit.FREERUN);       // 0
-  Ser_data.print("  .LEFTADJ    : "); report_hex(ADC->CTRLB.bit.LEFTADJ);       // 0
-  Ser_data.print("  .DIFFMODE   : "); report_hex(ADC->CTRLB.bit.DIFFMODE);      // 0
-  Ser_data.println("INPUTCTRL");
-  Ser_data.print("  .GAIN       : "); report_hex(ADC->INPUTCTRL.bit.GAIN);        // 0x0f == ADC_INPUTCTRL_GAIN_DIV2_Val
-  Ser_data.print("  .INPUTOFFSET: "); report_hex(ADC->INPUTCTRL.bit.INPUTOFFSET); // 0
-  Ser_data.print("  .INPUTSCAN  : "); report_hex(ADC->INPUTCTRL.bit.INPUTSCAN);   // 0
-  Ser_data.print("  .MUXNEG     : "); report_hex(ADC->INPUTCTRL.bit.MUXNEG);      // 0x18 == ADC_INPUTCTRL_MUXNEG_GND_Val
-  Ser_data.print("  .MUXPOS     : "); report_hex(ADC->INPUTCTRL.bit.MUXPOS);      // 2
-  //*/
+  #ifdef DEBUG
+    Ser_debug << "-------------------------------" << endl;
+    Ser_debug << "CTRLA" << endl;
+    Ser_debug << "  .RUNSTDBY   : " << _HEX(ADC->CTRLA.bit.RUNSTDBY) << endl;
+    Ser_debug << "  .ENABLE     : " << _HEX(ADC->CTRLA.bit.ENABLE) << endl;
+    Ser_debug << "  .SWRST      : " << _HEX(ADC->CTRLA.bit.SWRST) << endl;
+    Ser_debug << "REFCTRL" << endl;
+    Ser_debug << "  .REFCOMP    : " << _HEX(ADC->REFCTRL.bit.REFCOMP) << endl;
+    Ser_debug << "  .REFSEL     : " << _HEX(ADC->REFCTRL.bit.REFSEL) << endl;
+    Ser_debug << "AVGVTRL" << endl;
+    Ser_debug << "  .ADJRES     : " << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl;
+    Ser_debug << "  .SAMPLENUM  : " << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl;
+    Ser_debug << "SAMPCTRL" << endl;
+    Ser_debug << "  .SAMPLEN    : " << _HEX(ADC->SAMPCTRL.bit.SAMPLEN) << endl;
+    Ser_debug << "CTRLB" << endl;
+    Ser_debug << "  .PRESCALER  : " << _HEX(ADC->CTRLB.bit.PRESCALER) << endl;
+    Ser_debug << "  .RESSEL     : " << _HEX(ADC->CTRLB.bit.RESSEL) << endl;
+    Ser_debug << "  .CORREN     : " << _HEX(ADC->CTRLB.bit.CORREN) << endl;
+    Ser_debug << "  .FREERUN    : " << _HEX(ADC->CTRLB.bit.FREERUN) << endl;
+    Ser_debug << "  .LEFTADJ    : " << _HEX(ADC->CTRLB.bit.LEFTADJ) << endl;
+    Ser_debug << "  .DIFFMODE   : " << _HEX(ADC->CTRLB.bit.DIFFMODE) << endl;
+    Ser_debug << "INPUTCTRL" << endl;
+    Ser_debug << "  .GAIN       : " << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl;
+    Ser_debug << "  .INPUTOFFSET: " << _HEX(ADC->INPUTCTRL.bit.INPUTOFFSET) << endl;
+    Ser_debug << "  .INPUTSCAN  : " << _HEX(ADC->INPUTCTRL.bit.INPUTSCAN) << endl;
+    Ser_debug << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
+    Ser_debug << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
+    
+    float buffers_per_sec = 1.0e6 / ISR_CLOCK / BUFFER_SIZE;
+    uint32_t N_BYTES_SEND = N_BYTES_SOM + N_BYTES_EOM + N_BYTES_TIME +
+                            N_BYTES_REF_X_PHASE + N_BYTES_SIG_I;
+    uint32_t bps = ceil(N_BYTES_SEND * 8 * buffers_per_sec);
+    Ser_debug << "-------------------------------" << endl;
+    Ser_debug << "ISR clock        (usec): " << ISR_CLOCK << endl;
+    Ser_debug << "DAQ rate           (Hz): " << _FLOAT(1.0e6/ISR_CLOCK, 2) << endl;
+    Ser_debug << "Buffer size   (samples): " << BUFFER_SIZE << endl;
+    Ser_debug << "Send rate   (buffers/s): " << buffers_per_sec << endl;
+    Ser_debug << "Send per buffer (bytes): " << N_BYTES_SEND << endl;
+    Ser_debug << "Needed bandwidth  (bps): " << bps << endl;
+    Ser_debug << "-------------------------------" << endl;
+  #endif
 
   // Create the cosine lookup table
   create_LUT();
@@ -396,12 +427,12 @@ void loop() {
     if (fSend_buffer_A) {
       idx = 0;
       #ifdef DEBUG
-        Ser_debug.print("A: ");
+        Ser_debug << "A: ";
       #endif
     } else {
       idx = BUFFER_SIZE;
       #ifdef DEBUG
-        Ser_debug.print("B: ");
+        Ser_debug << "B: ";
       #endif
     }
 
@@ -424,7 +455,7 @@ void loop() {
     if (fSend_buffer_B) {fSend_buffer_B = false;}
 
     #ifdef DEBUG
-      Ser_debug.println(bytes_sent);
+      Ser_debug << bytes_sent << endl;
     #endif
   }
 }
