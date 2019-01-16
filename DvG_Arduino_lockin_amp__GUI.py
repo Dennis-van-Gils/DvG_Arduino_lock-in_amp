@@ -465,10 +465,10 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def process_qpbt_full_axes(self):
-        time_min = -(self.lockin.config.BUFFER_SIZE * 
+        min_time = -(self.lockin.config.BUFFER_SIZE * 
                      self.lockin.config.ISR_CLOCK * 1e3)
-        self.pi_refsig.setXRange(time_min, 0, padding=0)
-        self.pi_mixer.setXRange(time_min, 0, padding=0)
+        self.pi_refsig.setXRange(min_time, 0, padding=0.01)
+        self.pi_mixer.setXRange(min_time, 0, padding=0.01)
         self.process_qpbtn_autoscale_y()
 
     @QtCore.pyqtSlot()
