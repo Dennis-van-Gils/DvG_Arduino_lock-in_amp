@@ -7,7 +7,7 @@ A1: input signal, differential +
 A2: input signal, differential -
 
 Dennis van Gils
-16-01-2019
+17-01-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -24,17 +24,17 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
 static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
 
 // Define for writing debugging info to the terminal: Slow!
-//#define DEBUG
+#define DEBUG
 
-// Serial   : Programming USB port
-// SerialUSB: Native USB port. Baudrate setting gets ignored and is always as
-//            fast as possible.
+// Serial   : Programming USB port (UART).
+// SerialUSB: Native USB port (USART). Baudrate setting gets ignored and is
+//            always as fast as possible.
 /* NOTE: Simply connecting a USB cable from the PC to a second serial port on
    the Arduino already reduces the timing accuracy of 'isr_psd()' by several
    microsec. Hence, use only one serial port for best performance.
 */
 #define SERIAL_DATA_BAUDRATE 8e5  // Only used when '#define Ser_data Serial'
-#define Ser_data    Serial
+#define Ser_data    SerialUSB
 #ifdef DEBUG
   #define Ser_debug Serial
 #endif
@@ -62,11 +62,11 @@ Case A: critically stable on computer Onera
   DAQ --> 4000 Hz 
   Min. required baudrate 7e5
 
-Case B: critically stable on laptop work
+Case B: critically stable on laptop work (checked 2019-01-17)
   ISR_CLOCK   200
   BUFFER_SIZE 500
   DAQ --> 5000 Hz 
-  Min. required baudrate 7e5
+  Min. required baudrate 6e5
 
 Case B: safely stable on laptop work
   ISR_CLOCK   400
@@ -80,18 +80,23 @@ volatile uint32_t buffer_time       [DOUBLE_BUFFER_SIZE] = {0};
 volatile uint16_t buffer_ref_X_phase[DOUBLE_BUFFER_SIZE] = {0};
 volatile int16_t  buffer_sig_I      [DOUBLE_BUFFER_SIZE] = {0};
 
-const uint16_t N_BYTES_TIME        = BUFFER_SIZE*sizeof(buffer_time[0]);
-const uint16_t N_BYTES_REF_X_PHASE = BUFFER_SIZE*sizeof(buffer_ref_X_phase[0]);
-const uint16_t N_BYTES_SIG_I       = BUFFER_SIZE*sizeof(buffer_sig_I[0]);
-
-volatile bool fSend_buffer_A = false;
-volatile bool fSend_buffer_B = false;
-
 // Serial transmission sentinels: start and end of message
 const char SOM[] = {0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80};
 const char EOM[] = {0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f};
-const uint8_t N_BYTES_SOM = sizeof(SOM);
-const uint8_t N_BYTES_EOM = sizeof(EOM);
+
+const uint8_t  N_BYTES_SOM = sizeof(SOM);
+const uint16_t N_BYTES_TIME        = BUFFER_SIZE*sizeof(buffer_time[0]);
+const uint16_t N_BYTES_REF_X_PHASE = BUFFER_SIZE*sizeof(buffer_ref_X_phase[0]);
+const uint16_t N_BYTES_SIG_I       = BUFFER_SIZE*sizeof(buffer_sig_I[0]);
+const uint8_t  N_BYTES_EOM = sizeof(EOM);
+const uint32_t N_BYTES_TRANSMIT_BUFFER = N_BYTES_SOM +
+                                         N_BYTES_TIME +
+                                         N_BYTES_REF_X_PHASE +
+                                         N_BYTES_SIG_I +
+                                         N_BYTES_EOM;
+
+volatile bool fSend_buffer_A = false;
+volatile bool fSend_buffer_B = false;
 
 // Analog port resolutions
 #define ANALOG_WRITE_RESOLUTION 10      // [bits] Fixed to 10 on M0 Pro
@@ -148,12 +153,15 @@ void create_LUT() {
     Interrupt service routine (isr) for phase-sentive detection (psd) 
 ------------------------------------------------------------------------------*/
 volatile bool fRunning = false;
+volatile uint16_t N_buffers_scheduled_to_be_sent = 0;
+uint16_t N_sent_buffers = 0;
 
 void isr_psd() {
   static bool fPrevRunning = fRunning;
   static bool fStartup = true;
   static uint16_t write_idx1 = 0;   // Current write index in double buffer
   static uint16_t write_idx2 = 0;   // Current write index in double buffer
+  
   
   if (fRunning != fPrevRunning) {
     fPrevRunning = fRunning;
@@ -170,7 +178,9 @@ void isr_psd() {
 
   // Generate reference signals
   uint32_t now = micros();
-  uint16_t LUT_idx = round(fmod(now, T_period_micros_dbl) * \
+  static uint32_t now_offset = 0;
+  if (fStartup) {now_offset = now;} // Force cosine to start at phase = 0 deg
+  uint16_t LUT_idx = round(fmod(now - now_offset, T_period_micros_dbl) * \
                            LUT_micros2idx_factor);
   uint16_t ref_X = LUT_cos[LUT_idx];    // aka v_RX
 
@@ -200,9 +210,12 @@ void isr_psd() {
     write_idx2++;
   }
   
+  // Ready to send the buffer?
   if (write_idx1 == BUFFER_SIZE) {
+    N_buffers_scheduled_to_be_sent++;
     fSend_buffer_A = true;
   } else if (write_idx1 == DOUBLE_BUFFER_SIZE) {
+    N_buffers_scheduled_to_be_sent++;
     fSend_buffer_B = true;
     write_idx1 = 0;
   }
@@ -285,18 +298,20 @@ void setup() {
     Ser_debug << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
     Ser_debug << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
     
-    float buffers_per_sec = 1.0e6 / ISR_CLOCK / BUFFER_SIZE;
-    uint32_t N_BYTES_SEND = N_BYTES_SOM + N_BYTES_EOM + N_BYTES_TIME +
-                            N_BYTES_REF_X_PHASE + N_BYTES_SIG_I;
-    uint32_t bps = ceil(N_BYTES_SEND * 8 * buffers_per_sec);
-    Ser_debug << "-------------------------------" << endl;
-    Ser_debug << "ISR clock        (usec): " << ISR_CLOCK << endl;
-    Ser_debug << "DAQ rate           (Hz): " << _FLOAT(1.0e6/ISR_CLOCK, 2) << endl;
-    Ser_debug << "Buffer size   (samples): " << BUFFER_SIZE << endl;
-    Ser_debug << "Send rate   (buffers/s): " << buffers_per_sec << endl;
-    Ser_debug << "Send per buffer (bytes): " << N_BYTES_SEND << endl;
-    Ser_debug << "Needed bandwidth  (bps): " << bps << endl;
-    Ser_debug << "-------------------------------" << endl;
+    float DAQ_rate = 1.0e6 / ISR_CLOCK;
+    float buffer_rate = DAQ_rate / BUFFER_SIZE;
+    // 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
+    uint32_t baud = ceil(N_BYTES_TRANSMIT_BUFFER * 10 * buffer_rate);
+    Ser_debug << "----------------------------------------" << endl;
+    Ser_debug << "ISR clock    : " << ISR_CLOCK << " usec" << endl;
+    Ser_debug << "DAQ rate     : " << _FLOAT(DAQ_rate, 2) << " Hz" << endl;
+    Ser_debug << "Buffer size  : " << BUFFER_SIZE << " samples" << endl;
+    Ser_debug << "Transmit rate          : " << _FLOAT(buffer_rate, 2) 
+              << " buffers/s" << endl;
+    Ser_debug << "Data bytes per transmit: " << N_BYTES_TRANSMIT_BUFFER
+              << " bytes" << endl;
+    Ser_debug << "Lower bound baudrate   : " << baud << endl;
+    Ser_debug << "----------------------------------------" << endl;
   #endif
 
   // Create the cosine lookup table
@@ -351,6 +366,10 @@ void loop() {
 
         // Flush out and ignore the command
         sc_data.getCmd();
+
+        #ifdef DEBUG
+          Ser_debug << "OFF" << endl;
+        # endif
       } else {
         // -------------------
         //  Not running
@@ -365,6 +384,8 @@ void loop() {
           Ser_data.print(ISR_CLOCK);
           Ser_data.print('\t');
           Ser_data.print(BUFFER_SIZE);
+          Ser_data.print('\t');
+          Ser_data.print(N_BYTES_TRANSMIT_BUFFER);
           Ser_data.print('\t');
           Ser_data.print(N_LUT);
           Ser_data.print('\t');
@@ -384,14 +405,24 @@ void loop() {
         } else if (strcmpi(strCmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
           Ser_data.print("already_off\n");
+          
+          #ifdef DEBUG
+            Ser_debug << "Already OFF" << endl;
+          # endif
 
         } else if (strcmpi(strCmd, "on") == 0) {
           // Start lock-in amp          
           noInterrupts();
           fRunning = true;
+          N_buffers_scheduled_to_be_sent = 0;
+          N_sent_buffers = 0;
           fSend_buffer_A = false;
           fSend_buffer_B = false;
           interrupts();
+
+          #ifdef DEBUG
+            Ser_debug << "ON" << endl;
+          # endif
         
         } else if (strncmpi(strCmd, "ref_freq", 8) == 0) {
           // Set frequency of the output reference signal [Hz]
@@ -429,25 +460,23 @@ void loop() {
 
   // Send buffers over the data channel  
   if (fRunning && (fSend_buffer_A || fSend_buffer_B)) {
+    uint16_t dropped_buffers = 0;
     uint16_t bytes_sent = 0;
     uint16_t idx;
 
-    if (fSend_buffer_A) {
-      idx = 0;
-      #ifdef DEBUG
-        Ser_debug << "A: ";
-      #endif
-    } else {
-      idx = BUFFER_SIZE;
-      #ifdef DEBUG
-        Ser_debug << "B: ";
-      #endif
-    }
+    if (fSend_buffer_A) {idx = 0;} else {idx = BUFFER_SIZE;}
 
     // Uncomment 'noInterrupts()' and 'interrupts()' only for debugging purposes
-    // to get the execution time of a complete buffer transmission. Will suspend
-    // 'isr_psd()'.
-    //noInterrupts(); // Uncomment only for debugging purposes
+    // to get the execution time of a complete buffer transmission without being
+    // disturbed by 'isr_psd()'. Will suspend 'isr_psd()' for the duration of
+    // below 'Ser_data.write()'.
+    
+    /*
+    #ifdef DEBUG
+      //noInterrupts(); // Uncomment only for debugging purposes
+      uint32_t tick = micros();
+    #endif
+    */
     bytes_sent += Ser_data.write((uint8_t *) &SOM, \
                                  N_BYTES_SOM);
     bytes_sent += Ser_data.write((uint8_t *) &buffer_time [idx], \
@@ -458,12 +487,38 @@ void loop() {
                                  N_BYTES_SIG_I);
     bytes_sent += Ser_data.write((uint8_t *) &EOM, \
                                  N_BYTES_EOM);
+    /*
+    #ifdef DEBUG
+      Ser_debug << micros() - tick << endl;
+    #endif
     //interrupts();   // Uncomment only for debugging purposes
+    */
+    
+    N_sent_buffers++;
     if (fSend_buffer_A) {fSend_buffer_A = false;}
     if (fSend_buffer_B) {fSend_buffer_B = false;}
-
+    
+    noInterrupts();
+    N_buffers_scheduled_to_be_sent--;
+    if (N_buffers_scheduled_to_be_sent != 0) {
+      dropped_buffers = N_buffers_scheduled_to_be_sent;
+      N_buffers_scheduled_to_be_sent = 0;
+    }
+    interrupts();
+    
     #ifdef DEBUG
-      Ser_debug << bytes_sent << endl;
+      if ((dropped_buffers == 0) && (bytes_sent == N_BYTES_TRANSMIT_BUFFER)) {
+        //Ser_debug << N_sent_buffers << ((idx == 0)?" A ":" B ") << bytes_sent;
+        //Ser_debug << " OK" << endl;
+      } else {
+        Ser_debug << N_sent_buffers << ((idx == 0)?" A ":" B ") << bytes_sent;
+        if (dropped_buffers != 0 ) {
+          Ser_debug << " DROPPED " << dropped_buffers << endl;
+        }
+        if (bytes_sent != N_BYTES_TRANSMIT_BUFFER) {
+          Ser_debug << " WRONG N_BYTES SENT" << endl;
+        }
+      }
     #endif
   }
 }
