@@ -34,9 +34,9 @@ static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
    microsec. Hence, use only one serial port for best performance.
 */
 #define SERIAL_DATA_BAUDRATE 8e5  // Only used when '#define Ser_data Serial'
-#define Ser_data    SerialUSB
+#define Ser_data    Serial
 #ifdef DEBUG
-  #define Ser_debug Serial
+  #define Ser_debug SerialUSB
 #endif
 
 // Instantiate serial command listeners
@@ -460,9 +460,10 @@ void loop() {
 
   // Send buffers over the data channel  
   if (fRunning && (fSend_buffer_A || fSend_buffer_B)) {
+    int32_t  bytes_sent = 0;
     uint16_t dropped_buffers = 0;
-    uint16_t bytes_sent = 0;
     uint16_t idx;
+    bool fError = false;
 
     if (fSend_buffer_A) {idx = 0;} else {idx = BUFFER_SIZE;}
 
@@ -470,23 +471,30 @@ void loop() {
     // to get the execution time of a complete buffer transmission without being
     // disturbed by 'isr_psd()'. Will suspend 'isr_psd()' for the duration of
     // below 'Ser_data.write()'.
-    
     /*
     #ifdef DEBUG
       //noInterrupts(); // Uncomment only for debugging purposes
       uint32_t tick = micros();
     #endif
     */
-    bytes_sent += Ser_data.write((uint8_t *) &SOM, \
-                                 N_BYTES_SOM);
-    bytes_sent += Ser_data.write((uint8_t *) &buffer_time [idx], \
-                                 N_BYTES_TIME);
-    bytes_sent += Ser_data.write((uint8_t *) &buffer_ref_X_phase[idx], \
-                                 N_BYTES_REF_X_PHASE);
-    bytes_sent += Ser_data.write((uint8_t *) &buffer_sig_I[idx], \
-                                 N_BYTES_SIG_I);
-    bytes_sent += Ser_data.write((uint8_t *) &EOM, \
-                                 N_BYTES_EOM);
+    
+    // Contrary to Arduino documentation, 'write' can return -1 as indication
+    // of an error, e.g. the receiving side being overrun with data.
+    int32_t w = Ser_data.write((uint8_t *) &SOM, N_BYTES_SOM);
+    if (w == -1) {fError = true;} else {bytes_sent += w;}
+
+    w = Ser_data.write((uint8_t *) &buffer_time[idx], N_BYTES_TIME);
+    if (w == -1) {fError = true;} else {bytes_sent += w;}
+    
+    w = Ser_data.write((uint8_t *) &buffer_ref_X_phase[idx], N_BYTES_REF_X_PHASE);
+    if (w == -1) {fError = true;} else {bytes_sent += w;}
+    
+    w = Ser_data.write((uint8_t *) &buffer_sig_I[idx], N_BYTES_SIG_I);
+    if (w == -1) {fError = true;} else {bytes_sent += w;}
+    
+    w = Ser_data.write((uint8_t *) &EOM, N_BYTES_EOM);
+    if (w == -1) {fError = true;} else {bytes_sent += w;}
+    
     /*
     #ifdef DEBUG
       Ser_debug << micros() - tick << endl;
@@ -513,11 +521,14 @@ void loop() {
       } else {
         Ser_debug << N_sent_buffers << ((idx == 0)?" A ":" B ") << bytes_sent;
         if (dropped_buffers != 0 ) {
-          Ser_debug << " DROPPED " << dropped_buffers << endl;
+          Ser_debug << " DROPPED " << dropped_buffers;
         }
-        if (bytes_sent != N_BYTES_TRANSMIT_BUFFER) {
-          Ser_debug << " WRONG N_BYTES SENT" << endl;
+        if (fError) {
+          Ser_debug << " CAN'T WRITE";
+        } else if (bytes_sent != N_BYTES_TRANSMIT_BUFFER) {
+          Ser_debug << " WRONG N_BYTES SENT";
         }
+        Ser_debug << endl;
       }
     #endif
   }
