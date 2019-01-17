@@ -21,8 +21,9 @@ N_BYTES_EOM = len(EOM)
 class Arduino_lockin_amp(Arduino_functions.Arduino):
     class Config():
         ISR_CLOCK               = 0    # [s]
-        BUFFER_SIZE             = 0    # [number of samples]
-        N_LUT                   = 0    # [number of samples]
+        BUFFER_SIZE             = 0    # [number of samples per variable]
+        N_BYTES_TRANSMIT_BUFFER = 0    # [data bytes]
+        N_LUT                   = 0    # [number of samples over 360 degrees]
         ANALOG_WRITE_RESOLUTION = 0    # [bits]
         ANALOG_READ_RESOLUTION  = 0    # [bits]
         A_REF                   = 0    # [V] Analog voltage reference of Arduino
@@ -149,13 +150,14 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                 ans_list = ans_str.split('\t')
                 self.config.ISR_CLOCK               = float(ans_list[0]) * 1e-6
                 self.config.BUFFER_SIZE             = int(ans_list[1])
-                self.config.N_LUT                   = int(ans_list[2])
-                self.config.ANALOG_WRITE_RESOLUTION = int(ans_list[3])
-                self.config.ANALOG_READ_RESOLUTION  = int(ans_list[4] )
-                self.config.A_REF                   = float(ans_list[5])
-                self.config.ref_V_center            = float(ans_list[6])
-                self.config.ref_V_p2p               = float(ans_list[7])
-                self.config.ref_freq                = float(ans_list[8])
+                self.config.N_BYTES_TRANSMIT_BUFFER = int(ans_list[2])
+                self.config.N_LUT                   = int(ans_list[3])
+                self.config.ANALOG_WRITE_RESOLUTION = int(ans_list[4])
+                self.config.ANALOG_READ_RESOLUTION  = int(ans_list[5] )
+                self.config.A_REF                   = float(ans_list[6])
+                self.config.ref_V_center            = float(ans_list[7])
+                self.config.ref_V_p2p               = float(ans_list[8])
+                self.config.ref_freq                = float(ans_list[9])
                 return True
             except Exception as err:
                 raise(err)
