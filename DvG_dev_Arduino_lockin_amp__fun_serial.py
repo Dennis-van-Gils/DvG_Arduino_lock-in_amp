@@ -4,11 +4,14 @@
 connection.
 
 Dennis van Gils
-16-01-2019
+17-01-2019
 """
 
 import sys
+import struct
+
 import serial
+import numpy as np
 
 import DvG_dev_Arduino__fun_serial as Arduino_functions
 from DvG_debug_functions import dprint, print_fancy_traceback as pft
@@ -20,6 +23,10 @@ N_BYTES_EOM = len(EOM)
 
 class Arduino_lockin_amp(Arduino_functions.Arduino):
     class Config():
+        type_time  = 'L'   # uint32_t
+        type_ref_X = 'H'   # uint16_t
+        type_sig_I = 'h'   # int16_t
+        
         ISR_CLOCK               = 0    # [s]
         BUFFER_SIZE             = 0    # [number of samples per variable]
         N_BYTES_TRANSMIT_BUFFER = 0    # [data bytes]
@@ -202,14 +209,51 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         Returns:
             success
-            ans_bytes
+            time
+            ref_X
+            ref_Y
+            sig_I
         """
+        empty = np.array([np.nan])
+        
         ans_bytes = self.ser.read_until(EOM)
         #dprint("EOM found with %i bytes and..." % len(ans_bytes))
-        if (ans_bytes[:N_BYTES_SOM] == SOM):
-            #dprint("SOM okay")
-            ans_bytes = ans_bytes[N_BYTES_SOM:-N_BYTES_EOM] # Remove EOM & SOM
-            return [True, ans_bytes]
+        if not (ans_bytes[:N_BYTES_SOM] == SOM):
+            dprint("'%s' I/O ERROR: No SOM found" % self.name)
+            return [False, empty, empty, empty, empty]
         
-        #dprint("no SOM found!")
-        return [False, b'']
+        #dprint("SOM okay")
+        c = self.config  # Shorthand alias
+        if not(len(ans_bytes) == c.N_BYTES_TRANSMIT_BUFFER):
+            dprint("'%s' I/O ERROR: Wrong number of bytes received" %
+                   self.name)
+            dprint("Received: %i" % len(ans_bytes))
+            return [False, empty, empty, empty, empty]
+
+        end_byte_time  = c.BUFFER_SIZE * struct.calcsize(c.type_time)
+        end_byte_ref_X = (end_byte_time + c.BUFFER_SIZE *
+                          struct.calcsize(c.type_ref_X))
+        end_byte_sig_I = (end_byte_ref_X + c.BUFFER_SIZE *
+                          struct.calcsize(c.type_sig_I))
+        ans_bytes   = ans_bytes[N_BYTES_SOM:-N_BYTES_EOM]  # Remove EOM & SOM
+        bytes_time  = ans_bytes[0              : end_byte_time]
+        bytes_ref_X = ans_bytes[end_byte_time  : end_byte_ref_X]
+        bytes_sig_I = ans_bytes[end_byte_ref_X : end_byte_sig_I]
+        try:
+            time        = np.array(struct.unpack('<' +
+                            c.type_time * c.BUFFER_SIZE, bytes_time))
+            ref_X_phase = np.array(struct.unpack('<' + 
+                            c.type_ref_X * c.BUFFER_SIZE, bytes_ref_X))
+            sig_I       = np.array(struct.unpack('<' +
+                            c.type_sig_I * c.BUFFER_SIZE, bytes_sig_I))
+        except:
+            dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
+            return [False, empty, empty, empty, empty]
+
+        phi = 2 * np.pi * ref_X_phase / c.N_LUT
+        ref_X = (c.ref_V_center + c.ref_V_p2p / 2 * np.cos(phi)).clip(0,c.A_REF)
+        ref_Y = (c.ref_V_center + c.ref_V_p2p / 2 * np.sin(phi)).clip(0,c.A_REF)
+        sig_I = sig_I / (2**c.ANALOG_READ_RESOLUTION - 1) * c.A_REF
+        sig_I = sig_I * 2  # Compensate for differential mode of Arduino
+        
+        return [True, time, ref_X, ref_Y, sig_I]
