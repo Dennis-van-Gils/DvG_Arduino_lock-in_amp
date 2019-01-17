@@ -225,9 +225,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         #dprint("SOM okay")
         c = self.config  # Shorthand alias
         if not(len(ans_bytes) == c.N_BYTES_TRANSMIT_BUFFER):
-            dprint("'%s' I/O ERROR: Wrong number of bytes received" %
-                   self.name)
-            dprint("Received: %i" % len(ans_bytes))
+            dprint("'%s' I/O ERROR: Wrong number of bytes received, %i" %
+                   (self.name, len(ans_bytes)))
             return [False, empty, empty, empty, empty]
 
         end_byte_time  = c.BUFFER_SIZE * struct.calcsize(c.type_time)

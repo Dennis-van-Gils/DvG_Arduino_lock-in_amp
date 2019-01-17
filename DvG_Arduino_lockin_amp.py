@@ -150,7 +150,7 @@ def lockin_DAQ_update():
     
     [success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
     if not(success):
-        dprint(" "*16 + "@ %s %s" % (str_cur_date, str_cur_time))
+        dprint("@ %s %s" % (str_cur_date, str_cur_time))
         return False
 
     state.buffers_received += 1
