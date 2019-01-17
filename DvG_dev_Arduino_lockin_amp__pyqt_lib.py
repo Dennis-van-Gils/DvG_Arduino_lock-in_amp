@@ -15,8 +15,8 @@ import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
-DEBUG_worker_DAQ  = False
-DEBUG_worker_send = False
+DEBUG_worker_DAQ  = True
+DEBUG_worker_send = True
 
 # ------------------------------------------------------------------------------
 #   Arduino_pyqt
@@ -103,6 +103,8 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         Returns:
             success
         """
+        
+        """
         locker = QtCore.QMutexLocker(self.dev.mutex)
         
         if self.dev.turn_on():
@@ -112,11 +114,15 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         
         locker.unlock()
         return False
+        """
+        self.worker_send.queued_instruction("turn_on")
     
     def turn_off(self):
         """
         Returns:
             success
+        """
+        
         """
         self.worker_DAQ.schedule_suspend()
         while not self.worker_DAQ.suspended:
@@ -127,6 +133,8 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         locker.unlock()
 
         return success
+        """
+        self.worker_send.queued_instruction("turn_off")
     
     def set_ref_freq(self, ref_freq):
         self.worker_send.queued_instruction("set_ref_freq", ref_freq)
@@ -175,6 +183,16 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 if not was_paused:
                     self.worker_DAQ.schedule_suspend(False)
                     QtWid.QApplication.processEvents()
+                    
+        elif func == "turn_on":
+            if self.dev.turn_on():
+                self.worker_DAQ.schedule_suspend(False)
+                
+        elif func == "turn_off":
+            self.worker_DAQ.schedule_suspend()
+            while not self.worker_DAQ.suspended:
+                QtWid.QApplication.processEvents()
+            self.dev.turn_off()
                     
         else:
             # Default job handling
