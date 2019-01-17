@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "14-01-2019"
+__date__        = "15-01-2019"
 __version__     = "1.0.0"
 
 import os
@@ -143,44 +143,17 @@ def about_to_quit():
 
 def lockin_DAQ_update():
     str_cur_date, str_cur_time = current_date_time_strings()
-    
-    [success, ans_bytes] = lockin.listen_to_lockin_amp()
-    if lockin.lockin_paused:     # Prevent throwings errors if just paused
+    c: lockin_functions.Arduino_lockin_amp.Config = lockin.config  # Shorthand
+
+    if lockin.lockin_paused:  # Prevent throwings errors if just paused
         return False
     
+    [success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
     if not(success):
-        dprint("'%s' ERROR I/O       @ %s %s" %
-               (lockin.name, str_cur_date, str_cur_time))
+        dprint("@ %s %s" % (str_cur_date, str_cur_time))
         return False
-    
-    # Shorthand alias
-    c = lockin.config
-    
+
     state.buffers_received += 1
-    N_samples = int(len(ans_bytes) / struct.calcsize('LHH'))
-    if not(N_samples == c.BUFFER_SIZE):
-        dprint("'%s' ERROR N_samples @ %s %s" %
-               (lockin.name, str_cur_date, str_cur_time))
-        return False
-    
-    e_byte_time  = N_samples * struct.calcsize('L');
-    e_byte_ref_X = e_byte_time  + N_samples * struct.calcsize('H')
-    e_byte_sig_I = e_byte_ref_X + N_samples * struct.calcsize('H')
-    bytes_time  = ans_bytes[0            : e_byte_time]
-    bytes_ref_X = ans_bytes[e_byte_time  : e_byte_ref_X]
-    bytes_sig_I = ans_bytes[e_byte_ref_X : e_byte_sig_I]
-    try:
-        time        = np.array(struct.unpack('<' + 'L'*N_samples, bytes_time))
-        phase_ref_X = np.array(struct.unpack('<' + 'H'*N_samples, bytes_ref_X))
-        sig_I       = np.array(struct.unpack('<' + 'H'*N_samples, bytes_sig_I))
-    except:
-        return False
-    
-    phi   = 2 * np.pi * phase_ref_X / c.N_LUT
-    ref_X = (c.ref_V_center + c.ref_V_p2p / 2 * np.cos(phi)).clip(0, c.A_REF)
-    ref_Y = (c.ref_V_center + c.ref_V_p2p / 2 * np.sin(phi)).clip(0, c.A_REF)
-    sig_I = sig_I / (2**c.ANALOG_READ_RESOLUTION - 1) * c.A_REF
-    
     mix_X = (ref_X - c.ref_V_center) * (sig_I - c.ref_V_center)
     mix_Y = (ref_Y - c.ref_V_center) * (sig_I - c.ref_V_center)
     
@@ -229,7 +202,7 @@ def lockin_DAQ_update():
         file_logger.close_log()
 
     if file_logger.is_recording:
-        for i in range(N_samples):
+        for i in range(c.BUFFER_SIZE):
             file_logger.write("%i\t%.4f\t%.4f\t%.4f\n" % 
                               (time[i], ref_X[i], ref_Y[i], sig_I[i]))
 
@@ -254,7 +227,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
 
     # Connect to Arduino
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=3e5, read_timeout=5)
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=8e5, read_timeout=5)
     if not lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
         print("\nCheck connection and try resetting the Arduino.")
         print("Exiting...\n")

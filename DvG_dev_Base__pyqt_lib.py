@@ -41,8 +41,8 @@ MAIN CONTENTS:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "11-12-2018"
-__version__     = "1.2.0"
+__date__        = "17-01-2019"
+__version__     = "1.2.1"
 
 from enum import IntEnum, unique
 import queue
@@ -532,9 +532,12 @@ class Dev_Base_pyqt(QtCore.QObject):
             # Keep track of the obtained DAQ rate
             if (self.outer.DAQ_update_counter %
                 self.calc_DAQ_rate_every_N_iter == 0):
-                self.outer.obtained_DAQ_rate_Hz = (
-                        self.calc_DAQ_rate_every_N_iter /
-                        (now - self.prev_tick_DAQ_rate) * 1e3)
+                try:
+                    self.outer.obtained_DAQ_rate_Hz = (
+                            self.calc_DAQ_rate_every_N_iter /
+                            (now - self.prev_tick_DAQ_rate) * 1e3)
+                except ZeroDivisionError:
+                    self.outer.obtained_DAQ_rate_Hz = np.nan
                 self.prev_tick_DAQ_rate = now
 
             # Check the not alive counter
