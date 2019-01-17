@@ -8,3 +8,4 @@ log.txt
 port_data.txt
 *.pyc
 **/__pycache__/
+port_data.txt
