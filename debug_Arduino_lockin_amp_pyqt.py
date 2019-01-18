@@ -26,6 +26,7 @@ import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 
 EOM = b'\xff\x7f\x00\x00\xff\x7f\x00\x00\xff\x7f'
+N_BYTES_EOM = len(EOM)
 
 # Short-hand alias for DEBUG information
 def curThreadName(): return QtCore.QThread.currentThread().objectName()
@@ -240,7 +241,7 @@ def read_until(ser: serial.Serial, terminator='\n', size=None):
     line = bytearray()
     timeout = serial.Timeout(ser._timeout)
     while True:
-        c = ser.read(10)  # DvG 18-01-2019: Changed from 1 bit to 10 bits
+        c = ser.read(N_BYTES_EOM)  # DvG 18-01-2019: Changed from 1 bit to 10 bits
         if c:
             line += c
             if line[-lenterm:] == terminator:
@@ -269,7 +270,7 @@ def lockin_DAQ_update():
     tick = Time.time()
     ans_bytes = read_until(lockin.ser, EOM)
     #ans_bytes = lockin.ser.read_until(EOM)
-    #dprint(len(ans_bytes))
+    dprint(len(ans_bytes))
     dprint(tick - Time.time())
     
     return True
