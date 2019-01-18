@@ -25,7 +25,7 @@ if __name__ == "__main__":
     p = psutil.Process(os.getpid())
     p.nice(psutil.HIGH_PRIORITY_CLASS)
 
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1.5e6)
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=5e8)
     if not lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
         sys.exit(0)
     
@@ -58,39 +58,19 @@ if __name__ == "__main__":
             #if msvcrt.kbhit() and msvcrt.getch().decode() == chr(27):
             #    sys.exit(0)
             
-            [success, ans_bytes] = lockin.listen_to_lockin_amp()
-            #print(success)
+            [success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
+            
             if success:
                 buffers_received += 1
                 
                 if time_start == 0:
                     time_start = Time.time()
-                
-                N_samples = int(len(ans_bytes) / struct.calcsize('LHH'))
-                samples_received = np.append(samples_received, N_samples)
-                
-                e_byte_time  = N_samples * struct.calcsize('L');
-                e_byte_ref_X = e_byte_time + N_samples * struct.calcsize('H')
-                e_byte_sig_I = e_byte_ref_X + N_samples * struct.calcsize('H')
-                bytes_time  = ans_bytes[0            : e_byte_time]
-                bytes_ref_X = ans_bytes[e_byte_time  : e_byte_ref_X]
-                bytes_sig_I = ans_bytes[e_byte_ref_X : e_byte_sig_I]
-                try:
-                    time  = struct.unpack('<' + 'L'*N_samples, bytes_time)
-                    ref_X = struct.unpack('<' + 'H'*N_samples, bytes_ref_X)
-                    sig_I = struct.unpack('<' + 'H'*N_samples, bytes_sig_I)
-                except Exception as err:
-                    lockin.close()
-                    f_log.close()
-                    raise(err)
-                
+                    
                 #print("%3d: %d" % (counter, N_samples))
+                N_samples = len(time)
                 f_log.write("samples received: %i\n" % N_samples)
                 for i in range(N_samples):
                     f_log.write("%i\t%i\t%i\n" % (time[i], ref_X[i], sig_I[i]))
-                
-                ref_X = np.array(ref_X)
-                ref_X = np.cos(2*np.pi*ref_X/12288)
                 
                 full_time  = np.append(full_time , time)
                 full_ref_X = np.append(full_ref_X, ref_X)

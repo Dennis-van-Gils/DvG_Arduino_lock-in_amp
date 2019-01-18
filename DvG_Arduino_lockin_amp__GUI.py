@@ -380,12 +380,12 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbt_ENA_lockin(self):
         if self.qpbt_ENA_lockin.isChecked():
-            if self.lockin_pyqt.turn_on():
-                self.qpbt_ENA_lockin.setText("lock-in ON")
+            self.lockin_pyqt.turn_on()
+            self.qpbt_ENA_lockin.setText("lock-in ON")
         else:
-            if self.lockin_pyqt.turn_off():
-                self.qlbl_DAQ_rate.setText("Buffers/s: paused")
-                self.qpbt_ENA_lockin.setText("lock-in OFF")
+            self.lockin_pyqt.turn_off()
+            self.qlbl_DAQ_rate.setText("Buffers/s: paused")
+            self.qpbt_ENA_lockin.setText("lock-in OFF")
         
     @QtCore.pyqtSlot()
     def process_qpbt_record(self):
