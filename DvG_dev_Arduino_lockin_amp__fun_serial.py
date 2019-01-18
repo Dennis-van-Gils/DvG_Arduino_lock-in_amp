@@ -4,7 +4,7 @@
 connection.
 
 Dennis van Gils
-17-01-2019
+18-01-2019
 """
 
 import sys
@@ -16,13 +16,15 @@ import numpy as np
 import DvG_dev_Arduino__fun_serial as Arduino_functions
 from DvG_debug_functions import dprint, print_fancy_traceback as pft
 
-SOM = bytes([0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80]) # Start of message
-EOM = bytes([0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f]) # End of message
-N_BYTES_SOM = len(SOM)
-N_BYTES_EOM = len(EOM)
-
 class Arduino_lockin_amp(Arduino_functions.Arduino):
     class Config():
+        # Serial communication sentinels: start and end of message
+        SOM = b'\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80'
+        EOM = b'\xff\x7f\x00\x00\xff\x7f\x00\x00\xff\x7f'
+        N_BYTES_SOM = len(SOM)
+        N_BYTES_EOM = len(EOM) 
+        
+        # Data types to decode from binary stream
         type_time  = 'L'   # uint32_t
         type_ref_X = 'H'   # uint16_t
         type_sig_I = 'h'   # int16_t
@@ -215,15 +217,15 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             sig_I
         """
         empty = np.array([np.nan])
+        c = self.config  # Shorthand alias
         
-        ans_bytes = self.ser.read_until(EOM)
+        ans_bytes = self.ser.read_until(c.EOM)
         #dprint("EOM found with %i bytes and..." % len(ans_bytes))
-        if not (ans_bytes[:N_BYTES_SOM] == SOM):
+        if not (ans_bytes[:c.N_BYTES_SOM] == c.SOM):
             dprint("'%s' I/O ERROR: No SOM found" % self.name)
             return [False, empty, empty, empty, empty]
         
         #dprint("SOM okay")
-        c = self.config  # Shorthand alias
         if not(len(ans_bytes) == c.N_BYTES_TRANSMIT_BUFFER):
             dprint("'%s' I/O ERROR: Wrong number of bytes received, %i" %
                    (self.name, len(ans_bytes)))
@@ -234,7 +236,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                           struct.calcsize(c.type_ref_X))
         end_byte_sig_I = (end_byte_ref_X + c.BUFFER_SIZE *
                           struct.calcsize(c.type_sig_I))
-        ans_bytes   = ans_bytes[N_BYTES_SOM:-N_BYTES_EOM]  # Remove EOM & SOM
+        ans_bytes   = ans_bytes[c.N_BYTES_SOM  : -c.N_BYTES_EOM]
         bytes_time  = ans_bytes[0              : end_byte_time]
         bytes_ref_X = ans_bytes[end_byte_time  : end_byte_ref_X]
         bytes_sig_I = ans_bytes[end_byte_ref_X : end_byte_sig_I]
