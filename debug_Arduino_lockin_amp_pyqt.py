@@ -23,6 +23,11 @@ from DvG_debug_functions import dprint
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 
+EOM = b'\xff\x7f\x00\x00\xff\x7f\x00\x00\xff\x7f'
+
+# Short-hand alias for DEBUG information
+def curThreadName(): return QtCore.QThread.currentThread().objectName()
+
 class State(object):
     """Reflects the actual readings, parsed into separate variables, of the
     Arduino(s). There should only be one instance of the State class.
@@ -155,11 +160,12 @@ class MainWindow(QtWid.QWidget):
 class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     def __init__(self,
                  dev: lockin_functions.Arduino_lockin_amp,
-                 DAQ_update_interval_ms=1000,
+                 DAQ_update_interval_ms=10,
                  DAQ_function_to_run_each_update=None,
                  DAQ_critical_not_alive_count=3,
                  DAQ_timer_type=QtCore.Qt.PreciseTimer,
                  DAQ_trigger_by=Dev_Base_pyqt_lib.DAQ_trigger.CONTINUOUS,
+                 #DAQ_trigger_by=Dev_Base_pyqt_lib.DAQ_trigger.INTERNAL_TIMER,
                  calc_DAQ_rate_every_N_iter=25,
                  DEBUG_worker_DAQ=False,
                  DEBUG_worker_send=False,
@@ -221,16 +227,24 @@ def lockin_DAQ_update():
     if lockin.lockin_paused:  # Prevent throwings errors if just paused
         return False
     
-    [success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
-    return success
+    #[success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
+    #return success
+    
+    #print(curThreadName())
+    
+    ans_bytes = lockin.ser.read_until(EOM)
+    dprint(len(ans_bytes))
+    return True
 
 # ------------------------------------------------------------------------------
 #   Main
 # ------------------------------------------------------------------------------
 
 if __name__ == '__main__':
+    QtCore.QThread.currentThread().setObjectName('MAIN')    # For DEBUG info
+    
     # Connect to Arduino
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=8e5, read_timeout=5)
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=8e5, read_timeout=1)
     lockin.connect_at_port("COM6")
     lockin.begin(ref_freq=100)
     state = State()
@@ -245,8 +259,9 @@ if __name__ == '__main__':
                             DEBUG_worker_send=True)
     #lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
     
+    lockin.ser.timeout = None
+    
     # Create application and main window
-    QtCore.QThread.currentThread().setObjectName('MAIN')    # For DEBUG info
     app = 0    # Work-around for kernel crash when using Spyder IDE
     app = QtWid.QApplication(sys.argv)
     app.aboutToQuit.connect(about_to_quit)
