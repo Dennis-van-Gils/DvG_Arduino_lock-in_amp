@@ -204,6 +204,28 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             self.config.ref_V_p2p = float(ans_str)        
         return success
     
+    def my_read_until(self, terminator='\n', size=None):
+        """\
+        Read until a termination sequence is found ('\n' by default), the size
+        is exceeded or until timeout occurs.
+        """
+        lenterm = len(terminator)
+        line = bytearray()
+        timeout = serial.Timeout(self.ser._timeout)
+        while True:
+            c = self.ser.read(self.config.N_BYTES_EOM)  # DvG 18-01-2019
+            if c:
+                line += c
+                if line[-lenterm:] == terminator:
+                    break
+                if size is not None and len(line) >= size:
+                    break
+            else:
+                break
+            if timeout.expired():
+                break
+        return bytes(line)
+        
     def listen_to_lockin_amp(self):
         """Reads incoming data packets coming from the lock-in amp. This method
         is blocking until it receives an 'end-of-message' sentinel or until it
@@ -219,7 +241,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         empty = np.array([np.nan])
         c = self.config  # Shorthand alias
         
-        ans_bytes = self.ser.read_until(c.EOM)
+        ans_bytes = self.my_read_until(c.EOM)
         #dprint("EOM found with %i bytes and..." % len(ans_bytes))
         if not (ans_bytes[:c.N_BYTES_SOM] == c.SOM):
             dprint("'%s' I/O ERROR: No SOM found" % self.name)
