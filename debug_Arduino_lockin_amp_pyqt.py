@@ -17,6 +17,8 @@ from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 import numpy as np
 
+import time as Time
+
 from DvG_pyqt_controls import create_Toggle_button
 from DvG_debug_functions import dprint
 
@@ -215,9 +217,41 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
 def about_to_quit():
     print("\nAbout to quit")
     app.processEvents()
-    if lockin.is_alive: lockin_pyqt.turn_off()
+    #if lockin.is_alive: lockin_pyqt.turn_off()
+    if lockin.is_alive:
+        lockin_pyqt.worker_DAQ.schedule_suspend()
+        while not lockin_pyqt.worker_DAQ.suspended:
+            QtWid.QApplication.processEvents()
+            lockin.turn_off()
     lockin_pyqt.close_all_threads()
     lockin.close()
+
+# ------------------------------------------------------------------------------
+#   Custom serial.read_until
+# ------------------------------------------------------------------------------
+
+import serial
+def read_until(ser: serial.Serial, terminator='\n', size=None):
+    """\
+    Read until a termination sequence is found ('\n' by default), the size
+    is exceeded or until timeout occurs.
+    """
+    lenterm = len(terminator)
+    line = bytearray()
+    timeout = serial.Timeout(ser._timeout)
+    while True:
+        c = ser.read(10)  # DvG 18-01-2019: Changed from 1 bit to 10 bits
+        if c:
+            line += c
+            if line[-lenterm:] == terminator:
+                break
+            if size is not None and len(line) >= size:
+                break
+        else:
+            break
+        if timeout.expired():
+            break
+    return bytes(line)
 
 # ------------------------------------------------------------------------------
 #   Lock-in amplifier data-acquisition update function
@@ -232,8 +266,12 @@ def lockin_DAQ_update():
     
     #print(curThreadName())
     
-    ans_bytes = lockin.ser.read_until(EOM)
-    dprint(len(ans_bytes))
+    tick = Time.time()
+    ans_bytes = read_until(lockin.ser, EOM)
+    #ans_bytes = lockin.ser.read_until(EOM)
+    #dprint(len(ans_bytes))
+    dprint(tick - Time.time())
+    
     return True
 
 # ------------------------------------------------------------------------------
@@ -258,8 +296,6 @@ if __name__ == '__main__':
                             DEBUG_worker_DAQ=True,
                             DEBUG_worker_send=True)
     #lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
-    
-    lockin.ser.timeout = None
     
     # Create application and main window
     app = 0    # Work-around for kernel crash when using Spyder IDE
