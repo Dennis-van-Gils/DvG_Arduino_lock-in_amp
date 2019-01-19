@@ -110,7 +110,7 @@ def update_GUI():
 
 def stop_running():
     app.processEvents()
-    if lockin.is_alive: lockin_pyqt.turn_off()
+    if lockin.is_alive: lockin_pyqt.turn_off_immediately()
     lockin_pyqt.close_all_threads()
     file_logger.close_log()
 
@@ -241,7 +241,9 @@ if __name__ == '__main__':
                             dev=lockin,
                             DAQ_function_to_run_each_update=lockin_DAQ_update,
                             DAQ_critical_not_alive_count=np.nan,
-                            calc_DAQ_rate_every_N_iter=10)
+                            calc_DAQ_rate_every_N_iter=10,
+                            DEBUG_worker_DAQ=False,
+                            DEBUG_worker_send=False)
     lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
     lockin_pyqt.signal_connection_lost.connect(notify_connection_lost)
     
