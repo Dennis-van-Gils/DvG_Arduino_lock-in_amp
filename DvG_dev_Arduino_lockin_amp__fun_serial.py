@@ -207,14 +207,18 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             self.config.ref_V_p2p = float(ans_str)        
         return success
     
-    def my_read_until(self, terminator='\n', size=None):
+    def read_until_EOM(self, size=None):
         """\
-        Read until a termination sequence is found ('\n' by default), the size
-        is exceeded or until timeout occurs.
+        Read from the serial port until the EOM sentinel is found, the size is
+        exceeded or until timeout occurs.
         
-        WORK IN PROGRESS
+        Contrary to 'serial.read_until' which reads 1 byte at a time, here we
+        read chunks of 2*N_BYTES_EOM. This is way more efficient for the OS
+        and drastically reduces a non-responsive GUI and dropped I/O (even
+        though they are running in separate threads?!). Any left-over bytes
+        after the EOM will be remembered and prefixed to the next read_until_EOM
+        operation.
         """
-        #lenterm = len(terminator)
         line = bytearray()
         line[:] = self.read_until_left_over_bytes
         timeout = serial.Timeout(self.ser._timeout)
@@ -223,7 +227,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             if c:
                 line += c
                 line_tail = line[-4*self.config.N_BYTES_EOM:]
-                i_found_terminator = line_tail.find(terminator)
+                i_found_terminator = line_tail.find(self.config.EOM)
                 if i_found_terminator > -1:
                     N_left_over_bytes_after_EOM = (
                             len(line_tail) - i_found_terminator - 
@@ -263,7 +267,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         empty = np.array([np.nan])
         c = self.config  # Shorthand alias
         
-        ans_bytes = self.my_read_until(c.EOM)
+        ans_bytes = self.read_until_EOM()
         #dprint("EOM found with %i bytes and..." % len(ans_bytes))
         if not (ans_bytes[:c.N_BYTES_SOM] == c.SOM):
             dprint("'%s' I/O ERROR: No SOM found" % self.name)
