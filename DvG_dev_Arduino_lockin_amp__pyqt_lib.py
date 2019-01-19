@@ -6,17 +6,13 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "13-12-2018"
-__version__     = "1.2.0"
+__date__        = "19-01-2019"
+__version__     = "1.2.1"
 
 from PyQt5 import QtCore, QtWidgets as QtWid
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
-
-# Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
-DEBUG_worker_DAQ  = True
-DEBUG_worker_send = True
 
 # ------------------------------------------------------------------------------
 #   Arduino_pyqt
@@ -81,6 +77,8 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                  DAQ_timer_type=QtCore.Qt.PreciseTimer,
                  DAQ_trigger_by=Dev_Base_pyqt_lib.DAQ_trigger.CONTINUOUS,
                  calc_DAQ_rate_every_N_iter=25,
+                 DEBUG_worker_DAQ=False,
+                 DEBUG_worker_send=False,
                  parent=None):
         super(Arduino_lockin_amp_pyqt, self).__init__(parent=parent)
 
@@ -99,11 +97,12 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                                 DEBUG=DEBUG_worker_send)
         
     def turn_on(self):
+        self.worker_send.queued_instruction("turn_on")
+    
+    def turn_on_immediately(self):
         """
         Returns:
             success
-        """
-        
         """
         locker = QtCore.QMutexLocker(self.dev.mutex)
         
@@ -114,15 +113,14 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         
         locker.unlock()
         return False
-        """
-        self.worker_send.queued_instruction("turn_on")
-    
+        
     def turn_off(self):
+        self.worker_send.queued_instruction("turn_off")
+    
+    def turn_off_immediately(self):
         """
         Returns:
             success
-        """
-        
         """
         self.worker_DAQ.schedule_suspend()
         while not self.worker_DAQ.suspended:
@@ -131,10 +129,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         locker = QtCore.QMutexLocker(self.dev.mutex)
         [success, foo, bar] = self.dev.turn_off()
         locker.unlock()
-
         return success
-        """
-        self.worker_send.queued_instruction("turn_off")
     
     def set_ref_freq(self, ref_freq):
         self.worker_send.queued_instruction("set_ref_freq", ref_freq)
