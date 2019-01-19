@@ -23,7 +23,7 @@ static void syncDAC() {while (DAC->STATUS.bit.SYNCBUSY == 1);}
 static __inline__ void syncADC() __attribute__((always_inline, unused));
 static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
 
-// Define for writing debugging info to the terminal: Slow!
+// Define for writing debugging info to the terminal
 #define DEBUG
 
 // Serial   : Programming USB port (UART).
@@ -34,9 +34,9 @@ static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
    microsec. Hence, use only one serial port for best performance.
 */
 #define SERIAL_DATA_BAUDRATE 8e5  // Only used when '#define Ser_data Serial'
-#define Ser_data    SerialUSB
+#define Ser_data    SerialUSB     // Preferred: SerialUSB
 #ifdef DEBUG
-  #define Ser_debug Serial
+  #define Ser_debug Serial        // Preferred: Serial
 #endif
 
 // Instantiate serial command listeners
@@ -46,14 +46,14 @@ DvG_SerialCommand sc_data(Ser_data);
 // ISR_CLOCK: min.  40 usec for only writing A0, no serial
 //            min.  50 usec for writing A0 and reading A1, no serial
 //            min. 200 usec for writing A0 and reading A1, with serial
-#define ISR_CLOCK 150     // [usec]
+#define ISR_CLOCK 160     // [usec]
 
 // Buffers
 // The buffer that will be send each transmission is BUFFER_SIZE samples long
 // for each variable. Double the amount of memory is reserved to employ a double
 // buffer technique, where alternatingly the first buffer half (buffer A) is
 // being written to and the second buffer half (buffer B) is being sent.
-#define BUFFER_SIZE 500   // [samples]
+#define BUFFER_SIZE 625   // [samples]
 
 /* Tested settings
 Case A: critically stable on computer Onera
@@ -162,7 +162,6 @@ void isr_psd() {
   static uint16_t write_idx1 = 0;   // Current write index in double buffer
   static uint16_t write_idx2 = 0;   // Current write index in double buffer
 
-
   if (fRunning != fPrevRunning) {
     fPrevRunning = fRunning;
     if (fRunning) {
@@ -224,6 +223,56 @@ void isr_psd() {
 }
 
 /*------------------------------------------------------------------------------
+    Print debug information to the terminal
+------------------------------------------------------------------------------*/
+
+#ifdef DEBUG
+  void print_debug_info() {
+      Ser_debug << "-------------------------------" << endl;
+      Ser_debug << "CTRLA" << endl;
+      Ser_debug << "  .RUNSTDBY   : " << _HEX(ADC->CTRLA.bit.RUNSTDBY) << endl;
+      Ser_debug << "  .ENABLE     : " << _HEX(ADC->CTRLA.bit.ENABLE) << endl;
+      Ser_debug << "  .SWRST      : " << _HEX(ADC->CTRLA.bit.SWRST) << endl;
+      Ser_debug << "REFCTRL" << endl;
+      Ser_debug << "  .REFCOMP    : " << _HEX(ADC->REFCTRL.bit.REFCOMP) << endl;
+      Ser_debug << "  .REFSEL     : " << _HEX(ADC->REFCTRL.bit.REFSEL) << endl;
+      Ser_debug << "AVGVTRL" << endl;
+      Ser_debug << "  .ADJRES     : " << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl;
+      Ser_debug << "  .SAMPLENUM  : " << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl;
+      Ser_debug << "SAMPCTRL" << endl;
+      Ser_debug << "  .SAMPLEN    : " << _HEX(ADC->SAMPCTRL.bit.SAMPLEN) << endl;
+      Ser_debug << "CTRLB" << endl;
+      Ser_debug << "  .PRESCALER  : " << _HEX(ADC->CTRLB.bit.PRESCALER) << endl;
+      Ser_debug << "  .RESSEL     : " << _HEX(ADC->CTRLB.bit.RESSEL) << endl;
+      Ser_debug << "  .CORREN     : " << _HEX(ADC->CTRLB.bit.CORREN) << endl;
+      Ser_debug << "  .FREERUN    : " << _HEX(ADC->CTRLB.bit.FREERUN) << endl;
+      Ser_debug << "  .LEFTADJ    : " << _HEX(ADC->CTRLB.bit.LEFTADJ) << endl;
+      Ser_debug << "  .DIFFMODE   : " << _HEX(ADC->CTRLB.bit.DIFFMODE) << endl;
+      Ser_debug << "INPUTCTRL" << endl;
+      Ser_debug << "  .GAIN       : " << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl;
+      Ser_debug << "  .INPUTOFFSET: " << _HEX(ADC->INPUTCTRL.bit.INPUTOFFSET) << endl;
+      Ser_debug << "  .INPUTSCAN  : " << _HEX(ADC->INPUTCTRL.bit.INPUTSCAN) << endl;
+      Ser_debug << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
+      Ser_debug << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
+
+      float DAQ_rate = 1.0e6 / ISR_CLOCK;
+      float buffer_rate = DAQ_rate / BUFFER_SIZE;
+      // 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
+      uint32_t baud = ceil(N_BYTES_TRANSMIT_BUFFER * 10 * buffer_rate);
+      Ser_debug << "----------------------------------------" << endl;
+      Ser_debug << "ISR clock    : " << ISR_CLOCK << " usec" << endl;
+      Ser_debug << "DAQ rate     : " << _FLOAT(DAQ_rate, 2) << " Hz" << endl;
+      Ser_debug << "Buffer size  : " << BUFFER_SIZE << " samples" << endl;
+      Ser_debug << "Transmit rate          : " << _FLOAT(buffer_rate, 2)
+                << " buffers/s" << endl;
+      Ser_debug << "Data bytes per transmit: " << N_BYTES_TRANSMIT_BUFFER
+                << " bytes" << endl;
+      Ser_debug << "Lower bound baudrate   : " << baud << endl;
+      Ser_debug << "----------------------------------------" << endl;
+  }
+#endif
+
+/*------------------------------------------------------------------------------
     setup
 ------------------------------------------------------------------------------*/
 
@@ -269,49 +318,8 @@ void setup() {
   ADC->SWTRIG.bit.START = 1;
   ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
 
-  // Show debugging information
   #ifdef DEBUG
-    Ser_debug << "-------------------------------" << endl;
-    Ser_debug << "CTRLA" << endl;
-    Ser_debug << "  .RUNSTDBY   : " << _HEX(ADC->CTRLA.bit.RUNSTDBY) << endl;
-    Ser_debug << "  .ENABLE     : " << _HEX(ADC->CTRLA.bit.ENABLE) << endl;
-    Ser_debug << "  .SWRST      : " << _HEX(ADC->CTRLA.bit.SWRST) << endl;
-    Ser_debug << "REFCTRL" << endl;
-    Ser_debug << "  .REFCOMP    : " << _HEX(ADC->REFCTRL.bit.REFCOMP) << endl;
-    Ser_debug << "  .REFSEL     : " << _HEX(ADC->REFCTRL.bit.REFSEL) << endl;
-    Ser_debug << "AVGVTRL" << endl;
-    Ser_debug << "  .ADJRES     : " << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl;
-    Ser_debug << "  .SAMPLENUM  : " << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl;
-    Ser_debug << "SAMPCTRL" << endl;
-    Ser_debug << "  .SAMPLEN    : " << _HEX(ADC->SAMPCTRL.bit.SAMPLEN) << endl;
-    Ser_debug << "CTRLB" << endl;
-    Ser_debug << "  .PRESCALER  : " << _HEX(ADC->CTRLB.bit.PRESCALER) << endl;
-    Ser_debug << "  .RESSEL     : " << _HEX(ADC->CTRLB.bit.RESSEL) << endl;
-    Ser_debug << "  .CORREN     : " << _HEX(ADC->CTRLB.bit.CORREN) << endl;
-    Ser_debug << "  .FREERUN    : " << _HEX(ADC->CTRLB.bit.FREERUN) << endl;
-    Ser_debug << "  .LEFTADJ    : " << _HEX(ADC->CTRLB.bit.LEFTADJ) << endl;
-    Ser_debug << "  .DIFFMODE   : " << _HEX(ADC->CTRLB.bit.DIFFMODE) << endl;
-    Ser_debug << "INPUTCTRL" << endl;
-    Ser_debug << "  .GAIN       : " << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl;
-    Ser_debug << "  .INPUTOFFSET: " << _HEX(ADC->INPUTCTRL.bit.INPUTOFFSET) << endl;
-    Ser_debug << "  .INPUTSCAN  : " << _HEX(ADC->INPUTCTRL.bit.INPUTSCAN) << endl;
-    Ser_debug << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
-    Ser_debug << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
-
-    float DAQ_rate = 1.0e6 / ISR_CLOCK;
-    float buffer_rate = DAQ_rate / BUFFER_SIZE;
-    // 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
-    uint32_t baud = ceil(N_BYTES_TRANSMIT_BUFFER * 10 * buffer_rate);
-    Ser_debug << "----------------------------------------" << endl;
-    Ser_debug << "ISR clock    : " << ISR_CLOCK << " usec" << endl;
-    Ser_debug << "DAQ rate     : " << _FLOAT(DAQ_rate, 2) << " Hz" << endl;
-    Ser_debug << "Buffer size  : " << BUFFER_SIZE << " samples" << endl;
-    Ser_debug << "Transmit rate          : " << _FLOAT(buffer_rate, 2)
-              << " buffers/s" << endl;
-    Ser_debug << "Data bytes per transmit: " << N_BYTES_TRANSMIT_BUFFER
-              << " bytes" << endl;
-    Ser_debug << "Lower bound baudrate   : " << baud << endl;
-    Ser_debug << "----------------------------------------" << endl;
+    print_debug_info();
   #endif
 
   // Create the cosine lookup table
@@ -401,6 +409,10 @@ void loop() {
           Ser_data.print('\t');
           Ser_data.print(ref_freq);
           Ser_data.print('\n');
+
+          #ifdef DEBUG
+            print_debug_info();
+          #endif
 
         } else if (strcmpi(strCmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
