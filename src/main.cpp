@@ -7,7 +7,7 @@ A1: input signal, differential +
 A2: input signal, differential -
 
 Dennis van Gils
-17-01-2019
+19-01-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -29,14 +29,36 @@ static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
 // Serial   : Programming USB port (UART).
 // SerialUSB: Native USB port (USART). Baudrate setting gets ignored and is
 //            always as fast as possible.
-/* NOTE: Simply connecting a USB cable from the PC to a second serial port on
-   the Arduino already reduces the timing accuracy of 'isr_psd()' by several
-   microsec. Hence, use only one serial port for best performance.
+/* 
+   *** Tested scenarios
+   ISR_CLOCK   200 [usec]
+   BUFFER_SIZE 500 [samples]
+   BAUDRATE    1e6 [only used when #define Ser_data Serial]
+   (a)
+      #define Ser_data Serial
+      Regardless of #define DEBUG
+      Only connect USB cable to programming port
+      --> Perfect timing. Timestamp jitter 0 usec
+   (b)
+      #define Ser_data Serial
+      Regardless of #define DEBUG
+      Both USB cables to programming port and native port
+      --> Timestamp jitter +\- 3 usec
+   (c)
+      #define Ser_data SerialUSB
+      Regardless of #define DEBUG
+      Only connect USB cable to native port
+      --> Timestamp jitter +\- 4 usec
+   (d)
+      #define Ser_data SerialUSB
+      Regardless of #define DEBUG
+      Both USB cables to programming port and native port
+      --> Timestamp jitter +\- 4 usec
 */
-#define SERIAL_DATA_BAUDRATE 8e5  // Only used when '#define Ser_data Serial'
-#define Ser_data    SerialUSB     // Preferred: SerialUSB
+#define SERIAL_DATA_BAUDRATE 1e6  // Only used when '#define Ser_data Serial'
+#define Ser_data    SerialUSB
 #ifdef DEBUG
-  #define Ser_debug Serial        // Preferred: Serial
+  #define Ser_debug Serial
 #endif
 
 // Instantiate serial command listeners
@@ -46,33 +68,20 @@ DvG_SerialCommand sc_data(Ser_data);
 // ISR_CLOCK: min.  40 usec for only writing A0, no serial
 //            min.  50 usec for writing A0 and reading A1, no serial
 //            min. 200 usec for writing A0 and reading A1, with serial
-#define ISR_CLOCK 160     // [usec]
+#define ISR_CLOCK 200     // [usec]
 
 // Buffers
 // The buffer that will be send each transmission is BUFFER_SIZE samples long
 // for each variable. Double the amount of memory is reserved to employ a double
 // buffer technique, where alternatingly the first buffer half (buffer A) is
 // being written to and the second buffer half (buffer B) is being sent.
-#define BUFFER_SIZE 625   // [samples]
+#define BUFFER_SIZE 500   // [samples]
 
 /* Tested settings
-Case A: critically stable on computer Onera
-  ISR_CLOCK   250
-  BUFFER_SIZE 400
-  DAQ --> 4000 Hz
-  Min. required baudrate 7e5
-
-Case B: critically stable on laptop work (checked 2019-01-17)
-  ISR_CLOCK   200
-  BUFFER_SIZE 500
-  DAQ --> 5000 Hz
-  Min. required baudrate 6e5
-
-Case B: safely stable on laptop work
-  ISR_CLOCK   400
-  BUFFER_SIZE 250
-  DAQ --> 2500 Hz
-  Min. required baudrate 3e5
+Case A: turbo and stable on computer Onera
+  ISR_CLOCK   160
+  BUFFER_SIZE 625
+  DAQ --> 6250 Hz
 */
 
 const uint16_t DOUBLE_BUFFER_SIZE = 2 * BUFFER_SIZE;
@@ -279,7 +288,6 @@ void isr_psd() {
 void setup() {
   #ifdef DEBUG
     Ser_debug.begin(9600);
-    while (!Ser_debug) {;}
   #endif
 
   #if Ser_data == Serial
