@@ -56,6 +56,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         self.read_term_char  = read_term_char
         self.write_term_char = write_term_char
         
+        self.read_until_left_over_bytes = bytearray()
+        
         self.config = self.Config()
         self.lockin_paused = True
 
@@ -96,6 +98,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         success = self.write("on")
         if success:
             self.lockin_paused = False
+            self.read_until_left_over_bytes = bytearray()
         
         return success
         
@@ -208,15 +211,33 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         """\
         Read until a termination sequence is found ('\n' by default), the size
         is exceeded or until timeout occurs.
+        
+        WORK IN PROGRESS
         """
-        lenterm = len(terminator)
+        #lenterm = len(terminator)
         line = bytearray()
+        line[:] = self.read_until_left_over_bytes
         timeout = serial.Timeout(self.ser._timeout)
         while True:
-            c = self.ser.read(self.config.N_BYTES_EOM)  # DvG 18-01-2019
+            c = self.ser.read(2*self.config.N_BYTES_EOM)
             if c:
                 line += c
-                if line[-lenterm:] == terminator:
+                line_tail = line[-4*self.config.N_BYTES_EOM:]
+                i_found_terminator = line_tail.find(terminator)
+                if i_found_terminator > -1:
+                    N_left_over_bytes_after_EOM = (
+                            len(line_tail) - i_found_terminator - 
+                            self.config.N_BYTES_EOM)
+                    
+                    if N_left_over_bytes_after_EOM:
+                        left_over_bytes = line_tail[-N_left_over_bytes_after_EOM:]
+                        line = line[:-N_left_over_bytes_after_EOM]
+                        #print(N_left_over_bytes_after_EOM)
+                        #print(left_over_bytes)
+                    else:
+                        left_over_bytes = bytearray()
+                    
+                    self.read_until_left_over_bytes = left_over_bytes
                     break
                 if size is not None and len(line) >= size:
                     break
@@ -224,6 +245,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                 break
             if timeout.expired():
                 break
+        
         return bytes(line)
         
     def listen_to_lockin_amp(self):
