@@ -307,8 +307,8 @@ if __name__ == '__main__':
                             DAQ_function_to_run_each_update=lockin_DAQ_update,
                             DAQ_critical_not_alive_count=np.nan,
                             calc_DAQ_rate_every_N_iter=10,
-                            DEBUG_worker_DAQ=True,
-                            DEBUG_worker_send=True)
+                            DEBUG_worker_DAQ=False,
+                            DEBUG_worker_send=False)
     lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
     
     # Create application and main window
