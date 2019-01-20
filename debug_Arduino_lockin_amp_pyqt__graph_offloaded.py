@@ -21,7 +21,7 @@ import time as Time
 
 from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_controls import create_Toggle_button
-from DvG_debug_functions import dprint
+from DvG_debug_functions import dprint, print_fancy_traceback as pft
 
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
@@ -37,6 +37,25 @@ class State(object):
         self.ref_X = np.array([], float)
         self.ref_Y = np.array([], float)
         self.sig_I = np.array([], float)
+        
+# ------------------------------------------------------------------------------
+#   InnerClassDescriptor
+# ------------------------------------------------------------------------------
+
+class InnerClassDescriptor(object):
+    """Allows an inner class instance to get the attributes from the outer class
+    instance by referring to 'self.outer'. Used in this module by the
+    'Worker_DAQ' and 'Worker_send' classes. Usage: @InnerClassDescriptor.
+    Not to be used outside of this module.
+    """
+    def __init__(self, cls):
+        self.cls = cls
+
+    def __get__(self, instance, outerclass):
+        class Wrapper(self.cls):
+            outer = instance
+        Wrapper.__name__ = self.cls.__name__
+        return Wrapper
         
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -107,6 +126,8 @@ class MainWindow(QtWid.QWidget):
         # Chart 'Readings'
         self.gw_refsig = pg.GraphicsWindow()
         self.gw_refsig.setBackground([20, 20, 20])
+        
+        """
         self.pi_refsig = self.gw_refsig.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
@@ -130,17 +151,18 @@ class MainWindow(QtWid.QWidget):
         self.CH_ref_X.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_sig_I.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_refsig = [self.CH_ref_X, self.CH_sig_I]
+        """
         
-        hbox_refsig = QtWid.QHBoxLayout()
-        hbox_refsig.addWidget(self.gw_refsig, stretch=1)
-        
+        self.hbox_refsig = QtWid.QHBoxLayout()
+        #self.hbox_refsig.addWidget(self.gw_refsig, stretch=1)
+                
         # -----------------------------------
         #   Round up full window
         # -----------------------------------
         
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(hbox_top)
-        vbox.addLayout(hbox_refsig, stretch=1)
+        vbox.addLayout(self.hbox_refsig, stretch=1)
         
         # -----------------------------------
         #   Create wall clock timer
@@ -149,10 +171,6 @@ class MainWindow(QtWid.QWidget):
         self.timer_wall_clock = QtCore.QTimer()
         self.timer_wall_clock.timeout.connect(self.update_wall_clock)
         self.timer_wall_clock.start(50)
-        
-    @QtCore.pyqtSlot()
-    def update_chart_refsig(self):
-        [CH.update_curve() for CH in self.CHs_refsig]
 
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
@@ -177,6 +195,129 @@ class MainWindow(QtWid.QWidget):
             self.qlbl_DAQ_rate.setText("Buffers/s: paused")
             self.qpbt_ENA_lockin.setText("lock-in OFF")
 
+# ------------------------------------------------------------------------------
+#   Worker_graph
+# ------------------------------------------------------------------------------
+
+
+class Plot_pyqtgraph_in_separate_thread(QtCore.QObject):
+    def __init__(self, window):
+        super(Plot_pyqtgraph_in_separate_thread, self).__init__()
+
+        self.mutex = QtCore.QMutex()
+        self.window = window
+        
+        self.gw_refsig = pg.GraphicsWindow()
+        self.gw_refsig.setBackground([20, 20, 20])
+        
+        self.pi_refsig = self.window.gw_refsig.addPlot()
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_refsig.showGrid(x=1, y=1)
+        self.pi_refsig.setTitle('Readings', **p)
+        self.pi_refsig.setLabel('bottom', text='time (ms)', **p)
+        self.pi_refsig.setLabel('left', text='voltage (V)', **p)
+        self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
+                                 lockin.config.ISR_CLOCK * 1e3,
+                                 0, padding=0)
+        self.pi_refsig.setYRange(1, 3, padding=0.05)
+        self.pi_refsig.setAutoVisible(x=True, y=True)
+        self.pi_refsig.setClipToView(True)
+
+        PEN_01 = pg.mkPen(color=[255, 0  , 0  ], width=3)
+        PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
+        self.CH_ref_X = ChartHistory(lockin.config.BUFFER_SIZE,
+                                     self.pi_refsig.plot(pen=PEN_01))
+        self.CH_sig_I = ChartHistory(lockin.config.BUFFER_SIZE,
+                                     self.pi_refsig.plot(pen=PEN_03))
+        self.CH_ref_X.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CH_sig_I.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CHs_refsig = [self.CH_ref_X, self.CH_sig_I]
+        
+        self.worker_plot = None
+        self.create_worker_plot()
+    
+    @QtCore.pyqtSlot()
+    def update(self):
+        #dprint(curThreadName())
+        [CH.update_curve() for CH in self.CHs_refsig]        
+    
+    def create_worker_plot(self, *args, **kwargs):
+        self.worker_plot = self.Worker_plot(*args, **kwargs)
+    
+        self.thread_plot = QtCore.QThread()
+        self.thread_plot.setObjectName("worker_plot")
+        self.worker_plot.moveToThread(self.thread_plot)
+        self.thread_plot.started.connect(self.worker_plot.run)
+    
+    def start_thread_worker_plot(self, priority=QtCore.QThread.InheritPriority):
+        """Start running the event loop of the worker thread.
+
+        Args:
+            priority (PyQt5.QtCore.QThread.Priority, optional, default=
+                      QtCore.QThread.InheritPriority):
+                By default, the 'worker_DAQ' thread runs in the operating system
+                at the same thread priority as the main/GUI thread. You can
+                change to higher priority by setting 'priority' to, e.g.,
+                'QtCore.QThread.TimeCriticalPriority'. Be aware that this is
+                resource heavy, so use sparingly.
+
+        Returns True when successful, False otherwise.
+        """
+        if hasattr(self, 'thread_plot'):
+            if self.thread_plot is not None:
+                self.thread_plot.start(priority)
+                return True
+            else:
+                print("Worker_plot: Can't start thread")
+                return False
+        else:
+            pft("Worker_plot: Can't start thread because it does not exist. "
+                "Did you forget to call 'create_worker_DAQ' first?")
+            return False
+
+    def close_thread_worker_plot(self):
+        if self.thread_plot is not None:
+            self.thread_plot.quit()
+            print("Closing thread %s " %
+                  "{:.<16}".format(self.thread_plot.objectName()), end='')
+            if self.thread_plot.wait(2000): print("done.\n", end='')
+            else: print("FAILED.\n", end='')
+    
+    @InnerClassDescriptor
+    class Worker_plot(QtCore.QObject):
+        def __init__(self):
+            super().__init__(None)
+            
+            self.DEBUG = False
+            self.update_interval_ms = 1000
+            self.i_update = 0
+            
+            if self.DEBUG:
+                dprint("Worker_plot init: thread %s" % curThreadName())
+            
+        @QtCore.pyqtSlot()
+        def run(self):
+            if self.DEBUG:
+                dprint("Worker_plot run : thread %s" % curThreadName())
+    
+            # INTERNAL TIMER
+            self.timer = QtCore.QTimer()
+            self.timer.setInterval(self.update_interval_ms)
+            self.timer.timeout.connect(self.update)
+            self.timer.setTimerType(QtCore.Qt.CoarseTimer)
+            self.timer.start()
+         
+        @QtCore.pyqtSlot()
+        def update(self):
+            #locker = QtCore.QMutexLocker(self.dev.mutex)
+            self.i_update += 1
+            if self.DEBUG:
+                dprint("Worker_plot     : lock   # %i" % self.i_update)
+            
+            
+            self.outer.update()
+            #locker.unlock()
+   
 # ------------------------------------------------------------------------------
 #   Arduino_pyqt
 # ------------------------------------------------------------------------------
@@ -256,6 +397,8 @@ def about_to_quit():
     if lockin.is_alive: lockin_pyqt.turn_off_immediately()
     lockin_pyqt.close_all_threads()
     lockin.close()
+    
+    superplot.close_thread_worker_plot()
 
 # ------------------------------------------------------------------------------
 #   Lock-in amplifier data-acquisition update function
@@ -273,10 +416,14 @@ def lockin_DAQ_update():
     if not(success):
         return False
 
-    window.CH_ref_X.add_new_readings(time, ref_X)    
-    window.CH_sig_I.add_new_readings(time, sig_I)
+    superplot.CH_ref_X.add_new_readings(time, ref_X)    
+    superplot.CH_sig_I.add_new_readings(time, sig_I)
     
     return True
+
+# ------------------------------------------------------------------------------
+#   update_GUI
+# ------------------------------------------------------------------------------
 
 def update_GUI():
     window.qlbl_update_counter.setText("%i" % lockin_pyqt.DAQ_update_counter)
@@ -284,7 +431,8 @@ def update_GUI():
     if not lockin.lockin_paused:
         window.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
                                      lockin_pyqt.obtained_DAQ_rate_Hz)
-        window.update_chart_refsig()
+        #window.update_chart_refsig()
+        #superplot.update()
 
 # ------------------------------------------------------------------------------
 #   Main
@@ -298,7 +446,7 @@ if __name__ == '__main__':
     if not lockin.connect_at_port("COM6"):
         print("Can't connect to Arduino")
         sys.exit(0)
-    lockin.begin(ref_freq=100)
+    lockin.begin(ref_freq=2500)
     state = State()
     
     # Create workers and threads
@@ -320,6 +468,11 @@ if __name__ == '__main__':
     # Start threads
     lockin_pyqt.start_thread_worker_DAQ(QtCore.QThread.TimeCriticalPriority)
     lockin_pyqt.start_thread_worker_send()
+    
+    # Create Plot_pyqtgraph_in_separate_thread
+    superplot = Plot_pyqtgraph_in_separate_thread(window=window)
+    superplot.start_thread_worker_plot()
+    #window.hbox_refsig.addWidget(superplot.gw_refsig, stretch=1)
     
     # Start the main GUI event loop
     window.show()
