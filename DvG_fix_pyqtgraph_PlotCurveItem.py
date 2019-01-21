@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 """Fix for pyqtgraph.
 
+Edited
 pyqtgraph/pyqtgraph/graphicsItems/PlotCurveItem.py
+v0.10
 
 Line 566 in 2e69b9c
 Reads:
@@ -10,7 +12,7 @@ Reads:
 Fixed:
     gl.glDrawArrays(gl.GL_LINE_STRIP, 0, int(pos.size / pos.shape[-1]))
 
-Missing between line 561 and 562 in 2e69b9c:
+Added missing statement between line 561 and 562 in 2e69b9c:
     gl.glLineWidth(width)
 """
 __author__      = "Dennis van Gils"
