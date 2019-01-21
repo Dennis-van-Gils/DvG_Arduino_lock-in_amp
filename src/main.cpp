@@ -56,9 +56,9 @@ static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
       --> Timestamp jitter +\- 4 usec
 */
 #define SERIAL_DATA_BAUDRATE 1e6  // Only used when '#define Ser_data Serial'
-#define Ser_data    Serial
+#define Ser_data    SerialUSB
 #ifdef DEBUG
-  #define Ser_debug SerialUSB
+  #define Ser_debug Serial
 #endif
 
 // Instantiate serial command listeners
@@ -68,14 +68,14 @@ DvG_SerialCommand sc_data(Ser_data);
 // ISR_CLOCK: min.  40 usec for only writing A0, no serial
 //            min.  50 usec for writing A0 and reading A1, no serial
 //            min. 200 usec for writing A0 and reading A1, with serial
-#define ISR_CLOCK 200     // [usec]
+#define ISR_CLOCK 80     // [usec]
 
 // Buffers
 // The buffer that will be send each transmission is BUFFER_SIZE samples long
 // for each variable. Double the amount of memory is reserved to employ a double
 // buffer technique, where alternatingly the first buffer half (buffer A) is
 // being written to and the second buffer half (buffer B) is being sent.
-#define BUFFER_SIZE 500   // [samples]
+#define BUFFER_SIZE 625   // [samples]
 
 /* Tested settings
 Case A: turbo and stable on computer Onera
