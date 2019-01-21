@@ -34,13 +34,16 @@ pg.PlotCurveItem.paintGL = DvG_fix_pyqtgraph_PlotCurveItem.paintGL
 # DvG 21-01-2019: THE TRICK!!! GUI no longer slows down to a crawl when
 # plotting massive data in curves
 try:
+    import OpenGL.GL as gl
+    gl.glEnable(gl.GL_STENCIL_TEST)
     pg.setConfigOptions(useOpenGL=True)
     pg.setConfigOptions(enableExperimental=True)
     print("Enabled OpenGL hardware acceleration for graphing.")
 except:
-    print("WARNING: Could not initiate the use of OpenGL.")
+    print("WARNING: Could not initiate OpenGL.")
     print("Graphing will not be hardware accelerated.")
-    print("Prerequisite: 'PyOpenGL' library.\n")
+    print("Check if prerequisite 'PyOpenGL' library is installed.")
+    print("Also, the videocard might not support stencil buffers.\n")
 
 # ------------------------------------------------------------------------------
 #   MainWindow
