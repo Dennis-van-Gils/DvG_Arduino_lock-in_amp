@@ -7,7 +7,7 @@ A1: input signal, differential +
 A2: input signal, differential -
 
 Dennis van Gils
-19-01-2019
+21-01-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -67,21 +67,21 @@ DvG_SerialCommand sc_data(Ser_data);
 // Interrupt service routine clock
 // ISR_CLOCK: min.  40 usec for only writing A0, no serial
 //            min.  50 usec for writing A0 and reading A1, no serial
-//            min. 200 usec for writing A0 and reading A1, with serial
-#define ISR_CLOCK 80     // [usec]
+//            min.  80 usec for writing A0 and reading A1, with serial
+#define ISR_CLOCK 100     // [usec]
 
 // Buffers
 // The buffer that will be send each transmission is BUFFER_SIZE samples long
 // for each variable. Double the amount of memory is reserved to employ a double
 // buffer technique, where alternatingly the first buffer half (buffer A) is
 // being written to and the second buffer half (buffer B) is being sent.
-#define BUFFER_SIZE 625   // [samples]
+#define BUFFER_SIZE 500   // [samples]
 
 /* Tested settings
 Case A: turbo and stable on computer Onera
-  ISR_CLOCK   160
+  ISR_CLOCK   80
   BUFFER_SIZE 625
-  DAQ --> 6250 Hz
+  DAQ --> 12500 Hz
 */
 
 const uint16_t DOUBLE_BUFFER_SIZE = 2 * BUFFER_SIZE;
@@ -124,7 +124,7 @@ double ref_freq = 137.0;      // [Hz], aka f_R
 double ref_V_center = 2.0;    // [V] Center voltage of cosine reference signal
 double ref_V_p2p    = 0.4;    // [V] Peak-to-peak voltage of cosine ref. signal
 
-#define N_LUT 9000  // (9000) Number of samples for one full period.
+#define N_LUT 9000  // (9000 --> 0.04 deg) Number of samples for one full period
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
 volatile double T_period_micros_dbl = 1.0 / ref_freq * 1e6;
 uint16_t LUT_cos[N_LUT] = {0};
