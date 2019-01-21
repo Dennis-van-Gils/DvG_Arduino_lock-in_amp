@@ -6,7 +6,7 @@ Minimum running example for trouble-shooting library
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "18-01-2019"
+__date__        = "20-01-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -19,22 +19,32 @@ import numpy as np
 
 import time as Time
 
+from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_controls import create_Toggle_button
 from DvG_debug_functions import dprint
 
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 
-EOM = b'\xff\x7f\x00\x00\xff\x7f\x00\x00\xff\x7f'
-N_BYTES_EOM = len(EOM)
+# Monkey patch error in pyqtgraph
+import DvG_fix_pyqtgraph_PlotCurveItem
+pg.PlotCurveItem.paintGL = DvG_fix_pyqtgraph_PlotCurveItem.paintGL
+
+# DvG 21-01-2019: THE TRICK!!! GUI no longer slows down to a crawl when
+# plotting massive data in curves
+try:
+    pg.setConfigOptions(useOpenGL=True)
+    pg.setConfigOptions(enableExperimental=True)
+    print("Enabled OpenGL hardware acceleration for graphing.")
+except:
+    print("WARNING: Could not initiate the use of OpenGL.")
+    print("Graphing will not be hardware accelerated.")
+    print("Prerequisite: 'PyOpenGL' library.\n")
 
 # Short-hand alias for DEBUG information
 def curThreadName(): return QtCore.QThread.currentThread().objectName()
 
 class State(object):
-    """Reflects the actual readings, parsed into separate variables, of the
-    Arduino(s). There should only be one instance of the State class.
-    """
     def __init__(self):
         self.buffers_received = 0
         
@@ -114,6 +124,28 @@ class MainWindow(QtWid.QWidget):
         self.gw_refsig.setBackground([20, 20, 20])
         self.pi_refsig = self.gw_refsig.addPlot()
         
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_refsig.showGrid(x=1, y=1)
+        self.pi_refsig.setTitle('Readings', **p)
+        self.pi_refsig.setLabel('bottom', text='time (ms)', **p)
+        self.pi_refsig.setLabel('left', text='voltage (V)', **p)
+        self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
+                                 lockin.config.ISR_CLOCK * 1e3,
+                                 0, padding=0)
+        self.pi_refsig.setYRange(1.7, 2.3, padding=0.05)
+        self.pi_refsig.setAutoVisible(x=True, y=True)
+        self.pi_refsig.setClipToView(True)
+
+        PEN_01 = pg.mkPen(color=[255, 0  , 0  ], width=3)
+        PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
+        self.CH_ref_X = ChartHistory(lockin.config.BUFFER_SIZE,
+                                     self.pi_refsig.plot(pen=PEN_01))
+        self.CH_sig_I = ChartHistory(lockin.config.BUFFER_SIZE,
+                                     self.pi_refsig.plot(pen=PEN_03))
+        self.CH_ref_X.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CH_sig_I.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CHs_refsig = [self.CH_ref_X, self.CH_sig_I]
+        
         hbox_refsig = QtWid.QHBoxLayout()
         hbox_refsig.addWidget(self.gw_refsig, stretch=1)
         
@@ -132,6 +164,10 @@ class MainWindow(QtWid.QWidget):
         self.timer_wall_clock = QtCore.QTimer()
         self.timer_wall_clock.timeout.connect(self.update_wall_clock)
         self.timer_wall_clock.start(50)
+        
+    @QtCore.pyqtSlot()
+    def update_chart_refsig(self):
+        [CH.update_curve() for CH in self.CHs_refsig]
 
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
@@ -194,6 +230,20 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         
     def turn_off(self):
         self.worker_send.queued_instruction("turn_off")
+        
+    def turn_off_immediately(self):
+        """
+        Returns:
+            success
+        """
+        self.worker_DAQ.schedule_suspend()
+        while not self.worker_DAQ.suspended:
+            QtWid.QApplication.processEvents()
+        
+        locker = QtCore.QMutexLocker(self.dev.mutex)
+        [success, foo, bar] = self.dev.turn_off()
+        locker.unlock()
+        return success
     
     def alt_process_jobs_function(self, func, args):
         if func == "turn_on":
@@ -218,62 +268,38 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
 def about_to_quit():
     print("\nAbout to quit")
     app.processEvents()
-    #if lockin.is_alive: lockin_pyqt.turn_off()
-    if lockin.is_alive:
-        lockin_pyqt.worker_DAQ.schedule_suspend()
-        while not lockin_pyqt.worker_DAQ.suspended:
-            QtWid.QApplication.processEvents()
-            lockin.turn_off()
+    if lockin.is_alive: lockin_pyqt.turn_off_immediately()
     lockin_pyqt.close_all_threads()
     lockin.close()
-
-# ------------------------------------------------------------------------------
-#   Custom serial.read_until
-# ------------------------------------------------------------------------------
-
-import serial
-def read_until(ser: serial.Serial, terminator='\n', size=None):
-    """\
-    Read until a termination sequence is found ('\n' by default), the size
-    is exceeded or until timeout occurs.
-    """
-    lenterm = len(terminator)
-    line = bytearray()
-    timeout = serial.Timeout(ser._timeout)
-    while True:
-        c = ser.read(N_BYTES_EOM)  # DvG 18-01-2019: Changed from 1 bit to 10 bits
-        if c:
-            line += c
-            if line[-lenterm:] == terminator:
-                break
-            if size is not None and len(line) >= size:
-                break
-        else:
-            break
-        if timeout.expired():
-            break
-    return bytes(line)
 
 # ------------------------------------------------------------------------------
 #   Lock-in amplifier data-acquisition update function
 # ------------------------------------------------------------------------------
 
 def lockin_DAQ_update():
+    #print(curThreadName())
     if lockin.lockin_paused:  # Prevent throwings errors if just paused
         return False
     
-    #[success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
-    #return success
-    
-    #print(curThreadName())
-    
     tick = Time.time()
-    ans_bytes = read_until(lockin.ser, EOM)
-    #ans_bytes = lockin.ser.read_until(EOM)
-    dprint(len(ans_bytes))
-    dprint(tick - Time.time())
+    [success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
+    dprint("%i" % ((Time.time() - tick)*1e3))
+    
+    if not(success):
+        return False
+
+    window.CH_ref_X.add_new_readings(time, ref_X)    
+    window.CH_sig_I.add_new_readings(time, sig_I)
     
     return True
+
+def update_GUI():
+    window.qlbl_update_counter.setText("%i" % lockin_pyqt.DAQ_update_counter)
+    
+    if not lockin.lockin_paused:
+        window.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
+                                     lockin_pyqt.obtained_DAQ_rate_Hz)
+        window.update_chart_refsig()
 
 # ------------------------------------------------------------------------------
 #   Main
@@ -283,9 +309,11 @@ if __name__ == '__main__':
     QtCore.QThread.currentThread().setObjectName('MAIN')    # For DEBUG info
     
     # Connect to Arduino
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=8e5, read_timeout=1)
-    lockin.connect_at_port("COM6")
-    lockin.begin(ref_freq=100)
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1e6, read_timeout=1)
+    if not lockin.connect_at_port("COM3"):
+        print("Can't connect to Arduino")
+        sys.exit(0)
+    lockin.begin(ref_freq=2500)
     state = State()
     
     # Create workers and threads
@@ -294,9 +322,9 @@ if __name__ == '__main__':
                             DAQ_function_to_run_each_update=lockin_DAQ_update,
                             DAQ_critical_not_alive_count=np.nan,
                             calc_DAQ_rate_every_N_iter=10,
-                            DEBUG_worker_DAQ=True,
-                            DEBUG_worker_send=True)
-    #lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
+                            DEBUG_worker_DAQ=False,
+                            DEBUG_worker_send=False)
+    lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
     
     # Create application and main window
     app = 0    # Work-around for kernel crash when using Spyder IDE
