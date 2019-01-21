@@ -56,9 +56,9 @@ static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
       --> Timestamp jitter +\- 4 usec
 */
 #define SERIAL_DATA_BAUDRATE 1e6  // Only used when '#define Ser_data Serial'
-#define Ser_data    SerialUSB
+#define Ser_data    Serial
 #ifdef DEBUG
-  #define Ser_debug Serial
+  #define Ser_debug SerialUSB
 #endif
 
 // Instantiate serial command listeners
