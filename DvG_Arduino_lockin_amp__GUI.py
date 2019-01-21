@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "15-01-2019"
+__date__        = "21-01-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -26,6 +26,21 @@ import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 CHART_HISTORY_TIME = 10          # 10  [s]
+
+# Monkey patch error in pyqtgraph
+import DvG_fix_pyqtgraph_PlotCurveItem
+pg.PlotCurveItem.paintGL = DvG_fix_pyqtgraph_PlotCurveItem.paintGL
+
+# DvG 21-01-2019: THE TRICK!!! GUI no longer slows down to a crawl when
+# plotting massive data in curves
+try:
+    pg.setConfigOptions(useOpenGL=True)
+    pg.setConfigOptions(enableExperimental=True)
+    print("Enabled OpenGL hardware acceleration for graphing.")
+except:
+    print("WARNING: Could not initiate the use of OpenGL.")
+    print("Graphing will not be hardware accelerated.")
+    print("Prerequisite: 'PyOpenGL' library.\n")
 
 # ------------------------------------------------------------------------------
 #   MainWindow

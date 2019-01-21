@@ -26,6 +26,21 @@ from DvG_debug_functions import dprint
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 
+# Monkey patch error in pyqtgraph
+import DvG_fix_pyqtgraph_PlotCurveItem
+pg.PlotCurveItem.paintGL = DvG_fix_pyqtgraph_PlotCurveItem.paintGL
+
+# DvG 21-01-2019: THE TRICK!!! GUI no longer slows down to a crawl when
+# plotting massive data in curves
+try:
+    pg.setConfigOptions(useOpenGL=True)
+    pg.setConfigOptions(enableExperimental=True)
+    print("Enabled OpenGL hardware acceleration for graphing.")
+except:
+    print("WARNING: Could not initiate the use of OpenGL.")
+    print("Graphing will not be hardware accelerated.")
+    print("Prerequisite: 'PyOpenGL' library.\n")
+
 # Short-hand alias for DEBUG information
 def curThreadName(): return QtCore.QThread.currentThread().objectName()
 
@@ -117,7 +132,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
                                  lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0)
-        self.pi_refsig.setYRange(1, 3, padding=0.05)
+        self.pi_refsig.setYRange(1.7, 2.3, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
 
@@ -294,11 +309,11 @@ if __name__ == '__main__':
     QtCore.QThread.currentThread().setObjectName('MAIN')    # For DEBUG info
     
     # Connect to Arduino
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=8e5, read_timeout=1)
-    if not lockin.connect_at_port("COM6"):
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1e6, read_timeout=1)
+    if not lockin.connect_at_port("COM3"):
         print("Can't connect to Arduino")
         sys.exit(0)
-    lockin.begin(ref_freq=100)
+    lockin.begin(ref_freq=2500)
     state = State()
     
     # Create workers and threads
@@ -307,8 +322,8 @@ if __name__ == '__main__':
                             DAQ_function_to_run_each_update=lockin_DAQ_update,
                             DAQ_critical_not_alive_count=np.nan,
                             calc_DAQ_rate_every_N_iter=10,
-                            DEBUG_worker_DAQ=True,
-                            DEBUG_worker_send=True)
+                            DEBUG_worker_DAQ=False,
+                            DEBUG_worker_send=False)
     lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
     
     # Create application and main window
