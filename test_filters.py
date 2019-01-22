@@ -12,21 +12,32 @@ import matplotlib.pyplot as plt
 mpl.rcParams['lines.linewidth'] = 3.0
 
 # Original data series
-Fs = 1;                         # [Hz] sampling frequency
-time = np.arange(500)           # [s] time
-sig = (np.sin(2*np.pi*.02*time) + 
-       np.sin(2*np.pi*.01*time) + 
-       np.sin(2*np.pi*.1*time))
+Fs = 10000;          # [Hz] sampling frequency
+total_time = .5;     # [s]
+time = np.arange(0, total_time - 1/Fs, 1/Fs) # [s]
+
+sig1_ampl    = 1
+sig1_freq_Hz = 10
+
+sig2_ampl    = 1
+sig2_freq_Hz = 50
+
+sig3_ampl    = 0
+sig3_freq_Hz = 100
+
+sig = (sig1_ampl * np.sin(2*np.pi*time * sig1_freq_Hz) + 
+       sig2_ampl * np.sin(2*np.pi*time * sig2_freq_Hz) + 
+       sig3_ampl * np.sin(2*np.pi*time * sig3_freq_Hz))
 np.random.seed(0)
 #sig = sig + np.random.randn(len(sig))
 
 plt.plot(time, sig, ('0.8'))
-  
+
 # -----------------------------------------
 #   FIR filters
 # -----------------------------------------
 
-BLOCK_SIZE = 250
+BLOCK_SIZE = 500
 NTAPS = 201;
 
 num_valid = BLOCK_SIZE - NTAPS + 1
@@ -89,14 +100,12 @@ for i in range(2):
 
 # -----------------------------------------
 # -----------------------------------------
-"""
 
 # -----------------------------------------
 #   Continuous discrete filter
 #   http://www.schwietering.com/jayduino/filtuino/
 # -----------------------------------------
 
-"""
 class FilterBuLp2():
     def __init__(self):
         self.v = np.array([0.0, 0.0, 0.0])
@@ -122,7 +131,6 @@ class FilterBuHp2():
                      1.56101807580071816339 * self.v[1])
         
         return (self.v[0] + self.v[2] - 2 * self.v[1])
-"""
     
 def array_map(fun, x):
     return np.array(list(map(fun, x)))
@@ -138,7 +146,6 @@ def array_for_N(fun, N, x):
         
     return out
 
-"""
 #https://stackoverflow.com/questions/40483518/how-to-real-time-filter-with-scipy-and-lfilter
 ntaps=3
 b_LP = firwin(ntaps, [0.0001, 0.05], width=0.05, fs=Fs, pass_zero=False)
@@ -169,9 +176,8 @@ plt.plot(time - correct_phase_lag, sig_LP3, 'b')
 plt.plot(time - correct_phase_lag, sig_LP4, 'y')
 """
 
-plt.plot([time[BLOCK_SIZE - 1], time[BLOCK_SIZE - 1]], [-3, 3], 'k')
-plt.plot([time[2*BLOCK_SIZE - 1], time[2*BLOCK_SIZE - 1]], [-3, 3], 'k')
-#plt.plot([time[3*BLOCK_SIZE - 1], time[3*BLOCK_SIZE - 1]], [-3, 3], 'k')
-#plt.plot([time[4*BLOCK_SIZE - 1], time[4*BLOCK_SIZE - 1]], [-3, 3], 'k')
-#plt.xlim([0, 750])
+y_bars = np.array(plt.ylim()) * 1.1
+for i in range(np.mod(len(time), BLOCK_SIZE)):
+    plt.plot([i * time[BLOCK_SIZE - 1], i * time[BLOCK_SIZE - 1]], y_bars, 'k')
+plt.xlim([0, time[5 * BLOCK_SIZE]])
 plt.show()
