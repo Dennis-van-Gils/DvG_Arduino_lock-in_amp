@@ -18,17 +18,17 @@ marker = '-'
 
 # Original data series
 Fs = 10000;          # [Hz] sampling frequency
-total_time = .4;     # [s]
+total_time = 1;      # [s]
 time = np.arange(0, total_time, 1/Fs) # [s]
 
 sig1_ampl    = 1
-sig1_freq_Hz = 100
+sig1_freq_Hz = 490
 
 sig2_ampl    = 1
 sig2_freq_Hz = 500
 
-sig3_ampl    = 0
-sig3_freq_Hz = 100
+sig3_ampl    = 1
+sig3_freq_Hz = 800
 
 sig1 = sig1_ampl * np.sin(2*np.pi*time * sig1_freq_Hz)
 sig2 = sig2_ampl * np.sin(2*np.pi*time * sig2_freq_Hz)
@@ -38,23 +38,25 @@ sig = sig1 + sig2 + sig3
 #np.random.seed(0)
 #sig = sig + np.random.randn(len(sig))
 
-plt.plot(time, sig1, marker, color='k')
-plt.plot(time, sig2, marker, color='k')
-plt.plot(time, sig, marker, color=('0.8'))
+#plt.plot(time, sig1, marker, color='k')
+#plt.plot(time, sig2, marker, color='k')
+#plt.plot(time, sig2, marker, color='k')
+#plt.plot(time, sig, marker, color=('0.8'))
+plt.plot(time, sig1+sig3, marker, color=('0.8'))
 
 # -----------------------------------------
 #   FIR filters
 # -----------------------------------------
 
 BUFFER_SIZE = 500  # [samples]
-N_taps = 491       # [samples] Use an odd number!
-
+N_taps = 3999       # [samples] Use an odd number!
 
 BUFFER_TIME = BUFFER_SIZE / Fs
 print('buffer_time = %.3f s' % BUFFER_TIME)
-print('min freq.   = %.3f Hz' % (1/BUFFER_TIME)) # TO DO: figure out correctly
+print('tap time    = %.3f s' % (N_taps / Fs))
+print('tap resolution = %.3f Hz' % (Fs / N_taps))
 
-N_shift_buffers = 2
+N_shift_buffers = 9
 maxlen = N_shift_buffers * BUFFER_SIZE
 hist_time = deque(maxlen=maxlen)
 hist_sig  = deque(maxlen=maxlen)
@@ -62,19 +64,19 @@ hist_sig  = deque(maxlen=maxlen)
 N_valid = BUFFER_SIZE - N_taps + 1 # [samples]
 offset_valid = int((N_taps - 1)/2)
 
-f_LP = 110
-width_LP = 10
-b_LP = firwin(N_taps, f_LP, width=width_LP, fs=Fs)
-b_HP = firwin(N_taps, 0.05          , width=0.05, fs=Fs, pass_zero=False)
-b_BP = firwin(N_taps, [0.019, 0.021], width=0.01, fs=Fs, pass_zero=False)
-b_BG = firwin(N_taps, ([0.0001, 0.015, 0.025, .5-1e-4]), width=0.005, fs=Fs, pass_zero=False)
+f_LP = 105
+window = "hamming"
+b_LP = firwin(N_taps, f_LP, window=window, fs=Fs)
+b_HP = firwin(N_taps, 750       , window=window, fs=Fs, pass_zero=False)
+b_BP = firwin(N_taps, [496, 504], window=window, fs=Fs, pass_zero=False)
+b_BG = firwin(N_taps, ([0.1, 496, 504, Fs/2-0.1]), window=window, fs=Fs, pass_zero=False)
 
 for i_window in range(int(len(time)/BUFFER_SIZE)):
     # Simulate incoming buffers on the fly
     buffer_time = time[BUFFER_SIZE * i_window:
                        BUFFER_SIZE * (i_window + 1)]
-    buffer_sig  = sig[BUFFER_SIZE * i_window:
-                      BUFFER_SIZE * (i_window + 1)]
+    buffer_sig  = sig [BUFFER_SIZE * i_window:
+                       BUFFER_SIZE * (i_window + 1)]
         
     hist_time.extend(buffer_time)
     hist_sig.extend(buffer_sig)
@@ -83,20 +85,36 @@ for i_window in range(int(len(time)/BUFFER_SIZE)):
         # Start-up
         continue
     
-    conv_in_selection_sig = np.array(hist_sig)[N_valid:]
+    conv_in_selection_sig = np.array(hist_sig)[N_valid + BUFFER_SIZE * (N_shift_buffers - 2):]
     
     sig_LP = np.convolve(conv_in_selection_sig, b_LP, mode='valid')
+    sig_BP = np.convolve(conv_in_selection_sig, b_BP, mode='valid')
+    sig_BG = np.convolve(conv_in_selection_sig, b_BG, mode='valid')
     
-    idx_valid_start = BUFFER_SIZE - offset_valid
+    idx_valid_start = maxlen - BUFFER_SIZE - offset_valid
     idx_valid_end   = maxlen - offset_valid
-    
     sel_valid_time = np.array(hist_time)[idx_valid_start:idx_valid_end]
     
     color = 'r' if (i_window % 2 == 0) else 'g'
     #nudge = 0 if (i_window % 2 == 0) else 0.05
     nudge = 0
-    plt.plot(sel_valid_time, sig_LP + nudge, marker + color)
-    
+    #plt.plot(sel_valid_time, sig_LP + nudge, marker + color)
+    #plt.plot(sel_valid_time, sig_BP + nudge, marker + color)
+    plt.plot(sel_valid_time, sig_BG + nudge, marker + color)
+
+y_bars = np.array(plt.ylim()) * 1.1
+for i in range(int(len(time)/BUFFER_SIZE)):
+    plt.plot([i * time[BUFFER_SIZE], i * time[BUFFER_SIZE]], y_bars, 'k')
+
+plt.title("N_taps = %i, f_LP = %i, window = %s" % (N_taps, f_LP, window))
+plt.xlim([0.19, 0.26])
+#plt.xlim([0.125, 0.14])
+#plt.ylim([-1.02, 1.02])
+
+thismanager = pylab.get_current_fig_manager()
+thismanager.window.setGeometry(500, 120, 1200, 700)
+plt.show()
+
 """
 # -----------------------------------------
 #   IIR filters
@@ -197,15 +215,3 @@ plt.plot(time - correct_phase_lag, sig_LP2, 'g')
 plt.plot(time - correct_phase_lag, sig_LP3, 'b')
 plt.plot(time - correct_phase_lag, sig_LP4, 'y')
 """
-
-y_bars = np.array(plt.ylim()) * 1.1
-for i in range(int(len(time)/BUFFER_SIZE)):
-    plt.plot([i * time[BUFFER_SIZE], i * time[BUFFER_SIZE]], y_bars, 'k')
-
-plt.title("f_LP = %i, width = %.3f" % (f_LP, width_LP))
-plt.xlim([0.125, 0.14])
-plt.ylim([-1.02, 1.02])
-
-thismanager = pylab.get_current_fig_manager()
-thismanager.window.setGeometry(500, 120, 1200, 700)
-plt.show()
