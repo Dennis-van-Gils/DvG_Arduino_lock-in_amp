@@ -18,7 +18,7 @@ marker = '-'
 
 # Original data series
 Fs = 10000;          # [Hz] sampling frequency
-total_time = 1;      # [s]
+total_time = 2;      # [s]
 time = np.arange(0, total_time, 1/Fs) # [s]
 
 sig1_ampl    = 1
@@ -49,27 +49,37 @@ plt.plot(time, sig1+sig3, marker, color=('0.8'))
 # -----------------------------------------
 
 BUFFER_SIZE = 500  # [samples]
-N_taps = 3999       # [samples] Use an odd number!
+N_taps = 10001     # [samples] Use an odd number!
 
 BUFFER_TIME = BUFFER_SIZE / Fs
 print('buffer_time = %.3f s' % BUFFER_TIME)
 print('tap time    = %.3f s' % (N_taps / Fs))
 print('tap resolution = %.3f Hz' % (Fs / N_taps))
-
-N_shift_buffers = 9
-maxlen = N_shift_buffers * BUFFER_SIZE
-hist_time = deque(maxlen=maxlen)
-hist_sig  = deque(maxlen=maxlen)
-
-N_valid = BUFFER_SIZE - N_taps + 1 # [samples]
 offset_valid = int((N_taps - 1)/2)
+N_sig_into_conv = 2 * offset_valid + BUFFER_SIZE
 
 f_LP = 105
 window = "hamming"
 b_LP = firwin(N_taps, f_LP, window=window, fs=Fs)
 b_HP = firwin(N_taps, 750       , window=window, fs=Fs, pass_zero=False)
 b_BP = firwin(N_taps, [496, 504], window=window, fs=Fs, pass_zero=False)
-b_BG = firwin(N_taps, ([0.1, 496, 504, Fs/2-0.1]), window=window, fs=Fs, pass_zero=False)
+b_BG = firwin(N_taps, ([0.1, 498, 502, Fs/2-0.1]), window=window, fs=Fs, pass_zero=False)
+
+N_buffers_in_deque = 1 + (N_taps - 1) / BUFFER_SIZE
+print("N_buffers_in_deque = %.2f" % N_buffers_in_deque)
+N_buffers_in_deque = int(np.ceil(N_buffers_in_deque))
+print("N_buffers_in_deque -> %i" % N_buffers_in_deque)
+
+deque_size = N_buffers_in_deque * BUFFER_SIZE
+hist_time = deque(maxlen=deque_size)
+hist_sig  = deque(maxlen=deque_size)
+
+offset_deque = deque_size - N_sig_into_conv
+print('offset_valid = %i samples' % offset_valid)
+print('offset_valid = %.3f s' % (offset_valid/Fs))
+print('offset_deque = %i samples' % offset_deque)
+print('offset_deque = %.3f s' % (offset_deque/Fs))
+print('offset_total = %.3f s' % ((offset_deque + offset_valid)/Fs))
 
 for i_window in range(int(len(time)/BUFFER_SIZE)):
     # Simulate incoming buffers on the fly
@@ -77,22 +87,21 @@ for i_window in range(int(len(time)/BUFFER_SIZE)):
                        BUFFER_SIZE * (i_window + 1)]
     buffer_sig  = sig [BUFFER_SIZE * i_window:
                        BUFFER_SIZE * (i_window + 1)]
-        
     hist_time.extend(buffer_time)
     hist_sig.extend(buffer_sig)
     
-    if i_window < N_shift_buffers - 1:
+    if i_window < N_buffers_in_deque - 1:
         # Start-up
         continue
     
-    conv_in_selection_sig = np.array(hist_sig)[N_valid + BUFFER_SIZE * (N_shift_buffers - 2):]
+    sig_into_conv = np.array(hist_sig)[offset_deque:]
     
-    sig_LP = np.convolve(conv_in_selection_sig, b_LP, mode='valid')
-    sig_BP = np.convolve(conv_in_selection_sig, b_BP, mode='valid')
-    sig_BG = np.convolve(conv_in_selection_sig, b_BG, mode='valid')
+    sig_LP = np.convolve(sig_into_conv, b_LP, mode='valid')
+    sig_BP = np.convolve(sig_into_conv, b_BP, mode='valid')
+    sig_BG = np.convolve(sig_into_conv, b_BG, mode='valid')
     
-    idx_valid_start = maxlen - BUFFER_SIZE - offset_valid
-    idx_valid_end   = maxlen - offset_valid
+    idx_valid_start = offset_deque + offset_valid
+    idx_valid_end   = deque_size - offset_valid
     sel_valid_time = np.array(hist_time)[idx_valid_start:idx_valid_end]
     
     color = 'r' if (i_window % 2 == 0) else 'g'
@@ -106,13 +115,19 @@ y_bars = np.array(plt.ylim()) * 1.1
 for i in range(int(len(time)/BUFFER_SIZE)):
     plt.plot([i * time[BUFFER_SIZE], i * time[BUFFER_SIZE]], y_bars, 'k')
 
-plt.title("N_taps = %i, f_LP = %i, window = %s" % (N_taps, f_LP, window))
-plt.xlim([0.19, 0.26])
+
+# Quality check of band-gap filter
+dev = sig1[14500:15000] + sig3[14500:15000] - sig_BG
+
+
+plt.title("N_taps = %i, dev = %.3f" % (N_taps, np.mean(np.abs(dev))))
+plt.xlim([0.5, 0.55])
 #plt.xlim([0.125, 0.14])
 #plt.ylim([-1.02, 1.02])
 
 thismanager = pylab.get_current_fig_manager()
-thismanager.window.setGeometry(500, 120, 1200, 700)
+if hasattr(thismanager, 'window'):
+    thismanager.window.setGeometry(500, 120, 1200, 700)
 plt.show()
 
 """
