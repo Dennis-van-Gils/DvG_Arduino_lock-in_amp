@@ -7,11 +7,11 @@ Prerequisites:
 - numpy (pre-installed in Anaconda)
 - collections (not sure if pre-installed in Anaconda)
 
-In Anaconda prompt:
+In Anaconda prompt:\
 conda install pyqtgraph
 
 
-Pin-out:
-A0: analog out, REF_X, with respect to GND
-A1: + differential in
+Pin-out:\
+A0: analog out, REF_X, with respect to GND\
+A1: + differential in\
 A2: - differential in
