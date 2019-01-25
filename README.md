@@ -9,3 +9,9 @@ Prerequisites:
 
 In Anaconda prompt:
 conda install pyqtgraph
+
+
+Pin-out:
+A0: analog out, REF_X, with respect to GND
+A1: + differential in
+A2: - differential in
