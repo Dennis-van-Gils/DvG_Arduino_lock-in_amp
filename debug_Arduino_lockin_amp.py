@@ -11,7 +11,7 @@ import struct
 import msvcrt
 import psutil
 import time as Time
-from pathlib import Path
+from pathlib2 import Path
 
 import numpy as np
 import matplotlib.pyplot as plt

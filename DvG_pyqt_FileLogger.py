@@ -46,10 +46,10 @@ Class:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
-__date__        = "23-08-2018"
-__version__     = "1.0.0"
+__date__        = "30-01-2019"
+__version__     = "1.0.1"
 
-from pathlib import Path
+from pathlib2 import Path
 
 from PyQt5 import QtCore
 

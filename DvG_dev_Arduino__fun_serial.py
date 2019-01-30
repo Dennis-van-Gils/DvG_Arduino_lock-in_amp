@@ -48,13 +48,13 @@ Classes:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "23-08-2018"
-__version__     = "1.0.0"
+__date__        = "30-01-2019"
+__version__     = "1.0.1"
 
 import sys
 import serial
 import serial.tools.list_ports
-from pathlib import Path
+from pathlib2 import Path
 
 from DvG_debug_functions import print_fancy_traceback as pft
 
