@@ -40,6 +40,7 @@ try:
     pg.setConfigOptions(enableExperimental=True)
     print("Enabled OpenGL hardware acceleration for graphing.")
 except:
+    raise
     print("WARNING: Could not initiate OpenGL.")
     print("Graphing will not be hardware accelerated.")
     print("Check if prerequisite 'PyOpenGL' library is installed.")

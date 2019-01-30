@@ -1,0 +1,27 @@
+Geeks3D GpuTest - GPU stress test and OpenGL benchmark.
+Copyright © 2012-2014 Geeks3D, All rights reserved.
+http://www.Geeks3D.com/GpuTest/
+
+***************************************************
+THIS SOFTWARE IS PROVIDED 'AS-IS', WITHOUT ANY 
+EXPRESS OR IMPLIED WARRANTY. IN NO EVENT WILL 
+THE AUTHOR BE HELD LIABLE FOR ANY DAMAGES ARISING 
+FROM THE USE OF THIS SOFTWARE.
+***************************************************
+
+Permission is granted to anyone to use this software 
+for any purpose, and to redistribute it freely, 
+subject to the following restrictions:
+
+1. The origin of this software must not be misrepresented; 
+   you must not claim that you wrote the original software.
+
+2. This software is a freeware, it cannot be sold or rented.
+
+3. - Websites: you can copy and distribute it freely as long
+     as you add a backlink to the source post at Geeks3D.com
+     or a backlink to http://www.Geeks3D.com/GpuTest/
+   - CDROM/DVDROM or other kind of BUNDLES (graphics cards, etc.): 
+     please contact the author at jegx@ozone3d.net
+
+4. This notice may not be removed or altered from any distribution.

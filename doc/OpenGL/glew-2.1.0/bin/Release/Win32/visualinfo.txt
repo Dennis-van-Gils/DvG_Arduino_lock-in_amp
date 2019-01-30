@@ -1,0 +1,822 @@
+OpenGL vendor string: NVIDIA Corporation
+OpenGL renderer string: GeForce GTX 1070/PCIe/SSE2
+OpenGL version string: 4.6.0 NVIDIA 417.71
+OpenGL extensions (GL_): 
+    GL_AMD_multi_draw_indirect, GL_AMD_seamless_cubemap_per_texture,
+    GL_AMD_vertex_shader_viewport_index, GL_AMD_vertex_shader_layer,
+    GL_ARB_arrays_of_arrays, GL_ARB_base_instance, GL_ARB_bindless_texture,
+    GL_ARB_blend_func_extended, GL_ARB_buffer_storage,
+    GL_ARB_clear_buffer_object, GL_ARB_clear_texture, GL_ARB_clip_control,
+    GL_ARB_color_buffer_float, GL_ARB_compatibility,
+    GL_ARB_compressed_texture_pixel_storage, GL_ARB_conservative_depth,
+    GL_ARB_compute_shader, GL_ARB_compute_variable_group_size,
+    GL_ARB_conditional_render_inverted, GL_ARB_copy_buffer, GL_ARB_copy_image,
+    GL_ARB_cull_distance, GL_ARB_debug_output, GL_ARB_depth_buffer_float,
+    GL_ARB_depth_clamp, GL_ARB_depth_texture, GL_ARB_derivative_control,
+    GL_ARB_direct_state_access, GL_ARB_draw_buffers, GL_ARB_draw_buffers_blend,
+    GL_ARB_draw_indirect, GL_ARB_draw_elements_base_vertex,
+    GL_ARB_draw_instanced, GL_ARB_enhanced_layouts, GL_ARB_ES2_compatibility,
+    GL_ARB_ES3_compatibility, GL_ARB_ES3_1_compatibility,
+    GL_ARB_ES3_2_compatibility, GL_ARB_explicit_attrib_location,
+    GL_ARB_explicit_uniform_location, GL_ARB_fragment_coord_conventions,
+    GL_ARB_fragment_layer_viewport, GL_ARB_fragment_program,
+    GL_ARB_fragment_program_shadow, GL_ARB_fragment_shader,
+    GL_ARB_fragment_shader_interlock, GL_ARB_framebuffer_no_attachments,
+    GL_ARB_framebuffer_object, GL_ARB_framebuffer_sRGB, GL_ARB_geometry_shader4,
+    GL_ARB_get_program_binary, GL_ARB_get_texture_sub_image, GL_ARB_gl_spirv,
+    GL_ARB_gpu_shader5, GL_ARB_gpu_shader_fp64, GL_ARB_gpu_shader_int64,
+    GL_ARB_half_float_pixel, GL_ARB_half_float_vertex, GL_ARB_imaging,
+    GL_ARB_indirect_parameters, GL_ARB_instanced_arrays,
+    GL_ARB_internalformat_query, GL_ARB_internalformat_query2,
+    GL_ARB_invalidate_subdata, GL_ARB_map_buffer_alignment,
+    GL_ARB_map_buffer_range, GL_ARB_multi_bind, GL_ARB_multi_draw_indirect,
+    GL_ARB_multisample, GL_ARB_multitexture, GL_ARB_occlusion_query,
+    GL_ARB_occlusion_query2, GL_ARB_parallel_shader_compile,
+    GL_ARB_pipeline_statistics_query, GL_ARB_pixel_buffer_object,
+    GL_ARB_point_parameters, GL_ARB_point_sprite, GL_ARB_polygon_offset_clamp,
+    GL_ARB_post_depth_coverage, GL_ARB_program_interface_query,
+    GL_ARB_provoking_vertex, GL_ARB_query_buffer_object,
+    GL_ARB_robust_buffer_access_behavior, GL_ARB_robustness,
+    GL_ARB_sample_locations, GL_ARB_sample_shading, GL_ARB_sampler_objects,
+    GL_ARB_seamless_cube_map, GL_ARB_seamless_cubemap_per_texture,
+    GL_ARB_separate_shader_objects, GL_ARB_shader_atomic_counter_ops,
+    GL_ARB_shader_atomic_counters, GL_ARB_shader_ballot,
+    GL_ARB_shader_bit_encoding, GL_ARB_shader_clock,
+    GL_ARB_shader_draw_parameters, GL_ARB_shader_group_vote,
+    GL_ARB_shader_image_load_store, GL_ARB_shader_image_size,
+    GL_ARB_shader_objects, GL_ARB_shader_precision,
+    GL_ARB_shader_storage_buffer_object, GL_ARB_shader_subroutine,
+    GL_ARB_shader_texture_image_samples, GL_ARB_shader_texture_lod,
+    GL_ARB_shading_language_100, GL_ARB_shader_viewport_layer_array,
+    GL_ARB_shading_language_420pack, GL_ARB_shading_language_include,
+    GL_ARB_shading_language_packing, GL_ARB_shadow, GL_ARB_sparse_buffer,
+    GL_ARB_sparse_texture, GL_ARB_sparse_texture2, GL_ARB_sparse_texture_clamp,
+    GL_ARB_spirv_extensions, GL_ARB_stencil_texturing, GL_ARB_sync,
+    GL_ARB_tessellation_shader, GL_ARB_texture_barrier,
+    GL_ARB_texture_border_clamp, GL_ARB_texture_buffer_object,
+    GL_ARB_texture_buffer_object_rgb32, GL_ARB_texture_buffer_range,
+    GL_ARB_texture_compression, GL_ARB_texture_compression_bptc,
+    GL_ARB_texture_compression_rgtc, GL_ARB_texture_cube_map,
+    GL_ARB_texture_cube_map_array, GL_ARB_texture_env_add,
+    GL_ARB_texture_env_combine, GL_ARB_texture_env_crossbar,
+    GL_ARB_texture_env_dot3, GL_ARB_texture_filter_anisotropic,
+    GL_ARB_texture_filter_minmax, GL_ARB_texture_float, GL_ARB_texture_gather,
+    GL_ARB_texture_mirror_clamp_to_edge, GL_ARB_texture_mirrored_repeat,
+    GL_ARB_texture_multisample, GL_ARB_texture_non_power_of_two,
+    GL_ARB_texture_query_levels, GL_ARB_texture_query_lod,
+    GL_ARB_texture_rectangle, GL_ARB_texture_rg, GL_ARB_texture_rgb10_a2ui,
+    GL_ARB_texture_stencil8, GL_ARB_texture_storage,
+    GL_ARB_texture_storage_multisample, GL_ARB_texture_swizzle,
+    GL_ARB_texture_view, GL_ARB_timer_query, GL_ARB_transform_feedback2,
+    GL_ARB_transform_feedback3, GL_ARB_transform_feedback_instanced,
+    GL_ARB_transform_feedback_overflow_query, GL_ARB_transpose_matrix,
+    GL_ARB_uniform_buffer_object, GL_ARB_vertex_array_bgra,
+    GL_ARB_vertex_array_object, GL_ARB_vertex_attrib_64bit,
+    GL_ARB_vertex_attrib_binding, GL_ARB_vertex_buffer_object,
+    GL_ARB_vertex_program, GL_ARB_vertex_shader,
+    GL_ARB_vertex_type_10f_11f_11f_rev, GL_ARB_vertex_type_2_10_10_10_rev,
+    GL_ARB_viewport_array, GL_ARB_window_pos, GL_ATI_draw_buffers,
+    GL_ATI_texture_float, GL_ATI_texture_mirror_once, GL_S3_s3tc,
+    GL_EXT_texture_env_add, GL_EXT_abgr, GL_EXT_bgra, GL_EXT_bindable_uniform,
+    GL_EXT_blend_color, GL_EXT_blend_equation_separate,
+    GL_EXT_blend_func_separate, GL_EXT_blend_minmax, GL_EXT_blend_subtract,
+    GL_EXT_compiled_vertex_array, GL_EXT_Cg_shader, GL_EXT_depth_bounds_test,
+    GL_EXT_direct_state_access, GL_EXT_draw_buffers2, GL_EXT_draw_instanced,
+    GL_EXT_draw_range_elements, GL_EXT_fog_coord, GL_EXT_framebuffer_blit,
+    GL_EXT_framebuffer_multisample, GL_EXTX_framebuffer_mixed_formats,
+    GL_EXT_framebuffer_multisample_blit_scaled, GL_EXT_framebuffer_object,
+    GL_EXT_framebuffer_sRGB, GL_EXT_geometry_shader4,
+    GL_EXT_gpu_program_parameters, GL_EXT_gpu_shader4, GL_EXT_multi_draw_arrays,
+    GL_EXT_packed_depth_stencil, GL_EXT_packed_float, GL_EXT_packed_pixels,
+    GL_EXT_pixel_buffer_object, GL_EXT_point_parameters,
+    GL_EXT_polygon_offset_clamp, GL_EXT_post_depth_coverage,
+    GL_EXT_provoking_vertex, GL_EXT_raster_multisample, GL_EXT_rescale_normal,
+    GL_EXT_secondary_color, GL_EXT_separate_shader_objects,
+    GL_EXT_separate_specular_color, GL_EXT_shader_image_load_formatted,
+    GL_EXT_shader_image_load_store, GL_EXT_shader_integer_mix,
+    GL_EXT_shadow_funcs, GL_EXT_sparse_texture2, GL_EXT_stencil_two_side,
+    GL_EXT_stencil_wrap, GL_EXT_texture3D, GL_EXT_texture_array,
+    GL_EXT_texture_buffer_object, GL_EXT_texture_compression_dxt1,
+    GL_EXT_texture_compression_latc, GL_EXT_texture_compression_rgtc,
+    GL_EXT_texture_compression_s3tc, GL_EXT_texture_cube_map,
+    GL_EXT_texture_edge_clamp, GL_EXT_texture_env_combine,
+    GL_EXT_texture_env_dot3, GL_EXT_texture_filter_anisotropic,
+    GL_EXT_texture_filter_minmax, GL_EXT_texture_integer, GL_EXT_texture_lod,
+    GL_EXT_texture_lod_bias, GL_EXT_texture_mirror_clamp, GL_EXT_texture_object,
+    GL_EXT_texture_shared_exponent, GL_EXT_texture_sRGB, GL_EXT_texture_sRGB_R8,
+    GL_EXT_texture_sRGB_decode, GL_EXT_texture_storage, GL_EXT_texture_swizzle,
+    GL_EXT_timer_query, GL_EXT_transform_feedback2, GL_EXT_vertex_array,
+    GL_EXT_vertex_array_bgra, GL_EXT_vertex_attrib_64bit,
+    GL_EXT_window_rectangles, GL_EXT_import_sync_object, GL_IBM_rasterpos_clip,
+    GL_IBM_texture_mirrored_repeat, GL_KHR_context_flush_control, GL_KHR_debug,
+    GL_EXT_memory_object, GL_EXT_memory_object_win32, GL_EXT_win32_keyed_mutex,
+    GL_KHR_parallel_shader_compile, GL_KHR_no_error,
+    GL_KHR_robust_buffer_access_behavior, GL_KHR_robustness, GL_EXT_semaphore,
+    GL_EXT_semaphore_win32, GL_KTX_buffer_region,
+    GL_NV_alpha_to_coverage_dither_control, GL_NV_bindless_multi_draw_indirect,
+    GL_NV_bindless_multi_draw_indirect_count, GL_NV_bindless_texture,
+    GL_NV_blend_equation_advanced, GL_NV_blend_equation_advanced_coherent,
+    GL_NVX_blend_equation_advanced_multi_draw_buffers,
+    GL_NV_blend_minmax_factor, GL_NV_blend_square, GL_NV_clip_space_w_scaling,
+    GL_NV_command_list, GL_NV_compute_program5, GL_NV_conditional_render,
+    GL_NV_conservative_raster, GL_NV_conservative_raster_dilate,
+    GL_NV_conservative_raster_pre_snap_triangles, GL_NV_copy_depth_to_color,
+    GL_NV_copy_image, GL_NV_depth_buffer_float, GL_NV_depth_clamp,
+    GL_NV_draw_texture, GL_NV_draw_vulkan_image, GL_NV_ES1_1_compatibility,
+    GL_NV_ES3_1_compatibility, GL_NV_explicit_multisample, GL_NV_feature_query,
+    GL_NV_fence, GL_NV_fill_rectangle, GL_NV_float_buffer, GL_NV_fog_distance,
+    GL_NV_fragment_coverage_to_color, GL_NV_fragment_program,
+    GL_NV_fragment_program_option, GL_NV_fragment_program2,
+    GL_NV_fragment_shader_interlock, GL_NV_framebuffer_mixed_samples,
+    GL_NV_framebuffer_multisample_coverage, GL_NV_geometry_shader4,
+    GL_NV_geometry_shader_passthrough, GL_NV_gpu_program4,
+    GL_NV_internalformat_sample_query, GL_NV_gpu_program4_1, GL_NV_gpu_program5,
+    GL_NV_gpu_program5_mem_extended, GL_NV_gpu_program_fp64, GL_NV_gpu_shader5,
+    GL_NV_half_float, GL_NV_light_max_exponent, GL_NV_memory_attachment,
+    GL_NV_multisample_coverage, GL_NV_multisample_filter_hint,
+    GL_NV_occlusion_query, GL_NV_packed_depth_stencil,
+    GL_NV_parameter_buffer_object, GL_NV_parameter_buffer_object2,
+    GL_NV_path_rendering, GL_NV_path_rendering_shared_edge,
+    GL_NV_pixel_data_range, GL_NV_point_sprite, GL_NV_primitive_restart,
+    GL_NV_query_resource, GL_NV_query_resource_tag, GL_NV_register_combiners,
+    GL_NV_register_combiners2, GL_NV_sample_locations,
+    GL_NV_sample_mask_override_coverage, GL_NV_shader_atomic_counters,
+    GL_NV_shader_atomic_float, GL_NV_shader_atomic_float64,
+    GL_NV_shader_atomic_fp16_vector, GL_NV_shader_atomic_int64,
+    GL_NV_shader_buffer_load, GL_NV_shader_storage_buffer_object,
+    GL_NV_stereo_view_rendering, GL_NV_texgen_reflection, GL_NV_texture_barrier,
+    GL_NV_texture_compression_vtc, GL_NV_texture_env_combine4,
+    GL_NV_texture_multisample, GL_NV_texture_rectangle,
+    GL_NV_texture_rectangle_compressed, GL_NV_texture_shader,
+    GL_NV_texture_shader2, GL_NV_texture_shader3, GL_NV_transform_feedback,
+    GL_NV_transform_feedback2, GL_NV_uniform_buffer_unified_memory,
+    GL_NV_vertex_array_range, GL_NV_vertex_array_range2,
+    GL_NV_vertex_attrib_integer_64bit, GL_NV_vertex_buffer_unified_memory,
+    GL_NV_vertex_program, GL_NV_vertex_program1_1, GL_NV_vertex_program2,
+    GL_NV_vertex_program2_option, GL_NV_vertex_program3, GL_NV_viewport_array2,
+    GL_NV_viewport_swizzle, GL_NVX_conditional_render, GL_NVX_gpu_memory_info,
+    GL_NVX_multigpu_info, GL_NVX_nvenc_interop, GL_NV_shader_thread_group,
+    GL_NV_shader_thread_shuffle, GL_KHR_blend_equation_advanced,
+    GL_KHR_blend_equation_advanced_coherent, GL_OVR_multiview,
+    GL_OVR_multiview2, GL_SGIS_generate_mipmap, GL_SGIS_texture_lod,
+    GL_SGIX_depth_texture, GL_SGIX_shadow, GL_SUN_slice_accum, GL_WIN_swap_hint,
+    WGL_EXT_swap_control.
+GLU version string: 1.2.2.0 Microsoft Corporation
+GLU extensions (GLU_): 
+    GL_EXT_bgra.
+WGL extensions (WGL_): 
+    WGL_ARB_buffer_region, WGL_ARB_create_context,
+    WGL_ARB_create_context_no_error, WGL_ARB_create_context_profile,
+    WGL_ARB_create_context_robustness, WGL_ARB_context_flush_control,
+    WGL_ARB_extensions_string, WGL_ARB_make_current_read, WGL_ARB_multisample,
+    WGL_ARB_pbuffer, WGL_ARB_pixel_format, WGL_ARB_pixel_format_float,
+    WGL_ARB_render_texture, WGL_ATI_pixel_format_float, WGL_EXT_colorspace,
+    WGL_EXT_create_context_es_profile, WGL_EXT_create_context_es2_profile,
+    WGL_EXT_extensions_string, WGL_EXT_framebuffer_sRGB,
+    WGL_EXT_pixel_format_packed_float, WGL_EXT_swap_control,
+    WGL_EXT_swap_control_tear, WGL_NVX_DX_interop, WGL_NV_DX_interop,
+    WGL_NV_DX_interop2, WGL_NV_copy_image, WGL_NV_delay_before_swap,
+    WGL_NV_float_buffer, WGL_NV_multisample_coverage,
+    WGL_NV_render_depth_texture, WGL_NV_render_texture_rectangle.
+ +-----+-------------------------+-----------------+----------+-----------------+----------+
+ |     |          visual         |      color      | ax dp st |      accum      |   layer  |
+ |  id | tp ac gd fm db sw st ms |  sz  r  g  b  a | bf th cl |  sz  r  g  b  a | ov un sw |
+ +-----+-------------------------+-----------------+----------+-----------------+----------+
+ |   1 | wp fu  .  i  .  .  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |   2 | wp fu  .  i  .  .  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |   3 | wp fu  .  i  .  .  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |   4 | wp fu  .  i  .  .  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |   5 | wp fu  .  i  .  .  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |   6 | wp fu  .  i  .  .  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |   7 | wp fu  .  i  .  .  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |   8 | wp fu  .  i  .  .  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |   9 | wp fu  .  i  y  x  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  10 | wp fu  .  i  y  x  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  11 | wp fu  .  i  y  x  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  12 | wp fu  .  i  y  x  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  13 | wp fu  .  i  y  x  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  14 | wp fu  .  i  y  x  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  15 | wp fu  .  i  y  x  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  16 | wp fu  .  i  y  x  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  17 | wp fu  .  i  y  c  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  18 | wp fu  .  i  y  c  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  19 | wp fu  .  i  y  c  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  20 | wp fu  .  i  y  c  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  21 | wp fu  .  i  y  c  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  22 | wp fu  .  i  y  c  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  23 | wp fu  .  i  y  c  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  24 | wp fu  .  i  y  c  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  25 | wp fu  .  i  y  x  .  2 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  26 | wp fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  27 | wp fu  .  i  y  x  .  2 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  28 | wp fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  29 | wp fu  .  i  y  x  .  2 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  30 | wp fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  31 | wp fu  .  i  y  x  .  2 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  32 | wp fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  33 | wp fu  .  i  y  c  .  2 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  34 | wp fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  35 | wp fu  .  i  y  c  .  2 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  36 | wp fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  37 | wp fu  .  i  y  c  .  2 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  38 | wp fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  39 | wp fu  .  i  y  c  .  2 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  40 | wp fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  41 | wp fu  .  i  y  x  .  4 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  42 | wp fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  43 | wp fu  .  i  y  x  .  4 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  44 | wp fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  45 | wp fu  .  i  y  x  .  4 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  46 | wp fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  47 | wp fu  .  i  y  x  .  4 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  48 | wp fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  49 | wp fu  .  i  y  c  .  4 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  50 | wp fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  51 | wp fu  .  i  y  c  .  4 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  52 | wp fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  53 | wp fu  .  i  y  c  .  4 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  54 | wp fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  55 | wp fu  .  i  y  c  .  4 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  56 | wp fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  57 | wp fu  .  i  y  x  .  8 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  58 | wp fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  59 | wp fu  .  i  y  x  .  8 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  60 | wp fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  61 | wp fu  .  i  y  x  .  8 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  62 | wp fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  63 | wp fu  .  i  y  x  .  8 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  64 | wp fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  65 | wp fu  .  i  y  c  .  8 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  66 | wp fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  67 | wp fu  .  i  y  c  .  8 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  68 | wp fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  69 | wp fu  .  i  y  c  .  8 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  70 | wp fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  71 | wp fu  .  i  y  c  .  8 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  72 | wp fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  73 | wp fu  .  i  y  x  . 16 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  74 | wp fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  75 | wp fu  .  i  y  x  . 16 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  76 | wp fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  77 | wp fu  .  i  y  x  . 16 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  78 | wp fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  79 | wp fu  .  i  y  x  . 16 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  80 | wp fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  81 | wp fu  .  i  y  c  . 16 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  82 | wp fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  83 | wp fu  .  i  y  c  . 16 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  84 | wp fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ |  85 | wp fu  .  i  y  c  . 16 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  86 | wp fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ |  87 | wp fu  .  i  y  c  . 16 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  88 | wp fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ |  89 | wp fu  .  f  y  x  .  . |  64 16 16 16 16 |  4 24  . |   .  .  .  .  . |  .  .  . |
+ |  90 | wp fu  .  f  y  x  .  . |  64 16 16 16 16 |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ |  91 | wp fu  .  f  y  x  .  . |  64 16 16 16 16 |  4  .  . |   .  .  .  .  . |  .  .  . |
+ |  92 | wp fu  .  f  y  x  .  . |  64 16 16 16 16 |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ |  93 | wp fu  .  f  y  c  .  . |  64 16 16 16 16 |  4 24  . |   .  .  .  .  . |  .  .  . |
+ |  94 | wp fu  .  f  y  c  .  . |  64 16 16 16 16 |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ |  95 | wp fu  .  f  y  c  .  . |  64 16 16 16 16 |  4  .  . |   .  .  .  .  . |  .  .  . |
+ |  96 | wp fu  .  f  y  c  .  . |  64 16 16 16 16 |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ |  97 | wp fu  .  i  .  .  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  98 | wp fu  .  i  .  .  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ |  99 | wp fu  .  i  .  .  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 100 | wp fu  .  i  .  .  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 101 | wp fu  .  i  .  .  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 102 | wp fu  .  i  .  .  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 103 | wp fu  .  i  .  .  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 104 | wp fu  .  i  .  .  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 105 | wp fu  .  i  y  x  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 106 | wp fu  .  i  y  x  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 107 | wp fu  .  i  y  x  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 108 | wp fu  .  i  y  x  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 109 | wp fu  .  i  y  x  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 110 | wp fu  .  i  y  x  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 111 | wp fu  .  i  y  x  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 112 | wp fu  .  i  y  x  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 113 | wp fu  .  i  y  c  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 114 | wp fu  .  i  y  c  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 115 | wp fu  .  i  y  c  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 116 | wp fu  .  i  y  c  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 117 | wp fu  .  i  y  c  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 118 | wp fu  .  i  y  c  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 119 | wp fu  .  i  y  c  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 120 | wp fu  .  i  y  c  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 121 | wp fu  .  i  y  x  .  2 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 122 | wp fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 123 | wp fu  .  i  y  x  .  2 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 124 | wp fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 125 | wp fu  .  i  y  x  .  2 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 126 | wp fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 127 | wp fu  .  i  y  x  .  2 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 128 | wp fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 129 | wp fu  .  i  y  c  .  2 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 130 | wp fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 131 | wp fu  .  i  y  c  .  2 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 132 | wp fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 133 | wp fu  .  i  y  c  .  2 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 134 | wp fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 135 | wp fu  .  i  y  c  .  2 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 136 | wp fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 137 | wp fu  .  i  y  x  .  4 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 138 | wp fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 139 | wp fu  .  i  y  x  .  4 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 140 | wp fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 141 | wp fu  .  i  y  x  .  4 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 142 | wp fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 143 | wp fu  .  i  y  x  .  4 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 144 | wp fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 145 | wp fu  .  i  y  c  .  4 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 146 | wp fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 147 | wp fu  .  i  y  c  .  4 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 148 | wp fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 149 | wp fu  .  i  y  c  .  4 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 150 | wp fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 151 | wp fu  .  i  y  c  .  4 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 152 | wp fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 153 | wp fu  .  i  y  x  .  8 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 154 | wp fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 155 | wp fu  .  i  y  x  .  8 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 156 | wp fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 157 | wp fu  .  i  y  x  .  8 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 158 | wp fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 159 | wp fu  .  i  y  x  .  8 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 160 | wp fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 161 | wp fu  .  i  y  c  .  8 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 162 | wp fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 163 | wp fu  .  i  y  c  .  8 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 164 | wp fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 165 | wp fu  .  i  y  c  .  8 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 166 | wp fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 167 | wp fu  .  i  y  c  .  8 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 168 | wp fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 169 | wp fu  .  i  y  x  . 16 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 170 | wp fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 171 | wp fu  .  i  y  x  . 16 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 172 | wp fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 173 | wp fu  .  i  y  x  . 16 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 174 | wp fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 175 | wp fu  .  i  y  x  . 16 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 176 | wp fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 177 | wp fu  .  i  y  c  . 16 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 178 | wp fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 179 | wp fu  .  i  y  c  . 16 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 180 | wp fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 181 | wp fu  .  i  y  c  . 16 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 182 | wp fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 183 | wp fu  .  i  y  c  . 16 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 184 | wp fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 221 | pb fu  .  i  .  .  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 222 | pb fu  .  i  .  .  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 223 | pb fu  .  i  .  .  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 224 | pb fu  .  i  .  .  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 225 | pb fu  .  i  .  .  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 226 | pb fu  .  i  .  .  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 227 | pb fu  .  i  .  .  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 228 | pb fu  .  i  .  .  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 229 | pb fu  .  i  y  x  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 230 | pb fu  .  i  y  x  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 231 | pb fu  .  i  y  x  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 232 | pb fu  .  i  y  x  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 233 | pb fu  .  i  y  x  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 234 | pb fu  .  i  y  x  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 235 | pb fu  .  i  y  x  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 236 | pb fu  .  i  y  x  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 237 | pb fu  .  i  y  c  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 238 | pb fu  .  i  y  c  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 239 | pb fu  .  i  y  c  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 240 | pb fu  .  i  y  c  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 241 | pb fu  .  i  y  c  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 242 | pb fu  .  i  y  c  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 243 | pb fu  .  i  y  c  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 244 | pb fu  .  i  y  c  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 245 | pb fu  .  i  .  .  .  2 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 246 | pb fu  .  i  .  .  .  2 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 247 | pb fu  .  i  .  .  .  2 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 248 | pb fu  .  i  .  .  .  2 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 249 | pb fu  .  i  .  .  .  2 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 250 | pb fu  .  i  .  .  .  2 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 251 | pb fu  .  i  .  .  .  2 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 252 | pb fu  .  i  .  .  .  2 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 253 | pb fu  .  i  y  x  .  2 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 254 | pb fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 255 | pb fu  .  i  y  x  .  2 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 256 | pb fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 257 | pb fu  .  i  y  x  .  2 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 258 | pb fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 259 | pb fu  .  i  y  x  .  2 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 260 | pb fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 261 | pb fu  .  i  y  c  .  2 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 262 | pb fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 263 | pb fu  .  i  y  c  .  2 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 264 | pb fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 265 | pb fu  .  i  y  c  .  2 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 266 | pb fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 267 | pb fu  .  i  y  c  .  2 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 268 | pb fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 269 | pb fu  .  i  .  .  .  4 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 270 | pb fu  .  i  .  .  .  4 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 271 | pb fu  .  i  .  .  .  4 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 272 | pb fu  .  i  .  .  .  4 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 273 | pb fu  .  i  .  .  .  4 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 274 | pb fu  .  i  .  .  .  4 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 275 | pb fu  .  i  .  .  .  4 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 276 | pb fu  .  i  .  .  .  4 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 277 | pb fu  .  i  y  x  .  4 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 278 | pb fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 279 | pb fu  .  i  y  x  .  4 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 280 | pb fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 281 | pb fu  .  i  y  x  .  4 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 282 | pb fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 283 | pb fu  .  i  y  x  .  4 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 284 | pb fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 285 | pb fu  .  i  y  c  .  4 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 286 | pb fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 287 | pb fu  .  i  y  c  .  4 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 288 | pb fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 289 | pb fu  .  i  y  c  .  4 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 290 | pb fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 291 | pb fu  .  i  y  c  .  4 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 292 | pb fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 293 | pb fu  .  i  .  .  .  8 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 294 | pb fu  .  i  .  .  .  8 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 295 | pb fu  .  i  .  .  .  8 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 296 | pb fu  .  i  .  .  .  8 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 297 | pb fu  .  i  .  .  .  8 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 298 | pb fu  .  i  .  .  .  8 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 299 | pb fu  .  i  .  .  .  8 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 300 | pb fu  .  i  .  .  .  8 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 301 | pb fu  .  i  y  x  .  8 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 302 | pb fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 303 | pb fu  .  i  y  x  .  8 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 304 | pb fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 305 | pb fu  .  i  y  x  .  8 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 306 | pb fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 307 | pb fu  .  i  y  x  .  8 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 308 | pb fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 309 | pb fu  .  i  y  c  .  8 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 310 | pb fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 311 | pb fu  .  i  y  c  .  8 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 312 | pb fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 313 | pb fu  .  i  y  c  .  8 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 314 | pb fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 315 | pb fu  .  i  y  c  .  8 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 316 | pb fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 317 | pb fu  .  i  .  .  . 16 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 318 | pb fu  .  i  .  .  . 16 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 319 | pb fu  .  i  .  .  . 16 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 320 | pb fu  .  i  .  .  . 16 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 321 | pb fu  .  i  .  .  . 16 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 322 | pb fu  .  i  .  .  . 16 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 323 | pb fu  .  i  .  .  . 16 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 324 | pb fu  .  i  .  .  . 16 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 325 | pb fu  .  i  y  x  . 16 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 326 | pb fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 327 | pb fu  .  i  y  x  . 16 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 328 | pb fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 329 | pb fu  .  i  y  x  . 16 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 330 | pb fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 331 | pb fu  .  i  y  x  . 16 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 332 | pb fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 333 | pb fu  .  i  y  c  . 16 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 334 | pb fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 335 | pb fu  .  i  y  c  . 16 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 336 | pb fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 337 | pb fu  .  i  y  c  . 16 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 338 | pb fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 339 | pb fu  .  i  y  c  . 16 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 340 | pb fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 341 | pb fu  .  i  .  .  .  . |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 342 | pb fu  .  i  .  .  .  . |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 343 | pb fu  .  i  .  .  .  . |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 344 | pb fu  .  i  .  .  .  . |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 345 | pb fu  .  i  .  .  .  . |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 346 | pb fu  .  i  y  x  .  . |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 347 | pb fu  .  i  y  x  .  . |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 348 | pb fu  .  i  y  x  .  . |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 349 | pb fu  .  i  y  x  .  . |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 350 | pb fu  .  i  y  x  .  . |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 351 | pb fu  .  i  y  c  .  . |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 352 | pb fu  .  i  y  c  .  . |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 353 | pb fu  .  i  y  c  .  . |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 354 | pb fu  .  i  y  c  .  . |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 355 | pb fu  .  i  y  c  .  . |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 356 | pb fu  .  i  .  .  .  2 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 357 | pb fu  .  i  .  .  .  2 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 358 | pb fu  .  i  .  .  .  2 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 359 | pb fu  .  i  .  .  .  2 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 360 | pb fu  .  i  .  .  .  2 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 361 | pb fu  .  i  y  x  .  2 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 362 | pb fu  .  i  y  x  .  2 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 363 | pb fu  .  i  y  x  .  2 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 364 | pb fu  .  i  y  x  .  2 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 365 | pb fu  .  i  y  x  .  2 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 366 | pb fu  .  i  y  c  .  2 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 367 | pb fu  .  i  y  c  .  2 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 368 | pb fu  .  i  y  c  .  2 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 369 | pb fu  .  i  y  c  .  2 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 370 | pb fu  .  i  y  c  .  2 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 371 | pb fu  .  i  .  .  .  4 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 372 | pb fu  .  i  .  .  .  4 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 373 | pb fu  .  i  .  .  .  4 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 374 | pb fu  .  i  .  .  .  4 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 375 | pb fu  .  i  .  .  .  4 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 376 | pb fu  .  i  y  x  .  4 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 377 | pb fu  .  i  y  x  .  4 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 378 | pb fu  .  i  y  x  .  4 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 379 | pb fu  .  i  y  x  .  4 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 380 | pb fu  .  i  y  x  .  4 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 381 | pb fu  .  i  y  c  .  4 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 382 | pb fu  .  i  y  c  .  4 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 383 | pb fu  .  i  y  c  .  4 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 384 | pb fu  .  i  y  c  .  4 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 385 | pb fu  .  i  y  c  .  4 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 386 | pb fu  .  i  .  .  .  8 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 387 | pb fu  .  i  .  .  .  8 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 388 | pb fu  .  i  .  .  .  8 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 389 | pb fu  .  i  .  .  .  8 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 390 | pb fu  .  i  .  .  .  8 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 391 | pb fu  .  i  y  x  .  8 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 392 | pb fu  .  i  y  x  .  8 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 393 | pb fu  .  i  y  x  .  8 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 394 | pb fu  .  i  y  x  .  8 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 395 | pb fu  .  i  y  x  .  8 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 396 | pb fu  .  i  y  c  .  8 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 397 | pb fu  .  i  y  c  .  8 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 398 | pb fu  .  i  y  c  .  8 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 399 | pb fu  .  i  y  c  .  8 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 400 | pb fu  .  i  y  c  .  8 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 401 | pb fu  .  i  .  .  . 16 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 402 | pb fu  .  i  .  .  . 16 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 403 | pb fu  .  i  .  .  . 16 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 404 | pb fu  .  i  .  .  . 16 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 405 | pb fu  .  i  .  .  . 16 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 406 | pb fu  .  i  y  x  . 16 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 407 | pb fu  .  i  y  x  . 16 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 408 | pb fu  .  i  y  x  . 16 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 409 | pb fu  .  i  y  x  . 16 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 410 | pb fu  .  i  y  x  . 16 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 411 | pb fu  .  i  y  c  . 16 |  16  5  6  5  . |  4 16  . |  64 16 16 16 16 |  .  .  . |
+ | 412 | pb fu  .  i  y  c  . 16 |  16  5  6  5  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 413 | pb fu  .  i  y  c  . 16 |  16  5  6  5  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 414 | pb fu  .  i  y  c  . 16 |  16  5  6  5  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 415 | pb fu  .  i  y  c  . 16 |  16  5  6  5  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 416 | pb fu  .  i  .  .  .  . |   .  .  .  .  . |  . 16  . |   .  .  .  .  . |  .  .  . |
+ | 417 | pb fu  .  i  .  .  .  . |   .  .  .  .  . |  . 24  . |   .  .  .  .  . |  .  .  . |
+ | 418 | pb fu  .  i  .  .  .  . |   .  .  .  .  . |  . 24  8 |   .  .  .  .  . |  .  .  . |
+ | 419 | pb fu  .  f  .  .  .  . |  16 16  .  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 420 | pb fu  .  f  .  .  .  . |  16 16  .  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 421 | pb fu  .  f  .  .  .  . |  16 16  .  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 422 | pb fu  .  f  .  .  .  . |  16 16  .  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 423 | pb fu  .  f  y  x  .  . |  16 16  .  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 424 | pb fu  .  f  y  x  .  . |  16 16  .  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 425 | pb fu  .  f  y  x  .  . |  16 16  .  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 426 | pb fu  .  f  y  x  .  . |  16 16  .  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 427 | pb fu  .  f  y  c  .  . |  16 16  .  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 428 | pb fu  .  f  y  c  .  . |  16 16  .  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 429 | pb fu  .  f  y  c  .  . |  16 16  .  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 430 | pb fu  .  f  y  c  .  . |  16 16  .  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 431 | pb fu  .  f  .  .  .  . |  32 32  .  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 432 | pb fu  .  f  .  .  .  . |  32 32  .  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 433 | pb fu  .  f  .  .  .  . |  32 32  .  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 434 | pb fu  .  f  .  .  .  . |  32 32  .  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 435 | pb fu  .  f  y  x  .  . |  32 32  .  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 436 | pb fu  .  f  y  x  .  . |  32 32  .  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 437 | pb fu  .  f  y  x  .  . |  32 32  .  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 438 | pb fu  .  f  y  x  .  . |  32 32  .  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 439 | pb fu  .  f  y  c  .  . |  32 32  .  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 440 | pb fu  .  f  y  c  .  . |  32 32  .  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 441 | pb fu  .  f  y  c  .  . |  32 32  .  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 442 | pb fu  .  f  y  c  .  . |  32 32  .  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 443 | pb fu  .  f  .  .  .  . |  32 16 16  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 444 | pb fu  .  f  .  .  .  . |  32 16 16  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 445 | pb fu  .  f  .  .  .  . |  32 16 16  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 446 | pb fu  .  f  .  .  .  . |  32 16 16  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 447 | pb fu  .  f  y  x  .  . |  32 16 16  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 448 | pb fu  .  f  y  x  .  . |  32 16 16  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 449 | pb fu  .  f  y  x  .  . |  32 16 16  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 450 | pb fu  .  f  y  x  .  . |  32 16 16  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 451 | pb fu  .  f  y  c  .  . |  32 16 16  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 452 | pb fu  .  f  y  c  .  . |  32 16 16  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 453 | pb fu  .  f  y  c  .  . |  32 16 16  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 454 | pb fu  .  f  y  c  .  . |  32 16 16  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 455 | pb fu  .  f  .  .  .  . |  64 32 32  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 456 | pb fu  .  f  .  .  .  . |  64 32 32  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 457 | pb fu  .  f  .  .  .  . |  64 32 32  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 458 | pb fu  .  f  .  .  .  . |  64 32 32  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 459 | pb fu  .  f  y  x  .  . |  64 32 32  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 460 | pb fu  .  f  y  x  .  . |  64 32 32  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 461 | pb fu  .  f  y  x  .  . |  64 32 32  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 462 | pb fu  .  f  y  x  .  . |  64 32 32  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 463 | pb fu  .  f  y  c  .  . |  64 32 32  .  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 464 | pb fu  .  f  y  c  .  . |  64 32 32  .  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 465 | pb fu  .  f  y  c  .  . |  64 32 32  .  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 466 | pb fu  .  f  y  c  .  . |  64 32 32  .  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 467 | pb fu  .  f  .  .  .  . |  64 16 16 16 16 |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 468 | pb fu  .  f  .  .  .  . |  64 16 16 16 16 |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 469 | pb fu  .  f  .  .  .  . |  64 16 16 16 16 |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 470 | pb fu  .  f  .  .  .  . |  64 16 16 16 16 |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 471 | pb fu  .  f  y  x  .  . |  64 16 16 16 16 |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 472 | pb fu  .  f  y  x  .  . |  64 16 16 16 16 |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 473 | pb fu  .  f  y  x  .  . |  64 16 16 16 16 |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 474 | pb fu  .  f  y  x  .  . |  64 16 16 16 16 |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 475 | pb fu  .  f  y  c  .  . |  64 16 16 16 16 |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 476 | pb fu  .  f  y  c  .  . |  64 16 16 16 16 |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 477 | pb fu  .  f  y  c  .  . |  64 16 16 16 16 |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 478 | pb fu  .  f  y  c  .  . |  64 16 16 16 16 |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 479 | pb fu  .  f  .  .  .  . | 128 32 32 32 32 |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 480 | pb fu  .  f  .  .  .  . | 128 32 32 32 32 |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 481 | pb fu  .  f  .  .  .  . | 128 32 32 32 32 |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 482 | pb fu  .  f  .  .  .  . | 128 32 32 32 32 |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 483 | pb fu  .  f  y  x  .  . | 128 32 32 32 32 |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 484 | pb fu  .  f  y  x  .  . | 128 32 32 32 32 |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 485 | pb fu  .  f  y  x  .  . | 128 32 32 32 32 |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 486 | pb fu  .  f  y  x  .  . | 128 32 32 32 32 |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 487 | pb fu  .  f  y  c  .  . | 128 32 32 32 32 |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 488 | pb fu  .  f  y  c  .  . | 128 32 32 32 32 |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 489 | pb fu  .  f  y  c  .  . | 128 32 32 32 32 |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 490 | pb fu  .  f  y  c  .  . | 128 32 32 32 32 |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 491 | pb fu  .  f  .  .  .  . |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 492 | pb fu  .  f  .  .  .  . |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 493 | pb fu  .  f  .  .  .  . |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 494 | pb fu  .  f  .  .  .  . |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 495 | pb fu  .  f  y  x  .  . |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 496 | pb fu  .  f  y  x  .  . |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 497 | pb fu  .  f  y  x  .  . |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 498 | pb fu  .  f  y  x  .  . |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 499 | pb fu  .  f  y  c  .  . |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 500 | pb fu  .  f  y  c  .  . |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 501 | pb fu  .  f  y  c  .  . |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 502 | pb fu  .  f  y  c  .  . |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 503 | pb fu  .  f  .  .  .  2 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 504 | pb fu  .  f  .  .  .  2 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 505 | pb fu  .  f  .  .  .  2 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 506 | pb fu  .  f  .  .  .  2 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 507 | pb fu  .  f  y  x  .  2 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 508 | pb fu  .  f  y  x  .  2 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 509 | pb fu  .  f  y  x  .  2 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 510 | pb fu  .  f  y  x  .  2 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 511 | pb fu  .  f  y  c  .  2 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 512 | pb fu  .  f  y  c  .  2 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 513 | pb fu  .  f  y  c  .  2 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 514 | pb fu  .  f  y  c  .  2 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 515 | pb fu  .  f  .  .  .  4 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 516 | pb fu  .  f  .  .  .  4 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 517 | pb fu  .  f  .  .  .  4 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 518 | pb fu  .  f  .  .  .  4 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 519 | pb fu  .  f  y  x  .  4 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 520 | pb fu  .  f  y  x  .  4 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 521 | pb fu  .  f  y  x  .  4 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 522 | pb fu  .  f  y  x  .  4 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 523 | pb fu  .  f  y  c  .  4 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 524 | pb fu  .  f  y  c  .  4 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 525 | pb fu  .  f  y  c  .  4 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 526 | pb fu  .  f  y  c  .  4 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 527 | pb fu  .  f  .  .  .  8 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 528 | pb fu  .  f  .  .  .  8 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 529 | pb fu  .  f  .  .  .  8 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 530 | pb fu  .  f  .  .  .  8 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 531 | pb fu  .  f  y  x  .  8 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 532 | pb fu  .  f  y  x  .  8 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 533 | pb fu  .  f  y  x  .  8 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 534 | pb fu  .  f  y  x  .  8 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 535 | pb fu  .  f  y  c  .  8 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 536 | pb fu  .  f  y  c  .  8 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 537 | pb fu  .  f  y  c  .  8 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 538 | pb fu  .  f  y  c  .  8 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 539 | pb fu  .  f  .  .  . 16 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 540 | pb fu  .  f  .  .  . 16 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 541 | pb fu  .  f  .  .  . 16 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 542 | pb fu  .  f  .  .  . 16 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 543 | pb fu  .  f  y  x  . 16 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 544 | pb fu  .  f  y  x  . 16 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 545 | pb fu  .  f  y  x  . 16 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 546 | pb fu  .  f  y  x  . 16 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 547 | pb fu  .  f  y  c  . 16 |  32 11 11 10  . |  4 24  . |   .  .  .  .  . |  .  .  . |
+ | 548 | pb fu  .  f  y  c  . 16 |  32 11 11 10  . |  4 24  8 |   .  .  .  .  . |  .  .  . |
+ | 549 | pb fu  .  f  y  c  . 16 |  32 11 11 10  . |  4  .  . |   .  .  .  .  . |  .  .  . |
+ | 550 | pb fu  .  f  y  c  . 16 |  32 11 11 10  . |  4  .  8 |   .  .  .  .  . |  .  .  . |
+ | 551 | pb fu  .  i  .  .  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 552 | pb fu  .  i  .  .  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 553 | pb fu  .  i  .  .  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 554 | pb fu  .  i  .  .  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 555 | pb fu  .  i  .  .  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 556 | pb fu  .  i  .  .  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 557 | pb fu  .  i  .  .  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 558 | pb fu  .  i  .  .  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 559 | pb fu  .  i  y  x  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 560 | pb fu  .  i  y  x  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 561 | pb fu  .  i  y  x  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 562 | pb fu  .  i  y  x  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 563 | pb fu  .  i  y  x  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 564 | pb fu  .  i  y  x  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 565 | pb fu  .  i  y  x  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 566 | pb fu  .  i  y  x  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 567 | pb fu  .  i  y  c  .  . |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 568 | pb fu  .  i  y  c  .  . |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 569 | pb fu  .  i  y  c  .  . |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 570 | pb fu  .  i  y  c  .  . |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 571 | pb fu  .  i  y  c  .  . |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 572 | pb fu  .  i  y  c  .  . |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 573 | pb fu  .  i  y  c  .  . |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 574 | pb fu  .  i  y  c  .  . |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 575 | pb fu  .  i  .  .  .  2 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 576 | pb fu  .  i  .  .  .  2 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 577 | pb fu  .  i  .  .  .  2 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 578 | pb fu  .  i  .  .  .  2 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 579 | pb fu  .  i  .  .  .  2 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 580 | pb fu  .  i  .  .  .  2 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 581 | pb fu  .  i  .  .  .  2 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 582 | pb fu  .  i  .  .  .  2 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 583 | pb fu  .  i  y  x  .  2 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 584 | pb fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 585 | pb fu  .  i  y  x  .  2 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 586 | pb fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 587 | pb fu  .  i  y  x  .  2 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 588 | pb fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 589 | pb fu  .  i  y  x  .  2 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 590 | pb fu  .  i  y  x  .  2 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 591 | pb fu  .  i  y  c  .  2 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 592 | pb fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 593 | pb fu  .  i  y  c  .  2 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 594 | pb fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 595 | pb fu  .  i  y  c  .  2 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 596 | pb fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 597 | pb fu  .  i  y  c  .  2 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 598 | pb fu  .  i  y  c  .  2 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 599 | pb fu  .  i  .  .  .  4 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 600 | pb fu  .  i  .  .  .  4 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 601 | pb fu  .  i  .  .  .  4 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 602 | pb fu  .  i  .  .  .  4 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 603 | pb fu  .  i  .  .  .  4 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 604 | pb fu  .  i  .  .  .  4 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 605 | pb fu  .  i  .  .  .  4 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 606 | pb fu  .  i  .  .  .  4 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 607 | pb fu  .  i  y  x  .  4 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 608 | pb fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 609 | pb fu  .  i  y  x  .  4 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 610 | pb fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 611 | pb fu  .  i  y  x  .  4 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 612 | pb fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 613 | pb fu  .  i  y  x  .  4 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 614 | pb fu  .  i  y  x  .  4 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 615 | pb fu  .  i  y  c  .  4 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 616 | pb fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 617 | pb fu  .  i  y  c  .  4 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 618 | pb fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 619 | pb fu  .  i  y  c  .  4 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 620 | pb fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 621 | pb fu  .  i  y  c  .  4 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 622 | pb fu  .  i  y  c  .  4 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 623 | pb fu  .  i  .  .  .  8 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 624 | pb fu  .  i  .  .  .  8 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 625 | pb fu  .  i  .  .  .  8 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 626 | pb fu  .  i  .  .  .  8 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 627 | pb fu  .  i  .  .  .  8 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 628 | pb fu  .  i  .  .  .  8 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 629 | pb fu  .  i  .  .  .  8 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 630 | pb fu  .  i  .  .  .  8 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 631 | pb fu  .  i  y  x  .  8 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 632 | pb fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 633 | pb fu  .  i  y  x  .  8 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 634 | pb fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 635 | pb fu  .  i  y  x  .  8 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 636 | pb fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 637 | pb fu  .  i  y  x  .  8 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 638 | pb fu  .  i  y  x  .  8 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 639 | pb fu  .  i  y  c  .  8 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 640 | pb fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 641 | pb fu  .  i  y  c  .  8 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 642 | pb fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 643 | pb fu  .  i  y  c  .  8 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 644 | pb fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 645 | pb fu  .  i  y  c  .  8 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 646 | pb fu  .  i  y  c  .  8 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 647 | pb fu  .  i  .  .  . 16 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 648 | pb fu  .  i  .  .  . 16 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 649 | pb fu  .  i  .  .  . 16 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 650 | pb fu  .  i  .  .  . 16 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 651 | pb fu  .  i  .  .  . 16 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 652 | pb fu  .  i  .  .  . 16 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 653 | pb fu  .  i  .  .  . 16 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 654 | pb fu  .  i  .  .  . 16 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 655 | pb fu  .  i  y  x  . 16 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 656 | pb fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 657 | pb fu  .  i  y  x  . 16 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 658 | pb fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 659 | pb fu  .  i  y  x  . 16 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 660 | pb fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 661 | pb fu  .  i  y  x  . 16 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 662 | pb fu  .  i  y  x  . 16 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 663 | pb fu  .  i  y  c  . 16 |  32  8  8  8  . |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 664 | pb fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4 24  . |  64 16 16 16 16 |  .  .  . |
+ | 665 | pb fu  .  i  y  c  . 16 |  32  8  8  8  . |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 666 | pb fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4 24  8 |  64 16 16 16 16 |  .  .  . |
+ | 667 | pb fu  .  i  y  c  . 16 |  32  8  8  8  . |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 668 | pb fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4  .  . |  64 16 16 16 16 |  .  .  . |
+ | 669 | pb fu  .  i  y  c  . 16 |  32  8  8  8  . |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ | 670 | pb fu  .  i  y  c  . 16 |  32  8  8  8  8 |  4  .  8 |  64 16 16 16 16 |  .  .  . |
+ +-----+-------------------------+-----------------+----------+-----------------+----------+
+ |     |          visual         |      color      | ax dp st |      accum      |   layer  |
+ |  id | tp ac gd fm db sw st ms |  sz  r  g  b  a | bf th cl |  sz  r  g  b  a | ov un sw |
+ +-----+-------------------------+-----------------+----------+-----------------+----------+
