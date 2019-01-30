@@ -1,6 +1,9 @@
 # DvG_Arduino_lock-in_amp
 Work in progress: a basic lock-in amplifier running on an Arduino M0 Pro.
 
+Current specs:
+- waveform generator and DAQ running at 10 kHz sampling rate
+
 ### Prerequisites
 Python 3.7\
 Additional packages:
@@ -17,7 +20,7 @@ conda install pyserial
 
 ### Pin-out
 ```
-A0: analog out, REF_X, with respect to GND
-A1: + differential in
-A2: - differential in
+A0: analog out, REF_X with respect to AGND
+A1: differential analog in, SIG_I+
+A2: differential analog in, SIG_I-
 ```
