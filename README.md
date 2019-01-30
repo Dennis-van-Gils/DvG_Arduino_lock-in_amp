@@ -1,5 +1,5 @@
 # DvG_Arduino_lock-in_amp
-Work in progress: a lock-in amplifier running on an Arduino M0 Pro using the Atmel SAMD21 chipset.
+_Work in progress:_ A lock-in amplifier running on an Arduino M0 Pro microcontroller board featuring the Atmel SAMD21 chipset, in combination with a PC running Python.
 
 The Arduino microcontroller board generates the reference signal REF_X and subsequently acquires the input signal SIG_I. This data is sent over USB to a PC running the main graphical user interface in Python. The Python program shows the waveform graphs of the signals in real-time, performs the heterodyne mixing and filtering of the signals similar to a lock-in amplifier, and provides logging to disk.
 
