@@ -19,14 +19,16 @@ Current specs Python:
 Python 3.7
 - [PyQt5](https://www.riverbankcomputing.com/software/pyqt/intro) (pre-installed in Anaconda)
 - [numpy](http://www.numpy.org/) (pre-installed in Anaconda)
+- [scipy] (pre-installed in Anaconda)
 - [pyqtgraph](http://www.pyqtgraph.org/documentation/)
 - [pyserial](https://pythonhosted.org/pyserial/)
 - Optional [PyOpenGL](http://pyopengl.sourceforge.net/)
 
 In Anaconda Prompt:
 ```
-conda install pyqtgraph
 conda install pyserial
+conda install pyqtgraph
+conda install pyopengl
 ```
 
 ### Pin-out
