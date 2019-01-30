@@ -12,15 +12,16 @@ Current specs Arduino:
 Current specs Python:
 - Separate threads for communication with the Arduino, signal processing and graphing
 - Zero-phase distortion FIR filter
-- Optional OpenGL hardware-accelerated graphing
+- Automatic detection of the Arduino by scanning over all COM ports
+- Optional OpenGL hardware-accelerated graphing (requires stencil buffer support on the GPU)
 
 ### Prerequisites
-Python 3.7\
-Additional packages:
+Python 3.7
 - [PyQt5](https://www.riverbankcomputing.com/software/pyqt/intro) (pre-installed in Anaconda)
 - [numpy](http://www.numpy.org/) (pre-installed in Anaconda)
 - [pyqtgraph](http://www.pyqtgraph.org/documentation/)
 - [pyserial](https://pythonhosted.org/pyserial/)
+- Optional [PyOpenGL](http://pyopengl.sourceforge.net/)
 
 In Anaconda Prompt:
 ```
