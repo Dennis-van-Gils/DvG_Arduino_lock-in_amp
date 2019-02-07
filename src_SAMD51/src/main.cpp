@@ -339,6 +339,7 @@ void setup() {
   // Start the interrupt timer
   //TC.startTimer(ISR_CLOCK, isr_psd);
   /********************* Timer #3, 16 bit, two PWM outs, period = 65535 */
+  /*
   zt3.configure(TC_CLOCK_PRESCALER_DIV2, // prescaler
                 TC_COUNTER_SIZE_16BIT,   // bit width of timer/counter
                 TC_WAVE_GENERATION_NORMAL_PWM // frequency or PWM mode
@@ -346,7 +347,8 @@ void setup() {
 
   zt3.setCompare(0, 0xFFFF/4);
   zt3.setCallback(true, TC_CALLBACK_CC_CHANNEL0, isr_psd);
-  //zt3.enable(true);
+  zt3.enable(true);
+  */
 }
 
 /*------------------------------------------------------------------------------
