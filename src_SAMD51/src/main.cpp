@@ -12,8 +12,7 @@ Dennis van Gils
 
 #include <Arduino.h>
 #include "DvG_SerialCommand.h"
-#include "Adafruit_ZeroTimer.h"
-//#include "ZeroTimer.h"
+#include "SAMD51_InterruptTimer.h"
 #include "Streaming.h"
 
 // Wait for synchronization of registers between the clock domains
@@ -23,8 +22,6 @@ static void syncDAC() {while (DAC->STATUS.bit.EOC0 == 1);}
 // Wait for synchronization of registers between the clock domains
 static __inline__ void syncADC() __attribute__((always_inline, unused));
 static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1);}
-
-Adafruit_ZeroTimer zt3 = Adafruit_ZeroTimer(3);
 
 // Define for writing debugging info to the terminal
 //#define DEBUG
@@ -314,13 +311,20 @@ void setup() {
   analogReadResolution(ANALOG_READ_RESOLUTION);
   analogRead(A1); // Differential +
   analogRead(A2); // Differential -
+  analogRead(A3); // Differential -
+  analogRead(A4); // Differential -
+  analogRead(A5); // Differential -
 
   // Set differential mode on A1(+) and A2(-)
   ADC0->INPUTCTRL.bit.DIFFMODE = 1;
-  ADC0->INPUTCTRL.bit.MUXPOS = 2; // 2 == AIN2 on SAMD21 = A1 on Arduino board
-  ADC0->INPUTCTRL.bit.MUXNEG = 3; // 3 == AIN3 on SAMD21 = A2 on Arduino board
+  //ADC0->INPUTCTRL.bit.MUXPOS = 2; // 2 == AIN2 on SAMD21 = A1 on Arduino board
+  //ADC0->INPUTCTRL.bit.MUXNEG = 3; // 3 == AIN3 on SAMD21 = A2 on Arduino board
+  //ADC0->INPUTCTRL.bit.MUXPOS = 5; // 5 == AIN5 in SAMD51 = A1 on M4 Feather Express: wrong?
+  //ADC0->INPUTCTRL.bit.MUXNEG = 2; // 2 == AIN2 in SAMD51 = A2 on M4 Feather Express: wrong?
+  ADC0->INPUTCTRL.bit.MUXPOS = 2; // A5 on M4 Feather Express
+  ADC0->INPUTCTRL.bit.MUXNEG = 3; // A3 on M4 Feather Express
   //ADC0->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
-  ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val;
+  ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC0_Val;
 
   // Prepare for software-triggered acquisition
   syncADC();
@@ -337,18 +341,7 @@ void setup() {
   create_LUT();
 
   // Start the interrupt timer
-  //TC.startTimer(ISR_CLOCK, isr_psd);
-  /********************* Timer #3, 16 bit, two PWM outs, period = 65535 */
-  /*
-  zt3.configure(TC_CLOCK_PRESCALER_DIV2, // prescaler
-                TC_COUNTER_SIZE_16BIT,   // bit width of timer/counter
-                TC_WAVE_GENERATION_NORMAL_PWM // frequency or PWM mode
-                );
-
-  zt3.setCompare(0, 0xFFFF/4);
-  zt3.setCallback(true, TC_CALLBACK_CC_CHANNEL0, isr_psd);
-  zt3.enable(true);
-  */
+  TC.startTimer(ISR_CLOCK, isr_psd);
 }
 
 /*------------------------------------------------------------------------------
