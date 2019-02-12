@@ -18,17 +18,17 @@ marker = '-'
 
 # Original data series
 Fs = 10000;          # [Hz] sampling frequency
-total_time = 2;      # [s]
+total_time = 4;      # [s]
 time = np.arange(0, total_time, 1/Fs) # [s]
 
 sig1_ampl    = 1
-sig1_freq_Hz = 490
+sig1_freq_Hz = 49
 
 sig2_ampl    = 1
-sig2_freq_Hz = 500
+sig2_freq_Hz = 50
 
 sig3_ampl    = 1
-sig3_freq_Hz = 800
+sig3_freq_Hz = 137
 
 sig1 = sig1_ampl * np.sin(2*np.pi*time * sig1_freq_Hz)
 sig2 = sig2_ampl * np.sin(2*np.pi*time * sig2_freq_Hz)
@@ -58,12 +58,11 @@ print('tap resolution = %.3f Hz' % (Fs / N_taps))
 offset_valid = int((N_taps - 1)/2)
 N_sig_into_conv = 2 * offset_valid + BUFFER_SIZE
 
-f_LP = 105
 window = "hamming"
-b_LP = firwin(N_taps, f_LP, window=window, fs=Fs)
+b_LP = firwin(N_taps, 105       , window=window, fs=Fs)
 b_HP = firwin(N_taps, 750       , window=window, fs=Fs, pass_zero=False)
 b_BP = firwin(N_taps, [496, 504], window=window, fs=Fs, pass_zero=False)
-b_BG = firwin(N_taps, ([0.1, 498, 502, Fs/2-0.1]), window=window, fs=Fs, pass_zero=False)
+b_BG = firwin(N_taps, ([0.1, 49, 51, Fs/2-0.1]), window=window, fs=Fs, pass_zero=False)
 
 N_buffers_in_deque = 1 + (N_taps - 1) / BUFFER_SIZE
 print("N_buffers_in_deque = %.2f" % N_buffers_in_deque)
@@ -120,10 +119,9 @@ for i in range(int(len(time)/BUFFER_SIZE)):
 dev = sig1[14500:15000] + sig3[14500:15000] - sig_BG
 
 
-plt.title("N_taps = %i, dev = %.3f" % (N_taps, np.mean(np.abs(dev))))
-plt.xlim([0.5, 0.55])
-#plt.xlim([0.125, 0.14])
-#plt.ylim([-1.02, 1.02])
+plt.title("N_taps = %i, dev = %.3f" % (N_taps, np.std(dev)))
+plt.xlim([0.5, 0.7])
+plt.ylim([-2.5, 2.5])
 
 thismanager = pylab.get_current_fig_manager()
 if hasattr(thismanager, 'window'):
