@@ -39,7 +39,7 @@ class State(object):
     """Reflects the actual readings, parsed into separate variables, of the
     Arduino(s). There should only be one instance of the State class.
     """
-    def __init__(self, N_shift_buffers=10):
+    def __init__(self, N_buffers_in_deque=10):
         self.buffers_received = 0
         
         self.time  = np.array([], int)      # [ms]
@@ -48,22 +48,22 @@ class State(object):
         self.sig_I = np.array([], float)
 
         """
-        These arrays are N times the buffer size of the Arduino in order to
-        facilitate preventing start/end effects due to FIR filtering.
-        A smaller shifting window can walk over these arrays and a FIR filter
-        using convolution can be applied, where only the valid samples are kept
-        (no zero padding).
+        These arrays are N_buffers_in_deque times the buffer size of the Arduino
+        in order to facilitate preventing start/end effects due to FIR
+        filtering. A smaller shifting window can walk over these arrays and a
+        FIR filter using convolution can be applied, where only the valid
+        samples are kept (no zero padding).
         
         Each time a complete buffer of BLOCK_SIZE samples is received from the
         Arduino, it is appended to the end of these arrays (FIFO shift buffer).
         
-            i.e. N = 3    
-                hist_time = [buffer_1; received_buffer_2; buffer_3]
-                hist_time = [buffer_2; received_buffer_3; buffer_4]
-                hist_time = [buffer_3; received_buffer_4; buffer_5]
+            i.e. N_buffers_in_deque = 3    
+                hist_time = [buffer_1; buffer_2; buffer_3]
+                hist_time = [buffer_2; buffer_3; buffer_4]
+                hist_time = [buffer_3; buffer_4; buffer_5]
                 etc...
         """
-        maxlen = N_shift_buffers * lockin.config.BUFFER_SIZE
+        maxlen = N_buffers_in_deque * lockin.config.BUFFER_SIZE
         self.hist_time    = deque(maxlen=maxlen)
         self.hist_ref_X   = deque(maxlen=maxlen)
         self.hist_ref_Y   = deque(maxlen=maxlen)
@@ -233,7 +233,7 @@ if __name__ == '__main__':
         sys.exit(0)
         
     lockin.begin(ref_freq=100)
-    state = State(N_shift_buffers=10)    
+    state = State(N_buffers_in_deque=10)    
 
     # Create workers and threads
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
