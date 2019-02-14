@@ -68,7 +68,7 @@ DvG_SerialCommand sc_data(Ser_data);
 // ISR_CLOCK: min.  40 usec for only writing A0, no serial
 //            min.  50 usec for writing A0 and reading A1, no serial
 //            min.  80 usec for writing A0 and reading A1, with serial
-#define ISR_CLOCK 100     // [usec]
+#define ISR_CLOCK 200     // [usec]
 
 // Buffers
 // The buffer that will be send each transmission is BUFFER_SIZE samples long
