@@ -29,7 +29,7 @@ static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
 // Serial   : Programming USB port (UART).
 // SerialUSB: Native USB port (USART). Baudrate setting gets ignored and is
 //            always as fast as possible.
-/* 
+/*
    *** Tested scenarios
    ISR_CLOCK   200 [usec]
    BUFFER_SIZE 500 [samples]
@@ -314,8 +314,8 @@ void setup() {
 
   // Set differential mode on A1(+) and A2(-)
   ADC->CTRLB.bit.DIFFMODE = 1;
-  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
-  ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
+  ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
+  ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
   //ADC->INPUTCTRL.bit.MUXPOS = 2; // 2 == AIN2 on SAMD21 = A1 on Arduino board
   //ADC->INPUTCTRL.bit.MUXNEG = 3; // 3 == AIN3 on SAMD21 = A2 on Arduino board
   ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
