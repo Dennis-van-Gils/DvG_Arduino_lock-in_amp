@@ -19,14 +19,9 @@ class DvG_Buffered_FIR_Filter():
         self.N_buffers_in_deque = N_buffers_in_deque  # [int]
         self.Fs = Fs                                  # [Hz]
         self.firwin_cutoff = firwin_cutoff            # list of [Hz]
-        self.firwin_window = firwin_window            # type of window, see scipy.signal.get_window
+        self.firwin_window = firwin_window            # type of window, see scipy.signal.get_window        
         
-        # Create deque buffers
         self.N_deque = self.buffer_size * self.N_buffers_in_deque # [samples]
-        # Explicitly keep track of the time stamps to prevent troubles with
-        # possibly dropped buffers
-        self.deque_time = deque(maxlen=self.N_deque)
-        self.deque_sig  = deque(maxlen=self.N_deque)
         
         # Track the number of received buffers
         self.i_buffer = -1
@@ -56,75 +51,24 @@ class DvG_Buffered_FIR_Filter():
         self.valid_time_out = np.array([np.nan] * self.buffer_size)
         self.valid_sig_out  = np.array([np.nan] * self.buffer_size)
         
-    def process(self, buffer_time_in, buffer_sig_in):
+    def process(self, deque_sig_in):
         """
-        
-        Returns True when the filter has settled and has computed valid filtered
-        output data, False otherwise.
-        
-        Valid filtered output data is stored in:
-            [DvG_Buffered_FIR_Filter.valid_time_out] and
-            [DvG_Buffered_FIR_Filter.valid_sig_out]
         """
         self.i_buffer += 1
-        prev_last_deque_time = (self.deque_time[-1] if self.i_buffer > 0 else
-                                np.nan)
-        
-        # Detect dropped buffers
-        dT = buffer_time_in[0] - prev_last_deque_time
-        if dT > (1/self.Fs)*1.01:  # Allow 1 percent clock jitter
-            print("dropped buffer %i" % self.i_buffer)
-            N_dropped_buffers = int(round(dT / self.T_span_buffer))
-            print("N_dropped_buffers %i" % N_dropped_buffers)
-            
-            # Replace dropped buffers with ...
-            N_dropped_samples = self.buffer_size * N_dropped_buffers
-            self.deque_time.extend(prev_last_deque_time +
-                                   np.arange(1, N_dropped_samples + 1) *
-                                   1/self.Fs)
-            if 1:
-                """ Proper: with np.nan samples.
-                As a result, the filter output will contain a continuous series
-                of np.nan values in the output for up to T_settling seconds long
-                after the occurance of the last dropped buffer.
-                """
-                self.deque_sig.extend(np.array([np.nan] * N_dropped_samples))
-            else:
-                """ Improper: with linearly interpolated samples.
-                As a result, the filter output will contain fake data where
-                ever dropped buffers occured. The advantage is that, in contrast
-                to using above proper technique, the filter output remains a
-                continuous series of values.
-                """
-                self.deque_sig.extend(self.deque_sig[-1] +
-                                      np.arange(1, N_dropped_samples + 1) *
-                                      (buffer_sig_in[0] - self.deque_sig[-1]) /
-                                      N_dropped_samples)
-
-        self.deque_time.extend(buffer_time_in)
-        self.deque_sig.extend(buffer_sig_in)
         
         if self.i_buffer < self.N_buffers_in_deque - 1:
             # Start-up. Filter still needs time to settle.
-            self.valid_time_out = np.array([np.nan] * self.buffer_size)
-            self.valid_sig_out  = np.array([np.nan] * self.buffer_size)
-            return False
+            return np.array([np.nan] * self.buffer_size)
         
         # Select window out of the signal deque to feed into the convolution.
         # By optimal design, this happens to be the full deque.
-        win_sig = np.array(self.deque_sig)
+        #win_sig = np.array(deque_sig_in)
         
         # Valid filtered signal output of current window
-        self.valid_sig_out  = np.convolve(win_sig, self.b, mode='valid')
-        self.valid_time_out = (np.array(self.deque_time)
-                               [self.win_idx_valid_start:
-                                self.win_idx_valid_end])
-        return True
-    
+        return np.convolve(deque_sig_in, self.b, mode='valid')
+        
     def reset(self):
         self.i_buffer = -1
-        self.valid_time_out = np.array([np.nan] * self.buffer_size)
-        self.valid_sig_out  = np.array([np.nan] * self.buffer_size)
         
     def calc_freqz_response(self, worN=2**18):
         w, h = freqz(self.b, worN=worN)
