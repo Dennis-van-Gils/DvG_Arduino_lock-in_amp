@@ -9,6 +9,7 @@ __date__        = "13-02-2019"
 __version__     = "1.0.0"
 
 import numpy as np
+from scipy import convolve  # TO DO: test np.convolve against scipy.convolve
 from scipy.signal import firwin, freqz
 from collections import deque
 
@@ -65,7 +66,8 @@ class DvG_Buffered_FIR_Filter():
         #win_sig = np.array(deque_sig_in)
         
         # Valid filtered signal output of current window
-        return np.convolve(deque_sig_in, self.b, mode='valid')
+        #return np.convolve(deque_sig_in, self.b, mode='valid')
+        return convolve(deque_sig_in, self.b, mode='valid')
         
     def reset(self):
         self.i_buffer = -1

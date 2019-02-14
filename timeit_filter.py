@@ -48,4 +48,4 @@ def apply_FIR_filters():
                           idx_start + offset_valid + num_valid]
 
 N = 1000                          
-print(timeit.timeit('apply_FIR_filters()', setup='from test_filter_speed import apply_FIR_filters', number=N)/N)
+print("%.2f ms" % (timeit.timeit('apply_FIR_filters()', setup='from timeit_filter import apply_FIR_filters', number=N)/N*1000))
