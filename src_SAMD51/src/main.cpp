@@ -8,6 +8,9 @@ A2: input signal, differential -
 
 Dennis van Gils
 21-01-2019
+
+For SAMD51 check:
+https://github.com/platformio/platformio-pkg-framework-arduinosam/blob/master/cores/adafruit/wiring_analog.c
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -201,6 +204,8 @@ void isr_psd() {
   ADC0->SWTRIG.bit.START = 1;
   while (ADC0->INTFLAG.bit.RESRDY == 0); // Wait for conversion to complete
   int16_t sig_I = ADC0->RESULT.reg;      // aka V_I without amplification (g = 1)
+  sig_I *= 2; // Gain correction for SAMD51
+  sig_I -= 22; // Offset correction
 
   // Store in buffers
   if (fStartup) {
@@ -311,18 +316,11 @@ void setup() {
   analogReadResolution(ANALOG_READ_RESOLUTION);
   analogRead(A1); // Differential +
   analogRead(A2); // Differential -
-  analogRead(A3); // Differential -
-  analogRead(A4); // Differential -
-  analogRead(A5); // Differential -
-
+  
   // Set differential mode on A1(+) and A2(-)
   ADC0->INPUTCTRL.bit.DIFFMODE = 1;
-  //ADC0->INPUTCTRL.bit.MUXPOS = 2; // 2 == AIN2 on SAMD21 = A1 on Arduino board
-  //ADC0->INPUTCTRL.bit.MUXNEG = 3; // 3 == AIN3 on SAMD21 = A2 on Arduino board
-  //ADC0->INPUTCTRL.bit.MUXPOS = 5; // 5 == AIN5 in SAMD51 = A1 on M4 Feather Express: wrong?
-  //ADC0->INPUTCTRL.bit.MUXNEG = 2; // 2 == AIN2 in SAMD51 = A2 on M4 Feather Express: wrong?
-  ADC0->INPUTCTRL.bit.MUXPOS = 2; // A5 on M4 Feather Express
-  ADC0->INPUTCTRL.bit.MUXNEG = 3; // A3 on M4 Feather Express
+  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
+  ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
   //ADC0->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
   ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC0_Val;
 

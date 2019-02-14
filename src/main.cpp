@@ -314,8 +314,10 @@ void setup() {
 
   // Set differential mode on A1(+) and A2(-)
   ADC->CTRLB.bit.DIFFMODE = 1;
-  ADC->INPUTCTRL.bit.MUXPOS = 2; // 2 == AIN2 on SAMD21 = A1 on Arduino board
-  ADC->INPUTCTRL.bit.MUXNEG = 3; // 3 == AIN3 on SAMD21 = A2 on Arduino board
+  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
+  ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
+  //ADC->INPUTCTRL.bit.MUXPOS = 2; // 2 == AIN2 on SAMD21 = A1 on Arduino board
+  //ADC->INPUTCTRL.bit.MUXNEG = 3; // 3 == AIN3 on SAMD21 = A2 on Arduino board
   ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
   ADC->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val;
 
