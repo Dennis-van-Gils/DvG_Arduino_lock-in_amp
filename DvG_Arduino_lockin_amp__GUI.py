@@ -148,7 +148,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setLabel('left', text='voltage (V)', **p)
         self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
                                  lockin.config.ISR_CLOCK * 1e3,
-                                 0, padding=0)
+                                 0, padding=0.01)
         self.pi_refsig.setYRange(1, 3, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
@@ -305,7 +305,7 @@ class MainWindow(QtWid.QWidget):
                                **p)
         self.pi_mixer.setXRange(-lockin.config.BUFFER_SIZE *
                                 lockin.config.ISR_CLOCK * 1e3,
-                                 0, padding=0)
+                                 0, padding=0.01)
         self.pi_mixer.setYRange(-1, 1, padding=0.05)
         self.pi_mixer.setAutoVisible(x=True, y=True)
         self.pi_mixer.setClipToView(True)

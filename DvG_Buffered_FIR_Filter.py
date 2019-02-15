@@ -5,9 +5,8 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "13-02-2019"
+__date__        = "15-02-2019"
 __version__     = "1.0.0"
-
 
 from collections import deque
 from scipy.signal import firwin, freqz
@@ -25,9 +24,6 @@ class DvG_Buffered_FIR_Filter():
         
         self.N_deque = self.buffer_size * self.N_buffers_in_deque # [samples]
         
-        # Track the number of received buffers
-        self.i_buffer = -1
-        
         # Calculate max number of possible taps [samples]. Must be an odd number!
         self.N_taps = self.buffer_size * (self.N_buffers_in_deque - 1) + 1
         self.T_span_taps   = self.N_taps / self.Fs        # [s]
@@ -40,6 +36,8 @@ class DvG_Buffered_FIR_Filter():
         # Settling time of the filter
         # Was named 'self.T_delay_valid_start'
         self.T_settling = self.win_idx_valid_start / self.Fs # [s]
+        self.was_settled = False
+        self.has_settled = False
     
         # Create filter
         self.b = firwin(self.N_taps,
@@ -49,34 +47,35 @@ class DvG_Buffered_FIR_Filter():
                         pass_zero=False)
         self.calc_freqz_response()
         
-        # Init filtered valid output
-        self.valid_time_out = np.array([np.nan] * self.buffer_size)
-        self.valid_sig_out  = np.array([np.nan] * self.buffer_size)
-        
     def process(self, deque_sig_in: deque):
         """
         """
-        self.i_buffer += 1
         
-        if self.i_buffer < self.N_buffers_in_deque - 1:
+        if len(deque_sig_in) < self.N_deque:
             # Start-up. Filter still needs time to settle.
-            #print("Filter is settling")
-            return np.array([np.nan] * self.buffer_size)
+            self.has_settled = False
+            valid_out = np.array([np.nan] * self.buffer_size)
+        else:
+            self.has_settled = True
+            """
+            Select window out of the signal deque to feed into the convolution.
+            By optimal design, this happens to be the full deque.
+            Returns valid filtered signal output of current window.
+            According to my timeit tests, casting the deque into a list is
+            beneficial for the overall calculation time.
+            """
+            #tick = Time.perf_counter()
+            valid_out = np.convolve(list(deque_sig_in), self.b, mode='valid')
+            #print("%.1f" % ((Time.perf_counter() - tick)*1000))
         
-        """
-        Select window out of the signal deque to feed into the convolution.
-        By optimal design, this happens to be the full deque.
-        Returns valid filtered signal output of current window.
-        According to my timeit tests, casting the deque into a list is
-        beneficial for the overall calculation time.
-        """
-        #tick = Time.perf_counter()
-        ans = np.convolve(list(deque_sig_in), self.b, mode='valid')
-        #print("%.1f" % ((Time.perf_counter() - tick)*1000))
-        return ans
+        if self.has_settled and not(self.was_settled):
+            print("Filter has settled")
+            self.was_settled = True
+        elif not(self.has_settled) and self.was_settled:
+            print("Filter has reset")
+            self.was_settled = False
         
-    def reset(self):
-        self.i_buffer = -1
+        return valid_out
         
     def calc_freqz_response(self, worN=2**18):
         w, h = freqz(self.b, worN=worN)
