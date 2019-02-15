@@ -9,7 +9,7 @@ __date__        = "15-02-2019"
 __version__     = "1.0.0"
 
 from collections import deque
-from scipy.signal import firwin, freqz
+from scipy.signal import firwin, freqz, fftconvolve
 import numpy as np
 import time as Time
 
@@ -61,11 +61,9 @@ class Buffered_FIR_Filter():
             Select window out of the signal deque to feed into the convolution.
             By optimal design, this happens to be the full deque.
             Returns valid filtered signal output of current window.
-            According to my timeit tests, casting the deque into a list is
-            beneficial for the overall calculation time.
             """
             #tick = Time.perf_counter()
-            valid_out = np.convolve(list(deque_sig_in), self.b, mode='valid')
+            valid_out = fftconvolve(deque_sig_in, self.b, mode='valid')
             #print("%.1f" % ((Time.perf_counter() - tick)*1000))
         
         if self.has_settled and not(self.was_settled):

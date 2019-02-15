@@ -1,30 +1,39 @@
-N = 10000
 convolve(a, b)
 where a and b can each be cast into other types
+len(a) = 20500, len(b) = 20001
+Test on computer: Onera
+timeit N = 10000
 
 ------ list, list
 
-conv_sp_basic   (ls, ls): 3.2 ms
-conv_np_basic   (ls, ls): 3.2 ms
+conv_sp_basic   (ls, ls): 3.3 ms
+conv_np_basic   (ls, ls): 3.3 ms
+fftconv_basic   (ls, ls): 2.1 ms
 
 ------ deque, numpy array
 
-conv_sp_basic   (dq, np): 4.5 ms
-conv_np_basic   (dq, np): 4.4 ms
+conv_sp_basic   (dq, np): 4.6 ms
+conv_np_basic   (dq, np): 4.5 ms
+fftconv_basic   (dq, np): 3.4 ms  <--- top pick
 
 conv_sp_a_list  (dq, np): 4.2 ms
-conv_np_a_list  (dq, np): 4.1 ms  <--- top pick
+conv_np_a_list  (dq, np): 4.3 ms
+fftconv_a_list  (dq, np): 3.7 ms
 
 conv_sp_a_nparr (dq, np): 4.6 ms
 conv_np_a_nparr (dq, np): 4.6 ms
+fftconv_a_nparr (dq, np): 3.5 ms
 
-conv_sp_all_list(dq, np): 5.6 ms
+conv_sp_all_list(dq, np): 5.5 ms
 conv_np_all_list(dq, np): 5.5 ms
+fftconv_all_list(dq, np): 4.7 ms
 
 ------ deque, list
 
-conv_sp_basic   (dq, ls): 5.2 ms
-conv_np_basic   (dq, ls): 5.2 ms
+conv_sp_basic   (dq, ls): 5.1 ms
+conv_np_basic   (dq, ls): 5.0 ms
+fftconv_basic   (dq, ls): 3.6 ms
 
-conv_sp_a_list  (dq, ls): 4.9 ms
-conv_np_a_list  (dq, ls): 4.9 ms
+conv_sp_a_list  (dq, ls): 4.8 ms
+conv_np_a_list  (dq, ls): 4.8 ms
+fftconv_a_list  (dq, ls): 4.1 ms

@@ -20,7 +20,7 @@ N_taps  = buffer_size * (N_buffers_in_deque - 1) + 1
 N_deque = buffer_size * N_buffers_in_deque
 
 # NumPy arrays
-np.random.seed(0)
+#np.random.seed(0) # Seed is not set for real test
 a_np = np.random.randn(N_deque, )
 b_np = firwin(N_taps,
               [0.0001, 0.015, 0.025, .5-1e-4],
@@ -92,9 +92,11 @@ def report(str_txt):
     
 N = 10000
 p = {'setup': setup, 'number': N}
-report("N = %i" % N)
 report("convolve(a, b)")
 report("where a and b can each be cast into other types")
+report("len(a) = 20500, len(b) = 20001")
+report("Test on computer: Onera")
+report("timeit N = %i" % N)
 
 report("\n------ list, list\n")
 
