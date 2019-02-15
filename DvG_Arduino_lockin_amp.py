@@ -68,7 +68,7 @@ class State(object):
         """
         
         # Create deque buffers
-        self.N_buffers_in_deque = 81
+        self.N_buffers_in_deque = 41
         self.N_deque = lockin.config.BUFFER_SIZE * self.N_buffers_in_deque # [samples]
         self.deque_time  = deque(maxlen=self.N_deque)
         self.deque_ref_X = deque(maxlen=self.N_deque)
@@ -208,9 +208,10 @@ def lockin_DAQ_update():
     state.deque_sig_I.extend(sig_I)
     
     # Perform 50 Hz bandgap filter on sig_I
-    tick = Time.time()
+    tick = Time.perf_counter()
     sig_I_filt = firf_BG_50Hz.process(state.deque_sig_I)
-    print("%.2f" % ((Time.time() - tick) * 1000))
+    print("%f %.2f" % (np.sum(state.deque_sig_I), (Time.perf_counter() - tick)*1000))
+    
     time_filt = (np.array(state.deque_time)[firf_BG_50Hz.win_idx_valid_start:
                                             firf_BG_50Hz.win_idx_valid_end])
     sig_I_unfilt = (np.array(state.deque_sig_I)[firf_BG_50Hz.win_idx_valid_start:
