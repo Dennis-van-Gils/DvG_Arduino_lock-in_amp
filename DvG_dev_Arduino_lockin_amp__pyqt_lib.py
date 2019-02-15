@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "19-01-2019"
+__date__        = "15-02-2019"
 __version__     = "1.2.1"
 
 from PyQt5 import QtCore, QtWidgets as QtWid
@@ -20,7 +20,7 @@ import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 
 class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     """Manages multithreaded communication and periodical data acquisition for
-    an Arduino(-like) device.
+    an Arduino(-like) lock-in amplifier device.
 
     All device I/O operations will be offloaded to 'workers', each running in 
     a newly created thread instead of in the main/GUI thread.
