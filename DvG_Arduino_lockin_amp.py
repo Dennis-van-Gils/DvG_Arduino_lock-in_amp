@@ -35,7 +35,7 @@ from DvG_Buffered_FIR_Filter import DvG_Buffered_FIR_Filter
 DEBUG = False
 
 # ------------------------------------------------------------------------------
-#   Arduino state
+#   State
 # ------------------------------------------------------------------------------
 
 class State(object):
@@ -208,9 +208,7 @@ def lockin_DAQ_update():
     state.deque_sig_I.extend(sig_I)
     
     # Perform 50 Hz bandgap filter on sig_I
-    tick = Time.perf_counter()
     sig_I_filt = firf_BG_50Hz.process(state.deque_sig_I)
-    print("%f %.2f" % (np.sum(state.deque_sig_I), (Time.perf_counter() - tick)*1000))
     
     time_filt = (np.array(state.deque_time)[firf_BG_50Hz.win_idx_valid_start:
                                             firf_BG_50Hz.win_idx_valid_end])

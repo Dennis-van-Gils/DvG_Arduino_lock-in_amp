@@ -8,10 +8,11 @@ __url__         = "https://github.com/Dennis-van-Gils"
 __date__        = "13-02-2019"
 __version__     = "1.0.0"
 
-import numpy as np
-from scipy import convolve  # TO DO: test np.convolve against scipy.convolve
-from scipy.signal import firwin, freqz
+
 from collections import deque
+from scipy.signal import firwin, freqz
+import numpy as np
+import time as Time
 
 class DvG_Buffered_FIR_Filter():
     def __init__(self, buffer_size, N_buffers_in_deque, Fs, firwin_cutoff,
@@ -52,7 +53,7 @@ class DvG_Buffered_FIR_Filter():
         self.valid_time_out = np.array([np.nan] * self.buffer_size)
         self.valid_sig_out  = np.array([np.nan] * self.buffer_size)
         
-    def process(self, deque_sig_in):
+    def process(self, deque_sig_in: deque):
         """
         """
         self.i_buffer += 1
@@ -62,13 +63,17 @@ class DvG_Buffered_FIR_Filter():
             #print("Filter is settling")
             return np.array([np.nan] * self.buffer_size)
         
-        # Select window out of the signal deque to feed into the convolution.
-        # By optimal design, this happens to be the full deque.
-        #win_sig = np.array(deque_sig_in)
-        
-        # Valid filtered signal output of current window
-        return np.convolve(deque_sig_in, self.b, mode='valid')
-        #return convolve(deque_sig_in, self.b, mode='valid')
+        """
+        Select window out of the signal deque to feed into the convolution.
+        By optimal design, this happens to be the full deque.
+        Returns valid filtered signal output of current window.
+        According to my timeit tests, casting the deque into a list is
+        beneficial for the overall calculation time.
+        """
+        #tick = Time.perf_counter()
+        ans = np.convolve(list(deque_sig_in), self.b, mode='valid')
+        #print("%.1f" % ((Time.perf_counter() - tick)*1000))
+        return ans
         
     def reset(self):
         self.i_buffer = -1
