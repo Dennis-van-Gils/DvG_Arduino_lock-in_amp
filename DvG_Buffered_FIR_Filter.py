@@ -59,6 +59,7 @@ class DvG_Buffered_FIR_Filter():
         
         if self.i_buffer < self.N_buffers_in_deque - 1:
             # Start-up. Filter still needs time to settle.
+            #print("Filter is settling")
             return np.array([np.nan] * self.buffer_size)
         
         # Select window out of the signal deque to feed into the convolution.
@@ -66,8 +67,8 @@ class DvG_Buffered_FIR_Filter():
         #win_sig = np.array(deque_sig_in)
         
         # Valid filtered signal output of current window
-        #return np.convolve(deque_sig_in, self.b, mode='valid')
-        return convolve(deque_sig_in, self.b, mode='valid')
+        return np.convolve(deque_sig_in, self.b, mode='valid')
+        #return convolve(deque_sig_in, self.b, mode='valid')
         
     def reset(self):
         self.i_buffer = -1
