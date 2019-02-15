@@ -17,7 +17,7 @@ Current specs Python:
 - Optional OpenGL hardware-accelerated graphing (requires stencil buffer support on the GPU)
 
 ### Prerequisites
-Python 3.7
+Python 3.7\
 Preferred distribution: Anaconda
 - [PyQt5](https://www.riverbankcomputing.com/software/pyqt/intro) (comes with Anaconda)
 - [NumPy](http://www.numpy.org/) (comes with Anaconda)
