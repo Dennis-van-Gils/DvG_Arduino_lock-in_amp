@@ -1,0 +1,32 @@
+convolve(a, b)
+where a and b can each be cast into other types
+len(a) = 20500, len(b) = 20001
+Test on computer: CRIMSONKING
+timeit N = 1000
+
+------ list, list
+
+conv_np_basic   (ls, ls): 4.0 ms
+fftconv_basic   (ls, ls): 2.5 ms
+
+------ deque, numpy array
+
+conv_np_basic   (dq, np): 5.9 ms
+fftconv_basic   (dq, np): 4.1 ms
+
+conv_np_a_list  (dq, np): 5.6 ms
+fftconv_a_list  (dq, np): 4.0 ms
+
+conv_np_a_nparr (dq, np): 5.8 ms
+fftconv_a_nparr (dq, np): 4.0 ms
+
+conv_np_all_list(dq, np): 6.9 ms
+fftconv_all_list(dq, np): 5.3 ms
+
+------ deque, list
+
+conv_np_basic   (dq, ls): 6.6 ms
+fftconv_basic   (dq, ls): 5.0 ms
+
+conv_np_a_list  (dq, ls): 6.3 ms
+fftconv_a_list  (dq, ls): 4.5 ms

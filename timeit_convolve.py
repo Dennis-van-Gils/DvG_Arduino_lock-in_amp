@@ -6,6 +6,7 @@ Created on Thu Dec  6 21:22:33 2018
 """
 
 import timeit
+import os
 
 setup = '''
 import numpy as np
@@ -95,13 +96,16 @@ p = {'setup': setup, 'number': N}
 report("convolve(a, b)")
 report("where a and b can each be cast into other types")
 report("len(a) = 20500, len(b) = 20001")
-report("Test on computer: Onera")
+report("Test on computer: %s" % os.environ['COMPUTERNAME'])
 report("timeit N = %i" % N)
+
+# NOTE: I took out the scipy.signal.convolve tests because their
+# resuls match with numpy.convolve
 
 report("\n------ list, list\n")
 
-report("conv_sp_basic   (ls, ls): %.1f ms" %
-       (timeit.timeit('conv_sp_basic(a_ls, b_ls)', **p)/N*1000))
+#report("conv_sp_basic   (ls, ls): %.1f ms" %
+#       (timeit.timeit('conv_sp_basic(a_ls, b_ls)', **p)/N*1000))
 report("conv_np_basic   (ls, ls): %.1f ms" %
        (timeit.timeit('conv_np_basic(a_ls, b_ls)', **p)/N*1000))
 report("fftconv_basic   (ls, ls): %.1f ms" %
@@ -109,29 +113,29 @@ report("fftconv_basic   (ls, ls): %.1f ms" %
 
 report("\n------ deque, numpy array\n")
 
-report("conv_sp_basic   (dq, np): %.1f ms" %
-       (timeit.timeit('conv_sp_basic(a_dq, b_np)', **p)/N*1000))
+#report("conv_sp_basic   (dq, np): %.1f ms" %
+#       (timeit.timeit('conv_sp_basic(a_dq, b_np)', **p)/N*1000))
 report("conv_np_basic   (dq, np): %.1f ms" %
        (timeit.timeit('conv_np_basic(a_dq, b_np)', **p)/N*1000))
 report("fftconv_basic   (dq, np): %.1f ms" %
        (timeit.timeit('fftconv_basic(a_dq, b_np)', **p)/N*1000))
 report("")
-report("conv_sp_a_list  (dq, np): %.1f ms" %
-       (timeit.timeit('conv_sp_a_list(a_dq, b_np)', **p)/N*1000))
+#report("conv_sp_a_list  (dq, np): %.1f ms" %
+#       (timeit.timeit('conv_sp_a_list(a_dq, b_np)', **p)/N*1000))
 report("conv_np_a_list  (dq, np): %.1f ms" %
        (timeit.timeit('conv_np_a_list(a_dq, b_np)', **p)/N*1000))
 report("fftconv_a_list  (dq, np): %.1f ms" %
        (timeit.timeit('fftconv_a_list(a_dq, b_np)', **p)/N*1000))
 report("")
-report("conv_sp_a_nparr (dq, np): %.1f ms" %
-       (timeit.timeit('conv_sp_a_nparr(a_dq, b_np)', **p)/N*1000))
+#report("conv_sp_a_nparr (dq, np): %.1f ms" %
+#       (timeit.timeit('conv_sp_a_nparr(a_dq, b_np)', **p)/N*1000))
 report("conv_np_a_nparr (dq, np): %.1f ms" %
        (timeit.timeit('conv_np_a_nparr(a_dq, b_np)', **p)/N*1000))
 report("fftconv_a_nparr (dq, np): %.1f ms" %
        (timeit.timeit('fftconv_a_nparr(a_dq, b_np)', **p)/N*1000))
 report("")
-report("conv_sp_all_list(dq, np): %.1f ms" %
-       (timeit.timeit('conv_sp_all_list(a_dq, b_np)', **p)/N*1000))
+#report("conv_sp_all_list(dq, np): %.1f ms" %
+#       (timeit.timeit('conv_sp_all_list(a_dq, b_np)', **p)/N*1000))
 report("conv_np_all_list(dq, np): %.1f ms" %
        (timeit.timeit('conv_np_all_list(a_dq, b_np)', **p)/N*1000))
 report("fftconv_all_list(dq, np): %.1f ms" %
@@ -139,15 +143,15 @@ report("fftconv_all_list(dq, np): %.1f ms" %
 
 report("\n------ deque, list\n")
 
-report("conv_sp_basic   (dq, ls): %.1f ms" %
-       (timeit.timeit('conv_sp_basic(a_dq, b_ls)', **p)/N*1000))
+#report("conv_sp_basic   (dq, ls): %.1f ms" %
+#       (timeit.timeit('conv_sp_basic(a_dq, b_ls)', **p)/N*1000))
 report("conv_np_basic   (dq, ls): %.1f ms" %
        (timeit.timeit('conv_np_basic(a_dq, b_ls)', **p)/N*1000))
 report("fftconv_basic   (dq, ls): %.1f ms" %
        (timeit.timeit('fftconv_basic(a_dq, b_ls)', **p)/N*1000))
 report("")
-report("conv_sp_a_list  (dq, ls): %.1f ms" %
-       (timeit.timeit('conv_sp_a_list(a_dq, b_ls)', **p)/N*1000))
+#report("conv_sp_a_list  (dq, ls): %.1f ms" %
+#       (timeit.timeit('conv_sp_a_list(a_dq, b_ls)', **p)/N*1000))
 report("conv_np_a_list  (dq, ls): %.1f ms" %
        (timeit.timeit('conv_np_a_list(a_dq, b_ls)', **p)/N*1000))
 report("fftconv_a_list  (dq, ls): %.1f ms" %

@@ -1,7 +1,7 @@
 convolve(a, b)
 where a and b can each be cast into other types
 len(a) = 20500, len(b) = 20001
-Test on computer: Onera
+Test on computer: ONERA
 timeit N = 10000
 
 ------ list, list
