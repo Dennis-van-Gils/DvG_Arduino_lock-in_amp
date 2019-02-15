@@ -1,0 +1,37 @@
+N = 1000
+convolve(a, b)
+where a and b can each be cast into other types
+
+------ list, list
+
+conv_sp_basic   (ls, ls): 4.2 ms
+conv_np_basic   (ls, ls): 4.2 ms
+fftconv_basic   (ls, ls): 2.4 ms
+
+------ deque, numpy array
+
+conv_sp_basic   (dq, np): 6.0 ms
+conv_np_basic   (dq, np): 5.9 ms
+fftconv_basic   (dq, np): 4.3 ms
+
+conv_sp_a_list  (dq, np): 5.7 ms
+conv_np_a_list  (dq, np): 5.6 ms
+fftconv_a_list  (dq, np): 4.0 ms
+
+conv_sp_a_nparr (dq, np): 6.0 ms
+conv_np_a_nparr (dq, np): 6.0 ms
+fftconv_a_nparr (dq, np): 4.5 ms
+
+conv_sp_all_list(dq, np): 7.0 ms
+conv_np_all_list(dq, np): 7.0 ms
+fftconv_all_list(dq, np): 5.3 ms
+
+------ deque, list
+
+conv_sp_basic   (dq, ls): 6.6 ms
+conv_np_basic   (dq, ls): 6.4 ms
+fftconv_basic   (dq, ls): 4.9 ms
+
+conv_sp_a_list  (dq, ls): 6.3 ms
+conv_np_a_list  (dq, ls): 6.4 ms
+fftconv_a_list  (dq, ls): 4.5 ms
