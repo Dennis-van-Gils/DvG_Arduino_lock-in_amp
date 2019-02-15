@@ -17,4 +17,5 @@ def conversion(a):
 '''
     
 N = 100
-print("%.2f ms" % (timeit.timeit('conversion(a)', setup=setup, number=N)/N*1000))
+print("%.2f ms" %
+      (timeit.timeit('conversion(a)', setup=setup, number=N)/N*1000))
