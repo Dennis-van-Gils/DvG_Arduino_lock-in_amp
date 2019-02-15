@@ -29,7 +29,7 @@ import DvG_Arduino_lockin_amp__GUI            as lockin_GUI
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
 
-from DvG_Buffered_FIR_Filter import DvG_Buffered_FIR_Filter
+from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
@@ -266,16 +266,18 @@ if __name__ == '__main__':
     lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
     lockin_pyqt.signal_connection_lost.connect(notify_connection_lost)
     
-    # Set up state and filters
+    # --------------------------------------------------------------------------
+    #   Set up state and filters
+    # --------------------------------------------------------------------------
     state = State()
     
     #firwin_cutoff = [0.0001, 49.5, 50.5, lockin.config.Fs/2-0.0001]
     firwin_cutoff = [0.0001, 120]
-    firf_BG_50Hz = DvG_Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
-                                           lockin_pyqt.state.N_buffers_in_deque,
-                                           lockin.config.Fs,
-                                           firwin_cutoff,
-                                           ("chebwin", 50))
+    firf_BG_50Hz = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
+                                       lockin_pyqt.state.N_buffers_in_deque,
+                                       lockin.config.Fs,
+                                       firwin_cutoff,
+                                       ("chebwin", 50))
     firf_BG_50Hz.report()
 
     # Manage logging to disk

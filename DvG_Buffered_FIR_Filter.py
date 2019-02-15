@@ -13,7 +13,7 @@ from scipy.signal import firwin, freqz
 import numpy as np
 import time as Time
 
-class DvG_Buffered_FIR_Filter():
+class Buffered_FIR_Filter():
     def __init__(self, buffer_size, N_buffers_in_deque, Fs, firwin_cutoff,
                  firwin_window):
         self.buffer_size = buffer_size                # [samples]
