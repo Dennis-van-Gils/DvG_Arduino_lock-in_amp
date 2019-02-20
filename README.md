@@ -28,9 +28,9 @@ Preferred distribution: Anaconda
 
 In Anaconda Prompt:
 ```
-conda install pyserial
-conda install pyqtgraph
-conda install pyopengl
+conda install -c anaconda pyserial
+conda install -c anaconda pyqtgraph
+conda install -c anaconda pyopengl
 ```
 
 ### Pin-out
