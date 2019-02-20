@@ -6,9 +6,11 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "19-01-2019"
+__date__        = "15-02-2019"
 __version__     = "1.2.1"
 
+import numpy as np
+from collections import deque
 from PyQt5 import QtCore, QtWidgets as QtWid
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
@@ -20,7 +22,7 @@ import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 
 class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     """Manages multithreaded communication and periodical data acquisition for
-    an Arduino(-like) device.
+    an Arduino(-like) lock-in amplifier device.
 
     All device I/O operations will be offloaded to 'workers', each running in 
     a newly created thread instead of in the main/GUI thread.
@@ -69,6 +71,59 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     signal_ref_V_center_is_set = QtCore.pyqtSignal()
     signal_ref_V_p2p_is_set    = QtCore.pyqtSignal()
     
+    class State():
+        def __init__(self, buffer_size, N_buffers_in_deque=0):
+            """Reflects the actual readings, parsed into separate variables, of the
+            lock-in amplifier. There should only be one instance of the State class.
+            """
+            self.buffers_received = 0
+            self.buffer_size        = buffer_size           # [samples]
+            self.N_buffers_in_deque = N_buffers_in_deque    # [int]
+            self.N_deque = buffer_size * N_buffers_in_deque # [samples]
+            
+            self.time  = np.array([], int)      # [ms]
+            self.ref_X = np.array([], float)
+            self.ref_Y = np.array([], float)
+            self.sig_I = np.array([], float)
+            
+            """ Deque arrays needed for proper FIR filtering.
+            Each time a complete buffer of BUFFER_SIZE samples is received from the
+            lock-in, it will extend the deque array (a thread-safe FIFO shift
+            buffer).
+            
+                i.e. N_buffers_in_deque = 3
+                    startup          : deque = [no value; no value ; no value]
+                    received buffer 1: deque = [buffer_1; no value ; no value]
+                    received buffer 2: deque = [buffer_1; buffer_2 ; no value]
+                    received buffer 3: deque = [buffer_1; buffer_2 ; buffer_3]
+                    received buffer 4: deque = [buffer_2; buffer_3 ; buffer_4]
+                    received buffer 5: deque = [buffer_3; buffer_4 ; buffer_5]
+                    etc...
+            """
+            
+            # Create deques
+            if self.N_buffers_in_deque > 0:
+                self.deque_time  = deque(maxlen=self.N_deque)
+                self.deque_ref_X = deque(maxlen=self.N_deque)
+                self.deque_ref_Y = deque(maxlen=self.N_deque)
+                self.deque_sig_I = deque(maxlen=self.N_deque)
+            
+            # Mutex for proper multithreading. If the state variables are not
+            # atomic or thread-safe, you should lock and unlock this mutex for each
+            # read and write operation.
+            self.mutex = QtCore.QMutex()
+        
+        def reset(self):
+            """Will automatically be called when the lock-in is turned on every
+            time.
+            """
+            self.buffers_received = 0
+            if self.N_buffers_in_deque > 0:
+                self.deque_time.clear()
+                self.deque_ref_X.clear()
+                self.deque_ref_Y.clear()
+                self.deque_sig_I.clear()
+    
     def __init__(self,
                  dev: lockin_functions.Arduino_lockin_amp,
                  DAQ_update_interval_ms=1000,
@@ -77,6 +132,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                  DAQ_timer_type=QtCore.Qt.PreciseTimer,
                  DAQ_trigger_by=Dev_Base_pyqt_lib.DAQ_trigger.CONTINUOUS,
                  calc_DAQ_rate_every_N_iter=25,
+                 N_buffers_in_deque=41,
                  DEBUG_worker_DAQ=False,
                  DEBUG_worker_send=False,
                  parent=None):
@@ -95,6 +151,8 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         self.create_worker_send(alt_process_jobs_function=
                                 self.alt_process_jobs_function,
                                 DEBUG=DEBUG_worker_send)
+        
+        self.state = self.State(dev.config.BUFFER_SIZE, N_buffers_in_deque)
         
     def turn_on(self):
         self.worker_send.queued_instruction("turn_on")
@@ -180,6 +238,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                     QtWid.QApplication.processEvents()
                     
         elif func == "turn_on":
+            self.state.reset()
             if self.dev.turn_on():
                 self.worker_DAQ.schedule_suspend(False)
                 

@@ -30,7 +30,9 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         type_sig_I = 'h'   # int16_t
         
         ISR_CLOCK               = 0    # [s]
+        Fs                      = 0    # [Hz]
         BUFFER_SIZE             = 0    # [number of samples per variable]
+        T_SPAN_BUFFER           = 0    # [s]
         N_BYTES_TRANSMIT_BUFFER = 0    # [data bytes]
         N_LUT                   = 0    # [number of samples over 360 degrees]
         ANALOG_WRITE_RESOLUTION = 0    # [bits]
@@ -170,6 +172,10 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                 self.config.ref_V_center            = float(ans_list[7])
                 self.config.ref_V_p2p               = float(ans_list[8])
                 self.config.ref_freq                = float(ans_list[9])
+                
+                self.config.Fs = 1.0/self.config.ISR_CLOCK
+                self.config.T_SPAN_BUFFER = (self.config.BUFFER_SIZE *
+                                             self.config.ISR_CLOCK)
                 return True
             except Exception as err:
                 raise(err)

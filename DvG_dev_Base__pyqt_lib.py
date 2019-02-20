@@ -41,12 +41,12 @@ MAIN CONTENTS:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "17-01-2019"
-__version__     = "1.2.1"
+__date__        = "15-02-2019"
+__version__     = "1.2.2"
 
 from enum import IntEnum, unique
 import queue
-import time
+import time as Time
 
 import numpy as np
 from PyQt5 import QtCore
@@ -440,6 +440,9 @@ class Dev_Base_pyqt(QtCore.QObject):
             elif self.trigger_by == DAQ_trigger.CONTINUOUS:
                 self.calc_DAQ_rate_every_N_iter = calc_DAQ_rate_every_N_iter
                 
+            # QElapsedTimer (QET) to keep track of DAQ interval and DAQ rate
+            self.QET_DAQ = QtCore.QElapsedTimer()
+            self.QET_DAQ.start()
             self.prev_tick_DAQ_update = 0
             self.prev_tick_DAQ_rate = 0
 
@@ -488,7 +491,7 @@ class Dev_Base_pyqt(QtCore.QObject):
                                    self.dev.name, self.DEBUG_color)
                         
                         self.suspended = True
-                        time.sleep(0.01)  # Do not hog the CPU
+                        Time.sleep(0.01)  # Do not hog the CPU while suspended
                         pass
                     else:
                         self.suspended = False
@@ -523,7 +526,7 @@ class Dev_Base_pyqt(QtCore.QObject):
                        self.DEBUG_color)
 
             # Keep track of the obtained DAQ update interval
-            now = QtCore.QDateTime.currentMSecsSinceEpoch()
+            now = self.QET_DAQ.elapsed()
             if self.outer.DAQ_update_counter > 1:
                 self.outer.obtained_DAQ_update_interval_ms = (
                         now - self.prev_tick_DAQ_update)

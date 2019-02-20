@@ -1,0 +1,11 @@
+fftconvolve(a, b)
+where a and b can each be cast into other types
+len(a) = 20500, len(b) = 20001
+Test on computer: ONERA
+timeit N = 10000
+
+fftconv_ls_ls             : 3.6 ms
+fftconv_dq_np             : 3.4 ms
+fftconv_dq_np__dq_to_list : 3.2 ms
+fftconv_dq_np__dq_to_nparr: 3.6 ms
+fftconv_dq_np__all_to_list: 5.1 ms
