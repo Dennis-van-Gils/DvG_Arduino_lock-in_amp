@@ -24,8 +24,8 @@ M4 family
 - Adafruit Feather M4           SAMD51J19A   okay     ADAFRUIT_FEATHER_M4_EXPRESS
 - Adafruit ItsyBitsy M4         SAMD51G19A            ADAFRUIT_ITSYBITSY_M4_EXPRESS
 
-When using Visual Studio Code as IDE set the following user settings to prevent
-#include from becoming unconditional:
+When using Visual Studio Code as IDE set the following user settings to have
+proper bindings to strncmpi
 "C_Cpp.intelliSenseEngine": "Tag Parser"
 "C_Cpp.intelliSenseEngineFallback": "Disabled"
 
@@ -364,6 +364,10 @@ void isr_psd() {
     setup
 ------------------------------------------------------------------------------*/
 
+uint8_t NVM_ADC0_BIASCOMP = 0;
+uint8_t NVM_ADC0_BIASREFBUF = 0;
+uint8_t NVM_ADC0_BIASR2R = 0;
+
 void setup() {
   #ifdef DEBUG
     Ser_debug.begin(9600);
@@ -403,11 +407,36 @@ void setup() {
     ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
     ADC->REFCTRL.bit.REFSEL = 2;  // 2: INTVCC1 on SAMD21 = 1/2 VDDANA
   #elif defined(__SAMD51__)
+    /*
+    ADC0->CTRLA.bit.ENABLE = 0;
+    delay(10);
+
+    // NVM Software Calibration Area: address 0x00800080
+    uint16_t *NVM_SCA = NULL;
+    NVM_SCA = (uint16_t*) 0x00800080ul;
+    NVM_ADC0_BIASCOMP = (*NVM_SCA & 0x1c) >> 2;
+    NVM_ADC0_BIASREFBUF = (*NVM_SCA & 0xe0) >> 5;
+    NVM_ADC0_BIASR2R = (*NVM_SCA & 0x700) >> 8;
+    ADC0->CALIB.bit.BIASCOMP   = NVM_ADC0_BIASCOMP;
+    ADC0->CALIB.bit.BIASREFBUF = NVM_ADC0_BIASREFBUF;
+    ADC0->CALIB.bit.BIASR2R    = NVM_ADC0_BIASR2R;
+    delay(10);
+    //*/
+
     ADC0->INPUTCTRL.bit.DIFFMODE = 1;
     ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
     ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
     // ADC0->INPUTCTRL.bit.GAIN does not exist on SAMD51
     ADC0->REFCTRL.bit.REFSEL = 3; // 3: INTVCC1 on SAMD51 = VDDANA
+    
+    /*
+    ADC0->OFFSETCORR.bit.OFFSETCORR = ADC_OFFSETCORR_OFFSETCORR(50);
+    ADC0->GAINCORR.bit.GAINCORR = ADC_GAINCORR_GAINCORR(2065);
+    ADC0->CTRLB.bit.CORREN = 1;   // Enable offset and gain correction
+
+    ADC0->CTRLA.bit.ENABLE = 1;
+    delay(10);
+    */
   #endif
 
   // Prepare for software-triggered acquisition
@@ -510,6 +539,20 @@ void loop() {
             Ser_data.println("SAMD51G19A");
           #else
             Ser_data.println("unknown MCU");
+          #endif
+
+        } else if (strcmpi(strCmd, "bias?") == 0) {
+          #if defined (__SAMD51__)
+            Ser_data.println(NVM_ADC0_BIASCOMP);
+            Ser_data.println(NVM_ADC0_BIASREFBUF);
+            Ser_data.println(NVM_ADC0_BIASR2R);
+
+            Ser_data.println(ADC0->CALIB.bit.BIASCOMP);
+            Ser_data.println(ADC0->CALIB.bit.BIASREFBUF);
+            Ser_data.println(ADC0->CALIB.bit.BIASR2R);
+            
+            Ser_data.println(ADC0->OFFSETCORR.bit.OFFSETCORR);
+            Ser_data.println(ADC0->GAINCORR.bit.GAINCORR);
           #endif
 
         } else if (strcmpi(strCmd, "config?") == 0) {
