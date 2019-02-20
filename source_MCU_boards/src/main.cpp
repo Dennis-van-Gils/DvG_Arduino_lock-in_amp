@@ -165,9 +165,12 @@ volatile bool fSend_buffer_A = false;
 volatile bool fSend_buffer_B = false;
 
 // Analog port resolutions
-// TO DO: increase ANALOG_WRITE_RESOLUTION to 12 bit for M4 family
-#define ANALOG_WRITE_RESOLUTION 10      // [bits] Fixed to 10 on M0 Pro
-#define ANALOG_READ_RESOLUTION  12      // [bits] 10 or 12 on M0 Pro
+#if defined(__SAMD21__)
+  #define ANALOG_WRITE_RESOLUTION 10  // [bits] DAC
+#elif defined(__SAMD51__)
+  #define ANALOG_WRITE_RESOLUTION 12  // [bits] DAC
+#endif
+#define ANALOG_READ_RESOLUTION 12     // [bits] ADC
 
 /*------------------------------------------------------------------------------
     Cosine wave look-up table (LUT)
@@ -179,8 +182,8 @@ double ref_freq = 137.0;      // [Hz], aka f_R
 // the shape of the sine wave at its minimum. Apparently, the analog out port
 // has difficulty in cleanly dropping the output voltage completely to 0.0 V.
 #define A_REF        3.300    // [V] Analog voltage reference Arduino
-double ref_V_center = 2.0;    // [V] Center voltage of cosine reference signal
-double ref_V_p2p    = 0.4;    // [V] Peak-to-peak voltage of cosine ref. signal
+double ref_V_center = 2.5;    // [V] Center voltage of cosine reference signal
+double ref_V_p2p    = 1.0;    // [V] Peak-to-peak voltage of cosine ref. signal
 
 #define N_LUT 9000  // (9000 --> 0.04 deg) Number of samples for one full period
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
@@ -257,11 +260,9 @@ void isr_psd() {
   // Output reference signal
   syncDAC();
   #if defined(__SAMD21__)
-    DAC->DATA.reg = ref_X & 0x3FF;
+    DAC->DATA.reg = ref_X;
   #elif defined(__SAMD51__)
-    // TO DO: learn from mapResolution from https://github.com/platformio/platformio-pkg-framework-arduinosam/blob/master/cores/adafruit/wiring_analog.c
-    // to be able to use 12 bit analog out resolution
-    DAC->DATA[0].reg = ref_X & 0x3FF;
+    DAC->DATA[0].reg = ref_X;
   #endif
 
   // Read input signal
@@ -274,8 +275,6 @@ void isr_psd() {
     ADC0->SWTRIG.bit.START = 1;
     while (ADC0->INTFLAG.bit.RESRDY == 0);  // Wait for conversion to complete
     int16_t sig_I = ADC0->RESULT.reg;
-    sig_I *= 2;   // Gain correction
-    sig_I -= 22;  // HACK: Offset correction for my specific test board
   #endif
 
   // Store in buffers
@@ -402,13 +401,13 @@ void setup() {
     ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
     ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
     ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
-    ADC->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val;
+    ADC->REFCTRL.bit.REFSEL = 2;  // 2: INTVCC1 on SAMD21 = 1/2 VDDANA
   #elif defined(__SAMD51__)
     ADC0->INPUTCTRL.bit.DIFFMODE = 1;
     ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
     ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
-    //ADC0->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val; # NOT AVAILABLE
-    ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC0_Val; // TO DO: Should this be INTVCC1_Val instead?
+    // ADC0->INPUTCTRL.bit.GAIN does not exist on SAMD51
+    ADC0->REFCTRL.bit.REFSEL = 3; // 3: INTVCC1 on SAMD51 = VDDANA
   #endif
 
   // Prepare for software-triggered acquisition
@@ -498,7 +497,7 @@ void loop() {
           Ser_data.println("Arduino lock-in amp");
 
         } else if (strcmpi(strCmd, "mcu?") == 0) {
-		  // Reply microcontroller type string
+          // Reply microcontroller type string
           #if defined(__SAMD21G18A__)
             Ser_data.println("SAMD21G18A");
           #elif defined(__SAMD21E18A__)
