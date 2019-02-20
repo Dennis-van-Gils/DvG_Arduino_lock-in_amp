@@ -1,0 +1,24 @@
+#######################################
+# Syntax Coloring Map For Ultrasound
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+ZeroTimer	KEYWORD1
+
+#######################################
+# Methods and Functions (KEYWORD2)
+
+startTimer	KEYWORD2
+setTimerFrequency	KEYWORD2
+TC	KEYWORD2
+TCC	KEYWORD2
+
+#######################################
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
