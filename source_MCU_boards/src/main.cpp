@@ -408,7 +408,7 @@ void setup() {
     ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
     ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
     //ADC0->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val; # NOT AVAILABLE
-    ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC0_Val;
+    ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC0_Val; // TO DO: Should this be INTVCC1_Val instead?
   #endif
 
   // Prepare for software-triggered acquisition
@@ -498,6 +498,7 @@ void loop() {
           Ser_data.println("Arduino lock-in amp");
 
         } else if (strcmpi(strCmd, "mcu?") == 0) {
+		  // Reply microcontroller type string
           #if defined(__SAMD21G18A__)
             Ser_data.println("SAMD21G18A");
           #elif defined(__SAMD21E18A__)
