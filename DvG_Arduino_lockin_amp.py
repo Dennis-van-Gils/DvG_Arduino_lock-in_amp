@@ -271,8 +271,8 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
     state = State()
     
-    #firwin_cutoff = [0.0001, 49.5, 50.5, lockin.config.Fs/2-0.0001]
-    firwin_cutoff = [0.0001, 120]
+    firwin_cutoff = [0.0001, 49.5, 50.5, lockin.config.Fs/2-0.0001]
+    #firwin_cutoff = [0.0001, 120]
     firf_BG_50Hz = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
                                        lockin_pyqt.state.N_buffers_in_deque,
                                        lockin.config.Fs,
