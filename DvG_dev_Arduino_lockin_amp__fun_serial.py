@@ -2,10 +2,12 @@
 # -*- coding: utf-8 -*-
 """Module to communicate with an Arduino lock-in amp device over a serial
 connection.
-
-Dennis van Gils
-26-02-2019
 """
+__author__      = "Dennis van Gils"
+__authoremail__ = "vangils.dennis@gmail.com"
+__url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
+__date__        = "03-04-2019"
+__version__     = "1.0.0"
 
 import sys
 import struct
@@ -63,21 +65,29 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         self.config = self.Config()
         self.lockin_paused = True
 
-    def begin(self, ref_freq=None):
+    def begin(self, ref_freq=None, ref_V_center=None, ref_V_p2p=None):
         """
         Returns:
             success
         """
-        [success, foo, bar] = self.turn_off()
-        if success:
-            if self.get_config():
-                if ref_freq != None:
-                    if self.set_ref_freq(ref_freq):
-                        return True
-                else:
-                    return True
+        [success, __foo, __bar] = self.turn_off()
+        if not success:
+            return False
         
-        return False
+        if not self.get_config():
+            return False
+        
+        if ref_freq != None:
+            if not self.set_ref_freq(ref_freq):
+                return False
+        if ref_V_center != None:
+            if not self.set_ref_V_center(ref_V_center):
+                return False
+        if ref_V_p2p != None:
+            if not self.set_ref_V_p2p(ref_V_p2p):
+                return False
+        
+        return True
     
     def safe_query(self, msg_str, timeout_warning_style=1):
         was_paused = self.lockin_paused
