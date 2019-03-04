@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "30-01-2019"
+__date__        = "03-04-2019"
 __version__     = "1.0.0"
 
 import os
@@ -73,6 +73,7 @@ def update_GUI():
         window.qlin_sig_I.setText("%.4f" % lockin_pyqt.state.sig_I[0])
         
         window.update_chart_refsig()
+        window.update_chart_filt_BG()
         window.update_chart_mixer()
         
 # ------------------------------------------------------------------------------
@@ -170,19 +171,40 @@ def lockin_DAQ_update():
     state.deque_ref_Y.extend(ref_Y)
     state.deque_sig_I.extend(sig_I)
     
+    # TO DO: I might have screwed up converting deque to np.array.
+    # Deque puts latests additions to the end
+    # Double check retrievel of correct time blocks
+    
     # Perform 50 Hz bandgap filter on sig_I
+    # TO DO: additionally, make a deque for sig_I_filt
     sig_I_filt = firf_BG_50Hz.process(state.deque_sig_I)
     
     time_filt    = (np.array(state.deque_time)
                     [firf_BG_50Hz.win_idx_valid_start:
-                    firf_BG_50Hz.win_idx_valid_end])
+                     firf_BG_50Hz.win_idx_valid_end])
     sig_I_unfilt = (np.array(state.deque_sig_I)
                     [firf_BG_50Hz.win_idx_valid_start:
-                    firf_BG_50Hz.win_idx_valid_end])
+                     firf_BG_50Hz.win_idx_valid_end])
     
-    mix_X = (ref_X - c.ref_V_center) * (sig_I - c.ref_V_center)
-    mix_Y = (ref_Y - c.ref_V_center) * (sig_I - c.ref_V_center)
+    # Retrieve the block of original data from the past that alligns with the
+    # current filter output
+    old_ref_X = (np.array(state.deque_ref_X)
+                 [firf_BG_50Hz.win_idx_valid_start:
+                  firf_BG_50Hz.win_idx_valid_end])
+    old_ref_Y = (np.array(state.deque_ref_Y)
+                 [firf_BG_50Hz.win_idx_valid_start:
+                  firf_BG_50Hz.win_idx_valid_end])
     
+    #if not len(time_filt) == 0:
+    #    print("%i %i: %i" % (time[-1], time_filt[-1], time[-1] - time_filt[-1]))
+        
+    if firf_BG_50Hz.has_settled:    
+        mix_X = (old_ref_X - c.ref_V_center) * (sig_I_filt - c.ref_V_center)
+        mix_Y = (old_ref_Y - c.ref_V_center) * (sig_I_filt - c.ref_V_center)
+    else:
+        mix_X = np.array([np.nan] * c.BUFFER_SIZE)
+        mix_Y = np.array([np.nan] * c.BUFFER_SIZE)
+        
     out_amp = 2 * np.sqrt(mix_X**2 + mix_Y**2)
     """NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
     division by (mix_X = 0) is handled correctly due to 'numpy.inf'. Likewise,
@@ -203,9 +225,12 @@ def lockin_DAQ_update():
     window.CH_ref_X.add_new_readings(time, ref_X)
     window.CH_ref_Y.add_new_readings(time, ref_Y)
     window.CH_sig_I.add_new_readings(time, sig_I)
+        
+    window.CH_filt_BG_in.add_new_readings(time_filt, sig_I_unfilt)
+    window.CH_filt_BG_out.add_new_readings(time_filt, sig_I_filt)
     
-    window.CH_mix_X.add_new_readings(time_filt, sig_I_unfilt)
-    window.CH_mix_Y.add_new_readings(time_filt, sig_I_filt)
+    window.CH_mix_X.add_new_readings(time_filt, mix_X)
+    window.CH_mix_Y.add_new_readings(time_filt, mix_Y)
     
     # Logging to file
     if file_logger.starting:
@@ -252,7 +277,8 @@ if __name__ == '__main__':
         print("Exiting...\n")
         sys.exit(0)
         
-    lockin.begin(ref_freq=100)
+    #lockin.begin()
+    lockin.begin(ref_freq=100, ref_V_center=2.8, ref_V_p2p=0.8)
     
     # Create workers and threads
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
@@ -296,8 +322,9 @@ if __name__ == '__main__':
                                    lockin_pyqt=lockin_pyqt,
                                    file_logger=file_logger)
 
-    window.pi_refsig.setYRange(1.75, 2.25)
-    window.pi_mixer.setYRange(1.75, 2.25)
+    window.pi_refsig.setYRange(2.35, 3.25)
+    window.pi_filt_BG.setYRange(2.35, 3.25)
+    window.pi_mixer.setYRange(-0.12, 0.2)
 
     # --------------------------------------------------------------------------
     #   Start threads

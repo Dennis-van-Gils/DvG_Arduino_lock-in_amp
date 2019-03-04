@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "21-01-2019"
+__date__        = "03-04-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -69,7 +69,7 @@ class MainWindow(QtWid.QWidget):
 
         # -----------------------------------
         # -----------------------------------
-        #   Frame top
+        #   FRAME: Header
         # -----------------------------------
         # -----------------------------------
 
@@ -123,20 +123,47 @@ class MainWindow(QtWid.QWidget):
         vbox_right.addWidget(QtWid.QLabel(__date__, **p))
 
         # Round up frame
-        hbox_top = QtWid.QHBoxLayout()
-        hbox_top.addLayout(vbox_left)
-        hbox_top.addStretch(1)
-        hbox_top.addLayout(vbox_middle)
-        hbox_top.addStretch(1)
-        hbox_top.addLayout(vbox_right)
-
+        hbox_header = QtWid.QHBoxLayout()
+        hbox_header.addLayout(vbox_left)
+        hbox_header.addStretch(1)
+        hbox_header.addLayout(vbox_middle)
+        hbox_header.addStretch(1)
+        hbox_header.addLayout(vbox_right)
+        
         # -----------------------------------
         # -----------------------------------
-        #   Frame 'Reference and signal'
+        #   FRAME: Tabs
         # -----------------------------------
         # -----------------------------------
         
-        # Chart 'Readings'
+        self.tabs = QtWid.QTabWidget()
+        self.tab_main           = QtWid.QWidget()
+        self.tab_power_spectrum = QtWid.QWidget()
+        self.tab_filter_1_specs = QtWid.QWidget()
+        self.tab_filter_2_specs = QtWid.QWidget()
+        self.tab_mcu_board_info = QtWid.QWidget()
+        
+        self.tabs.addTab(self.tab_main          , "Main")
+        self.tabs.addTab(self.tab_power_spectrum, "Power spectrum")
+        self.tabs.addTab(self.tab_filter_1_specs, "Filter specs: bandgap")
+        self.tabs.addTab(self.tab_filter_2_specs, "Filter specs: low-pass")
+        self.tabs.addTab(self.tab_mcu_board_info, "MCU board info")
+
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        #
+        #   TAB PAGE: Main
+        #
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+
+        # -----------------------------------
+        # -----------------------------------
+        #   Frame: Reference and signal
+        # -----------------------------------
+        # -----------------------------------
+        
+        # Chart: Readings
         self.gw_refsig = pg.GraphicsWindow()
         self.gw_refsig.setBackground([20, 20, 20])
         self.pi_refsig = self.gw_refsig.addPlot()
@@ -168,11 +195,11 @@ class MainWindow(QtWid.QWidget):
         self.CH_sig_I.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_refsig = [self.CH_ref_X, self.CH_ref_Y, self.CH_sig_I]
 
-        # 'On/off'
+        # On/off
         self.qpbt_ENA_lockin = create_Toggle_button("lock-in OFF")
         self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
 
-        # 'Reference signal'
+        # QGROUP: Reference signal
         num_chars = 8  # Limit the width of the textboxes to N characters wide
         e = QtGui.QLineEdit()
         w = (8 + num_chars * e.fontMetrics().width('x') + 
@@ -227,11 +254,11 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.qlin_read_ref_V_p2p      , i, 2)
         grid.addWidget(QtWid.QLabel("V")             , i, 3)
         
-        qgrp_ref_freq = QtWid.QGroupBox("Reference signal")
-        qgrp_ref_freq.setStyleSheet(SS_GROUP)
-        qgrp_ref_freq.setLayout(grid)
+        qgrp_refsig = QtWid.QGroupBox("Reference signal")
+        qgrp_refsig.setStyleSheet(SS_GROUP)
+        qgrp_refsig.setLayout(grid)
 
-        # 'Reference and signal' readings
+        # QGROUP: Readings
         p = {'layoutDirection': QtCore.Qt.LeftToRight}
         self.chkbs_refsig = [
                 QtWid.QCheckBox("(red) ref_X [0]:", **p, checked=True),
@@ -271,15 +298,15 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.qpbt_autoscale_y    , i, 0, 1, 2)
         grid.setAlignment(QtCore.Qt.AlignTop)
 
-        qgrp_refsig = QtWid.QGroupBox("Readings")
-        qgrp_refsig.setStyleSheet(SS_GROUP)
-        qgrp_refsig.setLayout(grid)
+        qgrp_readings = QtWid.QGroupBox("Readings")
+        qgrp_readings.setStyleSheet(SS_GROUP)
+        qgrp_readings.setLayout(grid)
         
         # Round up frame
         vbox_refsig = QtWid.QVBoxLayout()
         vbox_refsig.addWidget(self.qpbt_ENA_lockin)
-        vbox_refsig.addWidget(qgrp_ref_freq)
         vbox_refsig.addWidget(qgrp_refsig)
+        vbox_refsig.addWidget(qgrp_readings)
         vbox_refsig.addStretch()
 
         hbox_refsig = QtWid.QHBoxLayout()
@@ -288,11 +315,36 @@ class MainWindow(QtWid.QWidget):
         
         # -----------------------------------
         # -----------------------------------
-        #   Frame 'Mixer and filters'
+        #   FRAME: Mixer and filters
         # -----------------------------------
         # -----------------------------------
         
-        # Chart 'Mixer and filters'
+        # Chart: Filter
+        self.gw_filt_BG = pg.GraphicsWindow()
+        self.gw_filt_BG.setBackground([20, 20, 20])
+        self.pi_filt_BG = self.gw_filt_BG.addPlot()
+        
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_filt_BG.showGrid(x=1, y=1)
+        self.pi_filt_BG.setTitle('Bandgap filter', **p)
+        self.pi_filt_BG.setLabel('bottom', text='time (ms)', **p)
+        self.pi_filt_BG.setLabel('left', text='voltage (V)', **p)
+        self.pi_filt_BG.setXRange(-lockin.config.BUFFER_SIZE *
+                                    lockin.config.ISR_CLOCK * 1e3,
+                                    0, padding=0.01)
+        self.pi_filt_BG.setYRange(-1, 1, padding=0.05)
+        self.pi_filt_BG.setAutoVisible(x=True, y=True)
+        self.pi_filt_BG.setClipToView(True)
+        
+        self.CH_filt_BG_in  = ChartHistory(lockin.config.BUFFER_SIZE,
+                                           self.pi_filt_BG.plot(pen=PEN_03))
+        self.CH_filt_BG_out = ChartHistory(lockin.config.BUFFER_SIZE,
+                                           self.pi_filt_BG.plot(pen=PEN_04))
+        self.CH_filt_BG_in.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CH_filt_BG_out.x_axis_divisor = 1000    # From [us] to [ms]
+        self.CHs_filt_BG = [self.CH_filt_BG_in, self.CH_filt_BG_out]
+        
+         # Chart: Mixer
         self.gw_mixer = pg.GraphicsWindow()
         self.gw_mixer.setBackground([20, 20, 20])
         self.pi_mixer = self.gw_mixer.addPlot()
@@ -319,43 +371,32 @@ class MainWindow(QtWid.QWidget):
         self.CHs_mixer = [self.CH_mix_X, self.CH_mix_Y]
         
         # Round up frame
-        """
-        vbox_mixer = QtWid.QVBoxLayout()
-        vbox_mixer.addWidget(self.qpbt_ENA_lockin)
-        vbox_mixer.addWidget(qgrp_ref_freq)
-        vbox_mixer.addWidget(qgrp_refsig)
-        vbox_mixer.addStretch()
-        """
-
         hbox_mixer = QtWid.QHBoxLayout()
+        hbox_mixer.addWidget(self.gw_filt_BG, stretch=1)
         hbox_mixer.addWidget(self.gw_mixer, stretch=1)
-        #hbox_mixer.addLayout(vbox_mixer)
-        
-        """
-        # Chart 'Mixer and filters'
-        self.qpbt_clear_chart = QtWid.QPushButton("Clear")
-        self.qpbt_clear_chart.clicked.connect(self.process_qpbt_clear_chart)
-
-        grid = QtWid.QGridLayout()
-        grid.addWidget(self.qpbt_clear_chart, 0, 0)
-        grid.setAlignment(QtCore.Qt.AlignTop)
-
-        qgrp_chart = QtWid.QGroupBox("Chart")
-        qgrp_chart.setStyleSheet(SS_GROUP)
-        qgrp_chart.setLayout(grid)
-        """
 
         # -----------------------------------
         # -----------------------------------
-        #   Round up full window
+        #   Round up tab page 'Main'
         # -----------------------------------
         # -----------------------------------
         
-        vbox = QtWid.QVBoxLayout(self)
-        vbox.addLayout(hbox_top)
-        vbox.addSpacerItem(QtWid.QSpacerItem(0, 20))
+        vbox = QtWid.QVBoxLayout()
         vbox.addLayout(hbox_refsig, stretch=1)
         vbox.addLayout(hbox_mixer, stretch=1)
+        self.tab_main.setLayout(vbox)
+        
+        # ---------------------------------------------------------------------
+        # ---------------------------------------------------------------------
+        #
+        #   Round up full window
+        #
+        # ---------------------------------------------------------------------
+        # ---------------------------------------------------------------------
+
+        vbox = QtWid.QVBoxLayout(self)
+        vbox.addLayout(hbox_header)
+        vbox.addWidget(self.tabs)
         
         # -----------------------------------
         # -----------------------------------
@@ -486,30 +527,21 @@ class MainWindow(QtWid.QWidget):
     def process_qpbt_full_axes(self):
         min_time = -(self.lockin.config.BUFFER_SIZE * 
                      self.lockin.config.ISR_CLOCK * 1e3)
-        self.pi_refsig.setXRange(min_time, 0, padding=0.01)
-        self.pi_mixer.setXRange(min_time, 0, padding=0.01)
+        plot_items = [self.pi_refsig,
+                      self.pi_filt_BG,
+                      self.pi_mixer]
+        for pi in plot_items:
+            pi.setXRange(min_time, 0, padding=0.01)
         self.process_qpbtn_autoscale_y()
 
     @QtCore.pyqtSlot()
     def process_qpbtn_autoscale_y(self):
-        self.pi_refsig.enableAutoRange('y', True)
-        self.pi_refsig.enableAutoRange('y', False)
-        self.pi_mixer.enableAutoRange('y', True)
-        self.pi_mixer.enableAutoRange('y', False)
-        
-    @QtCore.pyqtSlot()
-    def process_qpbt_clear_chart(self):
-        str_msg = "Are you sure you want to clear the chart?"
-        reply = QtWid.QMessageBox.warning(self, "Clear chart", str_msg,
-                                          QtWid.QMessageBox.Yes |
-                                          QtWid.QMessageBox.No,
-                                          QtWid.QMessageBox.No)
-
-        if reply == QtWid.QMessageBox.Yes:
-            """Placeholder
-            """
-            pass
-        
+        plot_items = [self.pi_refsig,
+                      self.pi_filt_BG,
+                      self.pi_mixer]
+        for pi in plot_items:
+            pi.enableAutoRange('y', True)
+            pi.enableAutoRange('y', False)
         
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
@@ -524,6 +556,10 @@ class MainWindow(QtWid.QWidget):
         for i in range(3):
             self.CHs_refsig[i].curve.setVisible(
                     self.chkbs_refsig[i].isChecked())
+            
+    @QtCore.pyqtSlot()
+    def update_chart_filt_BG(self):
+        [CH.update_curve() for CH in self.CHs_filt_BG]
             
     @QtCore.pyqtSlot()
     def update_chart_mixer(self):
