@@ -73,7 +73,7 @@ def update_GUI():
         window.qlin_sig_I.setText("%.4f" % lockin_pyqt.state.sig_I[0])
         
         window.update_chart_refsig()
-        window.update_chart_filt_BG()
+        window.update_chart_filt_BS()
         window.update_chart_mixer()
         
 # ------------------------------------------------------------------------------
@@ -127,6 +127,10 @@ def lockin_DAQ_update():
     if not(success):
         dprint("@ %s %s" % (str_cur_date, str_cur_time))
         return False
+    
+    # HACK: hard-coded calibration correction on the ADC
+    dev_sig_I = sig_I * 0.0054 + 0.0020;
+    sig_I -= dev_sig_I
 
     lockin_pyqt.state.buffers_received += 1
     
@@ -226,8 +230,8 @@ def lockin_DAQ_update():
     window.CH_ref_Y.add_new_readings(time, ref_Y)
     window.CH_sig_I.add_new_readings(time, sig_I)
         
-    window.CH_filt_BG_in.add_new_readings(time_filt, sig_I_unfilt)
-    window.CH_filt_BG_out.add_new_readings(time_filt, sig_I_filt)
+    window.CH_filt_BS_in.add_new_readings(time_filt, sig_I_unfilt)
+    window.CH_filt_BS_out.add_new_readings(time_filt, sig_I_filt)
     
     window.CH_mix_X.add_new_readings(time_filt, mix_X)
     window.CH_mix_Y.add_new_readings(time_filt, mix_Y)
@@ -277,8 +281,8 @@ if __name__ == '__main__':
         print("Exiting...\n")
         sys.exit(0)
         
-    #lockin.begin()
-    lockin.begin(ref_freq=100, ref_V_center=2.8, ref_V_p2p=0.8)
+    lockin.begin()
+    #lockin.begin(ref_freq=100, ref_V_center=2.8, ref_V_p2p=0.8)
     
     # Create workers and threads
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
@@ -298,7 +302,6 @@ if __name__ == '__main__':
     state = State()
     
     firwin_cutoff = [0.0001, 49.5, 50.5, lockin.config.Fs/2-0.0001]
-    #firwin_cutoff = [0.0001, 120]
     firf_BG_50Hz = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
                                        lockin_pyqt.state.N_buffers_in_deque,
                                        lockin.config.Fs,
@@ -323,8 +326,11 @@ if __name__ == '__main__':
                                    file_logger=file_logger)
 
     window.pi_refsig.setYRange(2.35, 3.25)
-    window.pi_filt_BG.setYRange(2.35, 3.25)
+    window.pi_filt_BS.setYRange(2.35, 3.25)
     window.pi_mixer.setYRange(-0.12, 0.2)
+    
+    window.curve_filt_resp_BS.setData(firf_BG_50Hz.resp_freq_Hz[1:],
+                                      firf_BG_50Hz.resp_ampl_dB[1:])
 
     # --------------------------------------------------------------------------
     #   Start threads

@@ -139,14 +139,14 @@ class MainWindow(QtWid.QWidget):
         self.tabs = QtWid.QTabWidget()
         self.tab_main           = QtWid.QWidget()
         self.tab_power_spectrum = QtWid.QWidget()
-        self.tab_filter_1_specs = QtWid.QWidget()
-        self.tab_filter_2_specs = QtWid.QWidget()
+        self.tab_filter_1_resp = QtWid.QWidget()
+        self.tab_filter_2_resp = QtWid.QWidget()
         self.tab_mcu_board_info = QtWid.QWidget()
         
         self.tabs.addTab(self.tab_main          , "Main")
         self.tabs.addTab(self.tab_power_spectrum, "Power spectrum")
-        self.tabs.addTab(self.tab_filter_1_specs, "Filter specs: bandgap")
-        self.tabs.addTab(self.tab_filter_2_specs, "Filter specs: low-pass")
+        self.tabs.addTab(self.tab_filter_1_resp , "Filter response: band-stop")
+        self.tabs.addTab(self.tab_filter_2_resp , "Filter response: low-pass")
         self.tabs.addTab(self.tab_mcu_board_info, "MCU board info")
 
         # ----------------------------------------------------------------------
@@ -180,8 +180,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
 
-        PEN_01 = pg.mkPen(color=[255, 0  , 0  ], width=3)
-        PEN_02 = pg.mkPen(color=[255, 125, 0  ], width=3)
+        PEN_01 = pg.mkPen(color=[255, 30 , 180], width=3)
+        PEN_02 = pg.mkPen(color=[255, 255, 90 ], width=3)
         PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
         PEN_04 = pg.mkPen(color=[255, 255, 255], width=3)
         self.CH_ref_X = ChartHistory(lockin.config.BUFFER_SIZE,
@@ -194,6 +194,19 @@ class MainWindow(QtWid.QWidget):
         self.CH_ref_Y.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_sig_I.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_refsig = [self.CH_ref_X, self.CH_ref_Y, self.CH_sig_I]
+
+        # Legend
+        vb = self.gw_refsig.addViewBox(enableMenu=False)
+        vb.setMaximumWidth(80)
+        #vb.setSizePolicy(QtWid.QSizePolicy.Minimum, QtWid.QSizePolicy.Minimum)
+        legend = pg.LegendItem()
+        legend.setParentItem(vb)
+        legend.anchor((0,0), (0,0), offset=(1, 10))
+        legend.setFixedWidth(75)
+        legend.setScale(1)
+        legend.addItem(self.CH_ref_X.curve, name='ref_X')
+        legend.addItem(self.CH_ref_Y.curve, name='ref_Y')
+        legend.addItem(self.CH_sig_I.curve, name='sig_I')
 
         # On/off
         self.qpbt_ENA_lockin = create_Toggle_button("lock-in OFF")
@@ -261,9 +274,9 @@ class MainWindow(QtWid.QWidget):
         # QGROUP: Readings
         p = {'layoutDirection': QtCore.Qt.LeftToRight}
         self.chkbs_refsig = [
-                QtWid.QCheckBox("(red) ref_X [0]:", **p, checked=True),
-                QtWid.QCheckBox("(ora) ref_Y [0]:", **p, checked=False),
-                QtWid.QCheckBox("(cya) sig_I [0]:", **p, checked=True)]
+                QtWid.QCheckBox("ref_X [0]:", **p, checked=True),
+                QtWid.QCheckBox("ref_Y [0]:", **p, checked=False),
+                QtWid.QCheckBox("sig_I [0]:", **p, checked=True)]
         ([chkb.clicked.connect(self.process_chkbs_refsig) for chkb
           in self.chkbs_refsig])
         
@@ -320,29 +333,41 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         # Chart: Filter
-        self.gw_filt_BG = pg.GraphicsWindow()
-        self.gw_filt_BG.setBackground([20, 20, 20])
-        self.pi_filt_BG = self.gw_filt_BG.addPlot()
+        self.gw_filt_BS = pg.GraphicsWindow()
+        self.gw_filt_BS.setBackground([20, 20, 20])
+        self.pi_filt_BS = self.gw_filt_BS.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_filt_BG.showGrid(x=1, y=1)
-        self.pi_filt_BG.setTitle('Bandgap filter', **p)
-        self.pi_filt_BG.setLabel('bottom', text='time (ms)', **p)
-        self.pi_filt_BG.setLabel('left', text='voltage (V)', **p)
-        self.pi_filt_BG.setXRange(-lockin.config.BUFFER_SIZE *
+        self.pi_filt_BS.showGrid(x=1, y=1)
+        self.pi_filt_BS.setTitle('Band-stop filter acting on sig_I', **p)
+        self.pi_filt_BS.setLabel('bottom', text='time (ms)', **p)
+        self.pi_filt_BS.setLabel('left', text='voltage (V)', **p)
+        self.pi_filt_BS.setXRange(-lockin.config.BUFFER_SIZE *
                                     lockin.config.ISR_CLOCK * 1e3,
                                     0, padding=0.01)
-        self.pi_filt_BG.setYRange(-1, 1, padding=0.05)
-        self.pi_filt_BG.setAutoVisible(x=True, y=True)
-        self.pi_filt_BG.setClipToView(True)
+        self.pi_filt_BS.setYRange(-1, 1, padding=0.05)
+        self.pi_filt_BS.setAutoVisible(x=True, y=True)
+        self.pi_filt_BS.setClipToView(True)
         
-        self.CH_filt_BG_in  = ChartHistory(lockin.config.BUFFER_SIZE,
-                                           self.pi_filt_BG.plot(pen=PEN_03))
-        self.CH_filt_BG_out = ChartHistory(lockin.config.BUFFER_SIZE,
-                                           self.pi_filt_BG.plot(pen=PEN_04))
-        self.CH_filt_BG_in.x_axis_divisor = 1000     # From [us] to [ms]
-        self.CH_filt_BG_out.x_axis_divisor = 1000    # From [us] to [ms]
-        self.CHs_filt_BG = [self.CH_filt_BG_in, self.CH_filt_BG_out]
+        self.CH_filt_BS_in  = ChartHistory(lockin.config.BUFFER_SIZE,
+                                           self.pi_filt_BS.plot(pen=PEN_03))
+        self.CH_filt_BS_out = ChartHistory(lockin.config.BUFFER_SIZE,
+                                           self.pi_filt_BS.plot(pen=PEN_04))
+        self.CH_filt_BS_in.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CH_filt_BS_out.x_axis_divisor = 1000    # From [us] to [ms]
+        self.CHs_filt_BS = [self.CH_filt_BS_in, self.CH_filt_BS_out]
+        
+        # Legend
+        vb = self.gw_filt_BS.addViewBox(enableMenu=False)
+        vb.setMaximumWidth(80)
+        #vb.setSizePolicy(QtWid.QSizePolicy.Minimum, QtWid.QSizePolicy.Minimum)
+        legend = pg.LegendItem()
+        legend.setParentItem(vb)
+        legend.anchor((0,0), (0,0), offset=(1, 10))
+        legend.setFixedWidth(75)
+        legend.setScale(1)
+        legend.addItem(self.CH_filt_BS_in.curve, name='sig_I')
+        legend.addItem(self.CH_filt_BS_out.curve, name='out')
         
          # Chart: Mixer
         self.gw_mixer = pg.GraphicsWindow()
@@ -363,16 +388,28 @@ class MainWindow(QtWid.QWidget):
         self.pi_mixer.setClipToView(True)
         
         self.CH_mix_X = ChartHistory(lockin.config.BUFFER_SIZE,
-                                     self.pi_mixer.plot(pen=PEN_03))
+                                     self.pi_mixer.plot(pen=PEN_01))
         self.CH_mix_Y = ChartHistory(lockin.config.BUFFER_SIZE,
-                                     self.pi_mixer.plot(pen=PEN_04))
+                                     self.pi_mixer.plot(pen=PEN_02))
         self.CH_mix_X.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_mix_Y.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_mixer = [self.CH_mix_X, self.CH_mix_Y]
         
+        # Legend
+        vb = self.gw_mixer.addViewBox(enableMenu=False)
+        vb.setMaximumWidth(80)
+        #vb.setSizePolicy(QtWid.QSizePolicy.Minimum, QtWid.QSizePolicy.Minimum)
+        legend = pg.LegendItem()
+        legend.setParentItem(vb)
+        legend.anchor((0,0), (0,0), offset=(1, 10))
+        legend.setFixedWidth(75)
+        legend.setScale(1)
+        legend.addItem(self.CH_mix_X.curve, name='mix_X')
+        legend.addItem(self.CH_mix_Y.curve, name='mix_Y')
+        
         # Round up frame
         hbox_mixer = QtWid.QHBoxLayout()
-        hbox_mixer.addWidget(self.gw_filt_BG, stretch=1)
+        hbox_mixer.addWidget(self.gw_filt_BS, stretch=1)
         hbox_mixer.addWidget(self.gw_mixer, stretch=1)
 
         # -----------------------------------
@@ -386,13 +423,50 @@ class MainWindow(QtWid.QWidget):
         vbox.addLayout(hbox_mixer, stretch=1)
         self.tab_main.setLayout(vbox)
         
-        # ---------------------------------------------------------------------
-        # ---------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        #
+        #   TAB PAGE: Filter response band-stop
+        #
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        
+        # Chart: Filter response band-stop
+        self.gw_filt_resp_BS = pg.GraphicsWindow()
+        self.gw_filt_resp_BS.setBackground([20, 20, 20])
+        self.pi_filt_resp_BS = self.gw_filt_resp_BS.addPlot()
+        
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_filt_resp_BS.showGrid(x=1, y=1)
+        self.pi_filt_resp_BS.setTitle('Filter response', **p)
+        self.pi_filt_resp_BS.setLabel('bottom', text='frequency (Hz)', **p)
+        self.pi_filt_resp_BS.setLabel('left', text='attenuation (dB)', **p)
+        #self.pi_filt_resp_BS.setLogMode(x=True, y=None)
+        #self.pi_filt_resp_BS.setXRange(0, lockin.config.Fs/2, padding=0.01)
+        self.pi_filt_resp_BS.setXRange(48.5, 51.5, padding=0.01)
+        self.pi_filt_resp_BS.setYRange(-80, 0.5, padding=0.05)
+        self.pi_filt_resp_BS.setAutoVisible(x=True, y=True)
+        self.pi_filt_resp_BS.setClipToView(True)
+        
+        self.curve_filt_resp_BS = self.pi_filt_resp_BS.plot(pen=PEN_03)
+        
+        # -----------------------------------
+        # -----------------------------------
+        #   Round up tab page 'Filter response: band-stop'
+        # -----------------------------------
+        # -----------------------------------
+        
+        hbox = QtWid.QHBoxLayout()
+        hbox.addWidget(self.gw_filt_resp_BS, stretch=1)
+        self.tab_filter_1_resp.setLayout(hbox)
+        
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
         #
         #   Round up full window
         #
-        # ---------------------------------------------------------------------
-        # ---------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
 
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(hbox_header)
@@ -528,7 +602,7 @@ class MainWindow(QtWid.QWidget):
         min_time = -(self.lockin.config.BUFFER_SIZE * 
                      self.lockin.config.ISR_CLOCK * 1e3)
         plot_items = [self.pi_refsig,
-                      self.pi_filt_BG,
+                      self.pi_filt_BS,
                       self.pi_mixer]
         for pi in plot_items:
             pi.setXRange(min_time, 0, padding=0.01)
@@ -537,7 +611,7 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbtn_autoscale_y(self):
         plot_items = [self.pi_refsig,
-                      self.pi_filt_BG,
+                      self.pi_filt_BS,
                       self.pi_mixer]
         for pi in plot_items:
             pi.enableAutoRange('y', True)
@@ -558,8 +632,8 @@ class MainWindow(QtWid.QWidget):
                     self.chkbs_refsig[i].isChecked())
             
     @QtCore.pyqtSlot()
-    def update_chart_filt_BG(self):
-        [CH.update_curve() for CH in self.CHs_filt_BG]
+    def update_chart_filt_BS(self):
+        [CH.update_curve() for CH in self.CHs_filt_BS]
             
     @QtCore.pyqtSlot()
     def update_chart_mixer(self):
