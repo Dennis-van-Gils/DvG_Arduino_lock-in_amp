@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "03-04-2019"
+__date__        = "06-04-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -42,9 +42,11 @@ try:
 except:
     #raise
     print("WARNING: Could not initiate OpenGL.")
+    """
     print("Graphing will not be hardware accelerated.")
     print("Check if prerequisite 'PyOpenGL' library is installed.")
     print("Also, the videocard might not support stencil buffers.\n")
+    """
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -66,6 +68,13 @@ class MainWindow(QtWid.QWidget):
         self.setGeometry(50, 50, 900, 800)
         self.setWindowTitle("Arduino lock-in amplifier")
         self.setStyleSheet(SS_TEXTBOX_READ_ONLY)
+        
+        # Define styles for plotting curves
+        PEN_01 = pg.mkPen(color=[255, 30 , 180], width=3)
+        PEN_02 = pg.mkPen(color=[255, 255, 90 ], width=3)
+        PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
+        PEN_04 = pg.mkPen(color=[255, 255, 255], width=3)        
+        BRUSH_03 = pg.mkBrush(0, 255, 255, 64)
 
         # -----------------------------------
         # -----------------------------------
@@ -180,10 +189,6 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
 
-        PEN_01 = pg.mkPen(color=[255, 30 , 180], width=3)
-        PEN_02 = pg.mkPen(color=[255, 255, 90 ], width=3)
-        PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
-        PEN_04 = pg.mkPen(color=[255, 255, 255], width=3)
         self.CH_ref_X = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_refsig.plot(pen=PEN_01))
         self.CH_ref_Y = ChartHistory(lockin.config.BUFFER_SIZE,
@@ -431,9 +436,9 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         
-        # Chart: Filter response band-stop
+        # Plot: Filter response band-stop
         self.gw_filt_resp_BS = pg.GraphicsWindow()
-        self.gw_filt_resp_BS.setBackground([20, 20, 20])
+        self.gw_filt_resp_BS.setBackground([20, 20, 20])        
         self.pi_filt_resp_BS = self.gw_filt_resp_BS.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
@@ -441,14 +446,13 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_resp_BS.setTitle('Filter response', **p)
         self.pi_filt_resp_BS.setLabel('bottom', text='frequency (Hz)', **p)
         self.pi_filt_resp_BS.setLabel('left', text='attenuation (dB)', **p)
-        #self.pi_filt_resp_BS.setLogMode(x=True, y=None)
-        #self.pi_filt_resp_BS.setXRange(0, lockin.config.Fs/2, padding=0.01)
-        self.pi_filt_resp_BS.setXRange(48.5, 51.5, padding=0.01)
-        self.pi_filt_resp_BS.setYRange(-80, 0.5, padding=0.05)
         self.pi_filt_resp_BS.setAutoVisible(x=True, y=True)
+        self.pi_filt_resp_BS.enableAutoRange('x', False)
+        self.pi_filt_resp_BS.enableAutoRange('y', True)
         self.pi_filt_resp_BS.setClipToView(True)
         
-        self.curve_filt_resp_BS = self.pi_filt_resp_BS.plot(pen=PEN_03)
+        self.curve_filt_resp_BS = pg.PlotCurveItem(pen=PEN_03, brush=BRUSH_03)
+        self.pi_filt_resp_BS.addItem(self.curve_filt_resp_BS)
         
         # -----------------------------------
         # -----------------------------------
@@ -459,6 +463,42 @@ class MainWindow(QtWid.QWidget):
         hbox = QtWid.QHBoxLayout()
         hbox.addWidget(self.gw_filt_resp_BS, stretch=1)
         self.tab_filter_1_resp.setLayout(hbox)
+        
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        #
+        #   TAB PAGE: Filter response low-pass
+        #
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        
+        # Plot: Filter response low-pass
+        self.gw_filt_resp_LP = pg.GraphicsWindow()
+        self.gw_filt_resp_LP.setBackground([20, 20, 20])        
+        self.pi_filt_resp_LP = self.gw_filt_resp_LP.addPlot()
+        
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_filt_resp_LP.showGrid(x=1, y=1)
+        self.pi_filt_resp_LP.setTitle('Filter response', **p)
+        self.pi_filt_resp_LP.setLabel('bottom', text='frequency (Hz)', **p)
+        self.pi_filt_resp_LP.setLabel('left', text='attenuation (dB)', **p)
+        self.pi_filt_resp_LP.setAutoVisible(x=True, y=True)
+        self.pi_filt_resp_LP.enableAutoRange('x', False)
+        self.pi_filt_resp_LP.enableAutoRange('y', True)
+        self.pi_filt_resp_LP.setClipToView(True)
+        
+        self.curve_filt_resp_LP = pg.PlotCurveItem(pen=PEN_03, brush=BRUSH_03)
+        self.pi_filt_resp_LP.addItem(self.curve_filt_resp_LP)
+        
+        # -----------------------------------
+        # -----------------------------------
+        #   Round up tab page 'Filter response: band-stop'
+        # -----------------------------------
+        # -----------------------------------
+        
+        hbox = QtWid.QHBoxLayout()
+        hbox.addWidget(self.gw_filt_resp_LP, stretch=1)
+        self.tab_filter_2_resp.setLayout(hbox)
         
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -617,6 +657,7 @@ class MainWindow(QtWid.QWidget):
             pi.enableAutoRange('y', True)
             pi.enableAutoRange('y', False)
         
+    
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
     #   Update chart routines
@@ -638,3 +679,33 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def update_chart_mixer(self):
         [CH.update_curve() for CH in self.CHs_mixer]
+    
+    def construct_title_plot_filt_resp(self, firf):
+        __tmp1 = 'N_taps = %i' % firf.N_taps
+        if isinstance(firf.firwin_window, str):
+            __tmp2 = '%s' % firf.firwin_window
+        else:
+            __tmp2 = '%s' % [x for x in firf.firwin_window]
+        __tmp3 = '%s Hz' % [round(x, 1) for x in firf.firwin_cutoff]        
+        
+        return ('%s, %s, %s' % (__tmp1, __tmp2, __tmp3))
+    
+    def update_plot_filt_resp_BS(self, firf):
+        self.curve_filt_resp_BS.setFillLevel(np.min(firf.resp_ampl_dB))
+        self.curve_filt_resp_BS.setData(firf.resp_freq_Hz,
+                                        firf.resp_ampl_dB)
+        self.pi_filt_resp_BS.setXRange(firf.resp_freq_Hz__ROI_start,
+                                       firf.resp_freq_Hz__ROI_end,
+                                       padding=0.01)
+        self.pi_filt_resp_BS.setTitle('Filter response: band-stop<br/>%s' %
+                                      self.construct_title_plot_filt_resp(firf))
+        
+    def update_plot_filt_resp_LP(self, firf):
+        self.curve_filt_resp_LP.setFillLevel(np.min(firf.resp_ampl_dB))
+        self.curve_filt_resp_LP.setData(firf.resp_freq_Hz,
+                                        firf.resp_ampl_dB)
+        self.pi_filt_resp_LP.setXRange(firf.resp_freq_Hz__ROI_start,
+                                       firf.resp_freq_Hz__ROI_end,
+                                       padding=0.01)
+        self.pi_filt_resp_LP.setTitle('Filter response: low-pass<br/>%s' %
+                                      self.construct_title_plot_filt_resp(firf))

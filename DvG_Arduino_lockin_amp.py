@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "03-04-2019"
+__date__        = "06-04-2019"
 __version__     = "1.0.0"
 
 import os
@@ -181,28 +181,28 @@ def lockin_DAQ_update():
     
     # Perform 50 Hz bandgap filter on sig_I
     # TO DO: additionally, make a deque for sig_I_filt
-    sig_I_filt = firf_BG_50Hz.process(state.deque_sig_I)
+    sig_I_filt = firf_BS.process(state.deque_sig_I)
     
-    time_filt    = (np.array(state.deque_time)
-                    [firf_BG_50Hz.win_idx_valid_start:
-                     firf_BG_50Hz.win_idx_valid_end])
-    sig_I_unfilt = (np.array(state.deque_sig_I)
-                    [firf_BG_50Hz.win_idx_valid_start:
-                     firf_BG_50Hz.win_idx_valid_end])
+    time_filt    = (np.array(state.deque_time, dtype=np.int64)
+                    [firf_BS.win_idx_valid_start:
+                     firf_BS.win_idx_valid_end])
+    sig_I_unfilt = (np.array(state.deque_sig_I, dtype=np.float64)
+                    [firf_BS.win_idx_valid_start:
+                     firf_BS.win_idx_valid_end])
     
     # Retrieve the block of original data from the past that alligns with the
     # current filter output
-    old_ref_X = (np.array(state.deque_ref_X)
-                 [firf_BG_50Hz.win_idx_valid_start:
-                  firf_BG_50Hz.win_idx_valid_end])
-    old_ref_Y = (np.array(state.deque_ref_Y)
-                 [firf_BG_50Hz.win_idx_valid_start:
-                  firf_BG_50Hz.win_idx_valid_end])
+    old_ref_X = (np.array(state.deque_ref_X, dtype=np.float64)
+                 [firf_BS.win_idx_valid_start:
+                  firf_BS.win_idx_valid_end])
+    old_ref_Y = (np.array(state.deque_ref_Y, dtype=np.float64)
+                 [firf_BS.win_idx_valid_start:
+                  firf_BS.win_idx_valid_end])
     
     #if not len(time_filt) == 0:
     #    print("%i %i: %i" % (time[-1], time_filt[-1], time[-1] - time_filt[-1]))
         
-    if firf_BG_50Hz.has_settled:    
+    if firf_BS.has_settled:    
         mix_X = (old_ref_X - c.ref_V_center) * (sig_I_filt - c.ref_V_center)
         mix_Y = (old_ref_Y - c.ref_V_center) * (sig_I_filt - c.ref_V_center)
     else:
@@ -301,13 +301,21 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
     state = State()
     
-    firwin_cutoff = [0.0001, 49.5, 50.5, lockin.config.Fs/2-0.0001]
-    firf_BG_50Hz = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
-                                       lockin_pyqt.state.N_buffers_in_deque,
-                                       lockin.config.Fs,
-                                       firwin_cutoff,
-                                       ("chebwin", 50))
-    firf_BG_50Hz.report()
+    firwin_cutoff = [0, 49.5, 50.5, lockin.config.F_Nyquist]
+    firwin_window = ("chebwin", 50)
+    firf_BS = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
+                                  lockin_pyqt.state.N_buffers_in_deque,
+                                  lockin.config.Fs,
+                                  firwin_cutoff,
+                                  firwin_window)
+
+    firwin_cutoff = [0, 150]
+    firwin_window = "blackman"
+    firf_LP = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
+                                  lockin_pyqt.state.N_buffers_in_deque,
+                                  lockin.config.Fs,
+                                  firwin_cutoff,
+                                  firwin_window)
 
     # Manage logging to disk
     file_logger = FileLogger()
@@ -328,9 +336,8 @@ if __name__ == '__main__':
     window.pi_refsig.setYRange(2.35, 3.25)
     window.pi_filt_BS.setYRange(2.35, 3.25)
     window.pi_mixer.setYRange(-0.12, 0.2)
-    
-    window.curve_filt_resp_BS.setData(firf_BG_50Hz.resp_freq_Hz[1:],
-                                      firf_BG_50Hz.resp_ampl_dB[1:])
+    window.update_plot_filt_resp_BS(firf_BS)
+    window.update_plot_filt_resp_LP(firf_LP)
 
     # --------------------------------------------------------------------------
     #   Start threads
