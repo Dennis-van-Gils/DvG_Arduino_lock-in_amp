@@ -6,7 +6,7 @@ connection.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "03-04-2019"
+__date__        = "06-04-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -33,6 +33,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         ISR_CLOCK               = 0    # [s]
         Fs                      = 0    # [Hz]
+        F_Nyquist               = 0    # [Hz]
         BUFFER_SIZE             = 0    # [number of samples per variable]
         T_SPAN_BUFFER           = 0    # [s]
         N_BYTES_TRANSMIT_BUFFER = 0    # [data bytes]
@@ -184,6 +185,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                 self.config.ref_freq                = float(ans_list[9])
                 
                 self.config.Fs = 1.0/self.config.ISR_CLOCK
+                self.config.F_Nyquist = self.config.Fs/2
                 self.config.T_SPAN_BUFFER = (self.config.BUFFER_SIZE *
                                              self.config.ISR_CLOCK)
                 return True
