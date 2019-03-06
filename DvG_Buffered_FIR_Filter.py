@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "15-02-2019"
+__date__        = "06-03-2019"
 __version__     = "1.0.0"
 
 from collections import deque
@@ -19,12 +19,20 @@ class Buffered_FIR_Filter():
         self.buffer_size = buffer_size                # [samples]
         self.N_buffers_in_deque = N_buffers_in_deque  # [int]
         self.Fs = Fs                                  # [Hz]
-        self.firwin_cutoff = firwin_cutoff            # list of [Hz]
         self.firwin_window = firwin_window            # type of window, see scipy.signal.get_window        
         
+        # Check firwin_cutoff for illegal values and cap when necessary
+        cutoff_grain = 1e-6
+        firwin_cutoff = np.array(firwin_cutoff, dtype=np.float64)
+        firwin_cutoff[firwin_cutoff <= cutoff_grain] = cutoff_grain
+        firwin_cutoff[firwin_cutoff >= Fs/2] = (Fs/2 - cutoff_grain)
+        self.firwin_cutoff = firwin_cutoff            # list of [Hz]
+       
+        # Deque size
         self.N_deque = self.buffer_size * self.N_buffers_in_deque # [samples]
         
-        # Calculate max number of possible taps [samples]. Must be an odd number!
+        # Calculate max number of possible taps [samples]. Must be an odd number
+        # in order to create a zero-phase distortion filter, aka linear filter!
         self.N_taps = self.buffer_size * (self.N_buffers_in_deque - 1) + 1
         self.T_span_taps   = self.N_taps / self.Fs        # [s]
         self.T_span_buffer = self.buffer_size / self.Fs   # [s]
@@ -76,12 +84,58 @@ class Buffered_FIR_Filter():
         return valid_out
         
     def calc_freqz_response(self, worN=2**18):
+        # Calculate full frequency response.
+        # Note that these arrays will become of length 'worN', which could
+        # overwhelm a user-interface when plotting such large number of points.
         w, h = freqz(self.b, worN=worN)
-        self.resp_freq_Hz   = w / np.pi * self.Fs / 2
-        self.resp_ampl_dB   = 20 * np.log10(abs(h))
-        self.resp_phase_rad = np.unwrap(np.angle(h))/self.Fs
-    
+        self.full_resp_freq_Hz   = w / np.pi * self.Fs / 2
+        self.full_resp_ampl_dB   = 20 * np.log10(abs(h))
+        self.full_resp_phase_rad = np.unwrap(np.angle(h))/self.Fs
+        
+        # -------------------------------------------------
+        #  Select region of interest for plotting later on
+        # -------------------------------------------------
+        # First flat-line all power below the dB floor
+        dB_floor = -80
+        idx_dB_floor = np.asarray(self.full_resp_ampl_dB<dB_floor).nonzero()[0]
+        __ampl_dB = self.full_resp_ampl_dB
+        __ampl_dB[idx_dB_floor] = dB_floor
+        
+        # Keep points on the curve with large absolute acceleration.
+        # Will in effect simplify a 'boring' region to a linear curve.
+        dAdF_2_threshold = 1e-4
+        dAdF_2 = np.abs(np.diff(__ampl_dB, 2))
+        idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0]
+                
+        # Store region of interest
+        self.resp_freq_Hz__ROI_start = self.full_resp_freq_Hz[idx_keep[0]]
+        self.resp_freq_Hz__ROI_end   = self.full_resp_freq_Hz[idx_keep[-1]]
+        
+        # -------------------------------------------
+        #  Lossy compress curves for faster plotting
+        # -------------------------------------------        
+        # Keep points on the curve with large absolute acceleration.
+        # Will in effect simplify a 'boring' region to a linear curve.
+        dAdF_2_threshold = 1e-6
+        dAdF_2 = np.abs(np.diff(__ampl_dB, 2))
+        idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0]
+        
+        # Add back zero and Nyquist frequencies
+        if not(idx_keep[0] == 0): idx_keep = np.insert(idx_keep, 0, 0)
+        if not(idx_keep[1] == 1): idx_keep = np.insert(idx_keep, 1, 1)
+        idx_keep = np.append(idx_keep, len(self.full_resp_ampl_dB) - 1)
+        
+        # Store compressed curves
+        self.resp_freq_Hz   = self.full_resp_freq_Hz[idx_keep]
+        self.resp_ampl_dB   = self.full_resp_ampl_dB[idx_keep]
+        self.resp_phase_rad = self.full_resp_phase_rad[idx_keep]
+        
     def report(self):
+        if isinstance(self.firwin_window, str):
+            __window = '%s' % self.firwin_window
+        else:
+            __window = '%s' % [x for x in self.firwin_window]
+        
         print('--------------------------------')
         print('Fs                 = %.0f Hz'    % self.Fs)
         print('buffer_size        = %i samples' % self.buffer_size)
@@ -92,7 +146,8 @@ class Buffered_FIR_Filter():
         print('T_span_buffer = %.3f s'     % self.T_span_buffer)
         print('--------------------------------')
         print('firwin_cutoff = %s' % [round(x, 1) for x in self.firwin_cutoff])
-        print('firwin_window = %s' % [x for x in self.firwin_window])
+        print('firwin_window = %s' % __window)
         print('--------------------------------')
         print('win_idx_valid_start = %i samples' % self.win_idx_valid_start)
         print('T_settling          = %.3f s'     % self.T_settling)
+        print('--------------------------------')
