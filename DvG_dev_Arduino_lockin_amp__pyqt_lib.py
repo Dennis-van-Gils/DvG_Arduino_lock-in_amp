@@ -73,8 +73,9 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     
     class State():
         def __init__(self, buffer_size, N_buffers_in_deque=0):
-            """Reflects the actual readings, parsed into separate variables, of the
-            lock-in amplifier. There should only be one instance of the State class.
+            """Reflects the actual readings, parsed into separate variables, of
+            the lock-in amplifier. There should only be one instance of the
+            State class.
             """
             self.buffers_received = 0
             self.buffer_size        = buffer_size           # [samples]
@@ -87,9 +88,9 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             self.sig_I = np.array([], float)
             
             """ Deque arrays needed for proper FIR filtering.
-            Each time a complete buffer of BUFFER_SIZE samples is received from the
-            lock-in, it will extend the deque array (a thread-safe FIFO shift
-            buffer).
+            Each time a complete buffer of BUFFER_SIZE samples is received from
+            the lock-in, it will extend the deque array (a thread-safe FIFO
+            shift buffer).
             
                 i.e. N_buffers_in_deque = 3
                     startup          : deque = [no value; no value ; no value]
@@ -109,8 +110,8 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 self.deque_sig_I = deque(maxlen=self.N_deque)
             
             # Mutex for proper multithreading. If the state variables are not
-            # atomic or thread-safe, you should lock and unlock this mutex for each
-            # read and write operation.
+            # atomic or thread-safe, you should lock and unlock this mutex for
+            # each read and write operation.
             self.mutex = QtCore.QMutex()
         
         def reset(self):
