@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "06-04-2019"
+__date__        = "14-03-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -240,8 +240,6 @@ class MainWindow(QtWid.QWidget):
         self.qlin_read_ref_V_p2p = (
                 QtWid.QLineEdit("%.2f" % lockin.config.ref_V_p2p, **p2))
 
-        self.qlin_set_ref_freq.editingFinished.connect(
-                self.process_qlin_set_ref_freq)
         self.qlin_set_ref_V_center.editingFinished.connect(
                 self.process_qlin_set_ref_V_center)
         self.qlin_set_ref_V_p2p.editingFinished.connect(
@@ -419,6 +417,57 @@ class MainWindow(QtWid.QWidget):
 
         # -----------------------------------
         # -----------------------------------
+        #   FRAME: LIA output amplitude and phase
+        # -----------------------------------
+        # -----------------------------------
+        
+        # Chart: Amplitude
+        self.gw_LIA_output = pg.GraphicsWindow()
+        self.gw_LIA_output.setBackground([20, 20, 20])
+        self.pi_LIA_amp = self.gw_LIA_output.addPlot()
+        
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_LIA_amp.showGrid(x=1, y=1)
+        self.pi_LIA_amp.setTitle('Lock-in output X: amplitude', **p)
+        self.pi_LIA_amp.setLabel('bottom', text='time (ms)', **p)
+        self.pi_LIA_amp.setLabel('left', text='voltage (V)', **p)
+        self.pi_LIA_amp.setXRange(-lockin.config.BUFFER_SIZE *
+                                  lockin.config.ISR_CLOCK * 1e3,
+                                  0, padding=0.01)
+        self.pi_LIA_amp.setYRange(-1, 1, padding=0.05)
+        self.pi_LIA_amp.setAutoVisible(x=True, y=True)
+        self.pi_LIA_amp.setClipToView(True)
+        
+        self.CH_LIA_amp = ChartHistory(lockin.config.BUFFER_SIZE,
+                                       self.pi_LIA_amp.plot(pen=PEN_03))
+        self.CH_LIA_amp.x_axis_divisor = 1000     # From [us] to [ms]
+        
+        # Chart: phase
+        self.pi_LIA_phi = self.gw_LIA_output.addPlot()
+        
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_LIA_phi.showGrid(x=1, y=1)
+        self.pi_LIA_phi.setTitle('Lock-in output Y: phase', **p)
+        self.pi_LIA_phi.setLabel('bottom', text='time (ms)', **p)
+        self.pi_LIA_phi.setLabel('left', text='phase (deg)', **p)
+        self.pi_LIA_phi.setXRange(-lockin.config.BUFFER_SIZE *
+                                   lockin.config.ISR_CLOCK * 1e3,
+                                   0, padding=0.01)
+        self.pi_LIA_phi.setYRange(-1, 1, padding=0.05)
+        self.pi_LIA_phi.setAutoVisible(x=True, y=True)
+        self.pi_LIA_phi.setClipToView(True)
+        
+        self.CH_LIA_phi = ChartHistory(lockin.config.BUFFER_SIZE,
+                                       self.pi_LIA_phi.plot(pen=PEN_03))
+        self.CH_LIA_phi.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CHs_LIA_output = [self.CH_LIA_amp, self.CH_LIA_phi]
+        
+        # Round up frame
+        hbox_LIA_output = QtWid.QHBoxLayout()
+        hbox_LIA_output.addWidget(self.gw_LIA_output, stretch=1)
+
+        # -----------------------------------
+        # -----------------------------------
         #   Round up tab page 'Main'
         # -----------------------------------
         # -----------------------------------
@@ -426,6 +475,7 @@ class MainWindow(QtWid.QWidget):
         vbox = QtWid.QVBoxLayout()
         vbox.addLayout(hbox_refsig, stretch=1)
         vbox.addLayout(hbox_mixer, stretch=1)
+        vbox.addLayout(hbox_LIA_output, stretch=1)
         self.tab_main.setLayout(vbox)
         
         # ----------------------------------------------------------------------
@@ -575,21 +625,6 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_record.setText(text_str)
             
     @QtCore.pyqtSlot()
-    def process_qlin_set_ref_freq(self):
-        try:
-            ref_freq = float(self.qlin_set_ref_freq.text())
-        except ValueError:
-            ref_freq = self.lockin.config.ref_freq
-        
-        # Clip between 0 and the Nyquist frequency of the lock-in sampling rate
-        ref_freq = np.clip(ref_freq, 0, 1/self.lockin.config.ISR_CLOCK/2)
-        
-        self.qlin_set_ref_freq.setText("%.2f" % ref_freq)
-        if ref_freq != self.lockin.config.ref_freq:
-            self.lockin_pyqt.set_ref_freq(ref_freq)
-            QtWid.QApplication.processEvents()
-            
-    @QtCore.pyqtSlot()
     def process_qlin_set_ref_V_center(self):
         try:
             ref_V_center = float(self.qlin_set_ref_V_center.text())
@@ -643,7 +678,9 @@ class MainWindow(QtWid.QWidget):
                      self.lockin.config.ISR_CLOCK * 1e3)
         plot_items = [self.pi_refsig,
                       self.pi_filt_BS,
-                      self.pi_mixer]
+                      self.pi_mixer,
+                      self.pi_LIA_amp,
+                      self.pi_LIA_phi]
         for pi in plot_items:
             pi.setXRange(min_time, 0, padding=0.01)
         self.process_qpbtn_autoscale_y()
@@ -652,7 +689,9 @@ class MainWindow(QtWid.QWidget):
     def process_qpbtn_autoscale_y(self):
         plot_items = [self.pi_refsig,
                       self.pi_filt_BS,
-                      self.pi_mixer]
+                      self.pi_mixer,
+                      self.pi_LIA_amp,
+                      self.pi_LIA_phi]
         for pi in plot_items:
             pi.enableAutoRange('y', True)
             pi.enableAutoRange('y', False)
@@ -679,7 +718,11 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def update_chart_mixer(self):
         [CH.update_curve() for CH in self.CHs_mixer]
-    
+        
+    @QtCore.pyqtSlot()
+    def update_chart_LIA_output(self):
+        [CH.update_curve() for CH in self.CHs_LIA_output]
+        
     def construct_title_plot_filt_resp(self, firf):
         __tmp1 = 'N_taps = %i' % firf.N_taps
         if isinstance(firf.firwin_window, str):
@@ -709,3 +752,6 @@ class MainWindow(QtWid.QWidget):
                                        padding=0.01)
         self.pi_filt_resp_LP.setTitle('Filter response: low-pass<br/>%s' %
                                       self.construct_title_plot_filt_resp(firf))
+        
+if __name__ == "__main__":
+    exec(open("DvG_Arduino_lockin_amp.py").read())

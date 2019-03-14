@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "06-04-2019"
+__date__        = "14-03-2019"
 __version__     = "1.0.0"
 
 import os
@@ -39,18 +39,21 @@ DEBUG = False
 # ------------------------------------------------------------------------------
 
 class State(object):
-    """TO DO: Will hold filtered and mixed signals of the lock-in.
+    """ Deque arrays needed for the second FIR filter stage, i.e. the low-pass
+    filter after the heterodyne mixing.
     """
-    def __init__(self):
-        """
-        self.deque_sig_I_filt = deque(maxlen=maxlen)
-        self.deque_mix_X      = deque(maxlen=maxlen)
-        self.deque_mix_Y      = deque(maxlen=maxlen)
-        self.deque_out_amp    = deque(maxlen=maxlen)
-        self.deque_out_phi    = deque(maxlen=maxlen)
-        """
-        pass
-    
+    def __init__(self, buffer_size, N_buffers_in_deque=0):
+        self.buffer_size        = buffer_size           # [samples]
+        self.N_buffers_in_deque = N_buffers_in_deque    # [int]
+        self.N_deque = buffer_size * N_buffers_in_deque # [samples]
+        
+        self.deque_time       = deque(maxlen=self.N_deque)
+        self.deque_sig_I_filt = deque(maxlen=self.N_deque)
+        self.deque_mix_X      = deque(maxlen=self.N_deque)
+        self.deque_mix_Y      = deque(maxlen=self.N_deque)
+        self.deque_LIA_amp    = deque(maxlen=self.N_deque)
+        self.deque_LIA_phi    = deque(maxlen=self.N_deque)
+        
 # ------------------------------------------------------------------------------
 #   Update GUI routines
 # ------------------------------------------------------------------------------
@@ -75,7 +78,29 @@ def update_GUI():
         window.update_chart_refsig()
         window.update_chart_filt_BS()
         window.update_chart_mixer()
+        window.update_chart_LIA_output()
         
+@QtCore.pyqtSlot()
+def process_qlin_set_ref_freq():
+    try:
+        ref_freq = float(window.qlin_set_ref_freq.text())
+    except ValueError:
+        ref_freq = lockin.config.ref_freq
+    
+    # Clip between 0 and the Nyquist frequency of the lock-in sampling rate
+    ref_freq = np.clip(ref_freq, 0, 1/lockin.config.ISR_CLOCK/2)
+    
+    window.qlin_set_ref_freq.setText("%.2f" % ref_freq)
+    if ref_freq != lockin.config.ref_freq:
+        lockin_pyqt.set_ref_freq(ref_freq)
+        
+        firwin_cutoff = [0, 2*ref_freq - 1]
+        firf_LP_mix_X.update_firwin_cutoff(firwin_cutoff)
+        firf_LP_mix_Y.update_firwin_cutoff(firwin_cutoff)
+        window.update_plot_filt_resp_LP(firf_LP_mix_X)
+        
+        QtWid.QApplication.processEvents()
+    
 # ------------------------------------------------------------------------------
 #   Program termination routines
 # ------------------------------------------------------------------------------
@@ -118,7 +143,7 @@ def lockin_DAQ_update():
     
     # Shorthands
     c: lockin_functions.Arduino_lockin_amp.Config = lockin.config
-    state: lockin_pyqt_lib.Arduino_lockin_amp_pyqt.State = lockin_pyqt.state
+    state_1: lockin_pyqt_lib.Arduino_lockin_amp_pyqt.State = lockin_pyqt.state
 
     if lockin.lockin_paused:  # Prevent throwings errors if just paused
         return False
@@ -130,34 +155,34 @@ def lockin_DAQ_update():
     
     # HACK: hard-coded calibration correction on the ADC
     dev_sig_I = sig_I * 0.0054 + 0.0020;
-    sig_I -= dev_sig_I
+    #sig_I -= dev_sig_I
 
     lockin_pyqt.state.buffers_received += 1
     
     # Detect dropped buffers
-    prev_last_deque_time = (state.deque_time[-1] if
-                            state.buffers_received > 1
+    prev_last_deque_time = (state_1.deque_time[-1] if
+                            state_1.buffers_received > 1
                             else np.nan)
     dT = (time[0] - prev_last_deque_time) / 1e6 # transform [usec] to [sec]
     if dT > (c.ISR_CLOCK)*1.05:  # Allow a few percent clock jitter
-        print("dropped buffer %i" % state.buffers_received)
+        print("dropped buffer %i" % state_1.buffers_received)
         N_dropped_buffers = int(round(dT / c.T_SPAN_BUFFER))
         print("N_dropped_buffers %i" % N_dropped_buffers)
         
         # Replace dropped buffers with ...
         N_dropped_samples = c.BUFFER_SIZE * N_dropped_buffers
-        state.deque_time.extend(prev_last_deque_time +
-                                np.arange(1, N_dropped_samples + 1) *
-                                c.ISR_CLOCK)
+        state_1.deque_time.extend(prev_last_deque_time +
+                                  np.arange(1, N_dropped_samples + 1) *
+                                  c.ISR_CLOCK)
         if 1:
             """ Proper: with np.nan samples.
             As a result, the filter output will contain a continuous series
             of np.nan values in the output for up to T_settling seconds long
             after the occurance of the last dropped buffer.
             """
-            state.deque_ref_X.extend(np.array([np.nan] * N_dropped_samples))
-            state.deque_ref_Y.extend(np.array([np.nan] * N_dropped_samples))
-            state.deque_sig_I.extend(np.array([np.nan] * N_dropped_samples))
+            state_1.deque_ref_X.extend(np.array([np.nan] * N_dropped_samples))
+            state_1.deque_ref_Y.extend(np.array([np.nan] * N_dropped_samples))
+            state_1.deque_sig_I.extend(np.array([np.nan] * N_dropped_samples))
         else:
             """ Improper: with linearly interpolated samples.
             As a result, the filter output will contain fake data where
@@ -165,65 +190,77 @@ def lockin_DAQ_update():
             to using above proper technique, the filter output remains a
             continuous series of values.
             """
-            state.deque_sig_I.extend(state.deque_sig[-1] +
-                                     np.arange(1, N_dropped_samples + 1) *
-                                     (sig_I[0] - state.deque_sig[-1]) /
-                                     N_dropped_samples)
+            state_1.deque_sig_I.extend(state_1.deque_sig[-1] +
+                                       np.arange(1, N_dropped_samples + 1) *
+                                       (sig_I[0] - state_1.deque_sig[-1]) /
+                                       N_dropped_samples)
             
-    state.deque_time.extend(time)
-    state.deque_ref_X.extend(ref_X)
-    state.deque_ref_Y.extend(ref_Y)
-    state.deque_sig_I.extend(sig_I)
-    
-    # TO DO: I might have screwed up converting deque to np.array.
-    # Deque puts latests additions to the end
-    # Double check retrievel of correct time blocks
+    # Store first stage data into deque
+    state_1.deque_time.extend(time)
+    state_1.deque_ref_X.extend(ref_X)
+    state_1.deque_ref_Y.extend(ref_Y)
+    state_1.deque_sig_I.extend(sig_I)
     
     # Perform 50 Hz bandgap filter on sig_I
-    # TO DO: additionally, make a deque for sig_I_filt
-    sig_I_filt = firf_BS.process(state.deque_sig_I)
+    sig_I_filt = firf_BS_sig_I.process(state_1.deque_sig_I)
     
-    time_filt    = (np.array(state.deque_time, dtype=np.int64)
-                    [firf_BS.win_idx_valid_start:
-                     firf_BS.win_idx_valid_end])
-    sig_I_unfilt = (np.array(state.deque_sig_I, dtype=np.float64)
-                    [firf_BS.win_idx_valid_start:
-                     firf_BS.win_idx_valid_end])
+    time_filt    = (np.array(state_1.deque_time, dtype=np.int64)
+                    [firf_BS_sig_I.win_idx_valid_start:
+                     firf_BS_sig_I.win_idx_valid_end])
+    sig_I_unfilt = (np.array(state_1.deque_sig_I, dtype=np.float64)
+                    [firf_BS_sig_I.win_idx_valid_start:
+                     firf_BS_sig_I.win_idx_valid_end])
     
     # Retrieve the block of original data from the past that alligns with the
     # current filter output
-    old_ref_X = (np.array(state.deque_ref_X, dtype=np.float64)
-                 [firf_BS.win_idx_valid_start:
-                  firf_BS.win_idx_valid_end])
-    old_ref_Y = (np.array(state.deque_ref_Y, dtype=np.float64)
-                 [firf_BS.win_idx_valid_start:
-                  firf_BS.win_idx_valid_end])
+    old_ref_X = (np.array(state_1.deque_ref_X, dtype=np.float64)
+                 [firf_BS_sig_I.win_idx_valid_start:
+                  firf_BS_sig_I.win_idx_valid_end])
+    old_ref_Y = (np.array(state_1.deque_ref_Y, dtype=np.float64)
+                 [firf_BS_sig_I.win_idx_valid_start:
+                  firf_BS_sig_I.win_idx_valid_end])
     
     #if not len(time_filt) == 0:
     #    print("%i %i: %i" % (time[-1], time_filt[-1], time[-1] - time_filt[-1]))
         
-    if firf_BS.has_settled:    
-        mix_X = (old_ref_X - c.ref_V_center) * (sig_I_filt - c.ref_V_center)
-        mix_Y = (old_ref_Y - c.ref_V_center) * (sig_I_filt - c.ref_V_center)
+    if firf_BS_sig_I.has_settled:    
+        mix_X = (old_ref_X - c.ref_V_center) * sig_I_filt
+        mix_Y = (old_ref_Y - c.ref_V_center) * sig_I_filt
     else:
         mix_X = np.array([np.nan] * c.BUFFER_SIZE)
         mix_Y = np.array([np.nan] * c.BUFFER_SIZE)
         
-    out_amp = 2 * np.sqrt(mix_X**2 + mix_Y**2)
+    # Store second stage data into deque
+    state_2.deque_time.extend(time_filt)
+    state_2.deque_sig_I_filt.extend(sig_I_filt)
+    state_2.deque_mix_X.extend(mix_X)
+    state_2.deque_mix_Y.extend(mix_Y)
+    
+    # Perform low-pass filter on the mixer output
+    out_X = firf_LP_mix_X.process(state_2.deque_mix_X)
+    out_Y = firf_LP_mix_Y.process(state_2.deque_mix_Y)
+    
+    time_2_filt = (np.array(state_2.deque_time, dtype=np.int64)
+                   [firf_LP_mix_X.win_idx_valid_start:
+                   firf_LP_mix_X.win_idx_valid_end])
+        
+    out_amp = np.sqrt(out_X**2 + out_Y**2)
     """NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
     division by (mix_X = 0) is handled correctly due to 'numpy.inf'. Likewise,
     'numpy.arctan(numpy.inf)' will result in pi/2. We suppress the
     RuntimeWarning: divide by zero encountered in true_divide.
     """
     np.seterr(divide='ignore')
-    out_phi = np.arctan(mix_Y / mix_X)
+    out_phi = np.arctan(out_Y / out_X)
+    out_phi = out_phi/np.pi*180     # Transform [rad] to [deg]
     np.seterr(divide='warn')
     
     # Save state
-    state.time  = time
-    state.ref_X = ref_X
-    state.ref_Y = ref_Y
-    state.sig_I = sig_I
+    # TO DO: might be redundant to store this into State. Investigate
+    state_1.time  = time
+    state_1.ref_X = ref_X
+    state_1.ref_Y = ref_Y
+    state_1.sig_I = sig_I
     
     # Add new data to graphs
     window.CH_ref_X.add_new_readings(time, ref_X)
@@ -236,10 +273,13 @@ def lockin_DAQ_update():
     window.CH_mix_X.add_new_readings(time_filt, mix_X)
     window.CH_mix_Y.add_new_readings(time_filt, mix_Y)
     
+    window.CH_LIA_amp.add_new_readings(time_2_filt, out_amp)
+    window.CH_LIA_phi.add_new_readings(time_2_filt, out_phi)
+    
     # Logging to file
     if file_logger.starting:
         fn_log = QDateTime.currentDateTime().toString("yyMMdd_HHmmss") + ".txt"
-        if file_logger.create_log(state.time, fn_log, mode='w'):
+        if file_logger.create_log(time, fn_log, mode='w'):
             file_logger.signal_set_recording_text.emit(
                 "Recording to file: " + fn_log)
             file_logger.write("time[us]\tref_X[V]\tref_Y[V]\tsig_I[V]\n")
@@ -281,8 +321,8 @@ if __name__ == '__main__':
         print("Exiting...\n")
         sys.exit(0)
         
-    lockin.begin()
-    #lockin.begin(ref_freq=100, ref_V_center=2.8, ref_V_p2p=0.8)
+    #lockin.begin()
+    lockin.begin(ref_freq=250, ref_V_center=2.8, ref_V_p2p=0.8)
     
     # Create workers and threads
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
@@ -299,23 +339,31 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
     #   Set up state and filters
     # --------------------------------------------------------------------------
-    state = State()
+    state_2 = State(lockin_pyqt.state.buffer_size,
+                    lockin_pyqt.state.N_buffers_in_deque)
     
-    firwin_cutoff = [0, 49.5, 50.5, lockin.config.F_Nyquist]
+    # Band-stop on sig_I
+    firwin_cutoff = [0.5, 49.5, 50.5, 99.5, 100.5, lockin.config.F_Nyquist]
     firwin_window = ("chebwin", 50)
-    firf_BS = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
-                                  lockin_pyqt.state.N_buffers_in_deque,
-                                  lockin.config.Fs,
-                                  firwin_cutoff,
-                                  firwin_window)
+    firf_BS_sig_I = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
+                                        lockin_pyqt.state.N_buffers_in_deque,
+                                        lockin.config.Fs,
+                                        firwin_cutoff,
+                                        firwin_window)
 
-    firwin_cutoff = [0, 150]
+    # Low-pass on mix_X and mix_Y
+    firwin_cutoff = [0, 2*lockin.config.ref_freq - 1]
     firwin_window = "blackman"
-    firf_LP = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
-                                  lockin_pyqt.state.N_buffers_in_deque,
-                                  lockin.config.Fs,
-                                  firwin_cutoff,
-                                  firwin_window)
+    firf_LP_mix_X = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
+                                        lockin_pyqt.state.N_buffers_in_deque,
+                                        lockin.config.Fs,
+                                        firwin_cutoff,
+                                        firwin_window)
+    firf_LP_mix_Y = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
+                                        lockin_pyqt.state.N_buffers_in_deque,
+                                        lockin.config.Fs,
+                                        firwin_cutoff,
+                                        firwin_window)
 
     # Manage logging to disk
     file_logger = FileLogger()
@@ -333,11 +381,15 @@ if __name__ == '__main__':
                                    lockin_pyqt=lockin_pyqt,
                                    file_logger=file_logger)
 
+    window.qlin_set_ref_freq.editingFinished.connect(process_qlin_set_ref_freq)
+
     window.pi_refsig.setYRange(2.35, 3.25)
-    window.pi_filt_BS.setYRange(2.35, 3.25)
+    window.pi_filt_BS.setYRange(-.7, 3.5)
     window.pi_mixer.setYRange(-0.12, 0.2)
-    window.update_plot_filt_resp_BS(firf_BS)
-    window.update_plot_filt_resp_LP(firf_LP)
+    window.pi_LIA_amp.setYRange(0.068, 0.092)
+    window.pi_LIA_phi.setYRange(-92, 92)
+    window.update_plot_filt_resp_BS(firf_BS_sig_I)
+    window.update_plot_filt_resp_LP(firf_LP_mix_X)
 
     # --------------------------------------------------------------------------
     #   Start threads
