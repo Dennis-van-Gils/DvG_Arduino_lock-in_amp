@@ -176,14 +176,14 @@ volatile bool fSend_buffer_B = false;
     Cosine wave look-up table (LUT)
 ------------------------------------------------------------------------------*/
 
-double ref_freq = 137.0;      // [Hz], aka f_R
+double ref_freq = 100.0;      // [Hz], aka f_R
 
 // Tip: Limiting the output voltage range to slighty above 0.0 V will improve
 // the shape of the sine wave at its minimum. Apparently, the analog out port
 // has difficulty in cleanly dropping the output voltage completely to 0.0 V.
 #define A_REF        3.300    // [V] Analog voltage reference Arduino
-double ref_V_center = 2.5;    // [V] Center voltage of cosine reference signal
-double ref_V_p2p    = 1.0;    // [V] Peak-to-peak voltage of cosine ref. signal
+double ref_V_center = 2.8;    // [V] Center voltage of cosine reference signal
+double ref_V_p2p    = 0.8;    // [V] Peak-to-peak voltage of cosine ref. signal
 
 #define N_LUT 9000  // (9000 --> 0.04 deg) Number of samples for one full period
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
