@@ -22,11 +22,7 @@ class Buffered_FIR_Filter():
         self.firwin_window = firwin_window            # type of window, see scipy.signal.get_window        
         
         # Check firwin_cutoff for illegal values and cap when necessary
-        cutoff_grain = 1e-6
-        firwin_cutoff = np.array(firwin_cutoff, dtype=np.float64)
-        firwin_cutoff[firwin_cutoff <= cutoff_grain] = cutoff_grain
-        firwin_cutoff[firwin_cutoff >= Fs/2] = (Fs/2 - cutoff_grain)
-        self.firwin_cutoff = firwin_cutoff            # list of [Hz]
+        self._set_firwin_cutoff(firwin_cutoff)        # list of [Hz]
        
         # Deque size
         self.N_deque = self.buffer_size * self.N_buffers_in_deque # [samples]
@@ -48,6 +44,23 @@ class Buffered_FIR_Filter():
         self.has_settled = False
     
         # Create filter
+        self.b = firwin(self.N_taps,
+                        self.firwin_cutoff,
+                        window=self.firwin_window,
+                        fs=self.Fs,
+                        pass_zero=False)
+        self.calc_freqz_response()
+
+    def _set_firwin_cutoff(self, firwin_cutoff):
+        # Check firwin_cutoff for illegal values and cap when necessary
+        cutoff_grain = 1e-6
+        firwin_cutoff = np.array(firwin_cutoff, dtype=np.float64)
+        firwin_cutoff[firwin_cutoff <= cutoff_grain] = cutoff_grain
+        firwin_cutoff[firwin_cutoff >= self.Fs/2] = (self.Fs/2 - cutoff_grain)
+        self.firwin_cutoff = firwin_cutoff
+
+    def update_firwin_cutoff(self, firwin_cutoff):
+        self._set_firwin_cutoff(firwin_cutoff)
         self.b = firwin(self.N_taps,
                         self.firwin_cutoff,
                         window=self.firwin_window,
