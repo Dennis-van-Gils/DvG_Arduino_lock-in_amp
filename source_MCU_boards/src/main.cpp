@@ -193,8 +193,8 @@ uint16_t LUT_cos[N_LUT] = {0};
 
 void create_LUT() {
   uint16_t ANALOG_WRITE_MAX_BITVAL = pow(2, ANALOG_WRITE_RESOLUTION) - 1;
-  double norm_offset = ref_V_offset / A_REF;        // Normalized
-  double norm_ampl   = 0.5 / A_REF * ref_V_ampl;    // Normalized
+  double norm_offset = ref_V_offset / A_REF;    // Normalized
+  double norm_ampl   = ref_V_ampl   / A_REF;    // Normalized
   double cosine_value;
 
   #ifdef DEBUG
