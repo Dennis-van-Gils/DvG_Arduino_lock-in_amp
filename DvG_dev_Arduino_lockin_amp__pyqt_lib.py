@@ -104,10 +104,20 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             
             # Create deques
             if self.N_buffers_in_deque > 0:
-                self.deque_time  = deque(maxlen=self.N_deque)
-                self.deque_ref_X = deque(maxlen=self.N_deque)
-                self.deque_ref_Y = deque(maxlen=self.N_deque)
-                self.deque_sig_I = deque(maxlen=self.N_deque)
+                # Stage 0: unprocessed data
+                self.deque_time       = deque(maxlen=self.N_deque)
+                self.deque_ref_X      = deque(maxlen=self.N_deque)
+                self.deque_ref_Y      = deque(maxlen=self.N_deque)
+                self.deque_sig_I      = deque(maxlen=self.N_deque)
+                # Stage 1: apply band-stop filter and heterodyne mixing
+                self.deque_time_1     = deque(maxlen=self.N_deque)
+                self.deque_sig_I_filt = deque(maxlen=self.N_deque)
+                self.deque_mix_X      = deque(maxlen=self.N_deque)
+                self.deque_mix_Y      = deque(maxlen=self.N_deque)
+                # Stage 2: apply low-pass filter and signal reconstruction
+                self.deque_time_2     = deque(maxlen=self.N_deque)
+                self.deque_LIA_amp    = deque(maxlen=self.N_deque)
+                self.deque_LIA_phi    = deque(maxlen=self.N_deque)
             
             # Mutex for proper multithreading. If the state variables are not
             # atomic or thread-safe, you should lock and unlock this mutex for

@@ -15,11 +15,12 @@ import time as Time
 
 class Buffered_FIR_Filter():
     def __init__(self, buffer_size, N_buffers_in_deque, Fs, firwin_cutoff,
-                 firwin_window):
+                 firwin_window, display_name=""):
         self.buffer_size = buffer_size                # [samples]
         self.N_buffers_in_deque = N_buffers_in_deque  # [int]
         self.Fs = Fs                                  # [Hz]
         self.firwin_window = firwin_window            # type of window, see scipy.signal.get_window        
+        self.display_name = display_name              # [str]
         
         # Check firwin_cutoff for illegal values and cap when necessary
         self._set_firwin_cutoff(firwin_cutoff)        # list of [Hz]
@@ -72,6 +73,7 @@ class Buffered_FIR_Filter():
         """
         """
         
+        print("%s: %i" % (self.display_name, len(deque_sig_in)))
         if len(deque_sig_in) < self.N_deque:
             # Start-up. Filter still needs time to settle.
             self.has_settled = False
@@ -88,10 +90,10 @@ class Buffered_FIR_Filter():
             #print("%.1f" % ((Time.perf_counter() - tick)*1000))
         
         if self.has_settled and not(self.was_settled):
-            print("Filter has settled")
+            print("%s: Filter has settled" % self.display_name)
             self.was_settled = True
         elif not(self.has_settled) and self.was_settled:
-            print("Filter has reset")
+            print("%s: Filter has reset" % self.display_name)
             self.was_settled = False
         
         return valid_out
