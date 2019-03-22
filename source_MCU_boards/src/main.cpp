@@ -22,7 +22,7 @@ M4 family
 - Adafruit NeoTrellis M4        SAMD51J19A? 
 - Adafruit Metro M4             SAMD51J19A            ADAFRUIT_METRO_M4_EXPRESS
 - Adafruit Feather M4           SAMD51J19A   okay     ADAFRUIT_FEATHER_M4_EXPRESS
-- Adafruit ItsyBitsy M4         SAMD51G19A            ADAFRUIT_ITSYBITSY_M4_EXPRESS
+- Adafruit ItsyBitsy M4         SAMD51G19A   okay     ADAFRUIT_ITSYBITSY_M4_EXPRESS
 
 When using Visual Studio Code as IDE set the following user settings to have
 proper bindings to strncmpi
@@ -30,7 +30,7 @@ proper bindings to strncmpi
 "C_Cpp.intelliSenseEngineFallback": "Disabled"
 
 Dennis van Gils
-20-02-2019
+22-03-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -179,11 +179,11 @@ volatile bool fSend_buffer_B = false;
 double ref_freq = 100.0;      // [Hz], aka f_R
 
 // Tip: Limiting the output voltage range to slighty above 0.0 V will improve
-// the shape of the sine wave at its minimum. Apparently, the analog out port
+// the shape of the cosine wave at its minimum. Apparently, the analog out port
 // has difficulty in cleanly dropping the output voltage completely to 0.0 V.
 #define A_REF        3.300    // [V] Analog voltage reference Arduino
-double ref_V_center = 2.8;    // [V] Center voltage of cosine reference signal
-double ref_V_p2p    = 0.8;    // [V] Peak-to-peak voltage of cosine ref. signal
+double ref_V_offset = 2.8;    // [V] Voltage offset of cos. reference signal
+double ref_V_ampl   = 0.8;    // [V] Voltage amplitude of cos. reference signal
 
 #define N_LUT 9000  // (9000 --> 0.04 deg) Number of samples for one full period
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
@@ -193,8 +193,8 @@ uint16_t LUT_cos[N_LUT] = {0};
 
 void create_LUT() {
   uint16_t ANALOG_WRITE_MAX_BITVAL = pow(2, ANALOG_WRITE_RESOLUTION) - 1;
-  double offset = ref_V_center / A_REF;
-  double amplitude = 0.5 / A_REF * ref_V_p2p;
+  double norm_offset = ref_V_offset / A_REF;        // Normalized
+  double norm_ampl   = 0.5 / A_REF * ref_V_ampl;    // Normalized
   double cosine_value;
 
   #ifdef DEBUG
@@ -202,7 +202,7 @@ void create_LUT() {
   #endif
 
   for (uint16_t i = 0; i < N_LUT; i++) {
-    cosine_value = offset + amplitude * cos(2*PI*i/N_LUT);
+    cosine_value = norm_offset + norm_ampl * cos(2*PI*i/N_LUT);
     cosine_value = max(cosine_value, 0.0);
     cosine_value = min(cosine_value, 1.0);
     LUT_cos[i] = (uint16_t) round(ANALOG_WRITE_MAX_BITVAL * cosine_value);
@@ -570,9 +570,9 @@ void loop() {
           Ser_data.print('\t');
           Ser_data.print(A_REF);
           Ser_data.print('\t');
-          Ser_data.print(ref_V_center);
+          Ser_data.print(ref_V_offset);
           Ser_data.print('\t');
-          Ser_data.print(ref_V_p2p);
+          Ser_data.print(ref_V_ampl);
           Ser_data.print('\t');
           Ser_data.print(ref_freq);
           Ser_data.print('\n');
@@ -612,25 +612,25 @@ void loop() {
           interrupts();
           Ser_data.println(ref_freq);
 
-        } else if (strncmpi(strCmd, "ref_V_center", 12) == 0) {
-          // Set center voltage of cosine reference signal [V]
-          ref_V_center = parseFloatInString(strCmd, 12);
-          ref_V_center = max(ref_V_center, 0.0);
-          ref_V_center = min(ref_V_center, A_REF);
+        } else if (strncmpi(strCmd, "ref_V_offset", 12) == 0) {
+          // Set voltage offset of cosine reference signal [V]
+          ref_V_offset = parseFloatInString(strCmd, 12);
+          ref_V_offset = max(ref_V_offset, 0.0);
+          ref_V_offset = min(ref_V_offset, A_REF);
           noInterrupts();
           create_LUT();
           interrupts();
-          Ser_data.println(ref_V_center);
+          Ser_data.println(ref_V_offset);
 
-        } else if (strncmpi(strCmd, "ref_V_p2p", 9) == 0) {
-          // Set peak-to-peak voltage of cosine reference signal [V]
-          ref_V_p2p = parseFloatInString(strCmd, 9);
-          ref_V_p2p = max(ref_V_p2p, 0.0);
-          ref_V_p2p = min(ref_V_p2p, A_REF);
+        } else if (strncmpi(strCmd, "ref_V_ampl", 9) == 0) {
+          // Set voltage amplitude of cosine reference signal [V]
+          ref_V_ampl = parseFloatInString(strCmd, 9);
+          ref_V_ampl = max(ref_V_ampl, 0.0);
+          ref_V_ampl = min(ref_V_ampl, A_REF);
           noInterrupts();
           create_LUT();
           interrupts();
-          Ser_data.println(ref_V_p2p);
+          Ser_data.println(ref_V_ampl);
         }
 
       }
