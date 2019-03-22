@@ -6,8 +6,8 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "15-02-2019"
-__version__     = "1.2.1"
+__date__        = "22-03-2019"
+__version__     = "1.3.1"
 
 import numpy as np
 from collections import deque
@@ -68,8 +68,8 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         (*) signal_connection_lost()
     """
     signal_ref_freq_is_set     = QtCore.pyqtSignal()
-    signal_ref_V_center_is_set = QtCore.pyqtSignal()
-    signal_ref_V_p2p_is_set    = QtCore.pyqtSignal()
+    signal_ref_V_offset_is_set = QtCore.pyqtSignal()
+    signal_ref_V_ampl_is_set   = QtCore.pyqtSignal()
     
     class State():
         def __init__(self, buffer_size, N_buffers_in_deque=0):
@@ -193,11 +193,11 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     def set_ref_freq(self, ref_freq):
         self.worker_send.queued_instruction("set_ref_freq", ref_freq)
         
-    def set_ref_V_center(self, ref_V_center):
-        self.worker_send.queued_instruction("set_ref_V_center", ref_V_center)
+    def set_ref_V_offset(self, ref_V_offset):
+        self.worker_send.queued_instruction("set_ref_V_offset", ref_V_offset)
         
-    def set_ref_V_p2p(self, ref_V_p2p):
-        self.worker_send.queued_instruction("set_ref_V_p2p", ref_V_p2p)
+    def set_ref_V_ampl(self, ref_V_ampl):
+        self.worker_send.queued_instruction("set_ref_V_ampl", ref_V_ampl)
     
     # --------------------------------------------------------------------------
     #   alt_process_jobs_function
@@ -209,10 +209,10 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         
             if func == "set_ref_freq":
                 current_value = self.dev.config.ref_freq
-            elif func == "set_ref_V_center":
-                current_value = self.dev.config.ref_V_center
-            elif func == "set_ref_V_p2p":
-                current_value = self.dev.config.ref_V_p2p
+            elif func == "set_ref_V_offset":
+                current_value = self.dev.config.ref_V_offset
+            elif func == "set_ref_V_ampl":
+                current_value = self.dev.config.ref_V_ampl
             else:
                 current_value = 0
         
@@ -227,12 +227,12 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 if func == "set_ref_freq":
                     self.dev.set_ref_freq(set_value)
                     self.signal_ref_freq_is_set.emit()
-                elif func == "set_ref_V_center":
-                    self.dev.set_ref_V_center(set_value)
-                    self.signal_ref_V_center_is_set.emit()
-                elif func == "set_ref_V_p2p":
-                    self.dev.set_ref_V_p2p(set_value)
-                    self.signal_ref_V_p2p_is_set.emit()
+                elif func == "set_ref_V_offset":
+                    self.dev.set_ref_V_offset(set_value)
+                    self.signal_ref_V_offset_is_set.emit()
+                elif func == "set_ref_V_ampl":
+                    self.dev.set_ref_V_ampl(set_value)
+                    self.signal_ref_V_ampl_is_set.emit()
                 
                 if not was_paused:
                     self.worker_DAQ.schedule_suspend(False)

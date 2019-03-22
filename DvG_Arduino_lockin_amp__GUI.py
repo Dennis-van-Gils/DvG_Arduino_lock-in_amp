@@ -231,19 +231,19 @@ class MainWindow(QtWid.QWidget):
                 QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p1))
         self.qlin_read_ref_freq = (
                 QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p2))
-        self.qlin_set_ref_V_center = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_center, **p1))
-        self.qlin_read_ref_V_center = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_center, **p2))
-        self.qlin_set_ref_V_p2p = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_p2p, **p1))
-        self.qlin_read_ref_V_p2p = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_p2p, **p2))
+        self.qlin_set_ref_V_offset = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_offset, **p1))
+        self.qlin_read_ref_V_offset = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_offset, **p2))
+        self.qlin_set_ref_V_ampl = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_ampl, **p1))
+        self.qlin_read_ref_V_ampl = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_ampl, **p2))
 
-        self.qlin_set_ref_V_center.editingFinished.connect(
-                self.process_qlin_set_ref_V_center)
-        self.qlin_set_ref_V_p2p.editingFinished.connect(
-                self.process_qlin_set_ref_V_p2p)
+        self.qlin_set_ref_V_offset.editingFinished.connect(
+                self.process_qlin_set_ref_V_offset)
+        self.qlin_set_ref_V_ampl.editingFinished.connect(
+                self.process_qlin_set_ref_V_ampl)
         
         p  = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
         p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter}
@@ -261,13 +261,13 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.qlin_set_ref_freq        , i, 1)
         grid.addWidget(self.qlin_read_ref_freq       , i, 2)
         grid.addWidget(QtWid.QLabel("Hz")            , i, 3); i+=1
-        grid.addWidget(QtWid.QLabel("V_center:", **p), i, 0)
-        grid.addWidget(self.qlin_set_ref_V_center    , i, 1)
-        grid.addWidget(self.qlin_read_ref_V_center   , i, 2)
+        grid.addWidget(QtWid.QLabel("V_offset:", **p), i, 0)
+        grid.addWidget(self.qlin_set_ref_V_offset    , i, 1)
+        grid.addWidget(self.qlin_read_ref_V_offset   , i, 2)
         grid.addWidget(QtWid.QLabel("V")             , i, 3); i+=1
-        grid.addWidget(QtWid.QLabel("V_p2p:", **p)   , i, 0)
-        grid.addWidget(self.qlin_set_ref_V_p2p       , i, 1)
-        grid.addWidget(self.qlin_read_ref_V_p2p      , i, 2)
+        grid.addWidget(QtWid.QLabel("V_ampl:", **p)  , i, 0)
+        grid.addWidget(self.qlin_set_ref_V_ampl      , i, 1)
+        grid.addWidget(self.qlin_read_ref_V_ampl     , i, 2)
         grid.addWidget(QtWid.QLabel("V")             , i, 3)
         
         qgrp_refsig = QtWid.QGroupBox("Reference signal")
@@ -580,10 +580,10 @@ class MainWindow(QtWid.QWidget):
         
         self.lockin_pyqt.signal_ref_freq_is_set.connect(
                 self.update_qlin_read_ref_freq)
-        self.lockin_pyqt.signal_ref_V_center_is_set.connect(
-                self.update_qlin_read_ref_V_center)
-        self.lockin_pyqt.signal_ref_V_p2p_is_set.connect(
-                self.update_qlin_read_ref_V_p2p)
+        self.lockin_pyqt.signal_ref_V_offset_is_set.connect(
+                self.update_qlin_read_ref_V_offset)
+        self.lockin_pyqt.signal_ref_V_ampl_is_set.connect(
+                self.update_qlin_read_ref_V_ampl)
     
         self.file_logger.signal_set_recording_text.connect(
                 self.set_text_qpbt_record)
@@ -625,47 +625,49 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_record.setText(text_str)
             
     @QtCore.pyqtSlot()
-    def process_qlin_set_ref_V_center(self):
+    def process_qlin_set_ref_V_offset(self):
         try:
-            ref_V_center = float(self.qlin_set_ref_V_center.text())
+            ref_V_offset = float(self.qlin_set_ref_V_offset.text())
         except ValueError:
-            ref_V_center = self.lockin.config.ref_V_center
+            ref_V_offset = self.lockin.config.ref_V_offset
         
         # Clip between 0 and the analog voltage reference
-        ref_V_center = np.clip(ref_V_center, 0, self.lockin.config.A_REF)
+        ref_V_offset = np.clip(ref_V_offset, 0, self.lockin.config.A_REF)
         
-        self.qlin_set_ref_V_center.setText("%.2f" % ref_V_center)
-        if ref_V_center != self.lockin.config.ref_V_center:
-            self.lockin_pyqt.set_ref_V_center(ref_V_center)            
+        self.qlin_set_ref_V_offset.setText("%.2f" % ref_V_offset)
+        if ref_V_offset != self.lockin.config.ref_V_offset:
+            self.lockin_pyqt.set_ref_V_offset(ref_V_offset)            
             QtWid.QApplication.processEvents()
             
     @QtCore.pyqtSlot()
-    def process_qlin_set_ref_V_p2p(self):
+    def process_qlin_set_ref_V_ampl(self):
         try:
-            ref_V_p2p = float(self.qlin_set_ref_V_p2p.text())
+            ref_V_ampl = float(self.qlin_set_ref_V_ampl.text())
         except ValueError:
-            ref_V_p2p = self.lockin.config.ref_V_p2p
+            ref_V_ampl = self.lockin.config.ref_V_ampl
         
         # Clip between 0 and the analog voltage reference
-        ref_V_p2p = np.clip(ref_V_p2p, 0, self.lockin.config.A_REF)
+        ref_V_ampl = np.clip(ref_V_ampl, 0, self.lockin.config.A_REF)
         
-        self.qlin_set_ref_V_p2p.setText("%.2f" % ref_V_p2p)
-        if ref_V_p2p != self.lockin.config.ref_V_p2p:
-            self.lockin_pyqt.set_ref_V_p2p(ref_V_p2p)
+        self.qlin_set_ref_V_ampl.setText("%.2f" % ref_V_ampl)
+        if ref_V_ampl != self.lockin.config.ref_V_ampl:
+            self.lockin_pyqt.set_ref_V_ampl(ref_V_ampl)
             QtWid.QApplication.processEvents()
         
     @QtCore.pyqtSlot()
     def update_qlin_read_ref_freq(self):
-        self.qlin_read_ref_freq.setText("%.2f" % self.lockin.config.ref_freq)
+        self.qlin_read_ref_freq.setText("%.2f" %
+                                        self.lockin.config.ref_freq)
         
     @QtCore.pyqtSlot()
-    def update_qlin_read_ref_V_center(self):
-        self.qlin_read_ref_V_center.setText("%.2f" %
-                                            self.lockin.config.ref_V_center)
+    def update_qlin_read_ref_V_offset(self):
+        self.qlin_read_ref_V_offset.setText("%.2f" %
+                                            self.lockin.config.ref_V_offset)
         
     @QtCore.pyqtSlot()
-    def update_qlin_read_ref_V_p2p(self):
-        self.qlin_read_ref_V_p2p.setText("%.2f" % self.lockin.config.ref_V_p2p)
+    def update_qlin_read_ref_V_ampl(self):
+        self.qlin_read_ref_V_ampl.setText("%.2f" %
+                                          self.lockin.config.ref_V_ampl)
 
     @QtCore.pyqtSlot()
     def process_chkbs_refsig(self):

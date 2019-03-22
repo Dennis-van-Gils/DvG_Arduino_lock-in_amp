@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "14-03-2019"
+__date__        = "22-03-2019"
 __version__     = "1.0.0"
 
 import os
@@ -224,8 +224,8 @@ def lockin_DAQ_update():
     #    print("%i %i: %i" % (time[-1], time_filt[-1], time[-1] - time_filt[-1]))
         
     if firf_BS_sig_I.has_settled:    
-        mix_X = (old_ref_X - c.ref_V_center) * sig_I_filt
-        mix_Y = (old_ref_Y - c.ref_V_center) * sig_I_filt
+        mix_X = (old_ref_X - c.ref_V_offset) * sig_I_filt
+        mix_Y = (old_ref_Y - c.ref_V_offset) * sig_I_filt
     else:
         mix_X = np.array([np.nan] * c.BUFFER_SIZE)
         mix_Y = np.array([np.nan] * c.BUFFER_SIZE)
@@ -322,7 +322,7 @@ if __name__ == '__main__':
         sys.exit(0)
         
     #lockin.begin()
-    lockin.begin(ref_freq=250, ref_V_center=2.8, ref_V_p2p=0.8)
+    lockin.begin(ref_freq=250, ref_V_offset=2.8, ref_V_ampl=0.4)
     
     # Create workers and threads
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(

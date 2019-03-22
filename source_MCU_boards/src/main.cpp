@@ -183,7 +183,7 @@ double ref_freq = 100.0;      // [Hz], aka f_R
 // has difficulty in cleanly dropping the output voltage completely to 0.0 V.
 #define A_REF        3.300    // [V] Analog voltage reference Arduino
 double ref_V_offset = 2.8;    // [V] Voltage offset of cos. reference signal
-double ref_V_ampl   = 0.8;    // [V] Voltage amplitude of cos. reference signal
+double ref_V_ampl   = 0.4;    // [V] Voltage amplitude of cos. reference signal
 
 #define N_LUT 9000  // (9000 --> 0.04 deg) Number of samples for one full period
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
@@ -622,9 +622,9 @@ void loop() {
           interrupts();
           Ser_data.println(ref_V_offset);
 
-        } else if (strncmpi(strCmd, "ref_V_ampl", 9) == 0) {
+        } else if (strncmpi(strCmd, "ref_V_ampl", 10) == 0) {
           // Set voltage amplitude of cosine reference signal [V]
-          ref_V_ampl = parseFloatInString(strCmd, 9);
+          ref_V_ampl = parseFloatInString(strCmd, 10);
           ref_V_ampl = max(ref_V_ampl, 0.0);
           ref_V_ampl = min(ref_V_ampl, A_REF);
           noInterrupts();
