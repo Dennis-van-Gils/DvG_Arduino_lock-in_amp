@@ -134,6 +134,13 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 self.deque_ref_X.clear()
                 self.deque_ref_Y.clear()
                 self.deque_sig_I.clear()
+                self.deque_time_1.clear()
+                self.deque_sig_I_filt.clear()
+                self.deque_mix_X.clear()
+                self.deque_mix_Y.clear()
+                self.deque_time_2.clear()
+                self.deque_LIA_amp.clear()
+                self.deque_LIA_phi.clear()
     
     def __init__(self,
                  dev: lockin_functions.Arduino_lockin_amp,

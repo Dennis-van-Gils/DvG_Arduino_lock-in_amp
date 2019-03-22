@@ -73,7 +73,7 @@ class Buffered_FIR_Filter():
         """
         """
         
-        print("%s: %i" % (self.display_name, len(deque_sig_in)))
+        #print("%s: %i" % (self.display_name, len(deque_sig_in)))
         if len(deque_sig_in) < self.N_deque:
             # Start-up. Filter still needs time to settle.
             self.has_settled = False

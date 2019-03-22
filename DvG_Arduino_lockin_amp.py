@@ -192,65 +192,63 @@ def lockin_DAQ_update():
     # Apply band-stop filter to sig_I
     sig_I_filt = firf_BS_sig_I.process(state.deque_sig_I)
     
-    # Retrieve the block of original data from the past that alligns with the
-    # current filter output
-    time_1    = (np.array(state.deque_time, dtype=np.int64)
-                 [firf_BS_sig_I.win_idx_valid_start:
-                  firf_BS_sig_I.win_idx_valid_end])
-    old_sig_I = (np.array(state.deque_sig_I, dtype=np.float64)
-                 [firf_BS_sig_I.win_idx_valid_start:
-                  firf_BS_sig_I.win_idx_valid_end])
-    old_ref_X = (np.array(state.deque_ref_X, dtype=np.float64)
-                 [firf_BS_sig_I.win_idx_valid_start:
-                  firf_BS_sig_I.win_idx_valid_end])
-    old_ref_Y = (np.array(state.deque_ref_Y, dtype=np.float64)
-                 [firf_BS_sig_I.win_idx_valid_start:
-                  firf_BS_sig_I.win_idx_valid_end])
-    
-    #if not len(time_filt) == 0:
-    #    print("%i %i: %i" % (time[-1], time_filt[-1], time[-1] - time_filt[-1]))
-    
-    # Heterodyne mixing
     if firf_BS_sig_I.has_settled:
+        # Retrieve the block of original data from the past that alligns with
+        # the current filter output
+        time_1    = (np.array(state.deque_time, dtype=np.int64)
+                     [firf_BS_sig_I.win_idx_valid_start:
+                      firf_BS_sig_I.win_idx_valid_end])
+        old_sig_I = (np.array(state.deque_sig_I, dtype=np.float64)
+                     [firf_BS_sig_I.win_idx_valid_start:
+                      firf_BS_sig_I.win_idx_valid_end])
+        old_ref_X = (np.array(state.deque_ref_X, dtype=np.float64)
+                     [firf_BS_sig_I.win_idx_valid_start:
+                      firf_BS_sig_I.win_idx_valid_end])
+        old_ref_Y = (np.array(state.deque_ref_Y, dtype=np.float64)
+                     [firf_BS_sig_I.win_idx_valid_start:
+                      firf_BS_sig_I.win_idx_valid_end])
+        
+        #if not len(time_filt) == 0:
+        #    print("%i %i: %i" % (time[-1], time_filt[-1], time[-1] - time_filt[-1]))
+    
+        # Heterodyne mixing
         mix_X = (old_ref_X - c.ref_V_offset) * sig_I_filt
         mix_Y = (old_ref_Y - c.ref_V_offset) * sig_I_filt
-    else:
-        mix_X = np.array([np.nan] * c.BUFFER_SIZE)
-        mix_Y = np.array([np.nan] * c.BUFFER_SIZE)
         
-    state.deque_time_1.extend(time_1)
-    state.deque_sig_I_filt.extend(sig_I_filt)
-    state.deque_mix_X.extend(mix_X)
-    state.deque_mix_Y.extend(mix_Y)
+        state.deque_time_1.extend(time_1)
+        state.deque_sig_I_filt.extend(sig_I_filt)
+        state.deque_mix_X.extend(mix_X)
+        state.deque_mix_Y.extend(mix_Y)
     
-    # Stage 2
-    # -------
-    
-    # Apply low-pass filter to the mixer output
-    out_X = firf_LP_mix_X.process(state.deque_mix_X)
-    out_Y = firf_LP_mix_Y.process(state.deque_mix_Y)
+        # Stage 2
+        # -------
         
-    # Signal amplitude and phase reconstruction
-    LIA_amp = np.sqrt(out_X**2 + out_Y**2)
-    """NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
-    division by (mix_X = 0) is handled correctly due to 'numpy.inf'. Likewise,
-    'numpy.arctan(numpy.inf)' will result in pi/2. We suppress the
-    RuntimeWarning: divide by zero encountered in true_divide.
-    """
-    np.seterr(divide='ignore')
-    LIA_phi = np.arctan(out_Y / out_X)
-    LIA_phi = LIA_phi/np.pi*180     # Transform [rad] to [deg]
-    np.seterr(divide='warn')
-    
-    # Retrieve the block of original data from the past that alligns with the
-    # current filter output
-    time_2 = (np.array(state.deque_time_1, dtype=np.int64)
-              [firf_LP_mix_X.win_idx_valid_start:
-               firf_LP_mix_X.win_idx_valid_end])
-    
-    state.deque_time_2.extend(time_2)
-    state.deque_LIA_amp.extend(LIA_amp)
-    state.deque_LIA_phi.extend(LIA_phi)
+        # Apply low-pass filter to the mixer output
+        out_X = firf_LP_mix_X.process(state.deque_mix_X)
+        out_Y = firf_LP_mix_Y.process(state.deque_mix_Y)
+            
+        if firf_LP_mix_X.has_settled:
+            # Signal amplitude and phase reconstruction
+            LIA_amp = np.sqrt(out_X**2 + out_Y**2)
+            """NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
+            division by (mix_X = 0) is handled correctly due to 'numpy.inf'. Likewise,
+            'numpy.arctan(numpy.inf)' will result in pi/2. We suppress the
+            RuntimeWarning: divide by zero encountered in true_divide.
+            """
+            np.seterr(divide='ignore')
+            LIA_phi = np.arctan(out_Y / out_X)
+            LIA_phi = LIA_phi/np.pi*180     # Transform [rad] to [deg]
+            np.seterr(divide='warn')
+            
+            # Retrieve the block of original data from the past that alligns with the
+            # current filter output
+            time_2 = (np.array(state.deque_time_1, dtype=np.int64)
+                      [firf_LP_mix_X.win_idx_valid_start:
+                       firf_LP_mix_X.win_idx_valid_end])
+            
+            state.deque_time_2.extend(time_2)
+            state.deque_LIA_amp.extend(LIA_amp)
+            state.deque_LIA_phi.extend(LIA_phi)
     
     # Add new data to graphs
     # ----------------------
@@ -259,14 +257,16 @@ def lockin_DAQ_update():
     window.CH_ref_Y.add_new_readings(time, ref_Y)
     window.CH_sig_I.add_new_readings(time, sig_I)
         
-    window.CH_filt_BS_in.add_new_readings(time_1, old_sig_I)
-    window.CH_filt_BS_out.add_new_readings(time_1, sig_I_filt)
+    if firf_BS_sig_I.has_settled:
+        window.CH_filt_BS_in.add_new_readings(time_1, old_sig_I)
+        window.CH_filt_BS_out.add_new_readings(time_1, sig_I_filt)
     
-    window.CH_mix_X.add_new_readings(time_1, mix_X)
-    window.CH_mix_Y.add_new_readings(time_1, mix_Y)
+        window.CH_mix_X.add_new_readings(time_1, mix_X)
+        window.CH_mix_Y.add_new_readings(time_1, mix_Y)
     
-    window.CH_LIA_amp.add_new_readings(time_2, LIA_amp)
-    window.CH_LIA_phi.add_new_readings(time_2, LIA_phi)
+        if firf_LP_mix_X.has_settled:
+            window.CH_LIA_amp.add_new_readings(time_2, LIA_amp)
+            window.CH_LIA_phi.add_new_readings(time_2, LIA_phi)
     
     # Logging to file
     #----------------
