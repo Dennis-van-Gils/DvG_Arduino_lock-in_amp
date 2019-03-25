@@ -2,10 +2,12 @@
 # -*- coding: utf-8 -*-
 """Module to communicate with an Arduino lock-in amp device over a serial
 connection.
-
-Dennis van Gils
-26-02-2019
 """
+__author__      = "Dennis van Gils"
+__authoremail__ = "vangils.dennis@gmail.com"
+__url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
+__date__        = "22-03-2019"
+__version__     = "1.0.0"
 
 import sys
 import struct
@@ -31,6 +33,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         ISR_CLOCK               = 0    # [s]
         Fs                      = 0    # [Hz]
+        F_Nyquist               = 0    # [Hz]
         BUFFER_SIZE             = 0    # [number of samples per variable]
         T_SPAN_BUFFER           = 0    # [s]
         N_BYTES_TRANSMIT_BUFFER = 0    # [data bytes]
@@ -38,13 +41,13 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         ANALOG_WRITE_RESOLUTION = 0    # [bits]
         ANALOG_READ_RESOLUTION  = 0    # [bits]
         A_REF                   = 0    # [V] Analog voltage reference of Arduino
-        ref_V_center            = 0    # [V] Center voltage of cosine reference signal
-        ref_V_p2p               = 0    # [V] Peak-to-peak voltage of cosine reference signal
+        ref_V_offset            = 0    # [V] Voltage offset of cosine reference signal
+        ref_V_ampl              = 0    # [V] Voltage amplitude of cosine reference signal
         ref_freq                = 0    # [Hz] Frequency of cosine reference signal
     
     def __init__(self, 
                  name="Lockin",
-                 baudrate=3e5,
+                 baudrate=1e6,
                  read_timeout=1,
                  write_timeout=1,
                  read_term_char='\n',
@@ -63,21 +66,29 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         self.config = self.Config()
         self.lockin_paused = True
 
-    def begin(self, ref_freq=None):
+    def begin(self, ref_freq=None, ref_V_offset=None, ref_V_ampl=None):
         """
         Returns:
             success
         """
-        [success, foo, bar] = self.turn_off()
-        if success:
-            if self.get_config():
-                if ref_freq != None:
-                    if self.set_ref_freq(ref_freq):
-                        return True
-                else:
-                    return True
+        [success, __foo, __bar] = self.turn_off()
+        if not success:
+            return False
         
-        return False
+        if not self.get_config():
+            return False
+        
+        if ref_freq != None:
+            if not self.set_ref_freq(ref_freq):
+                return False
+        if ref_V_offset != None:
+            if not self.set_ref_V_offset(ref_V_offset):
+                return False
+        if ref_V_ampl != None:
+            if not self.set_ref_V_ampl(ref_V_ampl):
+                return False
+        
+        return True
     
     def safe_query(self, msg_str, timeout_warning_style=1):
         was_paused = self.lockin_paused
@@ -169,11 +180,12 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                 self.config.ANALOG_WRITE_RESOLUTION = int(ans_list[4])
                 self.config.ANALOG_READ_RESOLUTION  = int(ans_list[5] )
                 self.config.A_REF                   = float(ans_list[6])
-                self.config.ref_V_center            = float(ans_list[7])
-                self.config.ref_V_p2p               = float(ans_list[8])
+                self.config.ref_V_offset            = float(ans_list[7])
+                self.config.ref_V_ampl              = float(ans_list[8])
                 self.config.ref_freq                = float(ans_list[9])
                 
                 self.config.Fs = 1.0/self.config.ISR_CLOCK
+                self.config.F_Nyquist = self.config.Fs/2
                 self.config.T_SPAN_BUFFER = (self.config.BUFFER_SIZE *
                                              self.config.ISR_CLOCK)
                 return True
@@ -193,24 +205,24 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             self.config.ref_freq = float(ans_str)        
         return success
     
-    def set_ref_V_center(self, ref_V_center):
+    def set_ref_V_offset(self, ref_V_offset):
         """
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("ref_V_center %f" % ref_V_center)
+        [success, ans_str] = self.safe_query("ref_V_offset %f" % ref_V_offset)
         if success:
-            self.config.ref_V_center = float(ans_str)        
+            self.config.ref_V_offset = float(ans_str)        
         return success
     
-    def set_ref_V_p2p(self, ref_V_p2p):
+    def set_ref_V_ampl(self, ref_V_ampl):
         """
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("ref_V_p2p %f" % ref_V_p2p)
+        [success, ans_str] = self.safe_query("ref_V_ampl %f" % ref_V_ampl)
         if success:
-            self.config.ref_V_p2p = float(ans_str)        
+            self.config.ref_V_ampl = float(ans_str)        
         return success
     
     def read_until_EOM(self, size=None):
@@ -306,8 +318,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             return [False, empty, empty, empty, empty]
 
         phi = 2 * np.pi * ref_X_phase / c.N_LUT
-        ref_X = (c.ref_V_center + c.ref_V_p2p / 2 * np.cos(phi)).clip(0,c.A_REF)
-        ref_Y = (c.ref_V_center + c.ref_V_p2p / 2 * np.sin(phi)).clip(0,c.A_REF)
+        ref_X = (c.ref_V_offset + c.ref_V_ampl * np.cos(phi)).clip(0,c.A_REF)
+        ref_Y = (c.ref_V_offset + c.ref_V_ampl * np.sin(phi)).clip(0,c.A_REF)
         sig_I = sig_I / (2**c.ANALOG_READ_RESOLUTION - 1) * c.A_REF
         sig_I = sig_I * 2  # Compensate for differential mode of Arduino
         
