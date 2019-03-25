@@ -145,17 +145,19 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         self.tabs = QtWid.QTabWidget()
-        self.tab_main           = QtWid.QWidget()
+        self.tab_main  = QtWid.QWidget()
+        self.tab_mixer = QtWid.QWidget()
         self.tab_power_spectrum = QtWid.QWidget()
-        self.tab_filter_1_resp = QtWid.QWidget()
-        self.tab_filter_2_resp = QtWid.QWidget()
+        self.tab_filter_1_response = QtWid.QWidget()
+        self.tab_filter_2_response = QtWid.QWidget()
         self.tab_mcu_board_info = QtWid.QWidget()
         
-        self.tabs.addTab(self.tab_main          , "Main")
-        self.tabs.addTab(self.tab_power_spectrum, "Power spectrum")
-        self.tabs.addTab(self.tab_filter_1_resp , "Filter response: band-stop")
-        self.tabs.addTab(self.tab_filter_2_resp , "Filter response: low-pass")
-        self.tabs.addTab(self.tab_mcu_board_info, "MCU board info")
+        self.tabs.addTab(self.tab_main             , "Main")
+        self.tabs.addTab(self.tab_mixer            , "Mixer")
+        self.tabs.addTab(self.tab_power_spectrum   , "Power spectrum")
+        self.tabs.addTab(self.tab_filter_1_response, "Filter response: band-stop")
+        self.tabs.addTab(self.tab_filter_2_response, "Filter response: low-pass")
+        self.tabs.addTab(self.tab_mcu_board_info   , "MCU board info")
 
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -329,12 +331,76 @@ class MainWindow(QtWid.QWidget):
         hbox_refsig = QtWid.QHBoxLayout()
         hbox_refsig.addWidget(self.gw_refsig, stretch=1)
         hbox_refsig.addLayout(vbox_refsig)
+
+        # -----------------------------------
+        # -----------------------------------
+        #   FRAME: LIA output amplitude and phase
+        # -----------------------------------
+        # -----------------------------------
         
+        # Chart: Amplitude
+        self.gw_LIA_output = pg.GraphicsWindow()
+        self.gw_LIA_output.setBackground([20, 20, 20])
+        self.pi_LIA_amp = self.gw_LIA_output.addPlot()
+        
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_LIA_amp.showGrid(x=1, y=1)
+        self.pi_LIA_amp.setTitle('Lock-in output X: amplitude', **p)
+        self.pi_LIA_amp.setLabel('bottom', text='time (ms)', **p)
+        self.pi_LIA_amp.setLabel('left', text='voltage (V)', **p)
+        self.pi_LIA_amp.setXRange(-lockin.config.BUFFER_SIZE *
+                                  lockin.config.ISR_CLOCK * 1e3,
+                                  0, padding=0.01)
+        self.pi_LIA_amp.setYRange(-1, 1, padding=0.05)
+        self.pi_LIA_amp.setAutoVisible(x=True, y=True)
+        self.pi_LIA_amp.setClipToView(True)
+        
+        self.CH_LIA_amp = ChartHistory(lockin.config.BUFFER_SIZE,
+                                       self.pi_LIA_amp.plot(pen=PEN_03))
+        self.CH_LIA_amp.x_axis_divisor = 1000     # From [us] to [ms]
+        
+        # Chart: phase
+        self.pi_LIA_phi = self.gw_LIA_output.addPlot()
+        
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_LIA_phi.showGrid(x=1, y=1)
+        self.pi_LIA_phi.setTitle('Lock-in output Y: phase', **p)
+        self.pi_LIA_phi.setLabel('bottom', text='time (ms)', **p)
+        self.pi_LIA_phi.setLabel('left', text='phase (deg)', **p)
+        self.pi_LIA_phi.setXRange(-lockin.config.BUFFER_SIZE *
+                                   lockin.config.ISR_CLOCK * 1e3,
+                                   0, padding=0.01)
+        self.pi_LIA_phi.setYRange(-1, 1, padding=0.05)
+        self.pi_LIA_phi.setAutoVisible(x=True, y=True)
+        self.pi_LIA_phi.setClipToView(True)
+        
+        self.CH_LIA_phi = ChartHistory(lockin.config.BUFFER_SIZE,
+                                       self.pi_LIA_phi.plot(pen=PEN_03))
+        self.CH_LIA_phi.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CHs_LIA_output = [self.CH_LIA_amp, self.CH_LIA_phi]
+        
+        # Round up frame
+        hbox_LIA_output = QtWid.QHBoxLayout()
+        hbox_LIA_output.addWidget(self.gw_LIA_output, stretch=1)
+
         # -----------------------------------
         # -----------------------------------
-        #   FRAME: Mixer and filters
+        #   Round up tab page 'Main'
         # -----------------------------------
         # -----------------------------------
+        
+        vbox = QtWid.QVBoxLayout()
+        vbox.addLayout(hbox_refsig, stretch=1)
+        vbox.addLayout(hbox_LIA_output, stretch=1)
+        self.tab_main.setLayout(vbox)
+        
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        #
+        #   TAB PAGE: Mixer
+        #
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
         
         # Chart: Filter
         self.gw_filt_BS = pg.GraphicsWindow()
@@ -412,72 +478,19 @@ class MainWindow(QtWid.QWidget):
         legend.addItem(self.CH_mix_Y.curve, name='mix_Y')
         
         # Round up frame
-        hbox_mixer = QtWid.QHBoxLayout()
-        hbox_mixer.addWidget(self.gw_filt_BS, stretch=1)
-        hbox_mixer.addWidget(self.gw_mixer, stretch=1)
-
+        vbox_mixer = QtWid.QVBoxLayout()
+        vbox_mixer.addWidget(self.gw_filt_BS, stretch=1)
+        vbox_mixer.addWidget(self.gw_mixer, stretch=1)
+        
         # -----------------------------------
         # -----------------------------------
-        #   FRAME: LIA output amplitude and phase
-        # -----------------------------------
-        # -----------------------------------
-        
-        # Chart: Amplitude
-        self.gw_LIA_output = pg.GraphicsWindow()
-        self.gw_LIA_output.setBackground([20, 20, 20])
-        self.pi_LIA_amp = self.gw_LIA_output.addPlot()
-        
-        p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_LIA_amp.showGrid(x=1, y=1)
-        self.pi_LIA_amp.setTitle('Lock-in output X: amplitude', **p)
-        self.pi_LIA_amp.setLabel('bottom', text='time (ms)', **p)
-        self.pi_LIA_amp.setLabel('left', text='voltage (V)', **p)
-        self.pi_LIA_amp.setXRange(-lockin.config.BUFFER_SIZE *
-                                  lockin.config.ISR_CLOCK * 1e3,
-                                  0, padding=0.01)
-        self.pi_LIA_amp.setYRange(-1, 1, padding=0.05)
-        self.pi_LIA_amp.setAutoVisible(x=True, y=True)
-        self.pi_LIA_amp.setClipToView(True)
-        
-        self.CH_LIA_amp = ChartHistory(lockin.config.BUFFER_SIZE,
-                                       self.pi_LIA_amp.plot(pen=PEN_03))
-        self.CH_LIA_amp.x_axis_divisor = 1000     # From [us] to [ms]
-        
-        # Chart: phase
-        self.pi_LIA_phi = self.gw_LIA_output.addPlot()
-        
-        p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_LIA_phi.showGrid(x=1, y=1)
-        self.pi_LIA_phi.setTitle('Lock-in output Y: phase', **p)
-        self.pi_LIA_phi.setLabel('bottom', text='time (ms)', **p)
-        self.pi_LIA_phi.setLabel('left', text='phase (deg)', **p)
-        self.pi_LIA_phi.setXRange(-lockin.config.BUFFER_SIZE *
-                                   lockin.config.ISR_CLOCK * 1e3,
-                                   0, padding=0.01)
-        self.pi_LIA_phi.setYRange(-1, 1, padding=0.05)
-        self.pi_LIA_phi.setAutoVisible(x=True, y=True)
-        self.pi_LIA_phi.setClipToView(True)
-        
-        self.CH_LIA_phi = ChartHistory(lockin.config.BUFFER_SIZE,
-                                       self.pi_LIA_phi.plot(pen=PEN_03))
-        self.CH_LIA_phi.x_axis_divisor = 1000     # From [us] to [ms]
-        self.CHs_LIA_output = [self.CH_LIA_amp, self.CH_LIA_phi]
-        
-        # Round up frame
-        hbox_LIA_output = QtWid.QHBoxLayout()
-        hbox_LIA_output.addWidget(self.gw_LIA_output, stretch=1)
-
-        # -----------------------------------
-        # -----------------------------------
-        #   Round up tab page 'Main'
+        #   Round up tab page 'Mixer'
         # -----------------------------------
         # -----------------------------------
         
-        vbox = QtWid.QVBoxLayout()
-        vbox.addLayout(hbox_refsig, stretch=1)
-        vbox.addLayout(hbox_mixer, stretch=1)
-        vbox.addLayout(hbox_LIA_output, stretch=1)
-        self.tab_main.setLayout(vbox)
+        #vbox = QtWid.QVBoxLayout()
+        #vbox.addLayout(hbox_mixer, stretch=1)
+        self.tab_mixer.setLayout(vbox_mixer)
         
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -514,7 +527,7 @@ class MainWindow(QtWid.QWidget):
         
         hbox = QtWid.QHBoxLayout()
         hbox.addWidget(self.gw_filt_resp_BS, stretch=1)
-        self.tab_filter_1_resp.setLayout(hbox)
+        self.tab_filter_1_response.setLayout(hbox)
         
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -551,7 +564,7 @@ class MainWindow(QtWid.QWidget):
         
         hbox = QtWid.QHBoxLayout()
         hbox.addWidget(self.gw_filt_resp_LP, stretch=1)
-        self.tab_filter_2_resp.setLayout(hbox)
+        self.tab_filter_2_response.setLayout(hbox)
         
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
