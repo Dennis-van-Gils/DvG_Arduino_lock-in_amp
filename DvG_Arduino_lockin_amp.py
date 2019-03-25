@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "22-03-2019"
+__date__        = "25-03-2019"
 __version__     = "1.0.0"
 
 import os
@@ -26,8 +26,6 @@ from DvG_debug_functions import dprint#, print_fancy_traceback as pft
 import DvG_Arduino_lockin_amp__GUI            as lockin_GUI
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
-
-from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
@@ -57,27 +55,6 @@ def update_GUI():
         window.update_chart_filt_BS()
         window.update_chart_mixer()
         window.update_chart_LIA_output()
-        
-@QtCore.pyqtSlot()
-def process_qlin_set_ref_freq():
-    try:
-        ref_freq = float(window.qlin_set_ref_freq.text())
-    except ValueError:
-        ref_freq = lockin.config.ref_freq
-    
-    # Clip between 0 and the Nyquist frequency of the lock-in sampling rate
-    ref_freq = np.clip(ref_freq, 0, 1/lockin.config.ISR_CLOCK/2)
-    
-    window.qlin_set_ref_freq.setText("%.2f" % ref_freq)
-    if ref_freq != lockin.config.ref_freq:
-        lockin_pyqt.set_ref_freq(ref_freq)
-        
-        firwin_cutoff = [0, 2*ref_freq - 1]
-        firf_LP_mix_X.update_firwin_cutoff(firwin_cutoff)
-        firf_LP_mix_Y.update_firwin_cutoff(firwin_cutoff)
-        window.update_plot_filt_resp_LP(firf_LP_mix_X)
-        
-        QtWid.QApplication.processEvents()
     
 # ------------------------------------------------------------------------------
 #   Program termination routines
@@ -190,23 +167,23 @@ def lockin_DAQ_update():
     # -------
     
     # Apply band-stop filter to sig_I
-    sig_I_filt = firf_BS_sig_I.process(state.deque_sig_I)
+    sig_I_filt = lockin_pyqt.firf_BS_sig_I.process(state.deque_sig_I)
     
-    if firf_BS_sig_I.has_settled:
+    if lockin_pyqt.firf_BS_sig_I.has_settled:
         # Retrieve the block of original data from the past that alligns with
         # the current filter output
         time_1    = (np.array(state.deque_time, dtype=np.int64)
-                     [firf_BS_sig_I.win_idx_valid_start:
-                      firf_BS_sig_I.win_idx_valid_end])
+                     [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
+                      lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
         old_sig_I = (np.array(state.deque_sig_I, dtype=np.float64)
-                     [firf_BS_sig_I.win_idx_valid_start:
-                      firf_BS_sig_I.win_idx_valid_end])
+                     [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
+                      lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
         old_ref_X = (np.array(state.deque_ref_X, dtype=np.float64)
-                     [firf_BS_sig_I.win_idx_valid_start:
-                      firf_BS_sig_I.win_idx_valid_end])
+                     [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
+                      lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
         old_ref_Y = (np.array(state.deque_ref_Y, dtype=np.float64)
-                     [firf_BS_sig_I.win_idx_valid_start:
-                      firf_BS_sig_I.win_idx_valid_end])
+                     [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
+                      lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
         
         #if not len(time_filt) == 0:
         #    print("%i %i: %i" % (time[-1], time_filt[-1], time[-1] - time_filt[-1]))
@@ -224,10 +201,10 @@ def lockin_DAQ_update():
         # -------
         
         # Apply low-pass filter to the mixer output
-        out_X = firf_LP_mix_X.process(state.deque_mix_X)
-        out_Y = firf_LP_mix_Y.process(state.deque_mix_Y)
+        out_X = lockin_pyqt.firf_LP_mix_X.process(state.deque_mix_X)
+        out_Y = lockin_pyqt.firf_LP_mix_Y.process(state.deque_mix_Y)
             
-        if firf_LP_mix_X.has_settled:
+        if lockin_pyqt.firf_LP_mix_X.has_settled:
             # Signal amplitude and phase reconstruction
             LIA_amp = np.sqrt(out_X**2 + out_Y**2)
             """NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
@@ -243,8 +220,8 @@ def lockin_DAQ_update():
             # Retrieve the block of original data from the past that alligns with the
             # current filter output
             time_2 = (np.array(state.deque_time_1, dtype=np.int64)
-                      [firf_LP_mix_X.win_idx_valid_start:
-                       firf_LP_mix_X.win_idx_valid_end])
+                      [lockin_pyqt.firf_LP_mix_X.win_idx_valid_start:
+                       lockin_pyqt.firf_LP_mix_X.win_idx_valid_end])
             
             state.deque_time_2.extend(time_2)
             state.deque_LIA_amp.extend(LIA_amp)
@@ -257,14 +234,14 @@ def lockin_DAQ_update():
     window.CH_ref_Y.add_new_readings(time, ref_Y)
     window.CH_sig_I.add_new_readings(time, sig_I)
         
-    if firf_BS_sig_I.has_settled:
+    if lockin_pyqt.firf_BS_sig_I.has_settled:
         window.CH_filt_BS_in.add_new_readings(time_1, old_sig_I)
         window.CH_filt_BS_out.add_new_readings(time_1, sig_I_filt)
     
         window.CH_mix_X.add_new_readings(time_1, mix_X)
         window.CH_mix_Y.add_new_readings(time_1, mix_Y)
     
-        if firf_LP_mix_X.has_settled:
+        if lockin_pyqt.firf_LP_mix_X.has_settled:
             window.CH_LIA_amp.add_new_readings(time_2, LIA_amp)
             window.CH_LIA_phi.add_new_readings(time_2, LIA_phi)
     
@@ -330,36 +307,6 @@ if __name__ == '__main__':
     lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
     lockin_pyqt.signal_connection_lost.connect(notify_connection_lost)
     
-    # --------------------------------------------------------------------------
-    #   Set up state and filters
-    # --------------------------------------------------------------------------
-    
-    # Band-stop on sig_I
-    firwin_cutoff = [0.5, 49.5, 50.5, 99.5, 100.5, lockin.config.F_Nyquist]
-    firwin_window = ("chebwin", 50)
-    firf_BS_sig_I = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
-                                        lockin_pyqt.state.N_buffers_in_deque,
-                                        lockin.config.Fs,
-                                        firwin_cutoff,
-                                        firwin_window,
-                                        display_name="BS_sig_I")
-
-    # Low-pass on mix_X and mix_Y
-    firwin_cutoff = [0, 2*lockin.config.ref_freq - 1]
-    firwin_window = "blackman"
-    firf_LP_mix_X = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
-                                        lockin_pyqt.state.N_buffers_in_deque,
-                                        lockin.config.Fs,
-                                        firwin_cutoff,
-                                        firwin_window,
-                                        display_name="LP_mix_X")
-    firf_LP_mix_Y = Buffered_FIR_Filter(lockin_pyqt.state.buffer_size,
-                                        lockin_pyqt.state.N_buffers_in_deque,
-                                        lockin.config.Fs,
-                                        firwin_cutoff,
-                                        firwin_window,
-                                        display_name="LP_mix_Y")
-
     # Manage logging to disk
     file_logger = FileLogger()
 
@@ -376,15 +323,11 @@ if __name__ == '__main__':
                                    lockin_pyqt=lockin_pyqt,
                                    file_logger=file_logger)
 
-    window.qlin_set_ref_freq.editingFinished.connect(process_qlin_set_ref_freq)
-
     window.pi_refsig.setYRange(2.35, 3.25)
     window.pi_filt_BS.setYRange(-.7, 3.5)
     window.pi_mixer.setYRange(-0.12, 0.2)
     window.pi_LIA_amp.setYRange(0.068, 0.092)
     window.pi_LIA_phi.setYRange(-92, 92)
-    window.update_plot_filt_resp_BS(firf_BS_sig_I)
-    window.update_plot_filt_resp_LP(firf_LP_mix_X)
 
     # --------------------------------------------------------------------------
     #   Start threads

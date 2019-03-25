@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "14-03-2019"
+__date__        = "25-03-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -25,7 +25,6 @@ import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
 
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
-CHART_HISTORY_TIME = 10          # 10  [s]
 
 # Monkey patch error in pyqtgraph
 import DvG_fix_pyqtgraph_PlotCurveItem
@@ -240,6 +239,8 @@ class MainWindow(QtWid.QWidget):
         self.qlin_read_ref_V_ampl = (
                 QtWid.QLineEdit("%.2f" % lockin.config.ref_V_ampl, **p2))
 
+        self.qlin_set_ref_freq.editingFinished.connect(
+                self.process_qlin_set_ref_freq)
         self.qlin_set_ref_V_offset.editingFinished.connect(
                 self.process_qlin_set_ref_V_offset)
         self.qlin_set_ref_V_ampl.editingFinished.connect(
@@ -503,6 +504,7 @@ class MainWindow(QtWid.QWidget):
         
         self.curve_filt_resp_BS = pg.PlotCurveItem(pen=PEN_03, brush=BRUSH_03)
         self.pi_filt_resp_BS.addItem(self.curve_filt_resp_BS)
+        self.update_plot_filt_resp_BS()
         
         # -----------------------------------
         # -----------------------------------
@@ -539,6 +541,7 @@ class MainWindow(QtWid.QWidget):
         
         self.curve_filt_resp_LP = pg.PlotCurveItem(pen=PEN_03, brush=BRUSH_03)
         self.pi_filt_resp_LP.addItem(self.curve_filt_resp_LP)
+        self.update_plot_filt_resp_LP()
         
         # -----------------------------------
         # -----------------------------------
@@ -623,7 +626,23 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot(str)
     def set_text_qpbt_record(self, text_str):
         self.qpbt_record.setText(text_str)
-            
+    
+    @QtCore.pyqtSlot()
+    def process_qlin_set_ref_freq(self):
+        try:
+            ref_freq = float(self.qlin_set_ref_freq.text())
+        except ValueError:
+            ref_freq = self.lockin.config.ref_freq
+        
+        # Clip between 0 and the Nyquist frequency of the lock-in sampling rate
+        ref_freq = np.clip(ref_freq, 0, 1/self.lockin.config.ISR_CLOCK/2)
+        
+        self.qlin_set_ref_freq.setText("%.2f" % ref_freq)
+        if ref_freq != self.lockin.config.ref_freq:
+            self.lockin_pyqt.set_ref_freq(ref_freq)
+            self.update_plot_filt_resp_LP()
+            QtWid.QApplication.processEvents()
+    
     @QtCore.pyqtSlot()
     def process_qlin_set_ref_V_offset(self):
         try:
@@ -701,7 +720,7 @@ class MainWindow(QtWid.QWidget):
     
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
-    #   Update chart routines
+    #   Update chart/plot routines
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
     
@@ -735,7 +754,8 @@ class MainWindow(QtWid.QWidget):
         
         return ('%s, %s, %s' % (__tmp1, __tmp2, __tmp3))
     
-    def update_plot_filt_resp_BS(self, firf):
+    def update_plot_filt_resp_BS(self):
+        firf = self.lockin_pyqt.firf_BS_sig_I
         self.curve_filt_resp_BS.setFillLevel(np.min(firf.resp_ampl_dB))
         self.curve_filt_resp_BS.setData(firf.resp_freq_Hz,
                                         firf.resp_ampl_dB)
@@ -745,7 +765,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_resp_BS.setTitle('Filter response: band-stop<br/>%s' %
                                       self.construct_title_plot_filt_resp(firf))
         
-    def update_plot_filt_resp_LP(self, firf):
+    def update_plot_filt_resp_LP(self):
+        firf = self.lockin_pyqt.firf_LP_mix_X
         self.curve_filt_resp_LP.setFillLevel(np.min(firf.resp_ampl_dB))
         self.curve_filt_resp_LP.setData(firf.resp_freq_Hz,
                                         firf.resp_ampl_dB)
