@@ -1,0 +1,4 @@
+https://github.com/baoboa/pyqt5/tree/master/examples/opengl
+
+self.gl = self.context().versionFunctions()
+self.gl.initializeOpenGLFunctions()
