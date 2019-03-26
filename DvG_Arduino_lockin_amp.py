@@ -18,7 +18,6 @@ from PyQt5 import QtCore
 from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import numpy as np
-import time as Time
 
 from DvG_pyqt_FileLogger import FileLogger
 from DvG_debug_functions import dprint#, print_fancy_traceback as pft
@@ -287,8 +286,8 @@ if __name__ == '__main__':
                             DAQ_critical_not_alive_count=np.nan,
                             calc_DAQ_rate_every_N_iter=10,
                             N_buffers_in_deque=41,
-                            DEBUG_worker_DAQ=True,
-                            DEBUG_worker_send=True)
+                            DEBUG_worker_DAQ=False,
+                            DEBUG_worker_send=False)
     lockin_pyqt.signal_connection_lost.connect(notify_connection_lost)
     
     # Manage logging to disk
