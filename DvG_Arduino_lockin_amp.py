@@ -38,24 +38,7 @@ def current_date_time_strings():
     cur_date_time = QDateTime.currentDateTime()
     return (cur_date_time.toString("dd-MM-yyyy"),
             cur_date_time.toString("HH:mm:ss"))
-
-@QtCore.pyqtSlot()
-def update_GUI():
-    window.qlbl_update_counter.setText("%i" % lockin_pyqt.DAQ_update_counter)
-    
-    if not lockin.lockin_paused:
-        window.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
-                                     lockin_pyqt.obtained_DAQ_rate_Hz)
-        window.qlin_time.setText("%i"    % lockin_pyqt.state.time[0])
-        window.qlin_ref_X.setText("%.4f" % lockin_pyqt.state.ref_X[0])
-        window.qlin_ref_Y.setText("%.4f" % lockin_pyqt.state.ref_Y[0])
-        window.qlin_sig_I.setText("%.4f" % lockin_pyqt.state.sig_I[0])
         
-        window.update_chart_refsig()
-        window.update_chart_filt_BS()
-        window.update_chart_mixer()
-        window.update_chart_LIA_output()
-    
 # ------------------------------------------------------------------------------
 #   Program termination routines
 # ------------------------------------------------------------------------------
@@ -244,6 +227,8 @@ def lockin_DAQ_update():
         if lockin_pyqt.firf_LP_mix_X.has_settled:
             window.CH_LIA_amp.add_new_readings(time_2, LIA_amp)
             window.CH_LIA_phi.add_new_readings(time_2, LIA_phi)
+            #window.CH_LIA_amp.add_new_readings(time_2, out_X)
+            #window.CH_LIA_phi.add_new_readings(time_2, out_Y)
     
     # Logging to file
     #----------------
@@ -302,9 +287,8 @@ if __name__ == '__main__':
                             DAQ_critical_not_alive_count=np.nan,
                             calc_DAQ_rate_every_N_iter=10,
                             N_buffers_in_deque=41,
-                            DEBUG_worker_DAQ=False,
-                            DEBUG_worker_send=False)
-    lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
+                            DEBUG_worker_DAQ=True,
+                            DEBUG_worker_send=True)
     lockin_pyqt.signal_connection_lost.connect(notify_connection_lost)
     
     # Manage logging to disk

@@ -19,6 +19,7 @@ from DvG_pyqt_controls     import (create_Toggle_button,
                                    SS_GROUP,
                                    SS_TEXTBOX_READ_ONLY)
 from DvG_pyqt_FileLogger   import FileLogger
+from DvG_debug_functions   import dprint
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
@@ -593,6 +594,9 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
         
+        self.lockin_pyqt.signal_DAQ_updated.connect(self.update_GUI)
+        self.lockin_pyqt.signal_DAQ_suspended.connect(self.process_DAQ_suspended)
+        
         self.lockin_pyqt.signal_ref_freq_is_set.connect(
                 self.update_qlin_read_ref_freq)
         self.lockin_pyqt.signal_ref_V_offset_is_set.connect(
@@ -603,11 +607,13 @@ class MainWindow(QtWid.QWidget):
         self.file_logger.signal_set_recording_text.connect(
                 self.set_text_qpbt_record)
 
+
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
     #   Handle controls
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
+
 
     @QtCore.pyqtSlot()
     def update_wall_clock(self):
@@ -615,6 +621,30 @@ class MainWindow(QtWid.QWidget):
         self.qlbl_cur_date_time.setText("%s    %s" %
                                         (cur_date_time.toString("dd-MM-yyyy"),
                                          cur_date_time.toString("HH:mm:ss")))
+    
+    @QtCore.pyqtSlot()
+    def update_GUI(self):
+        dprint("Update GUI")
+        LIA_pyqt = self.lockin_pyqt
+        self.qlbl_update_counter.setText("%i" % LIA_pyqt.DAQ_update_counter)
+        
+        if not LIA_pyqt.worker_DAQ.suspended:
+            self.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
+                                       LIA_pyqt.obtained_DAQ_rate_Hz)
+            self.qlin_time.setText("%i"    % LIA_pyqt.state.time[0])
+            self.qlin_ref_X.setText("%.4f" % LIA_pyqt.state.ref_X[0])
+            self.qlin_ref_Y.setText("%.4f" % LIA_pyqt.state.ref_Y[0])
+            self.qlin_sig_I.setText("%.4f" % LIA_pyqt.state.sig_I[0])
+            
+            self.update_chart_refsig()
+            self.update_chart_filt_BS()
+            self.update_chart_mixer()
+            self.update_chart_LIA_output()
+            
+    @QtCore.pyqtSlot()
+    def process_DAQ_suspended(self):
+        dprint("process DAQ suspended")
+        self.qlbl_DAQ_rate.setText("Buffers/s: paused")
 
     @QtCore.pyqtSlot()
     def process_qpbt_ENA_lockin(self):
@@ -623,7 +653,6 @@ class MainWindow(QtWid.QWidget):
             self.qpbt_ENA_lockin.setText("lock-in ON")
         else:
             self.lockin_pyqt.turn_off()
-            self.qlbl_DAQ_rate.setText("Buffers/s: paused")
             self.qpbt_ENA_lockin.setText("lock-in OFF")
         
     @QtCore.pyqtSlot()
