@@ -41,8 +41,8 @@ MAIN CONTENTS:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "15-02-2019"
-__version__     = "1.2.2"
+__date__        = "26-03-2019"
+__version__     = "1.2.3"
 
 from enum import IntEnum, unique
 import queue
@@ -167,6 +167,7 @@ class Dev_Base_pyqt(QtCore.QObject):
             'worker_DAQ.critical_not_alive_count'.
     """
     signal_DAQ_updated     = QtCore.pyqtSignal()
+    signal_DAQ_suspended   = QtCore.pyqtSignal()
     signal_connection_lost = QtCore.pyqtSignal()
 
     def __init__(self, parent):
@@ -486,9 +487,11 @@ class Dev_Base_pyqt(QtCore.QObject):
             elif self.trigger_by == DAQ_trigger.CONTINUOUS:
                 while self.running:
                     if self.suspend:
-                        if (self.DEBUG & (self.suspend != self.suspended)):
-                            dprint("Worker_DAQ  %s: suspended" % 
-                                   self.dev.name, self.DEBUG_color)
+                        if (self.suspend != self.suspended):
+                            if self.DEBUG:
+                                dprint("Worker_DAQ  %s: suspended" % 
+                                       self.dev.name, self.DEBUG_color)
+                            self.outer.signal_DAQ_suspended.emit()
                         
                         self.suspended = True
                         Time.sleep(0.01)  # Do not hog the CPU while suspended
