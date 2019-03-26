@@ -160,7 +160,7 @@ class Window(QWidget):
 
 
 if __name__ == '__main__':
-
+    app = 0
     app = QApplication(sys.argv)
 
     fmt = QSurfaceFormat()

@@ -205,6 +205,7 @@ if __name__ == '__main__':
 
     import sys
 
+    app = 0
     app = QGuiApplication(sys.argv)
 
     format = QSurfaceFormat()
