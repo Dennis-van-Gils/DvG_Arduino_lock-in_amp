@@ -280,9 +280,6 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         
                 if func == "set_ref_freq":
                     self.dev.set_ref_freq(set_value)
-                    firwin_cutoff = [0, 2*set_value - 1]
-                    self.firf_LP_mix_X.update_firwin_cutoff(firwin_cutoff)
-                    self.firf_LP_mix_Y.update_firwin_cutoff(firwin_cutoff)
                     self.signal_ref_freq_is_set.emit()
                 elif func == "set_ref_V_offset":
                     self.dev.set_ref_V_offset(set_value)

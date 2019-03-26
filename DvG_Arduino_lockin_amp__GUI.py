@@ -594,15 +594,20 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
         
-        self.lockin_pyqt.signal_DAQ_updated.connect(self.update_GUI)
-        self.lockin_pyqt.signal_DAQ_suspended.connect(self.process_DAQ_suspended)
+        self.lockin_pyqt.signal_DAQ_updated.connect(
+                self.update_GUI)
+        
+        self.lockin_pyqt.signal_DAQ_suspended.connect(
+                self.update_GUI_paused)
         
         self.lockin_pyqt.signal_ref_freq_is_set.connect(
-                self.update_qlin_read_ref_freq)
+                self.update_newly_set_ref_freq)
+        
         self.lockin_pyqt.signal_ref_V_offset_is_set.connect(
-                self.update_qlin_read_ref_V_offset)
+                self.update_newly_set_ref_V_offset)
+        
         self.lockin_pyqt.signal_ref_V_ampl_is_set.connect(
-                self.update_qlin_read_ref_V_ampl)
+                self.update_newly_set_ref_V_ampl)
     
         self.file_logger.signal_set_recording_text.connect(
                 self.set_text_qpbt_record)
@@ -624,7 +629,7 @@ class MainWindow(QtWid.QWidget):
     
     @QtCore.pyqtSlot()
     def update_GUI(self):
-        dprint("Update GUI")
+        #dprint("Update GUI")
         LIA_pyqt = self.lockin_pyqt
         self.qlbl_update_counter.setText("%i" % LIA_pyqt.DAQ_update_counter)
         
@@ -642,8 +647,8 @@ class MainWindow(QtWid.QWidget):
             self.update_chart_LIA_output()
             
     @QtCore.pyqtSlot()
-    def process_DAQ_suspended(self):
-        dprint("process DAQ suspended")
+    def update_GUI_paused(self):
+        #dprint("Update GUI paused")
         self.qlbl_DAQ_rate.setText("Buffers/s: paused")
 
     @QtCore.pyqtSlot()
@@ -675,14 +680,25 @@ class MainWindow(QtWid.QWidget):
         except ValueError:
             ref_freq = self.lockin.config.ref_freq
         
-        # Clip between 0 and the Nyquist frequency of the lock-in sampling rate
-        ref_freq = np.clip(ref_freq, 0, 1/self.lockin.config.ISR_CLOCK/2)
+        # Clip between 0 and half the Nyquist frequency
+        ref_freq = np.clip(ref_freq, 0, self.lockin.config.F_Nyquist/2)
         
         self.qlin_set_ref_freq.setText("%.2f" % ref_freq)
         if ref_freq != self.lockin.config.ref_freq:
             self.lockin_pyqt.set_ref_freq(ref_freq)
-            self.update_plot_filt_resp_LP()
-            QtWid.QApplication.processEvents()
+            
+    @QtCore.pyqtSlot()
+    def update_newly_set_ref_freq(self):
+        self.qlin_read_ref_freq.setText("%.2f" % self.lockin.config.ref_freq)
+
+        f_cutoff = 2*self.lockin.config.ref_freq - 1
+        if f_cutoff > self.lockin.config.F_Nyquist - 1:
+            print("WARNING: Low-pass filter cannot reach desired cut-off freq.")
+            f_cutoff = self.lockin.config.F_Nyquist - 1
+        
+        self.lockin_pyqt.firf_LP_mix_X.update_firwin_cutoff([0, f_cutoff])
+        self.lockin_pyqt.firf_LP_mix_Y.update_firwin_cutoff([0, f_cutoff])
+        self.update_plot_filt_resp_LP()
     
     @QtCore.pyqtSlot()
     def process_qlin_set_ref_V_offset(self):
@@ -700,6 +716,11 @@ class MainWindow(QtWid.QWidget):
             QtWid.QApplication.processEvents()
             
     @QtCore.pyqtSlot()
+    def update_newly_set_ref_V_offset(self):
+        self.qlin_read_ref_V_offset.setText("%.2f" %
+                                            self.lockin.config.ref_V_offset)
+            
+    @QtCore.pyqtSlot()
     def process_qlin_set_ref_V_ampl(self):
         try:
             ref_V_ampl = float(self.qlin_set_ref_V_ampl.text())
@@ -715,17 +736,7 @@ class MainWindow(QtWid.QWidget):
             QtWid.QApplication.processEvents()
         
     @QtCore.pyqtSlot()
-    def update_qlin_read_ref_freq(self):
-        self.qlin_read_ref_freq.setText("%.2f" %
-                                        self.lockin.config.ref_freq)
-        
-    @QtCore.pyqtSlot()
-    def update_qlin_read_ref_V_offset(self):
-        self.qlin_read_ref_V_offset.setText("%.2f" %
-                                            self.lockin.config.ref_V_offset)
-        
-    @QtCore.pyqtSlot()
-    def update_qlin_read_ref_V_ampl(self):
+    def update_newly_set_ref_V_ampl(self):
         self.qlin_read_ref_V_ampl.setText("%.2f" %
                                           self.lockin.config.ref_V_ampl)
 

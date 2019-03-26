@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "06-03-2019"
+__date__        = "26-03-2019"
 __version__     = "1.0.0"
 
 from collections import deque
@@ -23,7 +23,7 @@ class Buffered_FIR_Filter():
         self.display_name = display_name              # [str]
         
         # Check firwin_cutoff for illegal values and cap when necessary
-        self._set_firwin_cutoff(firwin_cutoff)        # list of [Hz]
+        self._constrain_firwin_cutoff(firwin_cutoff)  # list of [Hz]
        
         # Deque size
         self.N_deque = self.buffer_size * self.N_buffers_in_deque # [samples]
@@ -43,6 +43,12 @@ class Buffered_FIR_Filter():
         self.T_settling = self.win_idx_valid_start / self.Fs # [s]
         self.was_settled = False
         self.has_settled = False
+        
+        # TODO: add boolean 'self.starting_up' to distinguish deque buffers
+        # starting from scratch, in contrast to 'was/has_settled' that is used
+        # to signal a mathematically valid settling time has been reached.
+        # This way, you could continue graphing the settling response of the
+        # filter whenever the reference signal is adjusted on the fly.
     
         # Create filter
         self.b = firwin(self.N_taps,
@@ -52,7 +58,7 @@ class Buffered_FIR_Filter():
                         pass_zero=False)
         self.calc_freqz_response()
 
-    def _set_firwin_cutoff(self, firwin_cutoff):
+    def _constrain_firwin_cutoff(self, firwin_cutoff):
         # Check firwin_cutoff for illegal values and cap when necessary
         cutoff_grain = 1e-6
         firwin_cutoff = np.array(firwin_cutoff, dtype=np.float64)
@@ -61,7 +67,7 @@ class Buffered_FIR_Filter():
         self.firwin_cutoff = firwin_cutoff
 
     def update_firwin_cutoff(self, firwin_cutoff):
-        self._set_firwin_cutoff(firwin_cutoff)
+        self._constrain_firwin_cutoff(firwin_cutoff)
         self.b = firwin(self.N_taps,
                         self.firwin_cutoff,
                         window=self.firwin_window,
@@ -121,13 +127,12 @@ class Buffered_FIR_Filter():
         dAdF_2_threshold = 1e-4
         dAdF_2 = np.abs(np.diff(__ampl_dB, 2))
         idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0]
-        
-        # TODO: rethink this bug catch
+
+        # Store region of interest
         if len(idx_keep) <= 1:
             self.resp_freq_Hz__ROI_start = 0
-            self.resp_freq_Hz__ROI_end   = len(self.full_resp_ampl_dB) - 1
+            self.resp_freq_Hz__ROI_end   = self.Fs / 2
         else:        
-            # Store region of interest
             self.resp_freq_Hz__ROI_start = self.full_resp_freq_Hz[idx_keep[0]]
             self.resp_freq_Hz__ROI_end   = self.full_resp_freq_Hz[idx_keep[-1]]
         
@@ -140,14 +145,14 @@ class Buffered_FIR_Filter():
         dAdF_2 = np.abs(np.diff(__ampl_dB, 2))
         idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0]
         
-        # TODO: rethink this bug catch
-        if len(idx_keep) == 0:
+        if len(idx_keep) <= 1:
             idx_keep = np.array([0, len(self.full_resp_ampl_dB) - 1])
-        
-        # Add back zero and Nyquist frequencies
+            
+        # Add back zero (first 2 points) and Nyquist frequency (last point)
         if not(idx_keep[0] == 0): idx_keep = np.insert(idx_keep, 0, 0)
         if not(idx_keep[1] == 1): idx_keep = np.insert(idx_keep, 1, 1)
-        idx_keep = np.append(idx_keep, len(self.full_resp_ampl_dB) - 1)
+        if not(idx_keep[-1] == (len(self.full_resp_ampl_dB) - 1)):
+            idx_keep = np.append(idx_keep, len(self.full_resp_ampl_dB) - 1)
         
         # Store compressed curves
         self.resp_freq_Hz   = self.full_resp_freq_Hz[idx_keep]
