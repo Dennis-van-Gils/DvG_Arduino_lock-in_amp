@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "25-03-2019"
+__date__        = "26-03-2019"
 __version__     = "1.3.1"
 
 import numpy as np
@@ -235,8 +235,8 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         while not self.worker_DAQ.suspended:
             QtWid.QApplication.processEvents()
             if Time.time() - tick > TIMEOUT:
-                print("Waiting for worker_DAQ to reach suspended state timed "
-                      "out. Brute forcing turn off.")
+                print("Wait for worker_DAQ to reach suspended state timed out. "
+                      "Brute forcing turn off.")
                 break
         
         locker = QtCore.QMutexLocker(self.dev.mutex)
