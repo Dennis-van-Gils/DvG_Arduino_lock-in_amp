@@ -121,6 +121,10 @@ class Buffered_FIR_Filter():
         dAdF_2_threshold = 1e-4
         dAdF_2 = np.abs(np.diff(__ampl_dB, 2))
         idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0]
+        
+        # TODO: rethink this bug catch
+        if len(idx_keep) == 0:
+            idx_keep = np.array([0, len(dAdF_2)])
                 
         # Store region of interest
         self.resp_freq_Hz__ROI_start = self.full_resp_freq_Hz[idx_keep[0]]
@@ -134,6 +138,10 @@ class Buffered_FIR_Filter():
         dAdF_2_threshold = 1e-6
         dAdF_2 = np.abs(np.diff(__ampl_dB, 2))
         idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0]
+        
+        # TODO: rethink this bug catch
+        if len(idx_keep) == 0:
+            idx_keep = np.array([0, len(dAdF_2)])
         
         # Add back zero and Nyquist frequencies
         if not(idx_keep[0] == 0): idx_keep = np.insert(idx_keep, 0, 0)
