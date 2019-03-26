@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "25-03-2019"
+__date__        = "26-03-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -26,26 +26,25 @@ import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 
-# Monkey patch error in pyqtgraph
-import DvG_fix_pyqtgraph_PlotCurveItem
-pg.PlotCurveItem.paintGL = DvG_fix_pyqtgraph_PlotCurveItem.paintGL
-
-# DvG 21-01-2019: THE TRICK!!! GUI no longer slows down to a crawl when
-# plotting massive data in curves
 try:
     import OpenGL.GL as gl
-    gl.glEnable(gl.GL_STENCIL_TEST)
     pg.setConfigOptions(useOpenGL=True)
-    pg.setConfigOptions(enableExperimental=True)
-    print("Enabled OpenGL hardware acceleration for graphing.")
+    pg.setConfigOptions(enableExperimental=False)
+    pg.setConfigOptions(antialias=False)
+    
+    # Monkey patch error in pyqtgraph
+    import DvG_fix_pyqtgraph_PlotCurveItem
+    pg.PlotCurveItem.paintGL = DvG_fix_pyqtgraph_PlotCurveItem.paintGL
+    
+    print("OpenGL hardware acceleration enabled.")
+    USING_OPENGL = True
 except:
-    #raise
-    print("WARNING: Could not initiate OpenGL.")
-    """
-    print("Graphing will not be hardware accelerated.")
+    pg.setConfigOptions(useOpenGL=False)
+    pg.setConfigOptions(enableExperimental=False)
+    pg.setConfigOptions(antialias=False)
+    print("WARNING: Could not enable OpenGL hardware acceleration.")
     print("Check if prerequisite 'PyOpenGL' library is installed.")
-    print("Also, the videocard might not support stencil buffers.\n")
-    """
+    USING_OPENGL = False
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -345,7 +344,7 @@ class MainWindow(QtWid.QWidget):
         
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_LIA_amp.showGrid(x=1, y=1)
-        self.pi_LIA_amp.setTitle('Lock-in output X: amplitude', **p)
+        self.pi_LIA_amp.setTitle('Amplitude R', **p)
         self.pi_LIA_amp.setLabel('bottom', text='time (ms)', **p)
         self.pi_LIA_amp.setLabel('left', text='voltage (V)', **p)
         self.pi_LIA_amp.setXRange(-lockin.config.BUFFER_SIZE *
@@ -364,7 +363,7 @@ class MainWindow(QtWid.QWidget):
         
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_LIA_phi.showGrid(x=1, y=1)
-        self.pi_LIA_phi.setTitle('Lock-in output Y: phase', **p)
+        self.pi_LIA_phi.setTitle('Phase %s' % chr(0x398), **p)
         self.pi_LIA_phi.setLabel('bottom', text='time (ms)', **p)
         self.pi_LIA_phi.setLabel('left', text='phase (deg)', **p)
         self.pi_LIA_phi.setXRange(-lockin.config.BUFFER_SIZE *
