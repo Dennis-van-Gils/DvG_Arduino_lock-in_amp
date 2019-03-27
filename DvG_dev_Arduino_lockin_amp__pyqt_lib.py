@@ -122,6 +122,20 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 self.deque_out_Y      = deque(maxlen=self.N_deque)
                 self.deque_out_R      = deque(maxlen=self.N_deque)
                 self.deque_out_T      = deque(maxlen=self.N_deque)
+                
+                self.deques = [self.deque_time,
+                               self.deque_ref_X,
+                               self.deque_ref_Y,
+                               self.deque_sig_I,
+                               self.deque_time_1,
+                               self.deque_sig_I_filt,
+                               self.deque_mix_X,
+                               self.deque_mix_Y,
+                               self.deque_time_2,
+                               self.deque_out_X,
+                               self.deque_out_Y,
+                               self.deque_out_R,
+                               self.deque_out_T]
             
             # Mutex for proper multithreading. If the state variables are not
             # atomic or thread-safe, you should lock and unlock this mutex for
@@ -129,25 +143,13 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             self.mutex = QtCore.QMutex()
         
         def reset(self):
-            """Will automatically be called when the lock-in is turned on every
-            time.
+            """Clears the received buffer counter and clears all deques.
             """
             self.buffers_received = 0
             if self.N_buffers_in_deque > 0:
-                self.deque_time.clear()
-                self.deque_ref_X.clear()
-                self.deque_ref_Y.clear()
-                self.deque_sig_I.clear()
-                self.deque_time_1.clear()
-                self.deque_sig_I_filt.clear()
-                self.deque_mix_X.clear()
-                self.deque_mix_Y.clear()
-                self.deque_time_2.clear()
-                self.deque_out_X.clear()
-                self.deque_out_Y.clear()
-                self.deque_out_R.clear()
-                self.deque_out_T.clear()
-    
+                for this_deque in self.deques:
+                    this_deque.clear()
+                
     def __init__(self,
                  dev: lockin_functions.Arduino_lockin_amp,
                  DAQ_update_interval_ms=1000,
