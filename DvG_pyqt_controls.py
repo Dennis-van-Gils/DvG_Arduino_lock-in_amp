@@ -6,8 +6,8 @@ many of my projects.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
-__date__        = "23-08-2018"
-__version__     = "1.0.0"
+__date__        = "27-03-2019"
+__version__     = "1.0.1"
 
 from PyQt5 import QtWidgets as QtWid
 
@@ -71,6 +71,22 @@ SS_GROUP = (
             "border-radius: 0 0px;"
             "padding: 0}")
 
+SS_GROUP_BORDERLESS = (
+        "QGroupBox {"
+            "border: 0px solid gray;"
+            "border-radius: 5px;"
+            "font: bold italic;"
+            "padding: 0 0 0 0px;"
+            "margin-top: 0ex}"
+        "QGroupBox::title {"
+            "subcontrol-origin: margin;"
+            "subcontrol-position: top center;"
+            "padding: 0 0px}"
+        "QGroupBox::flat {"
+            "border: 0px;"
+            "border-radius: 0 0px;"
+            "padding: 0}")
+
 SS_LED = (
         "QPushButton {"
             "background-color: " + COLOR_INDIAN_RED + ";"
@@ -81,6 +97,21 @@ SS_LED = (
             "max-width: 30px}"
         "QPushButton::disabled {"
             "border-radius: 15px;"
+            "color: black}"
+        "QPushButton::checked {"
+            "background-color: " + COLOR_SPRING_GREEN_2 + ";"
+            "border-style: outset}")
+
+SS_LED_RECT = (
+        "QPushButton {"
+            "background-color: " + COLOR_INDIAN_RED + ";"
+            "border-style: inset;"
+            "border-width: 1px;"
+            "min-height: 30px;"
+            "min-width: 80px;"
+            "max-width: 80px}"
+        "QPushButton::disabled {"
+            "border-radius: 1px;"
             "color: black}"
         "QPushButton::checked {"
             "background-color: " + COLOR_SPRING_GREEN_2 + ";"
@@ -168,6 +199,12 @@ def create_Toggle_button_style_sheet(bg_clr=COLOR_BG,
 def create_LED_indicator():
     button = QtWid.QPushButton("0", checkable=True, enabled=False)
     button.setStyleSheet(SS_LED)
+    return button
+
+def create_LED_indicator_rect(initial_state=False, text=''):
+    button = QtWid.QPushButton(text, checkable=True, enabled=False)
+    button.setStyleSheet(SS_LED_RECT)
+    button.setChecked(initial_state)
     return button
 
 def create_Relay_button():
