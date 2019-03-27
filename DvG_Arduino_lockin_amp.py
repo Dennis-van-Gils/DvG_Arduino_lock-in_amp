@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "25-03-2019"
+__date__        = "27-03-2019"
 __version__     = "1.0.0"
 
 import os
@@ -188,15 +188,15 @@ def lockin_DAQ_update():
             
         if lockin_pyqt.firf_LP_mix_X.has_settled:
             # Signal amplitude and phase reconstruction
-            LIA_amp = np.sqrt(out_X**2 + out_Y**2)
+            out_R = np.sqrt(out_X**2 + out_Y**2)
             """NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
             division by (mix_X = 0) is handled correctly due to 'numpy.inf'. Likewise,
             'numpy.arctan(numpy.inf)' will result in pi/2. We suppress the
             RuntimeWarning: divide by zero encountered in true_divide.
             """
             np.seterr(divide='ignore')
-            LIA_phi = np.arctan(out_Y / out_X)
-            LIA_phi = LIA_phi/np.pi*180     # Transform [rad] to [deg]
+            out_T = np.arctan(out_Y / out_X)
+            out_T = out_T/np.pi*180     # Transform [rad] to [deg]
             np.seterr(divide='warn')
             
             # Retrieve the block of original data from the past that alligns with the
@@ -206,8 +206,10 @@ def lockin_DAQ_update():
                        lockin_pyqt.firf_LP_mix_X.win_idx_valid_end])
             
             state.deque_time_2.extend(time_2)
-            state.deque_LIA_amp.extend(LIA_amp)
-            state.deque_LIA_phi.extend(LIA_phi)
+            state.deque_out_X.extend(out_X)
+            state.deque_out_Y.extend(out_Y)
+            state.deque_out_R.extend(out_R)
+            state.deque_out_T.extend(out_T)
     
     # Add new data to graphs
     # ----------------------
@@ -224,10 +226,10 @@ def lockin_DAQ_update():
         window.CH_mix_Y.add_new_readings(time_1, mix_Y)
     
         if lockin_pyqt.firf_LP_mix_X.has_settled:
-            window.CH_LIA_amp.add_new_readings(time_2, LIA_amp)
-            window.CH_LIA_phi.add_new_readings(time_2, LIA_phi)
-            #window.CH_LIA_amp.add_new_readings(time_2, out_X)
-            #window.CH_LIA_phi.add_new_readings(time_2, out_Y)
+            window.CH_LIA_XR.add_new_readings(time_2, out_R)
+            window.CH_LIA_YT.add_new_readings(time_2, out_T)
+            #window.CH_LIA_XR.add_new_readings(time_2, out_X)
+            #window.CH_LIA_YT.add_new_readings(time_2, out_Y)
     
     # Logging to file
     #----------------
@@ -309,8 +311,8 @@ if __name__ == '__main__':
     window.pi_refsig.setYRange(2.35, 3.25)
     window.pi_filt_BS.setYRange(-.7, 3.5)
     window.pi_mixer.setYRange(-0.12, 0.2)
-    window.pi_LIA_amp.setYRange(0.068, 0.092)
-    window.pi_LIA_phi.setYRange(-92, 92)
+    window.pi_XR.setYRange(0.068, 0.092)
+    window.pi_YT.setYRange(-92, 92)
 
     # --------------------------------------------------------------------------
     #   Start threads

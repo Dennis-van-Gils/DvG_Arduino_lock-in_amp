@@ -334,54 +334,85 @@ class MainWindow(QtWid.QWidget):
 
         # -----------------------------------
         # -----------------------------------
-        #   FRAME: LIA output amplitude and phase
+        #   FRAME: LIA output
         # -----------------------------------
         # -----------------------------------
         
-        # Chart: Amplitude
-        self.gw_LIA_output = pg.GraphicsWindow()
-        self.gw_LIA_output.setBackground([20, 20, 20])
-        self.pi_LIA_amp = self.gw_LIA_output.addPlot()
+        # Chart: X or R
+        self.gw_XR = pg.GraphicsWindow()
+        self.gw_XR.setBackground([20, 20, 20])
+        self.pi_XR = self.gw_XR.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_LIA_amp.showGrid(x=1, y=1)
-        self.pi_LIA_amp.setTitle('Amplitude R', **p)
-        self.pi_LIA_amp.setLabel('bottom', text='time (ms)', **p)
-        self.pi_LIA_amp.setLabel('left', text='voltage (V)', **p)
-        self.pi_LIA_amp.setXRange(-lockin.config.BUFFER_SIZE *
-                                  lockin.config.ISR_CLOCK * 1e3,
-                                  0, padding=0.01)
-        self.pi_LIA_amp.setYRange(-1, 1, padding=0.05)
-        self.pi_LIA_amp.setAutoVisible(x=True, y=True)
-        self.pi_LIA_amp.setClipToView(True)
+        self.pi_XR.showGrid(x=1, y=1)
+        self.pi_XR.setTitle('Amplitude R', **p)
+        self.pi_XR.setLabel('bottom', text='time (ms)', **p)
+        self.pi_XR.setLabel('left', text='voltage (V)', **p)
+        self.pi_XR.setXRange(-lockin.config.BUFFER_SIZE *
+                             lockin.config.ISR_CLOCK * 1e3,
+                             0, padding=0.01)
+        self.pi_XR.setYRange(-1, 1, padding=0.05)
+        self.pi_XR.setAutoVisible(x=True, y=True)
+        self.pi_XR.setClipToView(True)
         
-        self.CH_LIA_amp = ChartHistory(lockin.config.BUFFER_SIZE,
-                                       self.pi_LIA_amp.plot(pen=PEN_03))
-        self.CH_LIA_amp.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CH_LIA_XR = ChartHistory(lockin.config.BUFFER_SIZE,
+                                      self.pi_XR.plot(pen=PEN_03))
+        self.CH_LIA_XR.x_axis_divisor = 1000     # From [us] to [ms]
         
-        # Chart: phase
-        self.pi_LIA_phi = self.gw_LIA_output.addPlot()
+        # Chart: Y or T
+        self.pi_YT = self.gw_XR.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_LIA_phi.showGrid(x=1, y=1)
-        self.pi_LIA_phi.setTitle('Phase %s' % chr(0x398), **p)
-        self.pi_LIA_phi.setLabel('bottom', text='time (ms)', **p)
-        self.pi_LIA_phi.setLabel('left', text='phase (deg)', **p)
-        self.pi_LIA_phi.setXRange(-lockin.config.BUFFER_SIZE *
-                                   lockin.config.ISR_CLOCK * 1e3,
-                                   0, padding=0.01)
-        self.pi_LIA_phi.setYRange(-1, 1, padding=0.05)
-        self.pi_LIA_phi.setAutoVisible(x=True, y=True)
-        self.pi_LIA_phi.setClipToView(True)
+        self.pi_YT.showGrid(x=1, y=1)
+        self.pi_YT.setTitle('Phase %s' % chr(0x398), **p)
+        self.pi_YT.setLabel('bottom', text='time (ms)', **p)
+        self.pi_YT.setLabel('left', text='phase (deg)', **p)
+        self.pi_YT.setXRange(-lockin.config.BUFFER_SIZE *
+                             lockin.config.ISR_CLOCK * 1e3,
+                             0, padding=0.01)
+        self.pi_YT.setYRange(-1, 1, padding=0.05)
+        self.pi_YT.setAutoVisible(x=True, y=True)
+        self.pi_YT.setClipToView(True)
         
-        self.CH_LIA_phi = ChartHistory(lockin.config.BUFFER_SIZE,
-                                       self.pi_LIA_phi.plot(pen=PEN_03))
-        self.CH_LIA_phi.x_axis_divisor = 1000     # From [us] to [ms]
-        self.CHs_LIA_output = [self.CH_LIA_amp, self.CH_LIA_phi]
+        self.CH_LIA_YT = ChartHistory(lockin.config.BUFFER_SIZE,
+                                      self.pi_YT.plot(pen=PEN_03))
+        self.CH_LIA_YT.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CHs_LIA_output = [self.CH_LIA_XR, self.CH_LIA_YT]
+        
+        # QGROUP: Plot X-Y or R-Theta
+        self.qrbt_XR_X = QtWid.QRadioButton("X")
+        self.qrbt_XR_R = QtWid.QRadioButton("R", checked=True)
+        self.qrbt_YT_Y = QtWid.QRadioButton("Y")
+        self.qrbt_YT_T = QtWid.QRadioButton("%s" % chr(0x398), checked=True)
+        
+        grid_XR = QtWid.QGridLayout()
+        grid_XR.setVerticalSpacing(4)
+        grid_XR.addWidget(self.qrbt_XR_X, 0, 0)
+        grid_XR.addWidget(self.qrbt_XR_R, 1, 0)
+        grid_XR.setAlignment(QtCore.Qt.AlignTop)
+        
+        grid_YT = QtWid.QGridLayout()
+        grid_YT.setVerticalSpacing(4)
+        grid_YT.addWidget(self.qrbt_YT_Y, 0, 0)
+        grid_YT.addWidget(self.qrbt_YT_T, 1, 0)
+        grid_YT.setAlignment(QtCore.Qt.AlignTop)
+        
+        qgrp_XR = QtWid.QGroupBox("")
+        qgrp_XR.setStyleSheet(SS_GROUP)
+        qgrp_XR.setLayout(grid_XR)
+        
+        qgrp_YT = QtWid.QGroupBox("")
+        qgrp_YT.setStyleSheet(SS_GROUP)
+        qgrp_YT.setLayout(grid_YT)
+        
+        # QGROUP: Filters settled?
+        
         
         # Round up frame
         hbox_LIA_output = QtWid.QHBoxLayout()
-        hbox_LIA_output.addWidget(self.gw_LIA_output, stretch=1)
+        hbox_LIA_output.addWidget(self.gw_XR, stretch=1)
+        hbox_LIA_output.addWidget(qgrp_XR, stretch=0)
+        hbox_LIA_output.addWidget(qgrp_YT, stretch=0)
 
         # -----------------------------------
         # -----------------------------------
@@ -752,8 +783,8 @@ class MainWindow(QtWid.QWidget):
         plot_items = [self.pi_refsig,
                       self.pi_filt_BS,
                       self.pi_mixer,
-                      self.pi_LIA_amp,
-                      self.pi_LIA_phi]
+                      self.pi_XR,
+                      self.pi_YT]
         for pi in plot_items:
             pi.setXRange(min_time, 0, padding=0.01)
         self.process_qpbtn_autoscale_y()
@@ -763,8 +794,8 @@ class MainWindow(QtWid.QWidget):
         plot_items = [self.pi_refsig,
                       self.pi_filt_BS,
                       self.pi_mixer,
-                      self.pi_LIA_amp,
-                      self.pi_LIA_phi]
+                      self.pi_XR,
+                      self.pi_YT]
         for pi in plot_items:
             pi.enableAutoRange('y', True)
             pi.enableAutoRange('y', False)

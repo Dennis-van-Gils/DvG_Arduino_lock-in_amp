@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "26-03-2019"
+__date__        = "27-03-2019"
 __version__     = "1.3.1"
 
 import numpy as np
@@ -118,8 +118,10 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 self.deque_mix_Y      = deque(maxlen=self.N_deque)
                 # Stage 2: apply low-pass filter and signal reconstruction
                 self.deque_time_2     = deque(maxlen=self.N_deque)
-                self.deque_LIA_amp    = deque(maxlen=self.N_deque)
-                self.deque_LIA_phi    = deque(maxlen=self.N_deque)
+                self.deque_out_X      = deque(maxlen=self.N_deque)
+                self.deque_out_Y      = deque(maxlen=self.N_deque)
+                self.deque_out_R      = deque(maxlen=self.N_deque)
+                self.deque_out_T      = deque(maxlen=self.N_deque)
             
             # Mutex for proper multithreading. If the state variables are not
             # atomic or thread-safe, you should lock and unlock this mutex for
@@ -141,8 +143,10 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 self.deque_mix_X.clear()
                 self.deque_mix_Y.clear()
                 self.deque_time_2.clear()
-                self.deque_LIA_amp.clear()
-                self.deque_LIA_phi.clear()
+                self.deque_out_X.clear()
+                self.deque_out_Y.clear()
+                self.deque_out_R.clear()
+                self.deque_out_T.clear()
     
     def __init__(self,
                  dev: lockin_functions.Arduino_lockin_amp,
