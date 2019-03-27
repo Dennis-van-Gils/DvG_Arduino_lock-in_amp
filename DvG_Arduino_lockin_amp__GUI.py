@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "26-03-2019"
+__date__        = "27-03-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -16,7 +16,9 @@ import numpy as np
 
 from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_controls     import (create_Toggle_button,
+                                   create_LED_indicator_rect,
                                    SS_GROUP,
+                                   SS_GROUP_BORDERLESS,
                                    SS_TEXTBOX_READ_ONLY)
 from DvG_pyqt_FileLogger   import FileLogger
 from DvG_debug_functions   import dprint
@@ -64,7 +66,7 @@ class MainWindow(QtWid.QWidget):
         self.lockin_pyqt = lockin_pyqt
         self.file_logger = file_logger
         
-        self.setGeometry(50, 50, 900, 800)
+        self.setGeometry(50, 50, 1098, 960)
         self.setWindowTitle("Arduino lock-in amplifier")
         self.setStyleSheet(SS_TEXTBOX_READ_ONLY)
         
@@ -379,40 +381,59 @@ class MainWindow(QtWid.QWidget):
         self.CH_LIA_YT.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_LIA_output = [self.CH_LIA_XR, self.CH_LIA_YT]
         
-        # QGROUP: Plot X-Y or R-Theta
+        # QGROUP: Show X-Y or R-Theta
         self.qrbt_XR_X = QtWid.QRadioButton("X")
         self.qrbt_XR_R = QtWid.QRadioButton("R", checked=True)
         self.qrbt_YT_Y = QtWid.QRadioButton("Y")
         self.qrbt_YT_T = QtWid.QRadioButton("%s" % chr(0x398), checked=True)
         
-        grid_XR = QtWid.QGridLayout()
-        grid_XR.setVerticalSpacing(4)
-        grid_XR.addWidget(self.qrbt_XR_X, 0, 0)
-        grid_XR.addWidget(self.qrbt_XR_R, 1, 0)
-        grid_XR.setAlignment(QtCore.Qt.AlignTop)
+        vbox = QtWid.QVBoxLayout(spacing=4)
+        vbox.addWidget(self.qrbt_XR_X)
+        vbox.addWidget(self.qrbt_XR_R)
+        qgrp_XR = QtWid.QGroupBox()
+        qgrp_XR.setStyleSheet(SS_GROUP_BORDERLESS)
+        qgrp_XR.setLayout(vbox)
         
-        grid_YT = QtWid.QGridLayout()
-        grid_YT.setVerticalSpacing(4)
-        grid_YT.addWidget(self.qrbt_YT_Y, 0, 0)
-        grid_YT.addWidget(self.qrbt_YT_T, 1, 0)
-        grid_YT.setAlignment(QtCore.Qt.AlignTop)
+        vbox = QtWid.QVBoxLayout(spacing=4)
+        vbox.addWidget(self.qrbt_YT_Y)
+        vbox.addWidget(self.qrbt_YT_T)
+        qgrp_YT = QtWid.QGroupBox()
+        qgrp_YT.setStyleSheet(SS_GROUP_BORDERLESS)
+        qgrp_YT.setLayout(vbox)
         
-        qgrp_XR = QtWid.QGroupBox("")
-        qgrp_XR.setStyleSheet(SS_GROUP)
-        qgrp_XR.setLayout(grid_XR)
+        grid = QtWid.QGridLayout(spacing=0)
+        grid.addWidget(qgrp_XR, 0, 0, QtCore.Qt.AlignCenter)
+        grid.addWidget(qgrp_YT, 0, 1, QtCore.Qt.AlignCenter)
+        grid.setContentsMargins(0, 0, 0, 0)
         
-        qgrp_YT = QtWid.QGroupBox("")
-        qgrp_YT.setStyleSheet(SS_GROUP)
-        qgrp_YT.setLayout(grid_YT)
+        qgrp_XRYT = QtWid.QGroupBox("Show")
+        qgrp_XRYT.setStyleSheet(SS_GROUP)
+        qgrp_XRYT.setLayout(grid)
         
         # QGROUP: Filters settled?
+        self.LED_settled_BG_filter = create_LED_indicator_rect(False, 'NO')
+        self.LED_settled_LP_filter = create_LED_indicator_rect(False, 'NO')
         
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addWidget(QtWid.QLabel("1: band-stop"), 0, 0)
+        grid.addWidget(self.LED_settled_BG_filter  , 0, 1)
+        grid.addWidget(QtWid.QLabel("2: low-pass") , 1, 0)
+        grid.addWidget(self.LED_settled_LP_filter  , 1, 1)
+        
+        qgrp_settling = QtWid.QGroupBox("Filters settled?")
+        qgrp_settling.setStyleSheet(SS_GROUP)
+        qgrp_settling.setLayout(grid)
+        
+        # Combine QGroups
+        vbox_qgrps = QtWid.QVBoxLayout()
+        vbox_qgrps.addWidget(qgrp_XRYT, stretch=0)
+        vbox_qgrps.addWidget(qgrp_settling, stretch=0)
+        vbox_qgrps.addStretch(1)
         
         # Round up frame
         hbox_LIA_output = QtWid.QHBoxLayout()
         hbox_LIA_output.addWidget(self.gw_XR, stretch=1)
-        hbox_LIA_output.addWidget(qgrp_XR, stretch=0)
-        hbox_LIA_output.addWidget(qgrp_YT, stretch=0)
+        hbox_LIA_output.addLayout(vbox_qgrps, stretch=0)
 
         # -----------------------------------
         # -----------------------------------
@@ -672,6 +693,19 @@ class MainWindow(QtWid.QWidget):
             self.qlin_ref_Y.setText("%.4f" % LIA_pyqt.state.ref_Y[0])
             self.qlin_sig_I.setText("%.4f" % LIA_pyqt.state.sig_I[0])
             
+            if LIA_pyqt.firf_BS_sig_I.has_settled:
+                self.LED_settled_BG_filter.setChecked(True)
+                self.LED_settled_BG_filter.setText("YES")
+            else:
+                self.LED_settled_BG_filter.setChecked(False)
+                self.LED_settled_BG_filter.setText("NO")
+            if LIA_pyqt.firf_LP_mix_X.has_settled:
+                self.LED_settled_LP_filter.setChecked(True)
+                self.LED_settled_LP_filter.setText("YES")
+            else:
+                self.LED_settled_LP_filter.setChecked(False)
+                self.LED_settled_LP_filter.setText("NO")
+                
             self.update_chart_refsig()
             self.update_chart_filt_BS()
             self.update_chart_mixer()
