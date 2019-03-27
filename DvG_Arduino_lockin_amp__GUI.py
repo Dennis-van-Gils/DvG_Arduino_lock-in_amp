@@ -406,7 +406,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(qgrp_YT, 0, 1, QtCore.Qt.AlignCenter)
         grid.setContentsMargins(0, 0, 0, 0)
         
-        qgrp_XRYT = QtWid.QGroupBox("Show")
+        qgrp_XRYT = QtWid.QGroupBox("Show output")
         qgrp_XRYT.setStyleSheet(SS_GROUP)
         qgrp_XRYT.setLayout(grid)
         
@@ -715,12 +715,24 @@ class MainWindow(QtWid.QWidget):
     def update_GUI_paused(self):
         #dprint("Update GUI paused")
         self.qlbl_DAQ_rate.setText("Buffers/s: paused")
+    
+    @QtCore.pyqtSlot()
+    def clear_chart_histories_stage_1_and_2(self):
+        self.CH_filt_BS_in.clear()
+        self.CH_filt_BS_out.clear()
+        self.CH_mix_X.clear()
+        self.CH_mix_Y.clear()
+        self.CH_LIA_XR.clear()
+        self.CH_LIA_YT.clear()
 
     @QtCore.pyqtSlot()
     def process_qpbt_ENA_lockin(self):
         if self.qpbt_ENA_lockin.isChecked():
             self.lockin_pyqt.turn_on()
             self.qpbt_ENA_lockin.setText("lock-in ON")
+            
+            self.lockin_pyqt.state.reset()
+            self.clear_chart_histories_stage_1_and_2()
         else:
             self.lockin_pyqt.turn_off()
             self.qpbt_ENA_lockin.setText("lock-in OFF")
@@ -751,19 +763,6 @@ class MainWindow(QtWid.QWidget):
         self.qlin_set_ref_freq.setText("%.2f" % ref_freq)
         if ref_freq != self.lockin.config.ref_freq:
             self.lockin_pyqt.set_ref_freq(ref_freq)
-            
-    @QtCore.pyqtSlot()
-    def update_newly_set_ref_freq(self):
-        self.qlin_read_ref_freq.setText("%.2f" % self.lockin.config.ref_freq)
-
-        f_cutoff = 2*self.lockin.config.ref_freq - 1
-        if f_cutoff > self.lockin.config.F_Nyquist - 1:
-            print("WARNING: Low-pass filter cannot reach desired cut-off freq.")
-            f_cutoff = self.lockin.config.F_Nyquist - 1
-        
-        self.lockin_pyqt.firf_LP_mix_X.update_firwin_cutoff([0, f_cutoff])
-        self.lockin_pyqt.firf_LP_mix_Y.update_firwin_cutoff([0, f_cutoff])
-        self.update_plot_filt_resp_LP()
     
     @QtCore.pyqtSlot()
     def process_qlin_set_ref_V_offset(self):
@@ -781,11 +780,6 @@ class MainWindow(QtWid.QWidget):
             QtWid.QApplication.processEvents()
             
     @QtCore.pyqtSlot()
-    def update_newly_set_ref_V_offset(self):
-        self.qlin_read_ref_V_offset.setText("%.2f" %
-                                            self.lockin.config.ref_V_offset)
-            
-    @QtCore.pyqtSlot()
     def process_qlin_set_ref_V_ampl(self):
         try:
             ref_V_ampl = float(self.qlin_set_ref_V_ampl.text())
@@ -799,11 +793,38 @@ class MainWindow(QtWid.QWidget):
         if ref_V_ampl != self.lockin.config.ref_V_ampl:
             self.lockin_pyqt.set_ref_V_ampl(ref_V_ampl)
             QtWid.QApplication.processEvents()
+    
+    @QtCore.pyqtSlot()
+    def update_newly_set_ref_freq(self):
+        self.qlin_read_ref_freq.setText("%.2f" % self.lockin.config.ref_freq)
+
+        f_cutoff = 2*self.lockin.config.ref_freq - 1
+        if f_cutoff > self.lockin.config.F_Nyquist - 1:
+            print("WARNING: Low-pass filter cannot reach desired cut-off freq.")
+            f_cutoff = self.lockin.config.F_Nyquist - 1
+        
+        self.lockin_pyqt.firf_LP_mix_X.update_firwin_cutoff([0, f_cutoff])
+        self.lockin_pyqt.firf_LP_mix_Y.update_firwin_cutoff([0, f_cutoff])
+        self.update_plot_filt_resp_LP()
+        
+        self.lockin_pyqt.state.reset()
+        self.clear_chart_histories_stage_1_and_2()
+    
+    @QtCore.pyqtSlot()
+    def update_newly_set_ref_V_offset(self):
+        self.qlin_read_ref_V_offset.setText("%.2f" %
+                                            self.lockin.config.ref_V_offset)
+        
+        self.lockin_pyqt.state.reset()
+        self.clear_chart_histories_stage_1_and_2()
         
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_ampl(self):
         self.qlin_read_ref_V_ampl.setText("%.2f" %
                                           self.lockin.config.ref_V_ampl)
+        
+        self.lockin_pyqt.state.reset()
+        self.clear_chart_histories_stage_1_and_2()
 
     @QtCore.pyqtSlot()
     def process_chkbs_refsig(self):
