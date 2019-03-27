@@ -38,18 +38,21 @@ class Buffered_FIR_Filter():
         self.win_idx_valid_start = int((self.N_taps - 1)/2)
         self.win_idx_valid_end   = self.N_deque - self.win_idx_valid_start
                 
-        # Settling time of the filter
-        # Was named 'self.T_delay_valid_start'
+        # Keep track of filter settling
+        # Note: 'T_settling' was named 'self.T_delay_valid_start'
         self.T_settling = self.win_idx_valid_start / self.Fs # [s]
         self.was_settled = False
         self.has_settled = False
         
-        # TODO: add boolean 'self.starting_up' to distinguish deque buffers
-        # starting from scratch, in contrast to 'was/has_settled' that is used
-        # to signal a mathematically valid settling time has been reached.
-        # This way, you could continue graphing the settling response of the
-        # filter whenever the reference signal is adjusted on the fly.
-    
+        """ RAMBLINGS: rethink if I should implement this the following.
+        Boolean 'self.starting_up' is used to distinguish deque buffers being
+        populated from scratch, in contrast to 'was/has_settled' that are used
+        to signal a mathematically valid settling time has been reached
+        regardless of the number of samples in deque.
+        #self.N_buffers_received = 0
+        #self.starting_up = True
+        """
+        
         # Create filter
         self.b = firwin(self.N_taps,
                         self.firwin_cutoff,
@@ -59,7 +62,12 @@ class Buffered_FIR_Filter():
         self.calc_freqz_response()
 
     def _constrain_firwin_cutoff(self, firwin_cutoff):
-        # Check firwin_cutoff for illegal values and cap when necessary
+        """Check firwin_cutoff for illegal values and cap when necessary.
+        I.e.:
+        Frequencies <= 0 Hz will be set to the tiny value 'cutoff_grain'.
+        Frequencies >= Nyquist freq. will be set to Nyquist - 'cutoff_grain'.
+        cutoff_grain = 1e-6 Hz
+        """
         cutoff_grain = 1e-6
         firwin_cutoff = np.array(firwin_cutoff, dtype=np.float64)
         firwin_cutoff[firwin_cutoff <= cutoff_grain] = cutoff_grain
@@ -86,9 +94,8 @@ class Buffered_FIR_Filter():
             valid_out = np.array([np.nan] * self.buffer_size)
         else:
             self.has_settled = True
-            """
-            Select window out of the signal deque to feed into the convolution.
-            By optimal design, this happens to be the full deque.
+            """Select window out of the signal deque to feed into the
+            convolution. By optimal design, this happens to be the full deque.
             Returns valid filtered signal output of current window.
             """
             #tick = Time.perf_counter()
@@ -96,10 +103,10 @@ class Buffered_FIR_Filter():
             #print("%.1f" % ((Time.perf_counter() - tick)*1000))
         
         if self.has_settled and not(self.was_settled):
-            print("%s: Filter has settled" % self.display_name)
+            #print("%s: Filter has settled" % self.display_name)
             self.was_settled = True
         elif not(self.has_settled) and self.was_settled:
-            print("%s: Filter has reset" % self.display_name)
+            #print("%s: Filter has reset" % self.display_name)
             self.was_settled = False
         
         return valid_out
