@@ -19,7 +19,7 @@ M0 family
 
 M4 family
 - Adafruit Grand Central M4     SAMD51P20A
-- Adafruit NeoTrellis M4        SAMD51J19A? 
+- Adafruit NeoTrellis M4        SAMD51J19A?
 - Adafruit Metro M4             SAMD51J19A            ADAFRUIT_METRO_M4_EXPRESS
 - Adafruit Feather M4           SAMD51J19A   okay     ADAFRUIT_FEATHER_M4_EXPRESS
 - Adafruit ItsyBitsy M4         SAMD51G19A   okay     ADAFRUIT_ITSYBITSY_M4_EXPRESS
@@ -30,7 +30,7 @@ proper bindings to strncmpi
 "C_Cpp.intelliSenseEngineFallback": "Disabled"
 
 Dennis van Gils
-22-03-2019
+28-03-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -176,14 +176,14 @@ volatile bool fSend_buffer_B = false;
     Cosine wave look-up table (LUT)
 ------------------------------------------------------------------------------*/
 
-double ref_freq = 100.0;      // [Hz], aka f_R
+double ref_freq = 110.0;      // [Hz], aka f_R
 
 // Tip: Limiting the output voltage range to slighty above 0.0 V will improve
 // the shape of the cosine wave at its minimum. Apparently, the analog out port
 // has difficulty in cleanly dropping the output voltage completely to 0.0 V.
 #define A_REF        3.300    // [V] Analog voltage reference Arduino
-double ref_V_offset = 2.8;    // [V] Voltage offset of cos. reference signal
-double ref_V_ampl   = 0.4;    // [V] Voltage amplitude of cos. reference signal
+double ref_V_offset = 1.7;    // [V] Voltage offset of cos. reference signal
+double ref_V_ampl   = 1.414;  // [V] Voltage amplitude of cos. reference signal
 
 #define N_LUT 9000  // (9000 --> 0.04 deg) Number of samples for one full period
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
@@ -428,7 +428,7 @@ void setup() {
     ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
     // ADC0->INPUTCTRL.bit.GAIN does not exist on SAMD51
     ADC0->REFCTRL.bit.REFSEL = 3; // 3: INTVCC1 on SAMD51 = VDDANA
-    
+
     /*
     ADC0->OFFSETCORR.bit.OFFSETCORR = ADC_OFFSETCORR_OFFSETCORR(50);
     ADC0->GAINCORR.bit.GAINCORR = ADC_GAINCORR_GAINCORR(2065);
@@ -550,7 +550,7 @@ void loop() {
             Ser_data.println(ADC0->CALIB.bit.BIASCOMP);
             Ser_data.println(ADC0->CALIB.bit.BIASREFBUF);
             Ser_data.println(ADC0->CALIB.bit.BIASR2R);
-            
+
             Ser_data.println(ADC0->OFFSETCORR.bit.OFFSETCORR);
             Ser_data.println(ADC0->GAINCORR.bit.GAINCORR);
           #endif
@@ -570,11 +570,11 @@ void loop() {
           Ser_data.print('\t');
           Ser_data.print(A_REF);
           Ser_data.print('\t');
-          Ser_data.print(ref_V_offset);
+          Ser_data.print(ref_V_offset, 3);
           Ser_data.print('\t');
-          Ser_data.print(ref_V_ampl);
+          Ser_data.print(ref_V_ampl, 3);
           Ser_data.print('\t');
-          Ser_data.print(ref_freq);
+          Ser_data.print(ref_freq, 2);
           Ser_data.print('\n');
 
           #ifdef DEBUG
@@ -610,7 +610,7 @@ void loop() {
           LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
           T_period_micros_dbl = 1.0 / ref_freq * 1e6;
           interrupts();
-          Ser_data.println(ref_freq);
+          Ser_data.println(ref_freq, 2);
 
         } else if (strncmpi(strCmd, "ref_V_offset", 12) == 0) {
           // Set voltage offset of cosine reference signal [V]
@@ -620,7 +620,7 @@ void loop() {
           noInterrupts();
           create_LUT();
           interrupts();
-          Ser_data.println(ref_V_offset);
+          Ser_data.println(ref_V_offset, 3);
 
         } else if (strncmpi(strCmd, "ref_V_ampl", 10) == 0) {
           // Set voltage amplitude of cosine reference signal [V]
@@ -630,7 +630,7 @@ void loop() {
           noInterrupts();
           create_LUT();
           interrupts();
-          Ser_data.println(ref_V_ampl);
+          Ser_data.println(ref_V_ampl, 3);
         }
 
       }

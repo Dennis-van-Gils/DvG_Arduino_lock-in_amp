@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "27-03-2019"
+__date__        = "28-03-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -235,13 +235,13 @@ class MainWindow(QtWid.QWidget):
         self.qlin_read_ref_freq = (
                 QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p2))
         self.qlin_set_ref_V_offset = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_offset, **p1))
+                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_offset, **p1))
         self.qlin_read_ref_V_offset = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_offset, **p2))
+                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_offset, **p2))
         self.qlin_set_ref_V_ampl = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_ampl, **p1))
+                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_ampl, **p1))
         self.qlin_read_ref_V_ampl = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_V_ampl, **p2))
+                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_ampl, **p2))
 
         self.qlin_set_ref_freq.editingFinished.connect(
                 self.process_qlin_set_ref_freq)
@@ -774,7 +774,7 @@ class MainWindow(QtWid.QWidget):
         # Clip between 0 and the analog voltage reference
         ref_V_offset = np.clip(ref_V_offset, 0, self.lockin.config.A_REF)
         
-        self.qlin_set_ref_V_offset.setText("%.2f" % ref_V_offset)
+        self.qlin_set_ref_V_offset.setText("%.3f" % ref_V_offset)
         if ref_V_offset != self.lockin.config.ref_V_offset:
             self.lockin_pyqt.set_ref_V_offset(ref_V_offset)            
             QtWid.QApplication.processEvents()
@@ -789,7 +789,7 @@ class MainWindow(QtWid.QWidget):
         # Clip between 0 and the analog voltage reference
         ref_V_ampl = np.clip(ref_V_ampl, 0, self.lockin.config.A_REF)
         
-        self.qlin_set_ref_V_ampl.setText("%.2f" % ref_V_ampl)
+        self.qlin_set_ref_V_ampl.setText("%.3f" % ref_V_ampl)
         if ref_V_ampl != self.lockin.config.ref_V_ampl:
             self.lockin_pyqt.set_ref_V_ampl(ref_V_ampl)
             QtWid.QApplication.processEvents()
@@ -812,7 +812,7 @@ class MainWindow(QtWid.QWidget):
     
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_offset(self):
-        self.qlin_read_ref_V_offset.setText("%.2f" %
+        self.qlin_read_ref_V_offset.setText("%.3f" %
                                             self.lockin.config.ref_V_offset)
         
         self.lockin_pyqt.state.reset()
@@ -820,7 +820,7 @@ class MainWindow(QtWid.QWidget):
         
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_ampl(self):
-        self.qlin_read_ref_V_ampl.setText("%.2f" %
+        self.qlin_read_ref_V_ampl.setText("%.3f" %
                                           self.lockin.config.ref_V_ampl)
         
         self.lockin_pyqt.state.reset()
