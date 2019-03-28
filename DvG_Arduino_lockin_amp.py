@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "27-03-2019"
+__date__        = "28-03-2019"
 __version__     = "1.0.0"
 
 import os
@@ -279,7 +279,7 @@ if __name__ == '__main__':
         sys.exit(0)
         
     #lockin.begin()
-    lockin.begin(ref_freq=250, ref_V_offset=2.8, ref_V_ampl=0.4)
+    lockin.begin(ref_freq=110, ref_V_offset=1.7, ref_V_ampl=1.414)
     
     # Create workers and threads
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
@@ -308,10 +308,10 @@ if __name__ == '__main__':
                                    lockin_pyqt=lockin_pyqt,
                                    file_logger=file_logger)
 
-    window.pi_refsig.setYRange(2.35, 3.25)
-    window.pi_filt_BS.setYRange(-.7, 3.5)
-    window.pi_mixer.setYRange(-0.12, 0.2)
-    window.pi_XR.setYRange(0.068, 0.092)
+    window.pi_refsig.setYRange(0.2, 3.2)
+    window.pi_filt_BS.setYRange(-1.8, 3.4)
+    window.pi_mixer.setYRange(-1.2, 2.2)
+    window.pi_XR.setYRange(0.99, 1.01)
     window.pi_YT.setYRange(-92, 92)
 
     # --------------------------------------------------------------------------
