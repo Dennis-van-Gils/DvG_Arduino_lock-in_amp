@@ -193,7 +193,11 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                                                  display_name="BS_sig_I")
     
         # Create FIR filter: Low-pass on mix_X and mix_Y
-        firwin_cutoff = [0, 2*dev.config.ref_freq - 1]
+        # TODO: the extra distance 'roll_off_width' to stay away from
+        # f_cutoff should be calculated based on the roll-off width of the
+        # filter, instead of hard-coded
+        roll_off_width = 2; # [Hz]
+        firwin_cutoff = [0, 2*dev.config.ref_freq - roll_off_width]
         firwin_window = "blackman"
         self.firf_LP_mix_X = Buffered_FIR_Filter(self.state.buffer_size,
                                                  self.state.N_buffers_in_deque,

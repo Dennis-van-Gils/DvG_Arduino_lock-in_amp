@@ -32,7 +32,7 @@ UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 try:
     import OpenGL.GL as gl
     pg.setConfigOptions(useOpenGL=True)
-    pg.setConfigOptions(enableExperimental=False)
+    pg.setConfigOptions(enableExperimental=True)
     pg.setConfigOptions(antialias=False)
     
     # Monkey patch error in pyqtgraph
@@ -798,10 +798,14 @@ class MainWindow(QtWid.QWidget):
     def update_newly_set_ref_freq(self):
         self.qlin_read_ref_freq.setText("%.2f" % self.lockin.config.ref_freq)
 
-        f_cutoff = 2*self.lockin.config.ref_freq - 1
-        if f_cutoff > self.lockin.config.F_Nyquist - 1:
+        # TODO: the extra distance 'roll_off_width' to stay away from
+        # f_cutoff should be calculated based on the roll-off width of the
+        # filter, instead of hard-coded
+        roll_off_width = 2; # [Hz]
+        f_cutoff = 2*self.lockin.config.ref_freq - roll_off_width
+        if f_cutoff > self.lockin.config.F_Nyquist - roll_off_width:
             print("WARNING: Low-pass filter cannot reach desired cut-off freq.")
-            f_cutoff = self.lockin.config.F_Nyquist - 1
+            f_cutoff = self.lockin.config.F_Nyquist - roll_off_width
         
         self.lockin_pyqt.firf_LP_mix_X.update_firwin_cutoff([0, f_cutoff])
         self.lockin_pyqt.firf_LP_mix_Y.update_firwin_cutoff([0, f_cutoff])
