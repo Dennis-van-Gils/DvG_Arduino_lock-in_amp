@@ -73,8 +73,8 @@ class BufferedPlot(object):
 
     def set_data(self, x_list, y_list):
         locker = QtCore.QMutexLocker(self.mutex)
-        self._x = np.array(x_list)
-        self._y = np.array(y_list)
+        self._x = x_list
+        self._y = y_list
         locker.unlock()
 
     def update_curve(self):
