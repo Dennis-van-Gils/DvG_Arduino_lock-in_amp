@@ -15,6 +15,7 @@ import pyqtgraph as pg
 import numpy as np
 
 from DvG_pyqt_ChartHistory import ChartHistory
+from DvG_pyqt_BufferedPlot import BufferedPlot
 from DvG_pyqt_controls     import (create_Toggle_button,
                                    create_LED_indicator_rect,
                                    SS_GROUP,
@@ -77,6 +78,7 @@ class MainWindow(QtWid.QWidget):
         self.PEN_04 = pg.mkPen(color=[255, 255, 255], width=3)        
         self.BRUSH_03 = pg.mkBrush(0, 255, 255, 64)
 
+        def _frame_Header(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   FRAME: Header
@@ -140,6 +142,7 @@ class MainWindow(QtWid.QWidget):
         hbox_header.addStretch(1)
         hbox_header.addLayout(vbox_right)
         
+        def _frame_Tabs(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   FRAME: Tabs
@@ -169,6 +172,7 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
 
+        def _frame_Reference_and_signal(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   Frame: Reference and signal
@@ -183,8 +187,8 @@ class MainWindow(QtWid.QWidget):
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_refsig.showGrid(x=1, y=1)
         self.pi_refsig.setTitle('Readings', **p)
-        self.pi_refsig.setLabel('bottom', text='time (ms)', **p)
-        self.pi_refsig.setLabel('left', text='voltage (V)', **p)
+        self.pi_refsig.setLabel('bottom', text='time [ms]', **p)
+        self.pi_refsig.setLabel('left', text='voltage [V]', **p)
         self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
                                  lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0.01)
@@ -334,6 +338,7 @@ class MainWindow(QtWid.QWidget):
         hbox_refsig.addWidget(self.gw_refsig, stretch=1)
         hbox_refsig.addLayout(vbox_refsig)
 
+        def _frame_LIA_output(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   FRAME: LIA output
@@ -348,8 +353,8 @@ class MainWindow(QtWid.QWidget):
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_XR.showGrid(x=1, y=1)
         self.pi_XR.setTitle('R', **p)
-        self.pi_XR.setLabel('bottom', text='time (ms)', **p)
-        self.pi_XR.setLabel('left', text='voltage (V)', **p)
+        self.pi_XR.setLabel('bottom', text='time [ms]', **p)
+        self.pi_XR.setLabel('left', text='voltage [V]', **p)
         self.pi_XR.setXRange(-lockin.config.BUFFER_SIZE *
                              lockin.config.ISR_CLOCK * 1e3,
                              0, padding=0.01)
@@ -368,8 +373,8 @@ class MainWindow(QtWid.QWidget):
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_YT.showGrid(x=1, y=1)
         self.pi_YT.setTitle('%s' % chr(0x398), **p)
-        self.pi_YT.setLabel('bottom', text='time (ms)', **p)
-        self.pi_YT.setLabel('left', text='phase (deg)', **p)
+        self.pi_YT.setLabel('bottom', text='time [ms]', **p)
+        self.pi_YT.setLabel('left', text='phase [deg]', **p)
         self.pi_YT.setXRange(-lockin.config.BUFFER_SIZE *
                              lockin.config.ISR_CLOCK * 1e3,
                              0, padding=0.01)
@@ -452,6 +457,7 @@ class MainWindow(QtWid.QWidget):
         vbox.addLayout(hbox_LIA_output, stretch=1)
         self.tab_main.setLayout(vbox)
         
+        def _frame_Mixer(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -468,8 +474,8 @@ class MainWindow(QtWid.QWidget):
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_filt_BS.showGrid(x=1, y=1)
         self.pi_filt_BS.setTitle('Band-stop filter acting on sig_I', **p)
-        self.pi_filt_BS.setLabel('bottom', text='time (ms)', **p)
-        self.pi_filt_BS.setLabel('left', text='voltage (V)', **p)
+        self.pi_filt_BS.setLabel('bottom', text='time [ms]', **p)
+        self.pi_filt_BS.setLabel('left', text='voltage [V]', **p)
         self.pi_filt_BS.setXRange(-lockin.config.BUFFER_SIZE *
                                     lockin.config.ISR_CLOCK * 1e3,
                                     0, padding=0.01)
@@ -499,7 +505,7 @@ class MainWindow(QtWid.QWidget):
         legend.addItem(self.CH_filt_BS_in.curve, name='sig_I')
         legend.addItem(self.CH_filt_BS_out.curve, name='out')
         
-         # Chart: Mixer
+        # Chart: Mixer
         self.gw_mixer = pg.GraphicsWindow()
         self.gw_mixer.setBackground([20, 20, 20])
         self.pi_mixer = self.gw_mixer.addPlot()
@@ -507,8 +513,8 @@ class MainWindow(QtWid.QWidget):
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_mixer.showGrid(x=1, y=1)
         self.pi_mixer.setTitle('Mixer', **p)
-        self.pi_mixer.setLabel('bottom', text='time (ms)', **p)
-        self.pi_mixer.setLabel('left', text='voltage (V)', **p)
+        self.pi_mixer.setLabel('bottom', text='time [ms]', **p)
+        self.pi_mixer.setLabel('left', text='voltage [V]', **p)
         self.pi_mixer.setXRange(-lockin.config.BUFFER_SIZE *
                                 lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0.01)
@@ -546,11 +552,48 @@ class MainWindow(QtWid.QWidget):
         #   Round up tab page 'Mixer'
         # -----------------------------------
         # -----------------------------------
-        
-        #vbox = QtWid.QVBoxLayout()
-        #vbox.addLayout(hbox_mixer, stretch=1)
+
         self.tab_mixer.setLayout(vbox_mixer)
         
+        def _frame_Power_spectrum(): pass # Spider IDE outline bookmark
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        #
+        #   TAB PAGE: Power spectrum
+        #
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        
+        # Plot: Power spectrum
+        self.gw_power_spectrum = pg.GraphicsWindow()
+        self.gw_power_spectrum.setBackground([20, 20, 20])        
+        self.pi_power_spectrum = self.gw_power_spectrum.addPlot()
+        
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_power_spectrum.showGrid(x=1, y=1)
+        self.pi_power_spectrum.setTitle('Power spectral density (Welch)', **p)
+        self.pi_power_spectrum.setLabel('bottom', text='frequency [Hz]', **p)
+        self.pi_power_spectrum.setLabel('left', text='PSD [V%s/Hz]' % chr(178),
+                                        **p)
+        self.pi_power_spectrum.setAutoVisible(x=True, y=True)
+        self.pi_power_spectrum.setXRange(100, 120, padding=0.05)
+        self.pi_power_spectrum.setYRange(0, 1, padding=0.05)
+        self.pi_power_spectrum.setClipToView(True)
+        
+        self.BP_power_spectrum = BufferedPlot(
+                self.pi_power_spectrum.plot(pen=self.PEN_03))
+        
+        # -----------------------------------
+        # -----------------------------------
+        #   Round up tab page 'Power spectrum'
+        # -----------------------------------
+        # -----------------------------------
+        
+        hbox = QtWid.QHBoxLayout()
+        hbox.addWidget(self.gw_power_spectrum, stretch=1)
+        self.tab_power_spectrum.setLayout(hbox)
+        
+        def _frame_Filter_resp_BS(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -567,8 +610,8 @@ class MainWindow(QtWid.QWidget):
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_filt_resp_BS.showGrid(x=1, y=1)
         self.pi_filt_resp_BS.setTitle('Filter response', **p)
-        self.pi_filt_resp_BS.setLabel('bottom', text='frequency (Hz)', **p)
-        self.pi_filt_resp_BS.setLabel('left', text='attenuation (dB)', **p)
+        self.pi_filt_resp_BS.setLabel('bottom', text='frequency [Hz]', **p)
+        self.pi_filt_resp_BS.setLabel('left', text='attenuation [dB]', **p)
         self.pi_filt_resp_BS.setAutoVisible(x=True, y=True)
         self.pi_filt_resp_BS.enableAutoRange('x', False)
         self.pi_filt_resp_BS.enableAutoRange('y', True)
@@ -589,6 +632,7 @@ class MainWindow(QtWid.QWidget):
         hbox.addWidget(self.gw_filt_resp_BS, stretch=1)
         self.tab_filter_1_response.setLayout(hbox)
         
+        def _frame_Filter_resp_LP(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -605,8 +649,8 @@ class MainWindow(QtWid.QWidget):
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_filt_resp_LP.showGrid(x=1, y=1)
         self.pi_filt_resp_LP.setTitle('Filter response', **p)
-        self.pi_filt_resp_LP.setLabel('bottom', text='frequency (Hz)', **p)
-        self.pi_filt_resp_LP.setLabel('left', text='attenuation (dB)', **p)
+        self.pi_filt_resp_LP.setLabel('bottom', text='frequency [Hz]', **p)
+        self.pi_filt_resp_LP.setLabel('left', text='attenuation [dB]', **p)
         self.pi_filt_resp_LP.setAutoVisible(x=True, y=True)
         self.pi_filt_resp_LP.enableAutoRange('x', False)
         self.pi_filt_resp_LP.enableAutoRange('y', True)
@@ -721,6 +765,7 @@ class MainWindow(QtWid.QWidget):
         self.update_chart_filt_BS()
         self.update_chart_mixer()
         self.update_chart_LIA_output()
+        self.BP_power_spectrum.update_curve()
     
     @QtCore.pyqtSlot()
     def clear_chart_histories_stage_1_and_2(self):
@@ -898,11 +943,11 @@ class MainWindow(QtWid.QWidget):
         if self.qrbt_YT_Y.isChecked():
             self.CH_LIA_YT.curve.setPen(self.PEN_02)
             self.pi_YT.setTitle('Y')
-            self.pi_YT.setLabel('left', text='voltage (V)')
+            self.pi_YT.setLabel('left', text='voltage [V]')
         else:
             self.CH_LIA_YT.curve.setPen(self.PEN_03)
             self.pi_YT.setTitle('%s' % chr(0x398))
-            self.pi_YT.setLabel('left', text='phase (deg)')
+            self.pi_YT.setLabel('left', text='phase [deg]')
             
         if self.lockin_pyqt.worker_DAQ.suspended:
             # The graphs are not being updated with the newly chosen timeseries

@@ -18,6 +18,7 @@ from PyQt5 import QtCore
 from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import numpy as np
+from scipy.signal import welch
 
 from DvG_pyqt_FileLogger import FileLogger
 from DvG_debug_functions import dprint#, print_fancy_traceback as pft
@@ -76,7 +77,10 @@ def about_to_quit():
 # ------------------------------------------------------------------------------
 
 def lockin_DAQ_update():
-    str_cur_date, str_cur_time = current_date_time_strings()
+    """Performs the main mathematical operations for lock-in signal processing.
+    NOTE: NO (SLOW) GUI OPERATIONS ARE ALLOWED HERE. Otherwise it will affect
+    the worker_DAQ thread negatively, resulting in lost buffers.
+    """
     
     # Shorthands
     c: lockin_functions.Arduino_lockin_amp.Config = lockin.config
@@ -87,7 +91,7 @@ def lockin_DAQ_update():
     
     [success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
     if not(success):
-        dprint("@ %s %s" % (str_cur_date, str_cur_time))
+        dprint("@ %s %s" % current_date_time_strings())
         return False
     
     # HACK: hard-coded calibration correction on the ADC
@@ -216,8 +220,20 @@ def lockin_DAQ_update():
         state.deque_out_Y.extend(out_Y)
         state.deque_out_R.extend(out_R)
         state.deque_out_T.extend(out_T)
+        
+    # Power spectrum
+    # --------------
+    if len(state.deque_sig_I) == state.deque_sig_I.maxlen:
+        [f, Pxx] = welch(state.deque_sig_I, fs=c.Fs, nperseg=10250,
+                         scaling='density')
+       
+        window.BP_power_spectrum.set_data(f, Pxx)
+        
+        # TODO: THIS IS AN ILLEGAL ACTION RE. PROPER MULTI-THREADING.
+        # SLOW GUI OPERATION. MUST CHANGE.
+        #window.curve_power_spectrum.setData(f, Pxx)
     
-    # Add new data to graphs
+    # Add new data to charts
     # ----------------------
     
     window.CH_ref_X.add_new_readings(time, ref_X)
