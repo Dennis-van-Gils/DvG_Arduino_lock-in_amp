@@ -30,7 +30,7 @@ proper bindings to strncmpi
 "C_Cpp.intelliSenseEngineFallback": "Disabled"
 
 Dennis van Gils
-28-03-2019
+29-03-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -229,8 +229,13 @@ uint16_t N_sent_buffers = 0;
 void isr_psd() {
   static bool fPrevRunning = fRunning;
   static bool fStartup = true;
-  static uint16_t write_idx1 = 0;   // Current write index in double buffer
-  static uint16_t write_idx2 = 0;   // Current write index in double buffer
+  static uint16_t write_idx = 0;    // Current write index in double buffer
+  static uint32_t now_offset = 0;
+  static uint16_t prev_LUT_idx = 0;
+  uint32_t now;
+  uint16_t LUT_idx;
+  uint16_t ref_X;
+  int16_t  sig_I;
 
   if (fRunning != fPrevRunning) {
     fPrevRunning = fRunning;
@@ -245,17 +250,33 @@ void isr_psd() {
       #elif defined(__SAMD51__)
         DAC->DATA[0].reg = 0;       // Set output voltage to 0
       #endif
+      syncDAC();
     }
   }
   if (!fRunning) {return;}
 
-  // Generate reference signals
-  uint32_t now = micros();
-  static uint32_t now_offset = 0;
-  if (fStartup) {now_offset = now;} // Force cosine to start at phase = 0 deg
-  uint16_t LUT_idx = round(fmod(now - now_offset, T_period_micros_dbl) * \
-                           LUT_micros2idx_factor);
-  uint16_t ref_X = LUT_cos[LUT_idx];
+  // Read input signal corresponding to the DAC output of the previous timestep.
+  // This ensures that the previously set DAC output has had enough time to
+  // stabilize.
+  syncADC();
+  #if defined(__SAMD21__)
+    ADC->SWTRIG.bit.START = 1;
+    while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
+    syncADC();
+    sig_I = ADC->RESULT.reg;
+  #elif defined(__SAMD51__)
+    ADC0->SWTRIG.bit.START = 1;
+    while (ADC0->INTFLAG.bit.RESRDY == 0);  // Wait for conversion to complete
+    syncADC();
+    sig_I = ADC0->RESULT.reg;
+  #endif
+
+  // Generate reference signal
+  now = micros();
+  if (fStartup) {now_offset = now;}   // Force cosine to start at phase = 0 deg
+  LUT_idx = round(fmod(now - now_offset, T_period_micros_dbl) * \
+                  LUT_micros2idx_factor);
+  ref_X = LUT_cos[LUT_idx];
 
   // Output reference signal
   syncDAC();
@@ -264,46 +285,30 @@ void isr_psd() {
   #elif defined(__SAMD51__)
     DAC->DATA[0].reg = ref_X;
   #endif
-
-  // Read input signal
-  syncADC();
-  #if defined(__SAMD21__)
-    ADC->SWTRIG.bit.START = 1;
-    while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
-    int16_t sig_I = ADC->RESULT.reg;
-  #elif defined(__SAMD51__)
-    ADC0->SWTRIG.bit.START = 1;
-    while (ADC0->INTFLAG.bit.RESRDY == 0);  // Wait for conversion to complete
-    int16_t sig_I = ADC0->RESULT.reg;
-  #endif
+  syncDAC();
 
   // Store in buffers
   if (fStartup) {
-    buffer_time[0] = now;
-    buffer_ref_X_phase[0] = LUT_idx;
-    buffer_sig_I[0] = sig_I;
-    write_idx1 = 1;
-    write_idx2 = 0;
     fStartup = false;
+    prev_LUT_idx = LUT_idx;
+    write_idx = 0;
   } else {
-    buffer_time[write_idx1] = now;
-    buffer_ref_X_phase[write_idx1] = LUT_idx;
-    buffer_sig_I[write_idx2] = sig_I;
-    write_idx1++;
-    write_idx2++;
+    buffer_time[write_idx] = now;
+    buffer_ref_X_phase[write_idx] = prev_LUT_idx;
+    buffer_sig_I[write_idx] = sig_I;
+    prev_LUT_idx = LUT_idx;
+    write_idx++;
   }
 
   // Ready to send the buffer?
-  if (write_idx1 == BUFFER_SIZE) {
+  if (write_idx == BUFFER_SIZE) {
     N_buffers_scheduled_to_be_sent++;
     fSend_buffer_A = true;
-  } else if (write_idx1 == DOUBLE_BUFFER_SIZE) {
+  } else if (write_idx == DOUBLE_BUFFER_SIZE) {
     N_buffers_scheduled_to_be_sent++;
     fSend_buffer_B = true;
-    write_idx1 = 0;
+    write_idx = 0;
   }
-
-  if (write_idx2 == DOUBLE_BUFFER_SIZE) {write_idx2 = 0;}
 }
 
 /*------------------------------------------------------------------------------
