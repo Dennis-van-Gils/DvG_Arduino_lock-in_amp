@@ -356,6 +356,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_XR.setYRange(-1, 1, padding=0.05)
         self.pi_XR.setAutoVisible(x=True, y=True)
         self.pi_XR.setClipToView(True)
+        self.pi_XR.request_autorange_y = False
         
         self.CH_LIA_XR = ChartHistory(lockin.config.BUFFER_SIZE,
                                       self.pi_XR.plot(pen=self.PEN_03))
@@ -375,6 +376,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_YT.setYRange(-1, 1, padding=0.05)
         self.pi_YT.setAutoVisible(x=True, y=True)
         self.pi_YT.setClipToView(True)
+        self.pi_YT.request_autorange_y = False
         
         self.CH_LIA_YT = ChartHistory(lockin.config.BUFFER_SIZE,
                                       self.pi_YT.plot(pen=self.PEN_03))
@@ -885,9 +887,11 @@ class MainWindow(QtWid.QWidget):
                 self.CH_LIA_XR.add_new_readings(self.lockin_pyqt.state.time2,
                                                 self.lockin_pyqt.state.R)
             self.CH_LIA_XR.update_curve()        
-        
-        self.pi_XR.enableAutoRange('y', True)
-        self.pi_XR.enableAutoRange('y', False)
+            self.pi_XR.enableAutoRange('y', True)
+            self.pi_XR.enableAutoRange('y', False)
+        else:
+            # To be handled by update_chart_LIA_output
+            self.pi_XR.request_autorange_y = True
     
     @QtCore.pyqtSlot()
     def process_qrbt_YT(self):
@@ -913,9 +917,11 @@ class MainWindow(QtWid.QWidget):
                 self.CH_LIA_YT.add_new_readings(self.lockin_pyqt.state.time2,
                                                 self.lockin_pyqt.state.T)
             self.CH_LIA_YT.update_curve()
-        
-        self.pi_YT.enableAutoRange('y', True)
-        self.pi_YT.enableAutoRange('y', False)
+            self.pi_YT.enableAutoRange('y', True)
+            self.pi_YT.enableAutoRange('y', False)
+        else:
+            # To be handled by update_chart_LIA_output
+            self.pi_YT.request_autorange_y = True
             
     
     # --------------------------------------------------------------------------
@@ -943,6 +949,16 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def update_chart_LIA_output(self):
         [CH.update_curve() for CH in self.CHs_LIA_output]
+        
+        if self.pi_XR.request_autorange_y == True:
+            self.pi_XR.request_autorange_y = False
+            self.pi_XR.enableAutoRange('y', True)
+            self.pi_XR.enableAutoRange('y', False)
+        
+        if self.pi_YT.request_autorange_y == True:
+            self.pi_YT.request_autorange_y = False
+            self.pi_YT.enableAutoRange('y', True)
+            self.pi_YT.enableAutoRange('y', False)
         
     def construct_title_plot_filt_resp(self, firf):
         __tmp1 = 'N_taps = %i' % firf.N_taps
