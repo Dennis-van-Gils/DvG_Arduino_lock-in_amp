@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "28-03-2019"
+__date__        = "29-03-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -53,7 +53,7 @@ except:
 #   MainWindow
 # ------------------------------------------------------------------------------
 
-class MainWindow(QtWid.QWidget):
+class MainWindow(QtWid.QWidget):    
     def __init__(self,
                  lockin     : lockin_functions.Arduino_lockin_amp,
                  lockin_pyqt: lockin_pyqt_lib.Arduino_lockin_amp_pyqt,
@@ -71,11 +71,11 @@ class MainWindow(QtWid.QWidget):
         self.setStyleSheet(SS_TEXTBOX_READ_ONLY)
         
         # Define styles for plotting curves
-        PEN_01 = pg.mkPen(color=[255, 30 , 180], width=3)
-        PEN_02 = pg.mkPen(color=[255, 255, 90 ], width=3)
-        PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
-        PEN_04 = pg.mkPen(color=[255, 255, 255], width=3)        
-        BRUSH_03 = pg.mkBrush(0, 255, 255, 64)
+        self.PEN_01 = pg.mkPen(color=[255, 30 , 180], width=3)
+        self.PEN_02 = pg.mkPen(color=[255, 255, 90 ], width=3)
+        self.PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
+        self.PEN_04 = pg.mkPen(color=[255, 255, 255], width=3)        
+        self.BRUSH_03 = pg.mkBrush(0, 255, 255, 64)
 
         # -----------------------------------
         # -----------------------------------
@@ -193,11 +193,11 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setClipToView(True)
 
         self.CH_ref_X = ChartHistory(lockin.config.BUFFER_SIZE,
-                                     self.pi_refsig.plot(pen=PEN_01))
+                                     self.pi_refsig.plot(pen=self.PEN_01))
         self.CH_ref_Y = ChartHistory(lockin.config.BUFFER_SIZE,
-                                     self.pi_refsig.plot(pen=PEN_02))
+                                     self.pi_refsig.plot(pen=self.PEN_02))
         self.CH_sig_I = ChartHistory(lockin.config.BUFFER_SIZE,
-                                     self.pi_refsig.plot(pen=PEN_03))
+                                     self.pi_refsig.plot(pen=self.PEN_03))
         self.CH_ref_X.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_ref_Y.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_sig_I.x_axis_divisor = 1000     # From [us] to [ms]
@@ -347,7 +347,7 @@ class MainWindow(QtWid.QWidget):
         
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_XR.showGrid(x=1, y=1)
-        self.pi_XR.setTitle('Amplitude R', **p)
+        self.pi_XR.setTitle('R', **p)
         self.pi_XR.setLabel('bottom', text='time (ms)', **p)
         self.pi_XR.setLabel('left', text='voltage (V)', **p)
         self.pi_XR.setXRange(-lockin.config.BUFFER_SIZE *
@@ -358,7 +358,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_XR.setClipToView(True)
         
         self.CH_LIA_XR = ChartHistory(lockin.config.BUFFER_SIZE,
-                                      self.pi_XR.plot(pen=PEN_03))
+                                      self.pi_XR.plot(pen=self.PEN_03))
         self.CH_LIA_XR.x_axis_divisor = 1000     # From [us] to [ms]
         
         # Chart: Y or T
@@ -366,7 +366,7 @@ class MainWindow(QtWid.QWidget):
         
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_YT.showGrid(x=1, y=1)
-        self.pi_YT.setTitle('Phase %s' % chr(0x398), **p)
+        self.pi_YT.setTitle('%s' % chr(0x398), **p)
         self.pi_YT.setLabel('bottom', text='time (ms)', **p)
         self.pi_YT.setLabel('left', text='phase (deg)', **p)
         self.pi_YT.setXRange(-lockin.config.BUFFER_SIZE *
@@ -377,7 +377,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_YT.setClipToView(True)
         
         self.CH_LIA_YT = ChartHistory(lockin.config.BUFFER_SIZE,
-                                      self.pi_YT.plot(pen=PEN_03))
+                                      self.pi_YT.plot(pen=self.PEN_03))
         self.CH_LIA_YT.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_LIA_output = [self.CH_LIA_XR, self.CH_LIA_YT]
         
@@ -386,6 +386,10 @@ class MainWindow(QtWid.QWidget):
         self.qrbt_XR_R = QtWid.QRadioButton("R", checked=True)
         self.qrbt_YT_Y = QtWid.QRadioButton("Y")
         self.qrbt_YT_T = QtWid.QRadioButton("%s" % chr(0x398), checked=True)
+        self.qrbt_XR_X.clicked.connect(self.process_qrbt_XR)
+        self.qrbt_XR_R.clicked.connect(self.process_qrbt_XR)
+        self.qrbt_YT_Y.clicked.connect(self.process_qrbt_YT)
+        self.qrbt_YT_T.clicked.connect(self.process_qrbt_YT)
         
         vbox = QtWid.QVBoxLayout(spacing=4)
         vbox.addWidget(self.qrbt_XR_X)
@@ -471,10 +475,12 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_BS.setAutoVisible(x=True, y=True)
         self.pi_filt_BS.setClipToView(True)
         
-        self.CH_filt_BS_in  = ChartHistory(lockin.config.BUFFER_SIZE,
-                                           self.pi_filt_BS.plot(pen=PEN_03))
-        self.CH_filt_BS_out = ChartHistory(lockin.config.BUFFER_SIZE,
-                                           self.pi_filt_BS.plot(pen=PEN_04))
+        self.CH_filt_BS_in  = ChartHistory(
+                lockin.config.BUFFER_SIZE,
+                self.pi_filt_BS.plot(pen=self.PEN_03))
+        self.CH_filt_BS_out = ChartHistory(
+                lockin.config.BUFFER_SIZE,
+                self.pi_filt_BS.plot(pen=self.PEN_04))
         self.CH_filt_BS_in.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_filt_BS_out.x_axis_divisor = 1000    # From [us] to [ms]
         self.CHs_filt_BS = [self.CH_filt_BS_in, self.CH_filt_BS_out]
@@ -500,8 +506,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_mixer.showGrid(x=1, y=1)
         self.pi_mixer.setTitle('Mixer', **p)
         self.pi_mixer.setLabel('bottom', text='time (ms)', **p)
-        self.pi_mixer.setLabel('left', text='AC ampl. (V%s)' % chr(0xb2), 
-                               **p)
+        self.pi_mixer.setLabel('left', text='voltage (V)', **p)
         self.pi_mixer.setXRange(-lockin.config.BUFFER_SIZE *
                                 lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0.01)
@@ -510,9 +515,9 @@ class MainWindow(QtWid.QWidget):
         self.pi_mixer.setClipToView(True)
         
         self.CH_mix_X = ChartHistory(lockin.config.BUFFER_SIZE,
-                                     self.pi_mixer.plot(pen=PEN_01))
+                                     self.pi_mixer.plot(pen=self.PEN_01))
         self.CH_mix_Y = ChartHistory(lockin.config.BUFFER_SIZE,
-                                     self.pi_mixer.plot(pen=PEN_02))
+                                     self.pi_mixer.plot(pen=self.PEN_02))
         self.CH_mix_X.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_mix_Y.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_mixer = [self.CH_mix_X, self.CH_mix_Y]
@@ -567,7 +572,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_resp_BS.enableAutoRange('y', True)
         self.pi_filt_resp_BS.setClipToView(True)
         
-        self.curve_filt_resp_BS = pg.PlotCurveItem(pen=PEN_03, brush=BRUSH_03)
+        self.curve_filt_resp_BS = pg.PlotCurveItem(pen=self.PEN_03,
+                                                   brush=self.BRUSH_03)
         self.pi_filt_resp_BS.addItem(self.curve_filt_resp_BS)
         self.update_plot_filt_resp_BS()
         
@@ -604,7 +610,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_resp_LP.enableAutoRange('y', True)
         self.pi_filt_resp_LP.setClipToView(True)
         
-        self.curve_filt_resp_LP = pg.PlotCurveItem(pen=PEN_03, brush=BRUSH_03)
+        self.curve_filt_resp_LP = pg.PlotCurveItem(pen=self.PEN_03,
+                                                   brush=self.BRUSH_03)
         self.pi_filt_resp_LP.addItem(self.curve_filt_resp_LP)
         self.update_plot_filt_resp_LP()
         
@@ -650,7 +657,7 @@ class MainWindow(QtWid.QWidget):
                 self.update_GUI)
         
         self.lockin_pyqt.signal_DAQ_suspended.connect(
-                self.update_GUI_paused)
+                self.update_GUI)
         
         self.lockin_pyqt.signal_ref_freq_is_set.connect(
                 self.update_newly_set_ref_freq)
@@ -685,36 +692,33 @@ class MainWindow(QtWid.QWidget):
         LIA_pyqt = self.lockin_pyqt
         self.qlbl_update_counter.setText("%i" % LIA_pyqt.DAQ_update_counter)
         
-        if not LIA_pyqt.worker_DAQ.suspended:
+        if LIA_pyqt.worker_DAQ.suspended:
+            self.qlbl_DAQ_rate.setText("Buffers/s: paused")
+        else:
             self.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
                                        LIA_pyqt.obtained_DAQ_rate_Hz)
-            self.qlin_time.setText("%i"    % LIA_pyqt.state.time[0])
-            self.qlin_ref_X.setText("%.4f" % LIA_pyqt.state.ref_X[0])
-            self.qlin_ref_Y.setText("%.4f" % LIA_pyqt.state.ref_Y[0])
-            self.qlin_sig_I.setText("%.4f" % LIA_pyqt.state.sig_I[0])
+        self.qlin_time.setText("%i"    % LIA_pyqt.state.time[0])
+        self.qlin_ref_X.setText("%.4f" % LIA_pyqt.state.ref_X[0])
+        self.qlin_ref_Y.setText("%.4f" % LIA_pyqt.state.ref_Y[0])
+        self.qlin_sig_I.setText("%.4f" % LIA_pyqt.state.sig_I[0])
+        
+        if LIA_pyqt.firf_BS_sig_I.has_settled:
+            self.LED_settled_BG_filter.setChecked(True)
+            self.LED_settled_BG_filter.setText("YES")
+        else:
+            self.LED_settled_BG_filter.setChecked(False)
+            self.LED_settled_BG_filter.setText("NO")
+        if LIA_pyqt.firf_LP_mix_X.has_settled:
+            self.LED_settled_LP_filter.setChecked(True)
+            self.LED_settled_LP_filter.setText("YES")
+        else:
+            self.LED_settled_LP_filter.setChecked(False)
+            self.LED_settled_LP_filter.setText("NO")
             
-            if LIA_pyqt.firf_BS_sig_I.has_settled:
-                self.LED_settled_BG_filter.setChecked(True)
-                self.LED_settled_BG_filter.setText("YES")
-            else:
-                self.LED_settled_BG_filter.setChecked(False)
-                self.LED_settled_BG_filter.setText("NO")
-            if LIA_pyqt.firf_LP_mix_X.has_settled:
-                self.LED_settled_LP_filter.setChecked(True)
-                self.LED_settled_LP_filter.setText("YES")
-            else:
-                self.LED_settled_LP_filter.setChecked(False)
-                self.LED_settled_LP_filter.setText("NO")
-                
-            self.update_chart_refsig()
-            self.update_chart_filt_BS()
-            self.update_chart_mixer()
-            self.update_chart_LIA_output()
-            
-    @QtCore.pyqtSlot()
-    def update_GUI_paused(self):
-        #dprint("Update GUI paused")
-        self.qlbl_DAQ_rate.setText("Buffers/s: paused")
+        self.update_chart_refsig()
+        self.update_chart_filt_BS()
+        self.update_chart_mixer()
+        self.update_chart_LIA_output()
     
     @QtCore.pyqtSlot()
     def clear_chart_histories_stage_1_and_2(self):
@@ -859,6 +863,60 @@ class MainWindow(QtWid.QWidget):
             pi.enableAutoRange('y', True)
             pi.enableAutoRange('y', False)
         
+    @QtCore.pyqtSlot()
+    def process_qrbt_XR(self):        
+        if self.qrbt_XR_X.isChecked():
+            self.CH_LIA_XR.curve.setPen(self.PEN_01)
+            self.pi_XR.setTitle('X')
+        else:
+            self.CH_LIA_XR.curve.setPen(self.PEN_03)
+            self.pi_XR.setTitle('R')
+            
+        if self.lockin_pyqt.worker_DAQ.suspended:
+            # The graphs are not being updated with the newly chosen timeseries
+            # automatically because the lock-in is not running. It is safe
+            # however to make a copy of the lockin_pyqt.state timeseries,
+            # because the GUI can't interfere with the DAQ thread now that it is
+            # in suspended mode. Hence, we copy new data into the chart.
+            if self.qrbt_XR_X.isChecked():
+                self.CH_LIA_XR.add_new_readings(self.lockin_pyqt.state.time2,
+                                                self.lockin_pyqt.state.X)
+            else:
+                self.CH_LIA_XR.add_new_readings(self.lockin_pyqt.state.time2,
+                                                self.lockin_pyqt.state.R)
+            self.CH_LIA_XR.update_curve()        
+        
+        self.pi_XR.enableAutoRange('y', True)
+        self.pi_XR.enableAutoRange('y', False)
+    
+    @QtCore.pyqtSlot()
+    def process_qrbt_YT(self):
+        if self.qrbt_YT_Y.isChecked():
+            self.CH_LIA_YT.curve.setPen(self.PEN_02)
+            self.pi_YT.setTitle('Y')
+            self.pi_YT.setLabel('left', text='voltage (V)')
+        else:
+            self.CH_LIA_YT.curve.setPen(self.PEN_03)
+            self.pi_YT.setTitle('%s' % chr(0x398))
+            self.pi_YT.setLabel('left', text='phase (deg)')
+            
+        if self.lockin_pyqt.worker_DAQ.suspended:
+            # The graphs are not being updated with the newly chosen timeseries
+            # automatically because the lock-in is not running. It is safe
+            # however to make a copy of the lockin_pyqt.state timeseries,
+            # because the GUI can't interfere with the DAQ thread now that it is
+            # in suspended mode. Hence, we copy new data into the chart.
+            if self.qrbt_YT_Y.isChecked():
+                self.CH_LIA_YT.add_new_readings(self.lockin_pyqt.state.time2,
+                                                self.lockin_pyqt.state.Y)
+            else:
+                self.CH_LIA_YT.add_new_readings(self.lockin_pyqt.state.time2,
+                                                self.lockin_pyqt.state.T)
+            self.CH_LIA_YT.update_curve()
+        
+        self.pi_YT.enableAutoRange('y', True)
+        self.pi_YT.enableAutoRange('y', False)
+            
     
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
@@ -896,6 +954,7 @@ class MainWindow(QtWid.QWidget):
         
         return ('%s, %s, %s' % (__tmp1, __tmp2, __tmp3))
     
+    @QtCore.pyqtSlot()
     def update_plot_filt_resp_BS(self):
         firf = self.lockin_pyqt.firf_BS_sig_I
         self.curve_filt_resp_BS.setFillLevel(np.min(firf.resp_ampl_dB))
@@ -906,7 +965,7 @@ class MainWindow(QtWid.QWidget):
                                        padding=0.01)
         self.pi_filt_resp_BS.setTitle('Filter response: band-stop<br/>%s' %
                                       self.construct_title_plot_filt_resp(firf))
-        
+    @QtCore.pyqtSlot()
     def update_plot_filt_resp_LP(self):
         firf = self.lockin_pyqt.firf_LP_mix_X
         self.curve_filt_resp_LP.setFillLevel(np.min(firf.resp_ampl_dB))

@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "28-03-2019"
+__date__        = "29-03-2019"
 __version__     = "1.0.0"
 
 import os
@@ -139,12 +139,12 @@ def lockin_DAQ_update():
     state.ref_X = ref_X
     state.ref_Y = ref_Y
     state.sig_I = sig_I
-    
+
     state.deque_time.extend(time)
     state.deque_ref_X.extend(ref_X)
     state.deque_ref_Y.extend(ref_Y)
     state.deque_sig_I.extend(sig_I)
-    
+
     # Stage 1
     # -------
     
@@ -189,11 +189,11 @@ def lockin_DAQ_update():
     if lockin_pyqt.firf_LP_mix_X.has_settled:
         # Signal amplitude and phase reconstruction
         out_R = np.sqrt(out_X**2 + out_Y**2)
-        """NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
-        division by (mix_X = 0) is handled correctly due to 'numpy.inf'. Likewise,
-        'numpy.arctan(numpy.inf)' will result in pi/2. We suppress the
-        RuntimeWarning: divide by zero encountered in true_divide.
-        """
+        
+        # NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
+        # division by (mix_X = 0) is handled correctly due to 'numpy.inf'.
+        # Likewise, 'numpy.arctan(numpy.inf)' will result in pi/2. We suppress
+        # the RuntimeWarning: divide by zero encountered in true_divide.
         np.seterr(divide='ignore')
         out_T = np.arctan(out_Y / out_X)
         out_T = out_T/np.pi*180     # Transform [rad] to [deg]
@@ -204,6 +204,12 @@ def lockin_DAQ_update():
         time_2 = (np.array(state.deque_time_1, dtype=np.int64)
                   [lockin_pyqt.firf_LP_mix_X.win_idx_valid_start:
                    lockin_pyqt.firf_LP_mix_X.win_idx_valid_end])
+    
+        state.time2 = time_2
+        state.X     = out_X
+        state.Y     = out_Y
+        state.R     = out_R
+        state.T     = out_T
         
         state.deque_time_2.extend(time_2)
         state.deque_out_X.extend(out_X)
@@ -226,10 +232,14 @@ def lockin_DAQ_update():
         window.CH_mix_Y.add_new_readings(time_1, mix_Y)
         
     if lockin_pyqt.firf_LP_mix_X.has_settled:
-        window.CH_LIA_XR.add_new_readings(time_2, out_R)
-        window.CH_LIA_YT.add_new_readings(time_2, out_T)
-        #window.CH_LIA_XR.add_new_readings(time_2, out_X)
-        #window.CH_LIA_YT.add_new_readings(time_2, out_Y)
+        if window.qrbt_XR_X.isChecked():
+            window.CH_LIA_XR.add_new_readings(time_2, out_X)
+        else:
+            window.CH_LIA_XR.add_new_readings(time_2, out_R)
+        if window.qrbt_YT_Y.isChecked():
+            window.CH_LIA_YT.add_new_readings(time_2, out_Y)
+        else:
+            window.CH_LIA_YT.add_new_readings(time_2, out_T)
     
     # Logging to file
     #----------------
