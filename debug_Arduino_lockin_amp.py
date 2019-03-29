@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-02-12-2018
 Dennis_van_Gils
+29-03-2019
 """
 
 import os
 import sys
-import struct
 import msvcrt
 import psutil
 import time as Time
@@ -15,19 +14,21 @@ from pathlib2 import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
+from collections import deque
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 
 fn_log = "log.txt"
-fDrawPlot = True
+fDrawPlot = False
 
 if __name__ == "__main__":
     p = psutil.Process(os.getpid())
     p.nice(psutil.HIGH_PRIORITY_CLASS)
 
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=5e8)
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1e6)
     if not lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
         sys.exit(0)
+    lockin.begin(ref_freq=100, ref_V_offset=1.5, ref_V_ampl=0.5)
     
     if fDrawPlot:
         plt.ion()
@@ -36,25 +37,29 @@ if __name__ == "__main__":
         ax.plot(0, 0)
         fig.show()
         fig.canvas.draw()
-
     f_log = open(fn_log, 'w')
-    
-    lockin.begin()
-    lockin.set_ref_freq(137)
-    lockin.turn_on()
 
-    samples_received = np.array([], dtype=int)
-    for uber_counter in range(40): 
-        #if uber_counter == 2: lockin.set_ref_freq(20)
-        
-        full_time  = np.array([], dtype=int)
-        full_ref_X = np.array([], dtype=int)
-        full_sig_I = np.array([], dtype=int)
+    N_SETS = 3;
+    N_REPS = 41;
     
-        time_start = 0;
+    N_deque = lockin.config.BUFFER_SIZE * N_REPS;
+    deque_time  = deque(maxlen=N_deque)
+    deque_ref_X = deque(maxlen=N_deque)
+    deque_sig_I = deque(maxlen=N_deque)
+    samples_received = np.array([], dtype=int)
+    
+    lockin.turn_on()
+    for i_set in range(N_SETS): 
+        #if i_set == 1: lockin.set_ref_freq(20)
+        #if i_set == 2: lockin.set_ref_V_ampl(0.6)
+        
+        deque_time.clear()
+        deque_ref_X.clear()
+        deque_sig_I.clear()
+    
+        tick = 0;
         buffers_received = 0;
-        N_count = 50
-        for counter in range(N_count):            
+        for i_rep in range(N_REPS):            
             #if msvcrt.kbhit() and msvcrt.getch().decode() == chr(27):
             #    sys.exit(0)
             
@@ -63,52 +68,48 @@ if __name__ == "__main__":
             if success:
                 buffers_received += 1
                 
-                if time_start == 0:
-                    time_start = Time.time()
+                if tick == 0:
+                    tick = Time.perf_counter()
                     
-                #print("%3d: %d" % (counter, N_samples))
                 N_samples = len(time)
+                print("%3d: %d" % (i_rep, N_samples))
                 f_log.write("samples received: %i\n" % N_samples)
                 for i in range(N_samples):
-                    f_log.write("%i\t%i\t%i\n" % (time[i], ref_X[i], sig_I[i]))
+                    f_log.write("%i\t%.3f\t%.3f\n" % (time[i], ref_X[i], sig_I[i]))
                 
-                full_time  = np.append(full_time , time)
-                full_ref_X = np.append(full_ref_X, ref_X)
-                full_sig_I = np.append(full_sig_I, sig_I)
+                deque_time.extend(time)
+                deque_ref_X.extend(ref_X)
+                deque_sig_I.extend(sig_I)
+                samples_received = np.append(samples_received, N_samples)
         
-        time_end = Time.time()
         f_log.write("draw\n")
         
-        full_time = full_time - full_time[0]
+        np_time = np.array(deque_time)
+        np_time = np_time - np_time[0]
+        dt = np.diff(np_time)
         
-        dt = np.diff(full_time)
         Fs = 1/np.mean(dt)*1e6
         str_info1 = ("Fs = %.2f Hz    dt_min = %d us    dt_max = %d us" % 
                     (Fs, np.min(dt), np.max(dt)))
         str_info2 = ("N_buf = %d     %.2f buf/s" % 
                     (buffers_received,
-                     buffers_received/(time_end - time_start)))
+                     buffers_received/(Time.perf_counter() - tick)))
         print(str_info1 + "    " + str_info2)
         
         if fDrawPlot:
             ax.cla()
-            #ax.plot(full_time/1e3, full_ref_X/(2**10 - 1)*3.3, 'x-k')
-            ax.plot(full_time/1e3, full_ref_X, 'x-k')
-            ax.plot(full_time/1e3, full_sig_I/(2**12 - 1)*3.3 - 2, 'x-r')
+            ax.plot(np_time/1e3, deque_ref_X, 'x-k')
+            ax.plot(np_time/1e3, deque_sig_I, 'x-r')
             ax.set(xlabel='time (ms)', ylabel='y',
                    title=(str_info1 + '\n' + str_info2))
             ax.grid()            
             ax.set(xlim=(0, 80))
-            
-            #I = full_ref_X / (2**10)*3.3 * full_sig_I / (2**12)*3.3
-            #ax.plot(full_time, I, '.-m')    
-            
+                        
             fig.canvas.draw()
             plt.pause(0.1)
     
-    # Turn lock-in amp off
+    # Finish test
     lockin.turn_off()
-    
     lockin.close()
     f_log.close()
     
