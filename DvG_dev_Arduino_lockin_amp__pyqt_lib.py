@@ -6,8 +6,8 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "27-03-2019"
-__version__     = "1.3.1"
+__date__        = "29-03-2019"
+__version__     = "1.0.0"
 
 import numpy as np
 from collections import deque
@@ -88,6 +88,11 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             self.ref_X = np.array([], float)
             self.ref_Y = np.array([], float)
             self.sig_I = np.array([], float)
+            self.time2 = np.array([], int)      # [ms]
+            self.X     = np.array([], float)
+            self.Y     = np.array([], float)
+            self.R     = np.array([], float)
+            self.T     = np.array([], float)
             
             """ Deque arrays needed for proper FIR filtering.
             Each time a complete buffer of BUFFER_SIZE samples is received from
