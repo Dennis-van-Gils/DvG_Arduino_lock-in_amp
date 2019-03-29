@@ -45,8 +45,8 @@ Class:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
-__date__        = "14-09-2018"
-__version__     = "1.0.0"
+__date__        = "29-03-2019"
+__version__     = "1.1.0"
 
 import collections
 
@@ -72,11 +72,12 @@ class ChartHistory(object):
         self._x_snapshot = [0]
         self._y_snapshot = [0]
 
-        # Performance boost: Do not plot data outside of visible range
-        self.curve.clipToView = True
+        if self.curve is not None:
+            # Performance boost: Do not plot data outside of visible range
+            self.curve.clipToView = True
 
-        # Default to no downsampling
-        self.curve.setDownsampling(ds=1, auto=False, method='mean')
+            # Default to no downsampling
+            self.curve.setDownsampling(ds=1, auto=False, method='mean')
 
     def apply_downsampling(self, do_apply=True, ds=4):
         if do_apply:
