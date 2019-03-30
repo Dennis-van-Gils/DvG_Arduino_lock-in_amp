@@ -228,10 +228,6 @@ def lockin_DAQ_update():
                          scaling='density')
        
         window.BP_power_spectrum.set_data(f, Pxx)
-        
-        # TODO: THIS IS AN ILLEGAL ACTION RE. PROPER MULTI-THREADING.
-        # SLOW GUI OPERATION. MUST CHANGE.
-        #window.curve_power_spectrum.setData(f, Pxx)
     
     # Add new data to charts
     # ----------------------
