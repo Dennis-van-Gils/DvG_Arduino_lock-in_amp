@@ -6,7 +6,7 @@ Minimum running example for trouble-shooting library
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "20-01-2019"
+__date__        = "29-03-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -26,32 +26,26 @@ from DvG_debug_functions import dprint
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 
-# Monkey patch error in pyqtgraph
-import DvG_fix_pyqtgraph_PlotCurveItem
-pg.PlotCurveItem.paintGL = DvG_fix_pyqtgraph_PlotCurveItem.paintGL
-
-# DvG 21-01-2019: THE TRICK!!! GUI no longer slows down to a crawl when
-# plotting massive data in curves
 try:
+    import OpenGL.GL as gl
     pg.setConfigOptions(useOpenGL=True)
     pg.setConfigOptions(enableExperimental=True)
-    print("Enabled OpenGL hardware acceleration for graphing.")
+    pg.setConfigOptions(antialias=False)
+    
+    # Monkey patch error in pyqtgraph
+    import DvG_fix_pyqtgraph_PlotCurveItem
+    pg.PlotCurveItem.paintGL = DvG_fix_pyqtgraph_PlotCurveItem.paintGL
+    
+    print("OpenGL hardware acceleration enabled.")
 except:
-    print("WARNING: Could not initiate the use of OpenGL.")
-    print("Graphing will not be hardware accelerated.")
-    print("Prerequisite: 'PyOpenGL' library.\n")
+    pg.setConfigOptions(useOpenGL=False)
+    pg.setConfigOptions(enableExperimental=False)
+    pg.setConfigOptions(antialias=False)
+    print("WARNING: Could not enable OpenGL hardware acceleration.")
+    print("Check if prerequisite 'PyOpenGL' library is installed.")
 
 # Short-hand alias for DEBUG information
 def curThreadName(): return QtCore.QThread.currentThread().objectName()
-
-class State(object):
-    def __init__(self):
-        self.buffers_received = 0
-        
-        self.time  = np.array([], int)      # [ms]
-        self.ref_X = np.array([], float)
-        self.ref_Y = np.array([], float)
-        self.sig_I = np.array([], float)
         
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -132,7 +126,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
                                  lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0)
-        self.pi_refsig.setYRange(1.7, 2.3, padding=0.05)
+        self.pi_refsig.setYRange(1.0, 2.0, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
 
@@ -281,12 +275,17 @@ def lockin_DAQ_update():
     if lockin.lockin_paused:  # Prevent throwings errors if just paused
         return False
     
-    tick = Time.time()
+    tick = Time.perf_counter()
     [success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
-    dprint("%i" % ((Time.time() - tick)*1e3))
+    dprint("%i" % ((Time.perf_counter() - tick)*1e3))
     
     if not(success):
         return False
+    
+    if 0:
+        # HACK: hard-coded calibration correction on the ADC
+        dev_sig_I = sig_I * 0.0054 + 0.005;
+        sig_I -= dev_sig_I
 
     window.CH_ref_X.add_new_readings(time, ref_X)    
     window.CH_sig_I.add_new_readings(time, sig_I)
@@ -310,11 +309,10 @@ if __name__ == '__main__':
     
     # Connect to Arduino
     lockin = lockin_functions.Arduino_lockin_amp(baudrate=1e6, read_timeout=1)
-    if not lockin.connect_at_port("COM3"):
+    if not lockin.connect_at_port("COM11"):
         print("Can't connect to Arduino")
         sys.exit(0)
-    lockin.begin(ref_freq=2500)
-    state = State()
+    lockin.begin(ref_freq=100, ref_V_offset=1.5, ref_V_ampl=0.5)
     
     # Create workers and threads
     lockin_pyqt = Arduino_lockin_amp_pyqt(

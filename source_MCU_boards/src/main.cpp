@@ -19,7 +19,7 @@ M0 family
 
 M4 family
 - Adafruit Grand Central M4     SAMD51P20A
-- Adafruit NeoTrellis M4        SAMD51J19A? 
+- Adafruit NeoTrellis M4        SAMD51J19A?
 - Adafruit Metro M4             SAMD51J19A            ADAFRUIT_METRO_M4_EXPRESS
 - Adafruit Feather M4           SAMD51J19A   okay     ADAFRUIT_FEATHER_M4_EXPRESS
 - Adafruit ItsyBitsy M4         SAMD51G19A   okay     ADAFRUIT_ITSYBITSY_M4_EXPRESS
@@ -30,7 +30,7 @@ proper bindings to strncmpi
 "C_Cpp.intelliSenseEngineFallback": "Disabled"
 
 Dennis van Gils
-22-03-2019
+29-03-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -176,14 +176,14 @@ volatile bool fSend_buffer_B = false;
     Cosine wave look-up table (LUT)
 ------------------------------------------------------------------------------*/
 
-double ref_freq = 100.0;      // [Hz], aka f_R
+double ref_freq = 110.0;      // [Hz], aka f_R
 
 // Tip: Limiting the output voltage range to slighty above 0.0 V will improve
 // the shape of the cosine wave at its minimum. Apparently, the analog out port
 // has difficulty in cleanly dropping the output voltage completely to 0.0 V.
 #define A_REF        3.300    // [V] Analog voltage reference Arduino
-double ref_V_offset = 2.8;    // [V] Voltage offset of cos. reference signal
-double ref_V_ampl   = 0.4;    // [V] Voltage amplitude of cos. reference signal
+double ref_V_offset = 1.7;    // [V] Voltage offset of cos. reference signal
+double ref_V_ampl   = 1.414;  // [V] Voltage amplitude of cos. reference signal
 
 #define N_LUT 9000  // (9000 --> 0.04 deg) Number of samples for one full period
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
@@ -229,8 +229,13 @@ uint16_t N_sent_buffers = 0;
 void isr_psd() {
   static bool fPrevRunning = fRunning;
   static bool fStartup = true;
-  static uint16_t write_idx1 = 0;   // Current write index in double buffer
-  static uint16_t write_idx2 = 0;   // Current write index in double buffer
+  static uint16_t write_idx = 0;    // Current write index in double buffer
+  static uint32_t now_offset = 0;
+  static uint16_t prev_LUT_idx = 0;
+  uint32_t now;
+  uint16_t LUT_idx;
+  uint16_t ref_X;
+  int16_t  sig_I;
 
   if (fRunning != fPrevRunning) {
     fPrevRunning = fRunning;
@@ -245,17 +250,33 @@ void isr_psd() {
       #elif defined(__SAMD51__)
         DAC->DATA[0].reg = 0;       // Set output voltage to 0
       #endif
+      syncDAC();
     }
   }
   if (!fRunning) {return;}
 
-  // Generate reference signals
-  uint32_t now = micros();
-  static uint32_t now_offset = 0;
-  if (fStartup) {now_offset = now;} // Force cosine to start at phase = 0 deg
-  uint16_t LUT_idx = round(fmod(now - now_offset, T_period_micros_dbl) * \
-                           LUT_micros2idx_factor);
-  uint16_t ref_X = LUT_cos[LUT_idx];
+  // Read input signal corresponding to the DAC output of the previous timestep.
+  // This ensures that the previously set DAC output has had enough time to
+  // stabilize.
+  syncADC();
+  #if defined(__SAMD21__)
+    ADC->SWTRIG.bit.START = 1;
+    while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
+    syncADC();
+    sig_I = ADC->RESULT.reg;
+  #elif defined(__SAMD51__)
+    ADC0->SWTRIG.bit.START = 1;
+    while (ADC0->INTFLAG.bit.RESRDY == 0);  // Wait for conversion to complete
+    syncADC();
+    sig_I = ADC0->RESULT.reg;
+  #endif
+
+  // Generate reference signal
+  now = micros();
+  if (fStartup) {now_offset = now;}   // Force cosine to start at phase = 0 deg
+  LUT_idx = round(fmod(now - now_offset, T_period_micros_dbl) * \
+                  LUT_micros2idx_factor);
+  ref_X = LUT_cos[LUT_idx];
 
   // Output reference signal
   syncDAC();
@@ -264,46 +285,30 @@ void isr_psd() {
   #elif defined(__SAMD51__)
     DAC->DATA[0].reg = ref_X;
   #endif
-
-  // Read input signal
-  syncADC();
-  #if defined(__SAMD21__)
-    ADC->SWTRIG.bit.START = 1;
-    while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
-    int16_t sig_I = ADC->RESULT.reg;
-  #elif defined(__SAMD51__)
-    ADC0->SWTRIG.bit.START = 1;
-    while (ADC0->INTFLAG.bit.RESRDY == 0);  // Wait for conversion to complete
-    int16_t sig_I = ADC0->RESULT.reg;
-  #endif
+  syncDAC();
 
   // Store in buffers
   if (fStartup) {
-    buffer_time[0] = now;
-    buffer_ref_X_phase[0] = LUT_idx;
-    buffer_sig_I[0] = sig_I;
-    write_idx1 = 1;
-    write_idx2 = 0;
     fStartup = false;
+    prev_LUT_idx = LUT_idx;
+    write_idx = 0;
   } else {
-    buffer_time[write_idx1] = now;
-    buffer_ref_X_phase[write_idx1] = LUT_idx;
-    buffer_sig_I[write_idx2] = sig_I;
-    write_idx1++;
-    write_idx2++;
+    buffer_time[write_idx] = now;
+    buffer_ref_X_phase[write_idx] = prev_LUT_idx;
+    buffer_sig_I[write_idx] = sig_I;
+    prev_LUT_idx = LUT_idx;
+    write_idx++;
   }
 
   // Ready to send the buffer?
-  if (write_idx1 == BUFFER_SIZE) {
+  if (write_idx == BUFFER_SIZE) {
     N_buffers_scheduled_to_be_sent++;
     fSend_buffer_A = true;
-  } else if (write_idx1 == DOUBLE_BUFFER_SIZE) {
+  } else if (write_idx == DOUBLE_BUFFER_SIZE) {
     N_buffers_scheduled_to_be_sent++;
     fSend_buffer_B = true;
-    write_idx1 = 0;
+    write_idx = 0;
   }
-
-  if (write_idx2 == DOUBLE_BUFFER_SIZE) {write_idx2 = 0;}
 }
 
 /*------------------------------------------------------------------------------
@@ -428,7 +433,7 @@ void setup() {
     ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
     // ADC0->INPUTCTRL.bit.GAIN does not exist on SAMD51
     ADC0->REFCTRL.bit.REFSEL = 3; // 3: INTVCC1 on SAMD51 = VDDANA
-    
+
     /*
     ADC0->OFFSETCORR.bit.OFFSETCORR = ADC_OFFSETCORR_OFFSETCORR(50);
     ADC0->GAINCORR.bit.GAINCORR = ADC_GAINCORR_GAINCORR(2065);
@@ -550,7 +555,7 @@ void loop() {
             Ser_data.println(ADC0->CALIB.bit.BIASCOMP);
             Ser_data.println(ADC0->CALIB.bit.BIASREFBUF);
             Ser_data.println(ADC0->CALIB.bit.BIASR2R);
-            
+
             Ser_data.println(ADC0->OFFSETCORR.bit.OFFSETCORR);
             Ser_data.println(ADC0->GAINCORR.bit.GAINCORR);
           #endif
@@ -570,11 +575,11 @@ void loop() {
           Ser_data.print('\t');
           Ser_data.print(A_REF);
           Ser_data.print('\t');
-          Ser_data.print(ref_V_offset);
+          Ser_data.print(ref_V_offset, 3);
           Ser_data.print('\t');
-          Ser_data.print(ref_V_ampl);
+          Ser_data.print(ref_V_ampl, 3);
           Ser_data.print('\t');
-          Ser_data.print(ref_freq);
+          Ser_data.print(ref_freq, 2);
           Ser_data.print('\n');
 
           #ifdef DEBUG
@@ -610,7 +615,7 @@ void loop() {
           LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
           T_period_micros_dbl = 1.0 / ref_freq * 1e6;
           interrupts();
-          Ser_data.println(ref_freq);
+          Ser_data.println(ref_freq, 2);
 
         } else if (strncmpi(strCmd, "ref_V_offset", 12) == 0) {
           // Set voltage offset of cosine reference signal [V]
@@ -620,7 +625,7 @@ void loop() {
           noInterrupts();
           create_LUT();
           interrupts();
-          Ser_data.println(ref_V_offset);
+          Ser_data.println(ref_V_offset, 3);
 
         } else if (strncmpi(strCmd, "ref_V_ampl", 10) == 0) {
           // Set voltage amplitude of cosine reference signal [V]
@@ -630,7 +635,7 @@ void loop() {
           noInterrupts();
           create_LUT();
           interrupts();
-          Ser_data.println(ref_V_ampl);
+          Ser_data.println(ref_V_ampl, 3);
         }
 
       }

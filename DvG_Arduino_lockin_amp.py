@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "25-03-2019"
+__date__        = "29-03-2019"
 __version__     = "1.0.0"
 
 import os
@@ -18,7 +18,7 @@ from PyQt5 import QtCore
 from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import numpy as np
-import time as Time
+from scipy.signal import welch
 
 from DvG_pyqt_FileLogger import FileLogger
 from DvG_debug_functions import dprint#, print_fancy_traceback as pft
@@ -38,24 +38,7 @@ def current_date_time_strings():
     cur_date_time = QDateTime.currentDateTime()
     return (cur_date_time.toString("dd-MM-yyyy"),
             cur_date_time.toString("HH:mm:ss"))
-
-@QtCore.pyqtSlot()
-def update_GUI():
-    window.qlbl_update_counter.setText("%i" % lockin_pyqt.DAQ_update_counter)
-    
-    if not lockin.lockin_paused:
-        window.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
-                                     lockin_pyqt.obtained_DAQ_rate_Hz)
-        window.qlin_time.setText("%i"    % lockin_pyqt.state.time[0])
-        window.qlin_ref_X.setText("%.4f" % lockin_pyqt.state.ref_X[0])
-        window.qlin_ref_Y.setText("%.4f" % lockin_pyqt.state.ref_Y[0])
-        window.qlin_sig_I.setText("%.4f" % lockin_pyqt.state.sig_I[0])
         
-        window.update_chart_refsig()
-        window.update_chart_filt_BS()
-        window.update_chart_mixer()
-        window.update_chart_LIA_output()
-    
 # ------------------------------------------------------------------------------
 #   Program termination routines
 # ------------------------------------------------------------------------------
@@ -94,7 +77,10 @@ def about_to_quit():
 # ------------------------------------------------------------------------------
 
 def lockin_DAQ_update():
-    str_cur_date, str_cur_time = current_date_time_strings()
+    """Performs the main mathematical operations for lock-in signal processing.
+    NOTE: NO (SLOW) GUI OPERATIONS ARE ALLOWED HERE. Otherwise it will affect
+    the worker_DAQ thread negatively, resulting in lost buffers.
+    """
     
     # Shorthands
     c: lockin_functions.Arduino_lockin_amp.Config = lockin.config
@@ -105,7 +91,7 @@ def lockin_DAQ_update():
     
     [success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
     if not(success):
-        dprint("@ %s %s" % (str_cur_date, str_cur_time))
+        dprint("@ %s %s" % current_date_time_strings())
         return False
     
     # HACK: hard-coded calibration correction on the ADC
@@ -157,12 +143,12 @@ def lockin_DAQ_update():
     state.ref_X = ref_X
     state.ref_Y = ref_Y
     state.sig_I = sig_I
-    
+
     state.deque_time.extend(time)
     state.deque_ref_X.extend(ref_X)
     state.deque_ref_Y.extend(ref_Y)
     state.deque_sig_I.extend(sig_I)
-    
+
     # Stage 1
     # -------
     
@@ -197,37 +183,53 @@ def lockin_DAQ_update():
         state.deque_mix_X.extend(mix_X)
         state.deque_mix_Y.extend(mix_Y)
     
-        # Stage 2
-        # -------
-        
-        # Apply low-pass filter to the mixer output
-        out_X = lockin_pyqt.firf_LP_mix_X.process(state.deque_mix_X)
-        out_Y = lockin_pyqt.firf_LP_mix_Y.process(state.deque_mix_Y)
-            
-        if lockin_pyqt.firf_LP_mix_X.has_settled:
-            # Signal amplitude and phase reconstruction
-            LIA_amp = np.sqrt(out_X**2 + out_Y**2)
-            """NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
-            division by (mix_X = 0) is handled correctly due to 'numpy.inf'. Likewise,
-            'numpy.arctan(numpy.inf)' will result in pi/2. We suppress the
-            RuntimeWarning: divide by zero encountered in true_divide.
-            """
-            np.seterr(divide='ignore')
-            LIA_phi = np.arctan(out_Y / out_X)
-            LIA_phi = LIA_phi/np.pi*180     # Transform [rad] to [deg]
-            np.seterr(divide='warn')
-            
-            # Retrieve the block of original data from the past that alligns with the
-            # current filter output
-            time_2 = (np.array(state.deque_time_1, dtype=np.int64)
-                      [lockin_pyqt.firf_LP_mix_X.win_idx_valid_start:
-                       lockin_pyqt.firf_LP_mix_X.win_idx_valid_end])
-            
-            state.deque_time_2.extend(time_2)
-            state.deque_LIA_amp.extend(LIA_amp)
-            state.deque_LIA_phi.extend(LIA_phi)
+    # Stage 2
+    # -------
     
-    # Add new data to graphs
+    # Apply low-pass filter to the mixer output
+    out_X = lockin_pyqt.firf_LP_mix_X.process(state.deque_mix_X)
+    out_Y = lockin_pyqt.firf_LP_mix_Y.process(state.deque_mix_Y)
+            
+    if lockin_pyqt.firf_LP_mix_X.has_settled:
+        # Signal amplitude and phase reconstruction
+        out_R = np.sqrt(out_X**2 + out_Y**2)
+        
+        # NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
+        # division by (mix_X = 0) is handled correctly due to 'numpy.inf'.
+        # Likewise, 'numpy.arctan(numpy.inf)' will result in pi/2. We suppress
+        # the RuntimeWarning: divide by zero encountered in true_divide.
+        np.seterr(divide='ignore')
+        out_T = np.arctan(out_Y / out_X)
+        out_T = out_T/np.pi*180     # Transform [rad] to [deg]
+        np.seterr(divide='warn')
+        
+        # Retrieve the block of original data from the past that alligns with the
+        # current filter output
+        time_2 = (np.array(state.deque_time_1, dtype=np.int64)
+                  [lockin_pyqt.firf_LP_mix_X.win_idx_valid_start:
+                   lockin_pyqt.firf_LP_mix_X.win_idx_valid_end])
+    
+        state.time2 = time_2
+        state.X     = out_X
+        state.Y     = out_Y
+        state.R     = out_R
+        state.T     = out_T
+        
+        state.deque_time_2.extend(time_2)
+        state.deque_out_X.extend(out_X)
+        state.deque_out_Y.extend(out_Y)
+        state.deque_out_R.extend(out_R)
+        state.deque_out_T.extend(out_T)
+        
+    # Power spectrum
+    # --------------
+    if len(state.deque_sig_I) == state.deque_sig_I.maxlen:
+        [f, Pxx] = welch(state.deque_sig_I, fs=c.Fs, nperseg=10250,
+                         scaling='density')
+       
+        window.BP_power_spectrum.set_data(f, Pxx)
+    
+    # Add new data to charts
     # ----------------------
     
     window.CH_ref_X.add_new_readings(time, ref_X)
@@ -240,10 +242,16 @@ def lockin_DAQ_update():
     
         window.CH_mix_X.add_new_readings(time_1, mix_X)
         window.CH_mix_Y.add_new_readings(time_1, mix_Y)
-    
-        if lockin_pyqt.firf_LP_mix_X.has_settled:
-            window.CH_LIA_amp.add_new_readings(time_2, LIA_amp)
-            window.CH_LIA_phi.add_new_readings(time_2, LIA_phi)
+        
+    if lockin_pyqt.firf_LP_mix_X.has_settled:
+        if window.qrbt_XR_X.isChecked():
+            window.CH_LIA_XR.add_new_readings(time_2, out_X)
+        else:
+            window.CH_LIA_XR.add_new_readings(time_2, out_R)
+        if window.qrbt_YT_Y.isChecked():
+            window.CH_LIA_YT.add_new_readings(time_2, out_Y)
+        else:
+            window.CH_LIA_YT.add_new_readings(time_2, out_T)
     
     # Logging to file
     #----------------
@@ -293,7 +301,7 @@ if __name__ == '__main__':
         sys.exit(0)
         
     #lockin.begin()
-    lockin.begin(ref_freq=250, ref_V_offset=2.8, ref_V_ampl=0.4)
+    lockin.begin(ref_freq=110, ref_V_offset=1.7, ref_V_ampl=1.414)
     
     # Create workers and threads
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
@@ -304,7 +312,6 @@ if __name__ == '__main__':
                             N_buffers_in_deque=41,
                             DEBUG_worker_DAQ=False,
                             DEBUG_worker_send=False)
-    lockin_pyqt.signal_DAQ_updated.connect(update_GUI)
     lockin_pyqt.signal_connection_lost.connect(notify_connection_lost)
     
     # Manage logging to disk
@@ -323,11 +330,11 @@ if __name__ == '__main__':
                                    lockin_pyqt=lockin_pyqt,
                                    file_logger=file_logger)
 
-    window.pi_refsig.setYRange(2.35, 3.25)
-    window.pi_filt_BS.setYRange(-.7, 3.5)
-    window.pi_mixer.setYRange(-0.12, 0.2)
-    window.pi_LIA_amp.setYRange(0.068, 0.092)
-    window.pi_LIA_phi.setYRange(-92, 92)
+    window.pi_refsig.setYRange(0.2, 3.2)
+    window.pi_filt_BS.setYRange(-1.8, 3.4)
+    window.pi_mixer.setYRange(-1.2, 2.2)
+    window.pi_XR.setYRange(0.99, 1.01)
+    window.pi_YT.setYRange(-92, 92)
 
     # --------------------------------------------------------------------------
     #   Start threads

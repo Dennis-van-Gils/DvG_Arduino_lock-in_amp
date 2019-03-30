@@ -1,38 +1,27 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Class ChartHistory manages two data arrays `x` and `y` that serve as history
-buffers for displaying e.g. a strip chart or Lissajous curve. It is
-thread-safe and relies on the PyQtGraph library for fast plotting to screen.
+"""Class BufferedPlot manages two data arrays `x` and `y` for displaying e.g.
+a timeseries. It is thread-safe and relies on the PyQtGraph library for fast
+plotting to screen.
 Intended multithreaded operation: One thread does the data acquisition and
-pushes new data points into the history buffers by calling `add_new_reading(s)`,
-and another thread performs the GUI refresh and redraws the data behind the plot
-by calling `update_curve`.
-
-New readings are stored in an history array of fixed size. Newest readings
-are placed at the end of the array. Array full? -> FIFO.
+pushes new data points into the data arrays by calling `set_data`, and another
+thread performs the GUI refresh and redraws the data behind the plot by calling
+`update_curve`.
 
 Class:
-    ChartHistory(chart_history_length, plot_data_item):
+    BufferedPlot(plot_data_item):
         Args:
-            chart_history_length:
-                Number of data points to store in each history buffer.
             plot_data_item:
                 Instance of `pyqtgraph.PlotDataItem` to plot out the buffered
                 data to.
 
         Methods:
-            apply_downsampling(...):
-                Calls the downsampling routines of PyQtGraph, but in the future
-                I will provide my own routines for downsampling here.
-            add_new_reading(...):
-                Add single data point (x, y) to the history buffers.
-            add_new_readings(...):
-                Add lists of data points (list_x, list_y) to the history
-                buffers.
+            set_data(...):
+                Set data arrays (list_x, list_y).
             update_curve():
                 Update the data behind the curve and redraw.
             clear():
-                Clear buffers.
+                Clear data arrays.
 
         Important member:
             x_axis_divisor:
@@ -46,19 +35,14 @@ __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
 __date__        = "29-03-2019"
-__version__     = "1.1.0"
-
-import collections
+__version__     = "1.0.0"
 
 import numpy as np
 from PyQt5 import QtCore
 import pyqtgraph as pg
 
-class ChartHistory(object):
-    def __init__(self,
-                 chart_history_length,
-                 plot_data_item: pg.PlotDataItem=None):
-        self.chart_history_length = chart_history_length
+class BufferedPlot(object):
+    def __init__(self, plot_data_item: pg.PlotDataItem=None):
         self.curve = plot_data_item   # Instance of [pyqtgraph.PlotDataItem]
         self.mutex = QtCore.QMutex()  # For the case of multithreaded access
 
@@ -67,8 +51,8 @@ class ChartHistory(object):
         self.x_axis_divisor = 1
         self.y_axis_divisor = 1
 
-        self._x = collections.deque(maxlen=chart_history_length)
-        self._y = collections.deque(maxlen=chart_history_length)
+        self._x = np.array([])
+        self._y = np.array([])
         self._x_snapshot = [0]
         self._y_snapshot = [0]
 
@@ -87,16 +71,10 @@ class ChartHistory(object):
         else:
             self.curve.setDownsampling(ds=1, auto=False, method='mean')
 
-    def add_new_reading(self, x, y):
+    def set_data(self, x_list, y_list):
         locker = QtCore.QMutexLocker(self.mutex)
-        self._x.append(x)
-        self._y.append(y)
-        locker.unlock()
-
-    def add_new_readings(self, x_list, y_list):
-        locker = QtCore.QMutexLocker(self.mutex)
-        self._x.extend(x_list)
-        self._y.extend(y_list)
+        self._x = x_list
+        self._y = y_list
         locker.unlock()
 
     def update_curve(self):
@@ -120,10 +98,10 @@ class ChartHistory(object):
                 (np.alltrue(np.isnan(self._y_snapshot)))):
                 self.curve.setData([0], [0])
             else:
-                self.curve.setData((self._x_snapshot - self._x_snapshot[-1])
-                                   / float(self.x_axis_divisor),
-                                   self._y_snapshot
-                                   / float(self.y_axis_divisor))
+                self.curve.setData(self._x_snapshot /
+                                   float(self.x_axis_divisor),
+                                   self._y_snapshot /
+                                   float(self.y_axis_divisor))
 
     def clear(self):
         locker = QtCore.QMutexLocker(self.mutex)

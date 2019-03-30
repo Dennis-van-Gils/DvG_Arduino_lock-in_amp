@@ -28,9 +28,6 @@ print(fn)
 
 with open(fn, 'r') as file :
   filedata = file.read()
-  
-with open(fn, 'w') as file:
-  file.write(filedata)
 
 a = np.loadtxt(fn, skiprows=1)
 time  = np.array(a[:, 0])

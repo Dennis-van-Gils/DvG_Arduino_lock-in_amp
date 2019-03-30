@@ -6,7 +6,7 @@ connection.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "22-03-2019"
+__date__        = "29-03-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -318,6 +318,12 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             return [False, empty, empty, empty, empty]
 
         phi = 2 * np.pi * ref_X_phase / c.N_LUT
+        
+        # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
+        if 0:
+            phase_delay_deg = 50
+            phi = np.unwrap(phi + phase_delay_deg / 180 * np.pi)
+        
         ref_X = (c.ref_V_offset + c.ref_V_ampl * np.cos(phi)).clip(0,c.A_REF)
         ref_Y = (c.ref_V_offset + c.ref_V_ampl * np.sin(phi)).clip(0,c.A_REF)
         sig_I = sig_I / (2**c.ANALOG_READ_RESOLUTION - 1) * c.A_REF

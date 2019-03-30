@@ -6,8 +6,8 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "26-03-2019"
-__version__     = "1.3.1"
+__date__        = "29-03-2019"
+__version__     = "1.0.0"
 
 import numpy as np
 from collections import deque
@@ -88,6 +88,11 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             self.ref_X = np.array([], float)
             self.ref_Y = np.array([], float)
             self.sig_I = np.array([], float)
+            self.time2 = np.array([], int)      # [ms]
+            self.X     = np.array([], float)
+            self.Y     = np.array([], float)
+            self.R     = np.array([], float)
+            self.T     = np.array([], float)
             
             """ Deque arrays needed for proper FIR filtering.
             Each time a complete buffer of BUFFER_SIZE samples is received from
@@ -118,8 +123,24 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 self.deque_mix_Y      = deque(maxlen=self.N_deque)
                 # Stage 2: apply low-pass filter and signal reconstruction
                 self.deque_time_2     = deque(maxlen=self.N_deque)
-                self.deque_LIA_amp    = deque(maxlen=self.N_deque)
-                self.deque_LIA_phi    = deque(maxlen=self.N_deque)
+                self.deque_out_X      = deque(maxlen=self.N_deque)
+                self.deque_out_Y      = deque(maxlen=self.N_deque)
+                self.deque_out_R      = deque(maxlen=self.N_deque)
+                self.deque_out_T      = deque(maxlen=self.N_deque)
+                
+                self.deques = [self.deque_time,
+                               self.deque_ref_X,
+                               self.deque_ref_Y,
+                               self.deque_sig_I,
+                               self.deque_time_1,
+                               self.deque_sig_I_filt,
+                               self.deque_mix_X,
+                               self.deque_mix_Y,
+                               self.deque_time_2,
+                               self.deque_out_X,
+                               self.deque_out_Y,
+                               self.deque_out_R,
+                               self.deque_out_T]
             
             # Mutex for proper multithreading. If the state variables are not
             # atomic or thread-safe, you should lock and unlock this mutex for
@@ -127,23 +148,13 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             self.mutex = QtCore.QMutex()
         
         def reset(self):
-            """Will automatically be called when the lock-in is turned on every
-            time.
+            """Clears the received buffer counter and clears all deques.
             """
             self.buffers_received = 0
             if self.N_buffers_in_deque > 0:
-                self.deque_time.clear()
-                self.deque_ref_X.clear()
-                self.deque_ref_Y.clear()
-                self.deque_sig_I.clear()
-                self.deque_time_1.clear()
-                self.deque_sig_I_filt.clear()
-                self.deque_mix_X.clear()
-                self.deque_mix_Y.clear()
-                self.deque_time_2.clear()
-                self.deque_LIA_amp.clear()
-                self.deque_LIA_phi.clear()
-    
+                for this_deque in self.deques:
+                    this_deque.clear()
+                
     def __init__(self,
                  dev: lockin_functions.Arduino_lockin_amp,
                  DAQ_update_interval_ms=1000,
@@ -187,7 +198,11 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                                                  display_name="BS_sig_I")
     
         # Create FIR filter: Low-pass on mix_X and mix_Y
-        firwin_cutoff = [0, 2*dev.config.ref_freq - 1]
+        # TODO: the extra distance 'roll_off_width' to stay away from
+        # f_cutoff should be calculated based on the roll-off width of the
+        # filter, instead of hard-coded
+        roll_off_width = 2; # [Hz]
+        firwin_cutoff = [0, 2*dev.config.ref_freq - roll_off_width]
         firwin_window = "blackman"
         self.firf_LP_mix_X = Buffered_FIR_Filter(self.state.buffer_size,
                                                  self.state.N_buffers_in_deque,
@@ -280,9 +295,6 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         
                 if func == "set_ref_freq":
                     self.dev.set_ref_freq(set_value)
-                    firwin_cutoff = [0, 2*set_value - 1]
-                    self.firf_LP_mix_X.update_firwin_cutoff(firwin_cutoff)
-                    self.firf_LP_mix_Y.update_firwin_cutoff(firwin_cutoff)
                     self.signal_ref_freq_is_set.emit()
                 elif func == "set_ref_V_offset":
                     self.dev.set_ref_V_offset(set_value)
