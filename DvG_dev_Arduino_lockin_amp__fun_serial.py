@@ -6,7 +6,7 @@ connection.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "29-03-2019"
+__date__        = "01-04-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -293,8 +293,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         #dprint("SOM okay")
         if not(len(ans_bytes) == c.N_BYTES_TRANSMIT_BUFFER):
-            dprint("'%s' I/O ERROR: Wrong number of bytes received, %i" %
-                   (self.name, len(ans_bytes)))
+            dprint("'%s' I/O ERROR: Expected %i bytes, received %i" %
+                   (self.name, c.N_BYTES_TRANSMIT_BUFFER, len(ans_bytes)))
             return [False, empty, empty, empty, empty]
 
         end_byte_time  = c.BUFFER_SIZE * struct.calcsize(c.type_time)
