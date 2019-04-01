@@ -30,7 +30,7 @@ proper bindings to strncmpi
 "C_Cpp.intelliSenseEngineFallback": "Disabled"
 
 Dennis van Gils
-29-03-2019
+01-04-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -388,6 +388,9 @@ void setup() {
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, fRunning);
 
+  // DEBUG: Trigger a dropped buffer by push-button on pin 5
+  //pinMode(5, INPUT_PULLUP);
+
   // DAC
   analogWriteResolution(ANALOG_WRITE_RESOLUTION);
   analogWrite(A0, 0);
@@ -662,6 +665,9 @@ void loop() {
     #endif
     */
 
+    // DEBUG: Trigger a dropped buffer by push-button on pin 5
+    //if (digitalRead(5) == HIGH) {
+
     // Contrary to Arduino documentation, 'write' can return -1 as indication
     // of an error, e.g. the receiving side being overrun with data.
     int32_t w = Ser_data.write((uint8_t *) &SOM, N_BYTES_SOM);
@@ -678,6 +684,8 @@ void loop() {
 
     w = Ser_data.write((uint8_t *) &EOM, N_BYTES_EOM);
     if (w == -1) {fError = true;} else {bytes_sent += w;}
+
+    //}
 
     /*
     #ifdef DEBUG

@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "29-03-2019"
+__date__        = "01-04-2019"
 __version__     = "1.0.0"
 
 import os
@@ -81,7 +81,6 @@ def lockin_DAQ_update():
     NOTE: NO (SLOW) GUI OPERATIONS ARE ALLOWED HERE. Otherwise it will affect
     the worker_DAQ thread negatively, resulting in lost buffers.
     """
-    
     # Shorthands
     c: lockin_functions.Arduino_lockin_amp.Config = lockin.config
     state: lockin_pyqt_lib.Arduino_lockin_amp_pyqt.State = lockin_pyqt.state
@@ -97,45 +96,28 @@ def lockin_DAQ_update():
     # HACK: hard-coded calibration correction on the ADC
     dev_sig_I = sig_I * 0.0054 + 0.0020;
     sig_I -= dev_sig_I
-
-    lockin_pyqt.state.buffers_received += 1
     
-    # Detect dropped buffers
-    prev_last_deque_time = (state.deque_time[-1] if
-                            state.buffers_received > 1
+    # Detect dropped samples / buffers
+    lockin_pyqt.state.buffers_received += 1
+    prev_last_deque_time = (state.deque_time[-1] if state.buffers_received > 1
                             else np.nan)
-    dT = (time[0] - prev_last_deque_time) / 1e6 # transform [usec] to [sec]
-    if dT > (c.ISR_CLOCK)*1.05:  # Allow a few percent clock jitter
-        print("dropped buffer %i" % state.buffers_received)
-        N_dropped_buffers = int(round(dT / c.T_SPAN_BUFFER))
-        print("N_dropped_buffers %i" % N_dropped_buffers)
+    dT = (time[0] - prev_last_deque_time) / 1e6 # Transform [usec] to [sec]
+    if dT > (c.ISR_CLOCK)*1.05: # Allow a few percent clock jitter
+        N_dropped_samples = int(round(dT / c.ISR_CLOCK) - 1)
+        print("Dropped samples: idx %i, %i" %
+              (state.buffers_received, N_dropped_samples))
         
-        # Replace dropped buffers with ...
-        N_dropped_samples = c.BUFFER_SIZE * N_dropped_buffers
+        # Replace dropped samples with np.nan samples.
+        # As a result, the filter output will contain a continuous series of
+        # np.nan values in the output for up to T_settling seconds long after
+        # the occurrence of the last dropped sample.
         state.deque_time.extend(prev_last_deque_time +
                                 np.arange(1, N_dropped_samples + 1) *
                                 c.ISR_CLOCK)
-        if 1:
-            """ Proper: with np.nan samples.
-            As a result, the filter output will contain a continuous series
-            of np.nan values in the output for up to T_settling seconds long
-            after the occurance of the last dropped buffer.
-            """
-            state.deque_ref_X.extend(np.array([np.nan] * N_dropped_samples))
-            state.deque_ref_Y.extend(np.array([np.nan] * N_dropped_samples))
-            state.deque_sig_I.extend(np.array([np.nan] * N_dropped_samples))
-        else:
-            """ Improper: with linearly interpolated samples.
-            As a result, the filter output will contain fake data where
-            ever dropped buffers occured. The advantage is that, in contrast
-            to using above proper technique, the filter output remains a
-            continuous series of values.
-            """
-            state.deque_sig_I.extend(state.deque_sig[-1] +
-                                     np.arange(1, N_dropped_samples + 1) *
-                                     (sig_I[0] - state.deque_sig[-1]) /
-                                     N_dropped_samples)
-            
+        state.deque_ref_X.extend(np.full(N_dropped_samples, np.nan))
+        state.deque_ref_Y.extend(np.full(N_dropped_samples, np.nan))
+        state.deque_sig_I.extend(np.full(N_dropped_samples, np.nan))
+        
     # Stage 0
     # -------
     
@@ -155,15 +137,16 @@ def lockin_DAQ_update():
     # Apply band-stop filter to sig_I
     sig_I_filt = lockin_pyqt.firf_BS_sig_I.process(state.deque_sig_I)
     
+    # Retrieve the block of original data from the past that alligns with
+    # the current filter output
+    time_1    = (np.array(state.deque_time, dtype=np.int64)
+                 [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
+                  lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
+    old_sig_I = (np.array(state.deque_sig_I, dtype=np.float64)
+                 [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
+                  lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
+    
     if lockin_pyqt.firf_BS_sig_I.has_settled:
-        # Retrieve the block of original data from the past that alligns with
-        # the current filter output
-        time_1    = (np.array(state.deque_time, dtype=np.int64)
-                     [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
-                      lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
-        old_sig_I = (np.array(state.deque_sig_I, dtype=np.float64)
-                     [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
-                      lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
         old_ref_X = (np.array(state.deque_ref_X, dtype=np.float64)
                      [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
                       lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
@@ -171,17 +154,17 @@ def lockin_DAQ_update():
                      [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
                       lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
         
-        #if not len(time_filt) == 0:
-        #    print("%i %i: %i" % (time[-1], time_filt[-1], time[-1] - time_filt[-1]))
-    
         # Heterodyne mixing
         mix_X = (old_ref_X - c.ref_V_offset) * sig_I_filt
         mix_Y = (old_ref_Y - c.ref_V_offset) * sig_I_filt
-        
-        state.deque_time_1.extend(time_1)
-        state.deque_sig_I_filt.extend(sig_I_filt)
-        state.deque_mix_X.extend(mix_X)
-        state.deque_mix_Y.extend(mix_Y)
+    else:
+        mix_X = np.full(c.BUFFER_SIZE, np.nan)
+        mix_Y = np.full(c.BUFFER_SIZE, np.nan)
+    
+    state.deque_time_1.extend(time_1)
+    state.deque_sig_I_filt.extend(sig_I_filt)
+    state.deque_mix_X.extend(mix_X)
+    state.deque_mix_Y.extend(mix_Y)
     
     # Stage 2
     # -------
@@ -189,6 +172,12 @@ def lockin_DAQ_update():
     # Apply low-pass filter to the mixer output
     out_X = lockin_pyqt.firf_LP_mix_X.process(state.deque_mix_X)
     out_Y = lockin_pyqt.firf_LP_mix_Y.process(state.deque_mix_Y)
+    
+    # Retrieve the block of original data from the past that alligns with
+    # the current filter output
+    time_2 = (np.array(state.deque_time_1, dtype=np.int64)
+              [lockin_pyqt.firf_LP_mix_X.win_idx_valid_start:
+               lockin_pyqt.firf_LP_mix_X.win_idx_valid_end])
             
     if lockin_pyqt.firf_LP_mix_X.has_settled:
         # Signal amplitude and phase reconstruction
@@ -202,24 +191,21 @@ def lockin_DAQ_update():
         out_T = np.arctan(out_Y / out_X)
         out_T = out_T/np.pi*180     # Transform [rad] to [deg]
         np.seterr(divide='warn')
-        
-        # Retrieve the block of original data from the past that alligns with the
-        # current filter output
-        time_2 = (np.array(state.deque_time_1, dtype=np.int64)
-                  [lockin_pyqt.firf_LP_mix_X.win_idx_valid_start:
-                   lockin_pyqt.firf_LP_mix_X.win_idx_valid_end])
+    else:
+        out_R = np.full(c.BUFFER_SIZE, np.nan)
+        out_T = np.full(c.BUFFER_SIZE, np.nan)
     
-        state.time2 = time_2
-        state.X     = out_X
-        state.Y     = out_Y
-        state.R     = out_R
-        state.T     = out_T
-        
-        state.deque_time_2.extend(time_2)
-        state.deque_out_X.extend(out_X)
-        state.deque_out_Y.extend(out_Y)
-        state.deque_out_R.extend(out_R)
-        state.deque_out_T.extend(out_T)
+    state.time2 = time_2
+    state.X     = out_X
+    state.Y     = out_Y
+    state.R     = out_R
+    state.T     = out_T
+    
+    state.deque_time_2.extend(time_2)
+    state.deque_out_X.extend(out_X)
+    state.deque_out_Y.extend(out_Y)
+    state.deque_out_R.extend(out_R)
+    state.deque_out_T.extend(out_T)
         
     # Power spectrum
     # --------------
@@ -236,22 +222,20 @@ def lockin_DAQ_update():
     window.CH_ref_Y.add_new_readings(time, ref_Y)
     window.CH_sig_I.add_new_readings(time, sig_I)
         
-    if lockin_pyqt.firf_BS_sig_I.has_settled:
-        window.CH_filt_BS_in.add_new_readings(time_1, old_sig_I)
-        window.CH_filt_BS_out.add_new_readings(time_1, sig_I_filt)
-    
-        window.CH_mix_X.add_new_readings(time_1, mix_X)
-        window.CH_mix_Y.add_new_readings(time_1, mix_Y)
+    window.CH_filt_BS_in.add_new_readings(time_1, old_sig_I)
+    window.CH_filt_BS_out.add_new_readings(time_1, sig_I_filt)
+
+    window.CH_mix_X.add_new_readings(time_1, mix_X)
+    window.CH_mix_Y.add_new_readings(time_1, mix_Y)
         
-    if lockin_pyqt.firf_LP_mix_X.has_settled:
-        if window.qrbt_XR_X.isChecked():
-            window.CH_LIA_XR.add_new_readings(time_2, out_X)
-        else:
-            window.CH_LIA_XR.add_new_readings(time_2, out_R)
-        if window.qrbt_YT_Y.isChecked():
-            window.CH_LIA_YT.add_new_readings(time_2, out_Y)
-        else:
-            window.CH_LIA_YT.add_new_readings(time_2, out_T)
+    if window.qrbt_XR_X.isChecked():
+        window.CH_LIA_XR.add_new_readings(time_2, out_X)
+    else:
+        window.CH_LIA_XR.add_new_readings(time_2, out_R)
+    if window.qrbt_YT_Y.isChecked():
+        window.CH_LIA_YT.add_new_readings(time_2, out_Y)
+    else:
+        window.CH_LIA_YT.add_new_readings(time_2, out_T)
     
     # Logging to file
     #----------------
