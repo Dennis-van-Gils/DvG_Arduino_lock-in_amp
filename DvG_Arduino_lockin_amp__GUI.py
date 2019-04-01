@@ -791,11 +791,9 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbt_record(self):
         if self.qpbt_record.isChecked():
-            self.file_logger.starting = True
-            self.file_logger.stopping = False
+            self.file_logger.start_recording()
         else:
-            self.file_logger.starting = False
-            self.file_logger.stopping = True
+            self.file_logger.stop_recording()
 
     @QtCore.pyqtSlot(str)
     def set_text_qpbt_record(self, text_str):

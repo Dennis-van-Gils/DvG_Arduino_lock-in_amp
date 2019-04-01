@@ -5,12 +5,11 @@ multithreaded programs, where one thread is writing data to the log (the logging
 thread) and the other thread (the main thread/GUI) handles starting and stopping
 of the logging by user interaction (i.e. a button).
     
-The boolean members 'starting' and 'stopping' should be directly written to from
-the main/GUI thread. (These are boolean atomic operations so no mutex lock is
-necessary here.)
+The functions 'start_recording' and 'stop_recording' should be directly called
+from the main/GUI thread.
 
-In the logging thread one should test for these booleans as demonstrated in the
-following example:
+In the logging thread one should test for the following booleans as demonstrated
+in the following example:
     if file_logger.starting:
         if file_logger.create_log(my_current_time, my_path):
             file_logger.write("Time\tValue\n")  # Header
@@ -25,6 +24,10 @@ following example:
 Class:
     FileLogger():   
         Methods:
+            start_recording():
+                Prime the start of recording.
+            stop_recording():
+                Prime the stop of recording.
             create_log(...):
                 Open new log file and keep file handle open.
             write(...):
@@ -46,8 +49,8 @@ Class:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
-__date__        = "30-01-2019"
-__version__     = "1.0.1"
+__date__        = "01-04-2019"
+__version__     = "1.0.2"
 
 from pathlib2 import Path
 
@@ -72,6 +75,14 @@ class FileLogger(QtCore.QObject):
         # Placeholder for a future mutex instance needed for proper
         # multithreading (e.g. instance of QtCore.Qmutex())
         self.mutex = None
+        
+    def start_recording(self):
+        self.starting = True
+        self.stopping = False
+        
+    def stop_recording(self):
+        self.starting = False
+        self.stopping = True
         
     def create_log(self, start_time, path_log: Path, mode='a'):
         """Open new log file and keep file handle open.
