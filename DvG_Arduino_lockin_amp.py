@@ -221,13 +221,10 @@ def lockin_DAQ_update():
     window.CH_ref_X.add_new_readings(time, ref_X)
     window.CH_ref_Y.add_new_readings(time, ref_Y)
     window.CH_sig_I.add_new_readings(time, sig_I)
-        
     window.CH_filt_BS_in.add_new_readings(time_1, old_sig_I)
     window.CH_filt_BS_out.add_new_readings(time_1, sig_I_filt)
-
     window.CH_mix_X.add_new_readings(time_1, mix_X)
-    window.CH_mix_Y.add_new_readings(time_1, mix_Y)
-        
+    window.CH_mix_Y.add_new_readings(time_1, mix_Y)        
     if window.qrbt_XR_X.isChecked():
         window.CH_LIA_XR.add_new_readings(time_2, out_X)
     else:
@@ -239,13 +236,25 @@ def lockin_DAQ_update():
     
     # Logging to file
     #----------------
-    
+
     if file_logger.starting:
         fn_log = QDateTime.currentDateTime().toString("yyMMdd_HHmmss") + ".txt"
         if file_logger.create_log(time, fn_log, mode='w'):
             file_logger.signal_set_recording_text.emit(
                 "Recording to file: " + fn_log)
-            file_logger.write("time[us]\tref_X[V]\tref_Y[V]\tsig_I[V]\n")
+            header = ("time[us]\t"
+                      "ref_X[V]\t"
+                      "ref_Y[V]\t"
+                      "sig_I[V]\t"
+                      "sig_I_BS[V]\t"
+                      "mix_X[V]\t"
+                      "mix_Y[V]\t"
+                      "X[V]\t"
+                      "Y[V]\t"
+                      "R[V]\t"
+                      "T[deg]\n")
+            file_logger.write(header)
+            #file_logger.write("time[us]\tref_X[V]\tref_Y[V]\tsig_I[V]\n")
 
     if file_logger.stopping:
         file_logger.signal_set_recording_text.emit(
@@ -253,9 +262,27 @@ def lockin_DAQ_update():
         file_logger.close_log()
 
     if file_logger.is_recording:
-        for i in range(c.BUFFER_SIZE):
-            file_logger.write("%i\t%.4f\t%.4f\t%.4f\n" % 
-                              (time[i], ref_X[i], ref_Y[i], sig_I[i]))
+        if lockin_pyqt.firf_LP_mix_X.has_settled:
+            idx_offset = lockin_pyqt.firf_BS_sig_I.win_idx_valid_start
+            for i in range(c.BUFFER_SIZE):
+                data = (("%i\t" +
+                         "%.5f\t" * 9 +
+                         "%.4f\n") % (
+                        state.deque_time[i],
+                        state.deque_ref_X[i],
+                        state.deque_ref_Y[i],
+                        state.deque_sig_I[i],
+                        state.deque_sig_I_filt[i + idx_offset],
+                        state.deque_mix_X[i + idx_offset],
+                        state.deque_mix_Y[i + idx_offset],
+                        out_X[i],
+                        out_Y[i],
+                        out_R[i],
+                        out_T[i]                    
+                        ))
+                file_logger.write(data)
+            #file_logger.write("%i\t%.4f\t%.4f\t%.4f\n" % 
+            #                  (time[i], ref_X[i], ref_Y[i], sig_I[i]))
 
     return True
 
@@ -278,7 +305,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
 
     # Connect to Arduino
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1e6, read_timeout=5)
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1e6, read_timeout=4)
     if not lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
         print("\nCheck connection and try resetting the Arduino.")
         print("Exiting...\n")
@@ -291,7 +318,7 @@ if __name__ == '__main__':
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
                             dev=lockin,
                             DAQ_function_to_run_each_update=lockin_DAQ_update,
-                            DAQ_critical_not_alive_count=np.nan,
+                            DAQ_critical_not_alive_count=3,
                             calc_DAQ_rate_every_N_iter=10,
                             N_buffers_in_deque=41,
                             DEBUG_worker_DAQ=False,

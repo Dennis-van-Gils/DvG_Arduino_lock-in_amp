@@ -226,9 +226,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         return success
     
     def read_until_EOM(self, size=None):
-        """\
-        Read from the serial port until the EOM sentinel is found, the size is
-        exceeded or until timeout occurs.
+        """Reads from the serial port until the EOM sentinel is found, the size
+        is exceeded or until timeout occurs.
         
         Contrary to 'serial.read_until' which reads 1 byte at a time, here we
         read chunks of 2*N_BYTES_EOM. This is way more efficient for the OS
@@ -241,7 +240,12 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         line[:] = self.read_until_left_over_bytes
         timeout = serial.Timeout(self.ser._timeout)
         while True:
-            c = self.ser.read(2*self.config.N_BYTES_EOM)
+            try:
+                c = self.ser.read(2*self.config.N_BYTES_EOM)
+            except:
+                # Remain silent
+                break
+        
             if c:
                 line += c
                 line_tail = line[-4*self.config.N_BYTES_EOM:]

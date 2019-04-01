@@ -41,8 +41,8 @@ MAIN CONTENTS:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "26-03-2019"
-__version__     = "1.2.3"
+__date__        = "01-04-2019"
+__version__     = "1.3.3"
 
 from enum import IntEnum, unique
 import queue
@@ -568,7 +568,11 @@ class Dev_Base_pyqt(QtCore.QObject):
             # ----------------------------------
 
             if not(self.function_to_run_each_update is None):
-                if not(self.function_to_run_each_update()):
+                if self.function_to_run_each_update():
+                    # Did return True, hence was succesfull
+                    self.outer.DAQ_not_alive_counter = 0
+                else:
+                    # Did return False, hence was unsuccesfull
                     self.outer.DAQ_not_alive_counter += 1
 
             # ----------------------------------
