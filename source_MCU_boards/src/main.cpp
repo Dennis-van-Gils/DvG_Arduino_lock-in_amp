@@ -389,7 +389,7 @@ void setup() {
   digitalWrite(PIN_LED, fRunning);
 
   // DEBUG: Trigger a dropped buffer by push-button on pin 5
-  pinMode(5, INPUT_PULLUP);
+  //pinMode(5, INPUT_PULLUP);
 
   // DAC
   analogWriteResolution(ANALOG_WRITE_RESOLUTION);
@@ -666,7 +666,7 @@ void loop() {
     */
 
     // DEBUG: Trigger a dropped buffer by push-button on pin 5
-    if (digitalRead(5) == HIGH) {
+    //if (digitalRead(5) == HIGH) {
 
     // Contrary to Arduino documentation, 'write' can return -1 as indication
     // of an error, e.g. the receiving side being overrun with data.
@@ -685,7 +685,7 @@ void loop() {
     w = Ser_data.write((uint8_t *) &EOM, N_BYTES_EOM);
     if (w == -1) {fError = true;} else {bytes_sent += w;}
 
-    }
+    //}
 
     /*
     #ifdef DEBUG
