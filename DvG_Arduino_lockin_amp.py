@@ -278,7 +278,7 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
 
     # Connect to Arduino
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1e6, read_timeout=5)
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1e6, read_timeout=4)
     if not lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
         print("\nCheck connection and try resetting the Arduino.")
         print("Exiting...\n")
@@ -291,7 +291,7 @@ if __name__ == '__main__':
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
                             dev=lockin,
                             DAQ_function_to_run_each_update=lockin_DAQ_update,
-                            DAQ_critical_not_alive_count=np.nan,
+                            DAQ_critical_not_alive_count=3,
                             calc_DAQ_rate_every_N_iter=10,
                             N_buffers_in_deque=41,
                             DEBUG_worker_DAQ=False,
