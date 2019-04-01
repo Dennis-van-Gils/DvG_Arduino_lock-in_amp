@@ -88,7 +88,7 @@ class Buffered_FIR_Filter():
         """
         
         #print("%s: %i" % (self.display_name, len(deque_sig_in)))
-        if len(deque_sig_in) < self.N_deque:
+        if (len(deque_sig_in) < self.N_deque) or np.isnan(deque_sig_in).any():
             # Start-up. Filter still needs time to settle.
             self.has_settled = False
             valid_out = np.array([np.nan] * self.buffer_size)
