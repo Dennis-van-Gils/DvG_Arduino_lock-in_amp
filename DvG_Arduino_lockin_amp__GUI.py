@@ -39,7 +39,7 @@ UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 try:
     import OpenGL.GL as gl
     pg.setConfigOptions(useOpenGL=True)
-    pg.setConfigOptions(enableExperimental=True)
+    pg.setConfigOptions(enableExperimental=False)
     pg.setConfigOptions(antialias=False)    
     print("OpenGL hardware acceleration enabled.")
     USING_OPENGL = True
@@ -68,7 +68,7 @@ class MainWindow(QtWid.QWidget):
         self.lockin_pyqt = lockin_pyqt
         self.file_logger = file_logger
         
-        self.setGeometry(50, 50, 1098, 960)
+        self.setGeometry(250, 50, 1098, 960)
         self.setWindowTitle("Arduino lock-in amplifier")
         self.setStyleSheet(SS_TEXTBOX_READ_ONLY)
         
@@ -1054,16 +1054,25 @@ class MainWindow(QtWid.QWidget):
             self.pi_YT.request_autorange_y = True
     
     def autorange_y_XR(self):
-        self.pi_XR.enableAutoRange('y', True)
-        self.pi_XR.enableAutoRange('y', False)
-        XRange, YRange = self.pi_XR.viewRange()
-        self.pi_XR.setYRange(YRange[0], YRange[1], padding=1.1)
+        if len(self.CH_LIA_XR._x) == 0:
+            self.pi_XR.setYRange(0, 1.4, padding=0.1)
+        else:
+            self.pi_XR.enableAutoRange('y', True)
+            self.pi_XR.enableAutoRange('y', False)
+            XRange, YRange = self.pi_XR.viewRange()
+            self.pi_XR.setYRange(YRange[0], YRange[1], padding=1.1)
         
     def autorange_y_YT(self):
-        self.pi_YT.enableAutoRange('y', True)
-        self.pi_YT.enableAutoRange('y', False)
-        XRange, YRange = self.pi_YT.viewRange()
-        self.pi_YT.setYRange(YRange[0], YRange[1], padding=1.1)
+        if len(self.CH_LIA_YT._x) == 0:
+            if self.qrbt_YT_Y.isChecked():
+                self.pi_YT.setYRange(0, 1.4, padding=0.1)
+            else:
+                self.pi_YT.setYRange(-90, 90, padding=0.1)
+        else:
+            self.pi_YT.enableAutoRange('y', True)
+            self.pi_YT.enableAutoRange('y', False)
+            XRange, YRange = self.pi_YT.viewRange()
+            self.pi_YT.setYRange(YRange[0], YRange[1], padding=1.1)
     
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
