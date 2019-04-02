@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "29-03-2019"
+__date__        = "02-04-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -27,6 +27,12 @@ from DvG_debug_functions   import dprint
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
 
+# Monkey-patch errors in pyqtgraph v0.10
+import pyqtgraph.exporters
+import DvG_monkeypatch_pyqtgraph as pgmp
+pg.PlotCurveItem.paintGL = pgmp.PlotCurveItem_paintGL
+pg.exporters.ImageExporter.export = pgmp.ImageExporter_export
+
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 
@@ -34,12 +40,7 @@ try:
     import OpenGL.GL as gl
     pg.setConfigOptions(useOpenGL=True)
     pg.setConfigOptions(enableExperimental=True)
-    pg.setConfigOptions(antialias=False)
-    
-    # Monkey patch error in pyqtgraph
-    import DvG_fix_pyqtgraph_PlotCurveItem
-    pg.PlotCurveItem.paintGL = DvG_fix_pyqtgraph_PlotCurveItem.paintGL
-    
+    pg.setConfigOptions(antialias=False)    
     print("OpenGL hardware acceleration enabled.")
     USING_OPENGL = True
 except:
@@ -77,6 +78,21 @@ class MainWindow(QtWid.QWidget):
         self.PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
         self.PEN_04 = pg.mkPen(color=[255, 255, 255], width=3)        
         self.BRUSH_03 = pg.mkBrush(0, 255, 255, 64)
+        
+        # Fonts
+        FONT_MONOSPACE = QtGui.QFont("Courier")
+        FONT_MONOSPACE.setFamily("Monospace")
+        FONT_MONOSPACE.setStyleHint(QtGui.QFont.Monospace)
+        
+        # Textbox widths for fitting N characters using the current font
+        e = QtGui.QLineEdit()
+        width_chr8  = (8 + 8 * e.fontMetrics().width('x') + 
+                       e.textMargins().left()     + e.textMargins().right() + 
+                       e.contentsMargins().left() + e.contentsMargins().right())
+        width_chr12 = (8 + 12 * e.fontMetrics().width('x') + 
+                       e.textMargins().left()     + e.textMargins().right() + 
+                       e.contentsMargins().left() + e.contentsMargins().right())
+        del e
 
         def _frame_Header(): pass # Spider IDE outline bookmark
         # -----------------------------------
@@ -163,6 +179,124 @@ class MainWindow(QtWid.QWidget):
         self.tabs.addTab(self.tab_filter_1_response, "Filter response: band-stop")
         self.tabs.addTab(self.tab_filter_2_response, "Filter response: low-pass")
         self.tabs.addTab(self.tab_mcu_board_info   , "MCU board info")
+        
+        def _frame_Sidebar(): pass # Spider IDE outline bookmark
+        # -----------------------------------
+        # -----------------------------------
+        #   FRAME: Sidebar
+        # -----------------------------------
+        # -----------------------------------
+
+        # On/off
+        self.qpbt_ENA_lockin = create_Toggle_button("lock-in OFF")
+        self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
+        
+        # QGROUP: Reference signal
+        p1 = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8}
+        p2 = {**p1, 'readOnly': True}
+        self.qlin_set_ref_freq = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p1))
+        self.qlin_read_ref_freq = (
+                QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p2))
+        self.qlin_set_ref_V_offset = (
+                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_offset, **p1))
+        self.qlin_read_ref_V_offset = (
+                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_offset, **p2))
+        self.qlin_set_ref_V_ampl = (
+                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_ampl, **p1))
+        self.qlin_read_ref_V_ampl = (
+                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_ampl, **p2))
+
+        self.qlin_set_ref_freq.editingFinished.connect(
+                self.process_qlin_set_ref_freq)
+        self.qlin_set_ref_V_offset.editingFinished.connect(
+                self.process_qlin_set_ref_V_offset)
+        self.qlin_set_ref_V_ampl.editingFinished.connect(
+                self.process_qlin_set_ref_V_ampl)
+        
+        p  = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
+        p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter}
+        i = 0;
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addWidget(QtWid.QLabel("ref_X : cosine wave", **p2)
+                                                   , i, 0, 1, 4); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 4)       , i, 0); i+=1
+        grid.addWidget(QtWid.QLabel("Set")         , i, 1)
+        grid.addWidget(QtWid.QLabel("Read")        , i, 2); i+=1
+        grid.addWidget(QtWid.QLabel("freq:", **p)  , i, 0)
+        grid.addWidget(self.qlin_set_ref_freq      , i, 1)
+        grid.addWidget(self.qlin_read_ref_freq     , i, 2)
+        grid.addWidget(QtWid.QLabel("Hz")          , i, 3); i+=1
+        grid.addWidget(QtWid.QLabel("offset:", **p), i, 0)
+        grid.addWidget(self.qlin_set_ref_V_offset  , i, 1)
+        grid.addWidget(self.qlin_read_ref_V_offset , i, 2)
+        grid.addWidget(QtWid.QLabel("V")           , i, 3); i+=1
+        grid.addWidget(QtWid.QLabel("ampl:", **p)  , i, 0)
+        grid.addWidget(self.qlin_set_ref_V_ampl    , i, 1)
+        grid.addWidget(self.qlin_read_ref_V_ampl   , i, 2)
+        grid.addWidget(QtWid.QLabel("V")           , i, 3)
+        
+        qgrp_refsig = QtWid.QGroupBox("Reference signal")
+        qgrp_refsig.setStyleSheet(SS_GROUP)
+        qgrp_refsig.setLayout(grid)
+        
+        # QGROUP: Connections
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addWidget(QtWid.QLabel("Output: ref_X\n"
+                                    "  [ 0.0, %.1f] V\n"
+                                    "  pin A0 wrt GND" %
+                                    lockin.config.A_REF,
+                                    font=FONT_MONOSPACE), 0, 0)
+        grid.addWidget(QtWid.QLabel("Input: sig_I\n"
+                                    "  [-%.1f, %.1f] V\n"
+                                    "  pin A1(+), A2(-)" %
+                                    (lockin.config.A_REF, lockin.config.A_REF),
+                                    font=FONT_MONOSPACE), 1, 0)
+        
+        qgrp_connections = QtWid.QGroupBox("Analog connections")
+        qgrp_connections.setStyleSheet(SS_GROUP)
+        qgrp_connections.setLayout(grid)        
+
+        # QGROUP: Axes controls
+        self.qpbt_full_axes = QtWid.QPushButton("Full axes")
+        self.qpbt_full_axes.clicked.connect(self.process_qpbt_full_axes)
+        self.qpbt_autorange_x = QtWid.QPushButton("Autorange x")
+        self.qpbt_autorange_x.clicked.connect(self.process_qpbt_autorange_x)
+        self.qpbt_autorange_y = QtWid.QPushButton("Autorange y")
+        self.qpbt_autorange_y.clicked.connect(self.process_qpbt_autorange_y)
+        
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addWidget(self.qpbt_full_axes  , 0, 0)
+        grid.addWidget(self.qpbt_autorange_x, 1, 0)
+        grid.addWidget(self.qpbt_autorange_y, 2, 0)
+        
+        qgrp_axes_controls = QtWid.QGroupBox("Graphs")
+        qgrp_axes_controls.setStyleSheet(SS_GROUP)
+        qgrp_axes_controls.setLayout(grid)
+
+        # QGROUP: Filters settled?
+        self.LED_settled_BG_filter = create_LED_indicator_rect(False, 'NO')
+        self.LED_settled_LP_filter = create_LED_indicator_rect(False, 'NO')
+        
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addWidget(QtWid.QLabel("1: band-stop"), 0, 0)
+        grid.addWidget(self.LED_settled_BG_filter  , 0, 1)
+        grid.addWidget(QtWid.QLabel("2: low-pass") , 1, 0)
+        grid.addWidget(self.LED_settled_LP_filter  , 1, 1)
+        
+        qgrp_settling = QtWid.QGroupBox("Filters settled?")
+        qgrp_settling.setStyleSheet(SS_GROUP)
+        qgrp_settling.setLayout(grid)
+
+        # Round up frame
+        vbox_sidebar = QtWid.QVBoxLayout()
+        vbox_sidebar.addItem(QtWid.QSpacerItem(0, 24))
+        vbox_sidebar.addWidget(self.qpbt_ENA_lockin, stretch=0)
+        vbox_sidebar.addWidget(qgrp_refsig, stretch=0)
+        vbox_sidebar.addWidget(qgrp_connections, stretch=0)
+        vbox_sidebar.addWidget(qgrp_axes_controls, stretch=0)
+        vbox_sidebar.addWidget(qgrp_settling, stretch=0)
+        vbox_sidebar.addStretch(1)
 
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -220,107 +354,46 @@ class MainWindow(QtWid.QWidget):
         legend.addItem(self.CH_ref_Y.curve, name='ref_Y')
         legend.addItem(self.CH_sig_I.curve, name='sig_I')
 
-        # On/off
-        self.qpbt_ENA_lockin = create_Toggle_button("lock-in OFF")
-        self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
-
-        # QGROUP: Reference signal
-        num_chars = 8  # Limit the width of the textboxes to N characters wide
-        e = QtGui.QLineEdit()
-        w = (8 + num_chars * e.fontMetrics().width('x') + 
-             e.textMargins().left()     + e.textMargins().right() + 
-             e.contentsMargins().left() + e.contentsMargins().right())
-        del e
-        
-        p1 = {'maximumWidth': w}
-        p2 = {**p1, 'readOnly': True}
-        self.qlin_set_ref_freq = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p1))
-        self.qlin_read_ref_freq = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p2))
-        self.qlin_set_ref_V_offset = (
-                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_offset, **p1))
-        self.qlin_read_ref_V_offset = (
-                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_offset, **p2))
-        self.qlin_set_ref_V_ampl = (
-                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_ampl, **p1))
-        self.qlin_read_ref_V_ampl = (
-                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_ampl, **p2))
-
-        self.qlin_set_ref_freq.editingFinished.connect(
-                self.process_qlin_set_ref_freq)
-        self.qlin_set_ref_V_offset.editingFinished.connect(
-                self.process_qlin_set_ref_V_offset)
-        self.qlin_set_ref_V_ampl.editingFinished.connect(
-                self.process_qlin_set_ref_V_ampl)
-        
-        p  = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
-        p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter}
-        i = 0;
-        grid = QtWid.QGridLayout()
-        grid.setVerticalSpacing(4)
-        grid.addWidget(QtWid.QLabel("ref_X: cosine  |  ref_Y: sine", **p2)
-                                                     , i, 0, 1, 4); i+=1
-        grid.addWidget(QtWid.QLabel("Analog voltage limits: [0, %.2f] V" %
-                                    lockin.config.A_REF, **p2), i, 0, 1, 4); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 4)         , i, 0); i+=1
-        grid.addWidget(QtWid.QLabel("Set")           , i, 1)
-        grid.addWidget(QtWid.QLabel("Read")          , i, 2); i+=1
-        grid.addWidget(QtWid.QLabel("freq:", **p)    , i, 0)
-        grid.addWidget(self.qlin_set_ref_freq        , i, 1)
-        grid.addWidget(self.qlin_read_ref_freq       , i, 2)
-        grid.addWidget(QtWid.QLabel("Hz")            , i, 3); i+=1
-        grid.addWidget(QtWid.QLabel("V_offset:", **p), i, 0)
-        grid.addWidget(self.qlin_set_ref_V_offset    , i, 1)
-        grid.addWidget(self.qlin_read_ref_V_offset   , i, 2)
-        grid.addWidget(QtWid.QLabel("V")             , i, 3); i+=1
-        grid.addWidget(QtWid.QLabel("V_ampl:", **p)  , i, 0)
-        grid.addWidget(self.qlin_set_ref_V_ampl      , i, 1)
-        grid.addWidget(self.qlin_read_ref_V_ampl     , i, 2)
-        grid.addWidget(QtWid.QLabel("V")             , i, 3)
-        
-        qgrp_refsig = QtWid.QGroupBox("Reference signal")
-        qgrp_refsig.setStyleSheet(SS_GROUP)
-        qgrp_refsig.setLayout(grid)
-
         # QGROUP: Readings
         p = {'layoutDirection': QtCore.Qt.LeftToRight}
         self.chkbs_refsig = [
-                QtWid.QCheckBox("ref_X [0]:", **p, checked=True),
-                QtWid.QCheckBox("ref_Y [0]:", **p, checked=False),
-                QtWid.QCheckBox("sig_I [0]:", **p, checked=True)]
+                QtWid.QCheckBox("ref_X", **p, checked=True),
+                QtWid.QCheckBox("ref_Y", **p, checked=False),
+                QtWid.QCheckBox("sig_I", **p, checked=True)]
         ([chkb.clicked.connect(self.process_chkbs_refsig) for chkb
           in self.chkbs_refsig])
         
-        p = {'readOnly': True, 'maximumWidth': 100}
-        self.qlin_time  = QtWid.QLineEdit(**p)
-        self.qlin_ref_X = QtWid.QLineEdit(**p)
-        self.qlin_ref_Y = QtWid.QLineEdit(**p)
-        self.qlin_sig_I = QtWid.QLineEdit(**p)
-        
-        self.qpbt_full_axes = QtWid.QPushButton("full axes")
-        self.qpbt_full_axes.clicked.connect(self.process_qpbt_full_axes)
-        self.qpbt_autoscale_y = QtWid.QPushButton("autoscale y-axis")
-        self.qpbt_autoscale_y.clicked.connect(self.process_qpbtn_autoscale_y)
+        p1 = {'maximumWidth': width_chr12, 'minimumWidth': width_chr12,
+              'readOnly': True}
+        p2 = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8,
+              'readOnly': True}
+        self.qlin_time      = QtWid.QLineEdit(**p1)
+        self.qlin_sig_I_max = QtWid.QLineEdit(**p2)
+        self.qlin_sig_I_min = QtWid.QLineEdit(**p2)
+        self.qlin_sig_I_avg = QtWid.QLineEdit(**p2)
+        self.qlin_sig_I_std = QtWid.QLineEdit(**p2)
 
         i = 0
-        grid = QtWid.QGridLayout()
-        grid.setVerticalSpacing(4)
-        grid.addWidget(QtWid.QLabel("time [0]:"), i, 0)
-        grid.addWidget(self.qlin_time           , i, 1)
-        grid.addWidget(QtWid.QLabel("us")       , i, 2); i+=1
-        grid.addWidget(self.chkbs_refsig[0]     , i, 0)
-        grid.addWidget(self.qlin_ref_X          , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
-        grid.addWidget(self.chkbs_refsig[1]     , i, 0)
-        grid.addWidget(self.qlin_ref_Y          , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
-        grid.addWidget(self.chkbs_refsig[2]     , i, 0)
-        grid.addWidget(self.qlin_sig_I          , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 4)    , i, 0); i+=1
-        grid.addWidget(self.qpbt_full_axes      , i, 0, 1, 2); i+=1
-        grid.addWidget(self.qpbt_autoscale_y    , i, 0, 1, 2)
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addWidget(self.qlin_time           , i, 0, 1, 2)
+        grid.addWidget(QtWid.QLabel("us")       , i, 2)      ; i+=1
+        grid.addWidget(self.chkbs_refsig[0]     , i, 0, 1, 3); i+=1
+        grid.addWidget(self.chkbs_refsig[1]     , i, 0, 1, 3); i+=1
+        grid.addWidget(self.chkbs_refsig[2]     , i, 0, 1, 3); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 4)    , i, 0)      ; i+=1
+        grid.addWidget(QtWid.QLabel("max")      , i, 0)
+        grid.addWidget(self.qlin_sig_I_max      , i, 1)
+        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
+        grid.addWidget(QtWid.QLabel("min")      , i, 0)
+        grid.addWidget(self.qlin_sig_I_min      , i, 1)
+        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 4)    , i, 0)      ; i+=1
+        grid.addWidget(QtWid.QLabel("avg")      , i, 0)
+        grid.addWidget(self.qlin_sig_I_avg      , i, 1)
+        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
+        grid.addWidget(QtWid.QLabel("std")      , i, 0)
+        grid.addWidget(self.qlin_sig_I_std      , i, 1)
+        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
         grid.setAlignment(QtCore.Qt.AlignTop)
 
         qgrp_readings = QtWid.QGroupBox("Readings")
@@ -328,15 +401,9 @@ class MainWindow(QtWid.QWidget):
         qgrp_readings.setLayout(grid)
         
         # Round up frame
-        vbox_refsig = QtWid.QVBoxLayout()
-        vbox_refsig.addWidget(self.qpbt_ENA_lockin)
-        vbox_refsig.addWidget(qgrp_refsig)
-        vbox_refsig.addWidget(qgrp_readings)
-        vbox_refsig.addStretch()
-
         hbox_refsig = QtWid.QHBoxLayout()
+        hbox_refsig.addWidget(qgrp_readings, stretch=0)
         hbox_refsig.addWidget(self.gw_refsig, stretch=1)
-        hbox_refsig.addLayout(vbox_refsig)
 
         def _frame_LIA_output(): pass # Spider IDE outline bookmark
         # -----------------------------------
@@ -372,7 +439,7 @@ class MainWindow(QtWid.QWidget):
         
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_YT.showGrid(x=1, y=1)
-        self.pi_YT.setTitle('%s' % chr(0x398), **p)
+        self.pi_YT.setTitle('\u0398', **p)
         self.pi_YT.setLabel('bottom', text='time [ms]', **p)
         self.pi_YT.setLabel('left', text='phase [deg]', **p)
         self.pi_YT.setXRange(-lockin.config.BUFFER_SIZE *
@@ -392,13 +459,14 @@ class MainWindow(QtWid.QWidget):
         self.qrbt_XR_X = QtWid.QRadioButton("X")
         self.qrbt_XR_R = QtWid.QRadioButton("R", checked=True)
         self.qrbt_YT_Y = QtWid.QRadioButton("Y")
-        self.qrbt_YT_T = QtWid.QRadioButton("%s" % chr(0x398), checked=True)
+        self.qrbt_YT_T = QtWid.QRadioButton("\u0398", checked=True)
         self.qrbt_XR_X.clicked.connect(self.process_qrbt_XR)
         self.qrbt_XR_R.clicked.connect(self.process_qrbt_XR)
         self.qrbt_YT_Y.clicked.connect(self.process_qrbt_YT)
         self.qrbt_YT_T.clicked.connect(self.process_qrbt_YT)
         
         vbox = QtWid.QVBoxLayout(spacing=4)
+        vbox.setContentsMargins(0, 0, 0, 0)
         vbox.addWidget(self.qrbt_XR_X)
         vbox.addWidget(self.qrbt_XR_R)
         qgrp_XR = QtWid.QGroupBox()
@@ -406,45 +474,52 @@ class MainWindow(QtWid.QWidget):
         qgrp_XR.setLayout(vbox)
         
         vbox = QtWid.QVBoxLayout(spacing=4)
+        vbox.setContentsMargins(0, 0, 0, 0)
         vbox.addWidget(self.qrbt_YT_Y)
         vbox.addWidget(self.qrbt_YT_T)
         qgrp_YT = QtWid.QGroupBox()
         qgrp_YT.setStyleSheet(SS_GROUP_BORDERLESS)
         qgrp_YT.setLayout(vbox)
         
-        grid = QtWid.QGridLayout(spacing=0)
-        grid.addWidget(qgrp_XR, 0, 0, QtCore.Qt.AlignCenter)
-        grid.addWidget(qgrp_YT, 0, 1, QtCore.Qt.AlignCenter)
-        grid.setContentsMargins(0, 0, 0, 0)
+        hbox = QtWid.QHBoxLayout(spacing=4)
+        hbox.setContentsMargins(0, 0, 0, 0)
+        hbox.addWidget(qgrp_XR)
+        hbox.addWidget(qgrp_YT)
         
-        qgrp_XRYT = QtWid.QGroupBox("Show output")
+        p = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8,
+             'readOnly': True}
+        self.qlin_X_avg = QtWid.QLineEdit(**p)
+        self.qlin_Y_avg = QtWid.QLineEdit(**p)
+        self.qlin_R_avg = QtWid.QLineEdit(**p)
+        self.qlin_T_avg = QtWid.QLineEdit(**p)
+        
+        i = 0
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addLayout(hbox                     , i, 0, 1, 3); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 8)    , i, 0); i+=1
+        grid.addWidget(QtWid.QLabel("avg X")    , i, 0)
+        grid.addWidget(self.qlin_X_avg          , i, 1)
+        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
+        grid.addWidget(QtWid.QLabel("avg Y")    , i, 0)
+        grid.addWidget(self.qlin_Y_avg          , i, 1)
+        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 8)    , i, 0); i+=1
+        grid.addWidget(QtWid.QLabel("avg R")    , i, 0)
+        grid.addWidget(self.qlin_R_avg          , i, 1)
+        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
+        grid.addWidget(QtWid.QLabel("avg \u0398"), i, 0)
+        grid.addWidget(self.qlin_T_avg          , i, 1)
+        grid.addWidget(QtWid.QLabel("deg")      , i, 2)
+        grid.setAlignment(QtCore.Qt.AlignTop)
+        
+        qgrp_XRYT = QtWid.QGroupBox("X/R, Y/\u0398")
         qgrp_XRYT.setStyleSheet(SS_GROUP)
         qgrp_XRYT.setLayout(grid)
         
-        # QGROUP: Filters settled?
-        self.LED_settled_BG_filter = create_LED_indicator_rect(False, 'NO')
-        self.LED_settled_LP_filter = create_LED_indicator_rect(False, 'NO')
-        
-        grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(QtWid.QLabel("1: band-stop"), 0, 0)
-        grid.addWidget(self.LED_settled_BG_filter  , 0, 1)
-        grid.addWidget(QtWid.QLabel("2: low-pass") , 1, 0)
-        grid.addWidget(self.LED_settled_LP_filter  , 1, 1)
-        
-        qgrp_settling = QtWid.QGroupBox("Filters settled?")
-        qgrp_settling.setStyleSheet(SS_GROUP)
-        qgrp_settling.setLayout(grid)
-        
-        # Combine QGroups
-        vbox_qgrps = QtWid.QVBoxLayout()
-        vbox_qgrps.addWidget(qgrp_XRYT, stretch=0)
-        vbox_qgrps.addWidget(qgrp_settling, stretch=0)
-        vbox_qgrps.addStretch(1)
-        
         # Round up frame
         hbox_LIA_output = QtWid.QHBoxLayout()
+        hbox_LIA_output.addWidget(qgrp_XRYT, stretch=0)
         hbox_LIA_output.addWidget(self.gw_XR, stretch=1)
-        hbox_LIA_output.addLayout(vbox_qgrps, stretch=0)
 
         # -----------------------------------
         # -----------------------------------
@@ -681,7 +756,11 @@ class MainWindow(QtWid.QWidget):
 
         vbox = QtWid.QVBoxLayout(self)
         vbox.addLayout(hbox_header)
-        vbox.addWidget(self.tabs)
+        
+        hbox = QtWid.QHBoxLayout()
+        hbox.addWidget(self.tabs, stretch=1)
+        hbox.addLayout(vbox_sidebar, stretch=0)
+        vbox.addLayout(hbox)
         
         # -----------------------------------
         # -----------------------------------
@@ -743,10 +822,15 @@ class MainWindow(QtWid.QWidget):
         else:
             self.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
                                        LIA_pyqt.obtained_DAQ_rate_Hz)
-        self.qlin_time.setText("%i"    % LIA_pyqt.state.time[0])
-        self.qlin_ref_X.setText("%.4f" % LIA_pyqt.state.ref_X[0])
-        self.qlin_ref_Y.setText("%.4f" % LIA_pyqt.state.ref_Y[0])
-        self.qlin_sig_I.setText("%.4f" % LIA_pyqt.state.sig_I[0])
+        self.qlin_time.setText("%i" % LIA_pyqt.state.time[0])
+        self.qlin_sig_I_max.setText("%.4f" % LIA_pyqt.state.sig_I_max)
+        self.qlin_sig_I_min.setText("%.4f" % LIA_pyqt.state.sig_I_min)
+        self.qlin_sig_I_avg.setText("%.4f" % LIA_pyqt.state.sig_I_avg)
+        self.qlin_sig_I_std.setText("%.4f" % LIA_pyqt.state.sig_I_std)
+        self.qlin_X_avg.setText("%.4f" % np.mean(LIA_pyqt.state.X))
+        self.qlin_Y_avg.setText("%.4f" % np.mean(LIA_pyqt.state.Y))
+        self.qlin_R_avg.setText("%.4f" % np.mean(LIA_pyqt.state.R))
+        self.qlin_T_avg.setText("%.3f" % np.mean(LIA_pyqt.state.T))
         
         if LIA_pyqt.firf_BS_sig_I.has_settled:
             self.LED_settled_BG_filter.setChecked(True)
@@ -886,28 +970,33 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def process_qpbt_full_axes(self):
-        min_time = -(self.lockin.config.BUFFER_SIZE * 
-                     self.lockin.config.ISR_CLOCK * 1e3)
+        self.process_qpbt_autorange_x()
+        self.process_qpbt_autorange_y()
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_autorange_x(self):
         plot_items = [self.pi_refsig,
                       self.pi_filt_BS,
                       self.pi_mixer,
                       self.pi_XR,
                       self.pi_YT]
         for pi in plot_items:
-            pi.setXRange(min_time, 0, padding=0.01)
-        self.process_qpbtn_autoscale_y()
+            pi.enableAutoRange('x', False)
+            pi.setXRange(-self.lockin.config.BUFFER_SIZE *
+                         self.lockin.config.ISR_CLOCK * 1e3, 0,
+                         padding=0.01)
 
     @QtCore.pyqtSlot()
-    def process_qpbtn_autoscale_y(self):
+    def process_qpbt_autorange_y(self):
         plot_items = [self.pi_refsig,
                       self.pi_filt_BS,
-                      self.pi_mixer,
-                      self.pi_XR,
-                      self.pi_YT]
+                      self.pi_mixer]
         for pi in plot_items:
             pi.enableAutoRange('y', True)
             pi.enableAutoRange('y', False)
-        
+        self.autorange_y_XR()
+        self.autorange_y_YT()
+    
     @QtCore.pyqtSlot()
     def process_qrbt_XR(self):        
         if self.qrbt_XR_X.isChecked():
@@ -930,8 +1019,7 @@ class MainWindow(QtWid.QWidget):
                 self.CH_LIA_XR.add_new_readings(self.lockin_pyqt.state.time2,
                                                 self.lockin_pyqt.state.R)
             self.CH_LIA_XR.update_curve()        
-            self.pi_XR.enableAutoRange('y', True)
-            self.pi_XR.enableAutoRange('y', False)
+            self.autorange_y_XR()
         else:
             # To be handled by update_chart_LIA_output
             self.pi_XR.request_autorange_y = True
@@ -960,12 +1048,22 @@ class MainWindow(QtWid.QWidget):
                 self.CH_LIA_YT.add_new_readings(self.lockin_pyqt.state.time2,
                                                 self.lockin_pyqt.state.T)
             self.CH_LIA_YT.update_curve()
-            self.pi_YT.enableAutoRange('y', True)
-            self.pi_YT.enableAutoRange('y', False)
+            self.autorange_y_YT()
         else:
             # To be handled by update_chart_LIA_output
             self.pi_YT.request_autorange_y = True
-            
+    
+    def autorange_y_XR(self):
+        self.pi_XR.enableAutoRange('y', True)
+        self.pi_XR.enableAutoRange('y', False)
+        XRange, YRange = self.pi_XR.viewRange()
+        self.pi_XR.setYRange(YRange[0], YRange[1], padding=1.1)
+        
+    def autorange_y_YT(self):
+        self.pi_YT.enableAutoRange('y', True)
+        self.pi_YT.enableAutoRange('y', False)
+        XRange, YRange = self.pi_YT.viewRange()
+        self.pi_YT.setYRange(YRange[0], YRange[1], padding=1.1)
     
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
@@ -995,13 +1093,11 @@ class MainWindow(QtWid.QWidget):
         
         if self.pi_XR.request_autorange_y == True:
             self.pi_XR.request_autorange_y = False
-            self.pi_XR.enableAutoRange('y', True)
-            self.pi_XR.enableAutoRange('y', False)
+            self.autorange_y_XR()
         
         if self.pi_YT.request_autorange_y == True:
             self.pi_YT.request_autorange_y = False
-            self.pi_YT.enableAutoRange('y', True)
-            self.pi_YT.enableAutoRange('y', False)
+            self.autorange_y_YT()
         
     def construct_title_plot_filt_resp(self, firf):
         __tmp1 = 'N_taps = %i' % firf.N_taps

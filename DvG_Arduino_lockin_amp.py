@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "01-04-2019"
+__date__        = "02-04-2019"
 __version__     = "1.0.0"
 
 import os
@@ -29,6 +29,11 @@ import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
+
+# TODO: Handle Arduino timer roll-over at t = 4294967295 us correctly. Current
+# Python code will think there are dropped samples at timer roll-over.
+# Happens every 71.2 minutes.
+# https://arduino.stackexchange.com/questions/12587/how-can-i-handle-the-millis-rollover
         
 # ------------------------------------------------------------------------------
 #   Update GUI routines
@@ -125,6 +130,11 @@ def lockin_DAQ_update():
     state.ref_X = ref_X
     state.ref_Y = ref_Y
     state.sig_I = sig_I
+    
+    state.sig_I_min = np.min(sig_I)
+    state.sig_I_max = np.max(sig_I)
+    state.sig_I_avg = np.mean(sig_I)
+    state.sig_I_std = np.std(sig_I)
 
     state.deque_time.extend(time)
     state.deque_ref_X.extend(ref_X)

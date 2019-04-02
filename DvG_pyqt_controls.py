@@ -6,8 +6,8 @@ many of my projects.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
-__date__        = "27-03-2019"
-__version__     = "1.0.1"
+__date__        = "02-04-2019"
+__version__     = "1.0.2"
 
 from PyQt5 import QtWidgets as QtWid
 
@@ -105,17 +105,16 @@ SS_LED = (
 SS_LED_RECT = (
         "QPushButton {"
             "background-color: " + COLOR_INDIAN_RED + ";"
-            "border-style: inset;"
+            "border-style: solid;"
             "border-width: 1px;"
             "min-height: 30px;"
-            "min-width: 80px;"
-            "max-width: 80px}"
+            "min-width: 76px;"
+            "max-width: 76px}"
         "QPushButton::disabled {"
             "border-radius: 1px;"
             "color: black}"
         "QPushButton::checked {"
-            "background-color: " + COLOR_SPRING_GREEN_2 + ";"
-            "border-style: outset}")
+            "background-color: " + COLOR_SPRING_GREEN_2 + "}")
 
 SS_ERROR_LED = (
         "QPushButton {"
