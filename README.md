@@ -40,5 +40,4 @@ A1: differential analog in, SIG_I+
 A2: differential analog in, SIG_I-
 ```
 
-
 ###### Dennis van Gils, 02-04-2019
