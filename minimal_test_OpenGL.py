@@ -12,7 +12,7 @@ PyOpenGL-3.1.3b2-cp37-cp37m-win_amd64.whl
 PyOpenGL_accelerate-3.1.3b2-cp37-cp37m-win_amd64.whl
 
 Dennis van Gils
-26-03-2019
+02-04-2019
 """
 import os
 import sys
@@ -26,17 +26,17 @@ import pyqtgraph as pg
 import numpy as np
 
 USE_OPENGL = True
-if USE_OPENGL :
+if USE_OPENGL:
     pg.setConfigOptions(useOpenGL=True)
-    pg.setConfigOptions(enableExperimental=False)
+    pg.setConfigOptions(enableExperimental=True)
     pg.setConfigOptions(antialias=False)
     
     # Monkey patch error in pyqtgraph
-    import DvG_fix_pyqtgraph_PlotCurveItem
-    pg.PlotCurveItem.paintGL = DvG_fix_pyqtgraph_PlotCurveItem.paintGL
+    import DvG_monkeypatch_pyqtgraph as pgmp
+    pg.PlotCurveItem.paintGL = pgmp.PlotCurveItem_paintGL
 else:
     pg.setConfigOptions(useOpenGL=False)
-    pg.setConfigOptions(enableExperimental=False)
+    pg.setConfigOptions(enableExperimental=True)
     pg.setConfigOptions(antialias=False)
 
 @QtCore.pyqtSlot()
