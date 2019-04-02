@@ -5,8 +5,8 @@ The Arduino microcontroller board generates the reference signal REF_X and subse
 
 Current specs Arduino:
 - Support for SAMD21 or SAMD51 chipsets
-- True analog-out waveform generator (REF_X between 0 to 3 V)
-- Differential analog-in data acquisition (SIG_I between -3 to 3 V)
+- True analog-out waveform generator (REF_X between 0 to 3.3 V)
+- Differential analog-in data acquisition (SIG_I between -3.3 to 3.3 V)
 - ADC & DAC operate at 5 kHz sampling rate
 - Double-buffered binary-data transmission over USB to a PC running Python
 
@@ -39,3 +39,5 @@ A0: analog out, REF_X with respect to AGND
 A1: differential analog in, SIG_I+
 A2: differential analog in, SIG_I-
 ```
+
+###### Dennis van Gils, 02-04-2019
