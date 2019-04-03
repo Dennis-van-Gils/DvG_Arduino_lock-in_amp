@@ -355,7 +355,7 @@ if __name__ == '__main__':
     window.pi_filt_BS.setYRange(-1.8, 3.4)
     window.pi_mixer.setYRange(-1.2, 2.2)
     window.pi_XR.setYRange(0.99, 1.01)
-    window.pi_YT.setYRange(-92, 92)
+    window.pi_YT.setYRange(-90, 90, padding=0.1)
 
     # --------------------------------------------------------------------------
     #   Start threads
