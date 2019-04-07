@@ -607,8 +607,6 @@ void loop() {
           // Start lock-in amp
           noInterrupts();
           fRunning = true;
-          N_buffers_scheduled_to_be_sent = 0;
-          N_sent_buffers = 0;
           #ifdef DEBUG
             N_buffers_scheduled_to_be_sent = 0;
             N_sent_buffers = 0;
