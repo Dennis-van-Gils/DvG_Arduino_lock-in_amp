@@ -3,27 +3,13 @@
 Minimal test case for CUDA hardware support on NVidia GPU's using numba.
 
 Dennis van Gils
-31-03-2019
+07-04-2019
 """
 
 from __future__ import division
 from numba import cuda
 import numpy
 import math
-
-# CUDA kernel
-@cuda.jit
-def my_kernel(io_array):
-    pos = cuda.grid(1)
-    if pos < io_array.size:
-        io_array[pos] *= 2 # do the computation
-
-# Host code   
-data = numpy.ones(256)
-threadsperblock = 256
-blockspergrid = math.ceil(data.shape[0] / threadsperblock)
-my_kernel[blockspergrid, threadsperblock](data)
-print(data)
 
 """FFTconvolve example C++
 cufftHandle _planKernel                             // you fft handle
@@ -40,7 +26,6 @@ cufftExecC2C(planKernel, PRODUCT, PRODUCT, CUFFT_INVERSE); // inverse fft on the
 MakeProductReal<<<blockSize, GridSize>>>(PRODUCT)   // extract the real part of PRODUCT
 """
 
-"""
 import numpy as np
 from numba import cuda, float32
 
@@ -103,4 +88,7 @@ if __name__ == "__main__":
     c = np.empty((int(1e4), int(1e4)), dtype=np.float32)
     
     matmul(a, b, c)
-"""
+    
+    print(np.sum(a))
+    print(np.sum(b))
+    print(np.sum(c))
