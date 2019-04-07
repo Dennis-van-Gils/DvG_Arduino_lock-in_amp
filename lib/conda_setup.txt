@@ -18,7 +18,7 @@ pip install PyOpenGL_accelerate-3.1.3b2-cp37-cp37m-win_amd64.whl
 conda install numba cudatoolkit
 [DO NOT] conda install numba pyculib          (NOTE: DEPRECATED. Will downgrade to Python 3.6 and break pyqt5. Use CuPy instead)
 pip install cupy-cuda101
-conda install -c frankong sigpy               (NOTE: Will downgrade to Python 3.6, so perhaps don't)
+pip install sigpy
 
 Environmental variables Windows:
 NUMBAPRO_NVVM = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\nvvm\bin\nvvm64_33_0.dll
