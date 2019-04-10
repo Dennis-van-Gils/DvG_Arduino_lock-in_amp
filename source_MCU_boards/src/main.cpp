@@ -266,6 +266,10 @@ void isr_psd() {
     while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
     syncADC();
     sig_I = ADC->RESULT.reg;
+    ADC->SWTRIG.bit.START = 1;
+    while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
+    syncADC();
+    sig_I = ADC->RESULT.reg;
   #elif defined(__SAMD51__)
     ADC0->SWTRIG.bit.START = 1;
     while (ADC0->INTFLAG.bit.RESRDY == 0);  // Wait for conversion to complete
