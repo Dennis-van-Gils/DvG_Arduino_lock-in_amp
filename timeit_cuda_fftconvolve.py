@@ -36,7 +36,8 @@ b_cp = cupy.array(b_np)
 def cuda_fftconv():
     a_dq.extend(np.random.randn(buffer_size))
     a_cp = cupy.array(list(a_dq))
-    sp.convolve(a_cp, b_cp, mode='valid')
+    c_cp = sp.convolve(a_cp, b_cp, mode='valid')
+    c_np = cupy.asnumpy(c_cp)
     
 def fftconv_dq_np__dq_to_list():
     a_dq.extend(np.random.randn(buffer_size))
