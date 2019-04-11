@@ -1,0 +1,172 @@
+#include <Arduino.h>
+//#include "SAMD51_InterruptTimer.h"
+
+// Wait for synchronization of registers between the clock domains
+static __inline__ void syncADC() __attribute__((always_inline, unused));
+static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1);}
+
+#define SERIAL_DATA_BAUDRATE 1e6
+#define Ser_data Serial
+
+#define BUFFER_SIZE 100
+#define ANALOG_READ_RESOLUTION 12   // [bits] ADC
+
+volatile bool fSend_buffer = false;
+volatile uint32_t buffer_time[BUFFER_SIZE] = {0};
+volatile int16_t  buffer_sig [BUFFER_SIZE] = {0};
+
+void genericClockSetup(int clk, int dFactor) {
+  // Enable the APBC clock for the ADC
+  //REG_PM_APBCMASK |= PM_APBCMASK_ADC;
+  REG_MCLK_APBDMASK |= MCLK_APBDMASK_ADC0;
+
+  /*
+  // This allows you to setup a div factor for the selected clock certain clocks allow certain division factors: Generic clock generators 3 - 8 8 division factor bits - DIV[7:0]
+  GCLK->GENDIV.reg |= GCLK_GENDIV_ID(clk)| GCLK_GENDIV_DIV(dFactor);
+  while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY);  
+
+  // Configure the generator of the generic clock with 48MHz clock
+  GCLK->GENCTRL.reg |= GCLK_GENCTRL_GENEN | GCLK_GENCTRL_SRC_DFLL48M | GCLK_GENCTRL_ID(clk); // GCLK_GENCTRL_DIVSEL don't need this, it makes divide based on power of two
+  while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY);
+  */
+  GCLK->GENCTRL[clk].bit.DIV = GCLK_GENCTRL_DIV(dFactor);
+  GCLK->GENCTRL[clk].bit.GENEN = 1;
+  GCLK->GENCTRL[clk].bit.SRC = GCLK_SOURCE_DFLL48M; // GCLK_GENCTRL_SRC_DFLL_Val
+  while (GCLK->SYNCBUSY.reg > 0);
+
+  // Enable clock, set gen clock number, and ID to where the clock goes (30 is ADC)
+  //GCLK->CLKCTRL.reg |= GCLK_CLKCTRL_CLKEN | GCLK_CLKCTRL_GEN(clk) | GCLK_CLKCTRL_ID(30);
+  GCLK->PCHCTRL[ADC0_GCLK_ID].bit.CHEN = 1;   // Enable peripheral channel
+  GCLK->PCHCTRL[ADC0_GCLK_ID].bit.GEN = clk;  // Select generic clock generator #n
+  while (GCLK->SYNCBUSY.reg > 0);
+}
+
+/*------------------------------------------------------------------------------
+    setup
+------------------------------------------------------------------------------*/
+
+void setup() {
+  Ser_data.begin(SERIAL_DATA_BAUDRATE);
+  while (!Ser_data) {delay(1);} // Wait for serial connection
+
+  Ser_data.println("Setting READ RESOLUTION");
+  analogReadResolution(ANALOG_READ_RESOLUTION);
+  analogRead(A1); // Differential +
+  analogRead(A2); // Differential -
+
+  genericClockSetup(3, 1);
+
+  ADC0->CTRLA.bit.ENABLE = 0;
+  ADC1->CTRLA.bit.ENABLE = 0;
+  syncADC();
+
+  /*
+  // Slave ADC1 to ADC0
+  ADC1->CTRLA.bit.SLAVEEN = 1;
+  syncADC();
+  // Set differential mode on A1(+) and A2(-)
+  ADC0->INPUTCTRL.bit.DIFFMODE = 1;
+  syncADC();
+  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
+  ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
+  syncADC();
+  */
+
+  ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // 3: INTVCC1 on SAMD51 = VDDANA
+  syncADC();
+  // Set single-ended mode on pin A1
+  ADC0->INPUTCTRL.bit.DIFFMODE = 0;
+  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
+  ADC0->INPUTCTRL.bit.MUXNEG = ADC_INPUTCTRL_MUXNEG_GND_Val;
+  syncADC();
+  ADC0->AVGCTRL.bit.SAMPLENUM = ADC_AVGCTRL_SAMPLENUM_1_Val;
+  syncADC();
+  ADC0->SAMPCTRL.bit.SAMPLEN = ADC_SAMPCTRL_SAMPLEN(0);  // Sampling time, no extra sampling half clock-cycles
+  syncADC();
+  
+  // Increase the ADC clock by setting the divisor from default DIV128 to DIV16.
+  // Setting smaller divisors than DIV16 results in ADC errors. (?)
+  Ser_data.println("Setting PRESCALER");
+  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
+  //ADC1->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
+  syncADC();
+
+  ADC0->CTRLB.bit.FREERUN = 1;
+  //ADC1->CTRLB.bit.FREERUN = 1;
+  syncADC();
+
+  // Disable window monitor mode
+  ADC0->CTRLB.bit.WINMODE = 0;
+  syncADC();
+
+  // Start ADC when event occurs
+  ADC0->EVCTRL.bit.STARTEI = 1;
+  syncADC();
+
+  ADC0->CTRLA.bit.ENABLE = 1;
+  syncADC();
+  
+  // Set up an ADC interrupt
+  //ADC0_0_IRQn = 118, /**< 118 SAMD51J19A Analog Digital Converter 0 (ADC0): ADC0_OVERRUN, ADC0_WINMON */
+  //ADC0_1_IRQn = 119, /**< 119 SAMD51J19A Analog Digital Converter 0 (ADC0): ADC0_RESRDY */
+  byte priority = 0 ;
+  ADC0->INTENSET.bit.RESRDY = 1;
+  syncADC();
+  NVIC_EnableIRQ(ADC0_1_IRQn);              // enable ADC interrupts
+  NVIC_SetPriority(ADC0_1_IRQn, priority);  // set priority of the interrupt
+
+  Ser_data.println("Trigger START");
+  ADC0->SWTRIG.bit.START = 1;
+  //ADC1->SWTRIG.bit.START = 1;
+  //ADC0->INTFLAG.reg = ADC_INTFLAG_RESRDY;
+  //ADC1->INTFLAG.reg = ADC_INTFLAG_RESRDY;
+  //syncADC();
+  
+  Ser_data.println("Setup done");
+}
+
+/*------------------------------------------------------------------------------
+    ADC0_1_Handler
+------------------------------------------------------------------------------*/
+
+void ADC0_1_Handler() {
+  static uint16_t write_idx = 0;
+
+  //Ser_data.println(write_idx);
+
+  if (!fSend_buffer) {
+    buffer_time[write_idx] = micros();
+    buffer_sig [write_idx] = REG_ADC0_RESULT; // ADC0->RESULT.reg;
+    write_idx++;
+
+    if (write_idx == BUFFER_SIZE) {
+      fSend_buffer = true;
+      write_idx = 0;
+    }
+  }
+
+  // Need to reset interrupt
+  ADC0->INTFLAG.reg = ADC_INTFLAG_RESRDY;
+}
+
+/*------------------------------------------------------------------------------
+    loop
+------------------------------------------------------------------------------*/
+
+void loop() {
+  //Ser_data.println(".");
+
+  if (fSend_buffer) {
+    // Stop isr and dump complete buffer to serial terminal
+    noInterrupts();
+    
+    for (uint16_t idx = 0; idx < BUFFER_SIZE; idx++) {
+      Ser_data.print(buffer_time[idx]);
+      Ser_data.print('\t');
+      Ser_data.println(buffer_sig[idx]);
+    }
+    fSend_buffer = false;
+    
+    interrupts();
+  }
+}
