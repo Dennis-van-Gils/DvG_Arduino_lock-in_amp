@@ -56,13 +56,16 @@ void setup_generic_clock(int clk, int div_factor, int div_selection) {
 }
 
 void setup_ADC() {
-  analogReadResolution(ADC_RESOLUTION);
   analogRead(A1); // Differential +
   analogRead(A2); // Differential -
 
   ADC0->CTRLA.bit.ENABLE = 0;
   ADC1->CTRLA.bit.ENABLE = 0;
   syncADC();
+
+  // Set resolution
+  ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
+  while(ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB); //wait for sync
 
   /*
   // Slave ADC1 to ADC0
@@ -78,7 +81,9 @@ void setup_ADC() {
 
   // Set single-ended mode on pin A1
   ADC0->INPUTCTRL.bit.DIFFMODE = 0;
-  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
+  syncADC();
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_INPUTCTRL);
+  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   ADC0->INPUTCTRL.bit.MUXNEG = ADC_INPUTCTRL_MUXNEG_GND_Val;
   syncADC();
   
