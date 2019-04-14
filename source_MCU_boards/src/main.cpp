@@ -30,7 +30,7 @@ proper bindings to strncmpi
 "C_Cpp.intelliSenseEngineFallback": "Disabled"
 
 Dennis van Gils
-07-04-2019
+14-04-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -420,8 +420,8 @@ void setup() {
   // Set differential mode on A1(+) and A2(-)
   #if defined (__SAMD21__)
     ADC->CTRLB.bit.DIFFMODE = 1;
-    ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
-    ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
+    ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+    ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
     ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
     ADC->REFCTRL.bit.REFSEL = 2;  // 2: INTVCC1 on SAMD21 = 1/2 VDDANA
   #elif defined(__SAMD51__)
@@ -439,11 +439,11 @@ void setup() {
     ADC0->CALIB.bit.BIASREFBUF = NVM_ADC0_BIASREFBUF;
     ADC0->CALIB.bit.BIASR2R    = NVM_ADC0_BIASR2R;
     delay(10);
-    //*/
+    */
 
     ADC0->INPUTCTRL.bit.DIFFMODE = 1;
-    ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
-    ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
+    ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+    ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
     // ADC0->INPUTCTRL.bit.GAIN does not exist on SAMD51
     ADC0->REFCTRL.bit.REFSEL = 3; // 3: INTVCC1 on SAMD51 = VDDANA
 
