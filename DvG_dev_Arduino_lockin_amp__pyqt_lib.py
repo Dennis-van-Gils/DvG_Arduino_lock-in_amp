@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "03-04-2019"
+__date__        = "15-04-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -196,10 +196,20 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         # TODO: turn 'use_narrower_filter' into a toggle button UI
         use_narrower_filter = False
         if use_narrower_filter:
-            firwin_cutoff = [0.5, 49.5, 50.5, 99.5, 100.5, dev.config.F_Nyquist]
+            firwin_cutoff = [  0.5,  49.5, 
+                              50.5,  99.5, 
+                             100.5, 149.5,
+                             150.5, dev.config.F_Nyquist]
             firwin_window = ("chebwin", 50)
         else:
-            firwin_cutoff = [0.9, 49.0, 51.0, 99.0, 101.0, dev.config.F_Nyquist]
+            firwin_cutoff = [  0.9,  49.0,
+                              51.0,  99.0,
+                             101.0, 149.0,
+                             151.0, dev.config.F_Nyquist]
+            #firwin_cutoff = [  0.9,  48.0,
+            #                  52.0,  98.0,
+            #                 102.0, 148.0,
+            #                 152.0, dev.config.F_Nyquist]
             firwin_window = "blackmanharris"
         self.firf_BS_sig_I = Buffered_FIR_Filter(self.state.buffer_size,
                                                  self.state.N_buffers_in_deque,

@@ -720,6 +720,15 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_resp_BS.addItem(self.curve_filt_resp_BS)
         self.update_plot_filt_resp_BS()
         
+        # Band-stop filter controls
+        self.qtbl_filt_BS = QtWid.QTableWidget()
+        self.qtbl_filt_BS.setRowCount(4)
+        self.qtbl_filt_BS.setColumnCount(2)
+        self.qtbl_filt_BS.setItem(0, 0, QtWid.QTableWidgetItem("0.9"))
+        
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addWidget(self.qtbl_filt_BS, 0, 0)
+        
         # -----------------------------------
         # -----------------------------------
         #   Round up tab page 'Filter response: band-stop'
@@ -727,6 +736,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         hbox = QtWid.QHBoxLayout()
+        hbox.addLayout(grid, stretch=0)
         hbox.addWidget(self.gw_filt_resp_BS, stretch=1)
         self.tab_filter_1_response.setLayout(hbox)
         
