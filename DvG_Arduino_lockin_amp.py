@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "02-04-2019"
+__date__        = "15-04-2019"
 __version__     = "1.0.0"
 
 import os
@@ -99,8 +99,8 @@ def lockin_DAQ_update():
         return False
     
     # HACK: hard-coded calibration correction on the ADC
-    dev_sig_I = sig_I * 0.0054 + 0.0020;
-    sig_I -= dev_sig_I
+    #dev_sig_I = sig_I * 0.0054 + 0.0020;
+    #sig_I -= dev_sig_I
     
     # Detect dropped samples / buffers
     lockin_pyqt.state.buffers_received += 1
@@ -220,10 +220,18 @@ def lockin_DAQ_update():
     # Power spectrum
     # --------------
     if len(state.deque_sig_I) == state.deque_sig_I.maxlen:
+        # When scaling='spectrum', Pxx returns units of V^2
+        # When scaling='density', Pxx returns units of V^2/Hz
         [f, Pxx] = welch(state.deque_sig_I, fs=c.Fs, nperseg=10250,
-                         scaling='density')
+                         scaling='spectrum')
        
-        window.BP_power_spectrum.set_data(f, Pxx)
+        # From Matlab 'pow2db'
+        # We want to guarantee that the result is an integer if y is a negative
+        # power of 10. To do so, we force some rounding of precision by adding
+        # 300-300.
+        Pxx_dB = (10 * np.log10(Pxx) + 300) - 300
+        
+        window.BP_power_spectrum.set_data(f, Pxx_dB)
     
     # Add new data to charts
     # ----------------------
@@ -350,12 +358,6 @@ if __name__ == '__main__':
     window = lockin_GUI.MainWindow(lockin=lockin,
                                    lockin_pyqt=lockin_pyqt,
                                    file_logger=file_logger)
-
-    window.pi_refsig.setYRange(0.2, 3.2)
-    window.pi_filt_BS.setYRange(-1.8, 3.4)
-    window.pi_mixer.setYRange(-1.2, 2.2)
-    window.pi_XR.setYRange(0.99, 1.01)
-    window.pi_YT.setYRange(-90, 90, padding=0.1)
 
     # --------------------------------------------------------------------------
     #   Start threads

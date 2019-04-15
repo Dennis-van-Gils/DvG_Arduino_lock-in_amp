@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "02-04-2019"
+__date__        = "15-04-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -258,19 +258,24 @@ class MainWindow(QtWid.QWidget):
         qgrp_connections.setLayout(grid)        
 
         # QGROUP: Axes controls
-        self.qpbt_full_axes = QtWid.QPushButton("Full axes")
-        self.qpbt_full_axes.clicked.connect(self.process_qpbt_full_axes)
-        self.qpbt_autorange_x = QtWid.QPushButton("Autorange x")
+        self.qpbt_maxrange_xy = QtWid.QPushButton("Maximum range")
+        self.qpbt_maxrange_xy.clicked.connect(self.process_qpbt_maxrange_xy)
+        self.qpbt_autorange_xy = QtWid.QPushButton("Autorange")
+        self.qpbt_autorange_xy.clicked.connect(self.process_qpbt_autorange_xy)
+        self.qpbt_autorange_x = QtWid.QPushButton("Auto x", maximumWidth=80)
         self.qpbt_autorange_x.clicked.connect(self.process_qpbt_autorange_x)
-        self.qpbt_autorange_y = QtWid.QPushButton("Autorange y")
+        self.qpbt_autorange_y = QtWid.QPushButton("Auto y", maximumWidth=80)
         self.qpbt_autorange_y.clicked.connect(self.process_qpbt_autorange_y)
         
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(self.qpbt_full_axes  , 0, 0)
-        grid.addWidget(self.qpbt_autorange_x, 1, 0)
-        grid.addWidget(self.qpbt_autorange_y, 2, 0)
+        grid.addWidget(self.qpbt_maxrange_xy , 0, 0, 1, 2)
+        #grid.addItem(QtWid.QSpacerItem(0, 10), 1, 0, 1, 2)
+        #grid.addWidget(QtWid.QLabel("Autorange:"), 1, 0, 1, 2)
+        grid.addWidget(self.qpbt_autorange_xy, 2, 0, 1, 2)
+        grid.addWidget(self.qpbt_autorange_x , 3, 0)
+        grid.addWidget(self.qpbt_autorange_y , 3, 1)
         
-        qgrp_axes_controls = QtWid.QGroupBox("Graphs")
+        qgrp_axes_controls = QtWid.QGroupBox("Graphs: timeseries")
         qgrp_axes_controls.setStyleSheet(SS_GROUP)
         qgrp_axes_controls.setLayout(grid)
 
@@ -326,7 +331,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
                                  lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0.01)
-        self.pi_refsig.setYRange(1, 3, padding=0.05)
+        self.pi_refsig.setYRange(-3.3, 3.3, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
 
@@ -425,7 +430,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_XR.setXRange(-lockin.config.BUFFER_SIZE *
                              lockin.config.ISR_CLOCK * 1e3,
                              0, padding=0.01)
-        self.pi_XR.setYRange(-1, 1, padding=0.05)
+        self.pi_XR.setYRange(0, 5, padding=0.05)
         self.pi_XR.setAutoVisible(x=True, y=True)
         self.pi_XR.setClipToView(True)
         self.pi_XR.request_autorange_y = False
@@ -445,7 +450,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_YT.setXRange(-lockin.config.BUFFER_SIZE *
                              lockin.config.ISR_CLOCK * 1e3,
                              0, padding=0.01)
-        self.pi_YT.setYRange(-1, 1, padding=0.05)
+        self.pi_YT.setYRange(-90, 90, padding=0.1)
         self.pi_YT.setAutoVisible(x=True, y=True)
         self.pi_YT.setClipToView(True)
         self.pi_YT.request_autorange_y = False
@@ -554,7 +559,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_BS.setXRange(-lockin.config.BUFFER_SIZE *
                                     lockin.config.ISR_CLOCK * 1e3,
                                     0, padding=0.01)
-        self.pi_filt_BS.setYRange(-1, 1, padding=0.05)
+        self.pi_filt_BS.setYRange(-5, 5, padding=0.05)
         self.pi_filt_BS.setAutoVisible(x=True, y=True)
         self.pi_filt_BS.setClipToView(True)
         
@@ -593,7 +598,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_mixer.setXRange(-lockin.config.BUFFER_SIZE *
                                 lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0.01)
-        self.pi_mixer.setYRange(-1, 1, padding=0.05)
+        self.pi_mixer.setYRange(-5, 5, padding=0.05)
         self.pi_mixer.setAutoVisible(x=True, y=True)
         self.pi_mixer.setClipToView(True)
         
@@ -646,17 +651,34 @@ class MainWindow(QtWid.QWidget):
         
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_power_spectrum.showGrid(x=1, y=1)
-        self.pi_power_spectrum.setTitle('Power spectral density (Welch)', **p)
+        self.pi_power_spectrum.setTitle('Power spectrum (Welch) of sig_I', **p)
         self.pi_power_spectrum.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_power_spectrum.setLabel('left', text='PSD [V%s/Hz]' % chr(178),
-                                        **p)
+        self.pi_power_spectrum.setLabel('left', text='power [dB]', **p)
         self.pi_power_spectrum.setAutoVisible(x=True, y=True)
-        self.pi_power_spectrum.setXRange(100, 120, padding=0.05)
-        self.pi_power_spectrum.setYRange(0, 1, padding=0.05)
+        self.pi_power_spectrum.setXRange(0, self.lockin.config.F_Nyquist,
+                                         padding=0.02)
+        self.pi_power_spectrum.setYRange(-90, 0, padding=0.02)
         self.pi_power_spectrum.setClipToView(True)
         
         self.BP_power_spectrum = BufferedPlot(
                 self.pi_power_spectrum.plot(pen=self.PEN_03))
+        
+        # Power spectrum controls
+        self.qpbt_power_spectrum_zoom_low = QtWid.QPushButton('Zoom 0 - 200 Hz')
+        self.qpbt_power_spectrum_zoom_mid = QtWid.QPushButton('Zoom 0 - 1 kHz')
+        self.qpbt_power_spectrum_zoom_all = QtWid.QPushButton('Zoom full range')
+        
+        self.qpbt_power_spectrum_zoom_low.clicked.connect(lambda:
+            self.power_spectrum_zoom(0, 200))
+        self.qpbt_power_spectrum_zoom_mid.clicked.connect(lambda:
+            self.power_spectrum_zoom(0, 1000))
+        self.qpbt_power_spectrum_zoom_all.clicked.connect(lambda:
+            self.power_spectrum_zoom(0, self.lockin.config.F_Nyquist))
+        
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addWidget(self.qpbt_power_spectrum_zoom_low, 0, 0)
+        grid.addWidget(self.qpbt_power_spectrum_zoom_mid, 0, 1)
+        grid.addWidget(self.qpbt_power_spectrum_zoom_all, 0, 2)
         
         # -----------------------------------
         # -----------------------------------
@@ -664,9 +686,10 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
         
-        hbox = QtWid.QHBoxLayout()
-        hbox.addWidget(self.gw_power_spectrum, stretch=1)
-        self.tab_power_spectrum.setLayout(hbox)
+        vbox = QtWid.QVBoxLayout()
+        vbox.addLayout(grid, stretch=0)
+        vbox.addWidget(self.gw_power_spectrum, stretch=1)
+        self.tab_power_spectrum.setLayout(vbox)
         
         def _frame_Filter_resp_BS(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
@@ -969,7 +992,23 @@ class MainWindow(QtWid.QWidget):
             self.update_chart_refsig()  # Force update graph
 
     @QtCore.pyqtSlot()
-    def process_qpbt_full_axes(self):
+    def process_qpbt_maxrange_xy(self):
+        self.process_qpbt_autorange_x()
+        self.pi_refsig.setYRange (-3.3, 3.3, padding=0.05)
+        self.pi_filt_BS.setYRange(-3.3, 3.3, padding=0.05)
+        self.pi_mixer.setYRange  (-5, 5, padding=0.05)
+        
+        if self.qrbt_XR_X.isChecked():
+            self.pi_XR.setYRange(-5, 5, padding=0.05)
+        else:
+            self.pi_XR.setYRange(0, 5, padding=0.05)
+        if self.qrbt_YT_Y.isChecked():
+            self.pi_YT.setYRange(-5, 5, padding=0.05)
+        else:
+            self.pi_YT.setYRange(-90, 90, padding=0.1)
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_autorange_xy(self):
         self.process_qpbt_autorange_x()
         self.process_qpbt_autorange_y()
 
@@ -1055,24 +1094,27 @@ class MainWindow(QtWid.QWidget):
     
     def autorange_y_XR(self):
         if len(self.CH_LIA_XR._x) == 0:
-            self.pi_XR.setYRange(0, 1.4, padding=0.1)
+            if self.qrbt_XR_X.isChecked():
+                self.pi_XR.setYRange(-5, 5, padding=0.05)
+            else:
+                self.pi_XR.setYRange(0, 5, padding=0.05)
         else:
             self.pi_XR.enableAutoRange('y', True)
             self.pi_XR.enableAutoRange('y', False)
             XRange, YRange = self.pi_XR.viewRange()
-            self.pi_XR.setYRange(YRange[0], YRange[1], padding=1.1)
+            self.pi_XR.setYRange(YRange[0], YRange[1], padding=0.05)
         
     def autorange_y_YT(self):
         if len(self.CH_LIA_YT._x) == 0:
             if self.qrbt_YT_Y.isChecked():
-                self.pi_YT.setYRange(0, 1.4, padding=0.1)
+                self.pi_YT.setYRange(-5, 5, padding=0.05)
             else:
                 self.pi_YT.setYRange(-90, 90, padding=0.1)
         else:
             self.pi_YT.enableAutoRange('y', True)
             self.pi_YT.enableAutoRange('y', False)
             XRange, YRange = self.pi_YT.viewRange()
-            self.pi_YT.setYRange(YRange[0], YRange[1], padding=1.1)
+            self.pi_YT.setYRange(YRange[0], YRange[1], padding=0.05)
     
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
@@ -1140,6 +1182,11 @@ class MainWindow(QtWid.QWidget):
                                        padding=0.01)
         self.pi_filt_resp_LP.setTitle('Filter response: low-pass<br/>%s' %
                                       self.construct_title_plot_filt_resp(firf))
+        
+    def power_spectrum_zoom(self, xRangeLo, xRangeHi):
+        self.pi_power_spectrum.setXRange(xRangeLo, xRangeHi, padding=0.02)
+        self.pi_power_spectrum.enableAutoRange('y', True)
+        self.pi_power_spectrum.enableAutoRange('y', False)
         
 if __name__ == "__main__":
     exec(open("DvG_Arduino_lockin_amp.py").read())
