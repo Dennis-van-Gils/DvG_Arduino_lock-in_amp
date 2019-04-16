@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "15-04-2019"
+__date__        = "16-04-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -17,6 +17,7 @@ import time as Time
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
+#from DvG_Buffered_FIR_Filter__CUDA import Buffered_FIR_Filter
 
 # ------------------------------------------------------------------------------
 #   Arduino_pyqt
@@ -216,6 +217,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                                                  dev.config.Fs,
                                                  firwin_cutoff,
                                                  firwin_window,
+                                                 pass_zero=False,
                                                  display_name="BS_sig_I")
     
         # Create FIR filter: Low-pass on mix_X and mix_Y
@@ -223,19 +225,21 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         # f_cutoff should be calculated based on the roll-off width of the
         # filter, instead of hard-coded
         roll_off_width = 2; # [Hz]
-        firwin_cutoff = [0, 2*dev.config.ref_freq - roll_off_width]
+        firwin_cutoff = 2*dev.config.ref_freq - roll_off_width
         firwin_window = "blackman"
         self.firf_LP_mix_X = Buffered_FIR_Filter(self.state.buffer_size,
                                                  self.state.N_buffers_in_deque,
                                                  dev.config.Fs,
                                                  firwin_cutoff,
                                                  firwin_window,
+                                                 pass_zero=True,
                                                  display_name="LP_mix_X")
         self.firf_LP_mix_Y = Buffered_FIR_Filter(self.state.buffer_size,
                                                  self.state.N_buffers_in_deque,
                                                  dev.config.Fs,
                                                  firwin_cutoff,
                                                  firwin_window,
+                                                 pass_zero=True,
                                                  display_name="LP_mix_Y")
         
     def turn_on(self):
