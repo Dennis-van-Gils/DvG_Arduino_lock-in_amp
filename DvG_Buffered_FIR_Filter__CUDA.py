@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "10-04-2019"
+__date__        = "16-04-2019"
 __version__     = "1.0.0"
 
 from collections import deque
@@ -16,14 +16,16 @@ import cupy
 import sigpy as sp
 
 class Buffered_FIR_Filter():
-    def __init__(self, buffer_size, N_buffers_in_deque, Fs, firwin_cutoff,
-                 firwin_window, display_name=""):
+    def __init__(self, buffer_size, N_buffers_in_deque, Fs, cutoff, window,
+                 pass_zero=True, display_name=""):
         self.buffer_size = buffer_size                # [samples]
         self.N_buffers_in_deque = N_buffers_in_deque  # [int]
         self.Fs = Fs                                  # [Hz]
-        self.firwin_window = firwin_window            # type of window, see scipy.signal.get_window        
+        self.cutoff = cutoff                          # list of [Hz], see scipy.signal.firwin
+        self.window = window                          # type of window, see scipy.signal.get_window        
+        self.pass_zero = pass_zero                    # [bool], see scipy.signal.firwin
         self.display_name = display_name              # [str]
-       
+        
         # Deque size
         self.N_deque = self.buffer_size * self.N_buffers_in_deque # [samples]
         
@@ -52,35 +54,44 @@ class Buffered_FIR_Filter():
         #self.starting_up = True
         """
         
-        # Create filter and check firwin_cutoff for illegal values and cap when
-        # necessary
-        self.firwin_cutoff = firwin_cutoff            # list of [Hz]
-        self.update_firwin_cutoff(firwin_cutoff)
+        # Create filter
+        self.design_fir_filter()
 
-    def _constrain_firwin_cutoff(self, firwin_cutoff):
-        """Check firwin_cutoff for illegal values and cap when necessary.
+    def design_fir_filter(self, cutoff=None, window=None, pass_zero=None):
+        """Check cutoff frequencies for illegal values and cap when necessary,
+        create the FIR filter, and calculate the frequency response.
+        """
+        if cutoff is not None:
+            self.cutoff = cutoff
+        if window is not None:
+            self.window = window
+        if pass_zero is not None:
+            self.pass_zero = pass_zero
+            
+        self._constrain_cutoff()
+        self.b = firwin(numtaps=self.N_taps,
+                        cutoff=self.cutoff,
+                        window=self.window,
+                        pass_zero=self.pass_zero,
+                        fs=self.Fs)
+        self.calc_freqz_response()
+        #self.report()
+        
+        # Copy to cupy array (resides at the GPU!)
+        self.b_cp = cupy.array(self.b)
+        
+    def _constrain_cutoff(self):
+        """Check cutoff frequencies for illegal values and cap when necessary.
         I.e.:
         Frequencies <= 0 Hz will be set to the tiny value 'cutoff_grain'.
         Frequencies >= Nyquist freq. will be set to Nyquist - 'cutoff_grain'.
         cutoff_grain = 1e-6 Hz
         """
         cutoff_grain = 1e-6
-        firwin_cutoff = np.array(firwin_cutoff, dtype=np.float64)
-        firwin_cutoff[firwin_cutoff <= cutoff_grain] = cutoff_grain
-        firwin_cutoff[firwin_cutoff >= self.Fs/2] = (self.Fs/2 - cutoff_grain)
-        self.firwin_cutoff = firwin_cutoff
-
-    def update_firwin_cutoff(self, firwin_cutoff):
-        self._constrain_firwin_cutoff(firwin_cutoff)
-        self.b = firwin(self.N_taps,
-                        self.firwin_cutoff,
-                        window=self.firwin_window,
-                        fs=self.Fs,
-                        pass_zero=False)
-        self.calc_freqz_response()
-        
-        # Copy to cupy array (resides at the GPU!)
-        self.b_cp = cupy.array(self.b)
+        cutoff = np.array(self.cutoff, dtype=np.float64, ndmin=1)
+        cutoff[cutoff <= cutoff_grain] = cutoff_grain
+        cutoff[cutoff >= self.Fs/2] = (self.Fs/2 - cutoff_grain)
+        self.cutoff = cutoff
         
     def process(self, deque_sig_in: deque):
         """
@@ -170,10 +181,10 @@ class Buffered_FIR_Filter():
         self.resp_phase_rad = self.full_resp_phase_rad[idx_keep]
         
     def report(self):
-        if isinstance(self.firwin_window, str):
-            __window = '%s' % self.firwin_window
+        if isinstance(self.window, str):
+            __window = '%s' % self.window
         else:
-            __window = '%s' % [x for x in self.firwin_window]
+            __window = '%s' % [x for x in self.window]
         
         print('--------------------------------')
         print('Fs                 = %.0f Hz'    % self.Fs)
@@ -184,8 +195,9 @@ class Buffered_FIR_Filter():
         print('T_span_taps   = %.3f s'     % self.T_span_taps)
         print('T_span_buffer = %.3f s'     % self.T_span_buffer)
         print('--------------------------------')
-        print('firwin_cutoff = %s' % [round(x, 1) for x in self.firwin_cutoff])
-        print('firwin_window = %s' % __window)
+        print('window = %s' % __window)
+        print('cutoff = %s' % [round(x, 1) for x in self.cutoff])
+        print('pass_zero = %s' % self.pass_zero)
         print('--------------------------------')
         print('win_idx_valid_start = %i samples' % self.win_idx_valid_start)
         print('T_settling          = %.3f s'     % self.T_settling)
