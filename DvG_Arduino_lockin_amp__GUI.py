@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "15-04-2019"
+__date__        = "16-04-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -40,7 +40,7 @@ try:
     import OpenGL.GL as gl
     pg.setConfigOptions(useOpenGL=True)
     pg.setConfigOptions(enableExperimental=False)
-    pg.setConfigOptions(antialias=False)    
+    pg.setConfigOptions(antialias=False)
     print("OpenGL hardware acceleration enabled.")
     USING_OPENGL = True
 except:
@@ -68,7 +68,7 @@ class MainWindow(QtWid.QWidget):
         self.lockin_pyqt = lockin_pyqt
         self.file_logger = file_logger
         
-        self.setGeometry(250, 50, 1098, 960)
+        self.setGeometry(250, 50, 1200, 960)
         self.setWindowTitle("Arduino lock-in amplifier")
         self.setStyleSheet(SS_TEXTBOX_READ_ONLY)
         
@@ -87,6 +87,9 @@ class MainWindow(QtWid.QWidget):
         # Textbox widths for fitting N characters using the current font
         e = QtGui.QLineEdit()
         width_chr8  = (8 + 8 * e.fontMetrics().width('x') + 
+                       e.textMargins().left()     + e.textMargins().right() + 
+                       e.contentsMargins().left() + e.contentsMargins().right())
+        width_chr10 = (8 + 10 * e.fontMetrics().width('x') + 
                        e.textMargins().left()     + e.textMargins().right() + 
                        e.contentsMargins().left() + e.contentsMargins().right())
         width_chr12 = (8 + 12 * e.fontMetrics().width('x') + 
@@ -721,13 +724,85 @@ class MainWindow(QtWid.QWidget):
         self.update_plot_filt_resp_BS()
         
         # Band-stop filter controls
+        N_cols = 2
+        N_rows = 6
         self.qtbl_filt_BS = QtWid.QTableWidget()
-        self.qtbl_filt_BS.setRowCount(4)
-        self.qtbl_filt_BS.setColumnCount(2)
-        self.qtbl_filt_BS.setItem(0, 0, QtWid.QTableWidgetItem("0.9"))
         
-        grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(self.qtbl_filt_BS, 0, 0)
+        default_font_pt = QtWid.QApplication.font().pointSize()
+        self.qtbl_filt_BS.setStyleSheet(
+                "QTableWidget {font-size: %ipt;"
+                              "font-family: MS Shell Dlg 2}"
+                "QHeaderView  {font-size: %ipt;"
+                              "font-family: MS Shell Dlg 2}"
+                "QHeaderView:section {background-color: lightgray}" %
+                (default_font_pt, default_font_pt))
+    
+        self.qtbl_filt_BS.setRowCount(N_rows)
+        self.qtbl_filt_BS.setColumnCount(N_cols)
+        self.qtbl_filt_BS.setColumnWidth(0, width_chr8)
+        self.qtbl_filt_BS.setColumnWidth(1, width_chr8)
+        self.qtbl_filt_BS.setHorizontalHeaderLabels (['from', 'to'])
+        self.qtbl_filt_BS.horizontalHeader().setDefaultAlignment(
+                QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        self.qtbl_filt_BS.horizontalHeader().setSectionResizeMode(
+                QtWid.QHeaderView.Fixed)
+        self.qtbl_filt_BS.verticalHeader().setSectionResizeMode(
+                QtWid.QHeaderView.Fixed)
+        
+        self.qtbl_filt_BS.setSizePolicy(
+                QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
+        self.qtbl_filt_BS.setVerticalScrollBarPolicy(
+                QtCore.Qt.ScrollBarAlwaysOff)
+        self.qtbl_filt_BS.setHorizontalScrollBarPolicy(
+                QtCore.Qt.ScrollBarAlwaysOff)
+        self.qtbl_filt_BS.setFixedSize(
+                self.qtbl_filt_BS.horizontalHeader().length() + 
+                self.qtbl_filt_BS.verticalHeader().width() + 2,
+                self.qtbl_filt_BS.verticalHeader().length() + 
+                self.qtbl_filt_BS.horizontalHeader().height() + 2)
+        
+        self.qtbl_filt_BS_items = list()
+        for row in range(N_rows):
+            for col in range(N_cols):
+                myItem = QtWid.QTableWidgetItem()
+                myItem.setTextAlignment(QtCore.Qt.AlignRight |
+                                        QtCore.Qt.AlignVCenter)
+                self.qtbl_filt_BS_items.append(myItem)
+                self.qtbl_filt_BS.setItem(row, col, myItem)
+        
+        freq_list = self.lockin_pyqt.firf_BS_sig_I.cutoff;
+        if not self.lockin_pyqt.firf_BS_sig_I.pass_zero:
+            # Left-append 0.0 Hz, because it is part of the band-stop
+            freq_list = np.insert(freq_list, 0, 0.0)
+        for row in range(N_rows):
+            for col in range(N_cols):
+                try:
+                    freq = freq_list[row*2 + col]
+                    freq_str = "%.1f" % freq
+                except IndexError:
+                    freq_str = ""
+                self.qtbl_filt_BS_items[row*2 + col].setText(freq_str)
+                
+        self.qpbt_filt_BS_passzero = QtWid.QPushButton("AC: stopping 0 Hz",
+                                                       checkable=True)
+        self.qlin_filt_BS_window = QtWid.QLineEdit(readOnly=True)
+        self.qlin_filt_BS_window.setText(
+                self.lockin_pyqt.firf_BS_sig_I.window_description)
+                
+        i = 0
+        grid = QtWid.QGridLayout()
+        grid.addWidget(QtWid.QLabel('Band-stop ranges [Hz]:'), i, 0); i+=1
+        grid.addWidget(self.qtbl_filt_BS                     , i, 0); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 10)                , i, 0); i+=1
+        grid.addWidget(QtWid.QLabel('AC / DC mode:')         , i, 0); i+=1
+        grid.addWidget(self.qpbt_filt_BS_passzero            , i, 0); i+=1
+        grid.addWidget(QtWid.QLabel('Window:')               , i, 0); i+=1
+        grid.addWidget(self.qlin_filt_BS_window              , i, 0)
+        grid.setAlignment(QtCore.Qt.AlignTop)
+        
+        qgrp_controls_filt_BS = QtWid.QGroupBox("Filter design")
+        qgrp_controls_filt_BS.setStyleSheet(SS_GROUP)
+        qgrp_controls_filt_BS.setLayout(grid)
         
         # -----------------------------------
         # -----------------------------------
@@ -736,7 +811,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         hbox = QtWid.QHBoxLayout()
-        hbox.addLayout(grid, stretch=0)
+        hbox.addWidget(qgrp_controls_filt_BS, stretch=0)
         hbox.addWidget(self.gw_filt_resp_BS, stretch=1)
         self.tab_filter_1_response.setLayout(hbox)
         
@@ -973,8 +1048,8 @@ class MainWindow(QtWid.QWidget):
             print("WARNING: Low-pass filter cannot reach desired cut-off freq.")
             f_cutoff = self.lockin.config.F_Nyquist - roll_off_width
         
-        self.lockin_pyqt.firf_LP_mix_X.update_firwin_cutoff([0, f_cutoff])
-        self.lockin_pyqt.firf_LP_mix_Y.update_firwin_cutoff([0, f_cutoff])
+        self.lockin_pyqt.firf_LP_mix_X.design_fir_filter(cutoff=f_cutoff)
+        self.lockin_pyqt.firf_LP_mix_Y.design_fir_filter(cutoff=f_cutoff)
         self.update_plot_filt_resp_LP()
         
         self.lockin_pyqt.state.reset()
@@ -1162,11 +1237,11 @@ class MainWindow(QtWid.QWidget):
         
     def construct_title_plot_filt_resp(self, firf):
         __tmp1 = 'N_taps = %i' % firf.N_taps
-        if isinstance(firf.firwin_window, str):
-            __tmp2 = '%s' % firf.firwin_window
+        if isinstance(firf.window, str):
+            __tmp2 = '%s' % firf.window
         else:
-            __tmp2 = '%s' % [x for x in firf.firwin_window]
-        __tmp3 = '%s Hz' % [round(x, 1) for x in firf.firwin_cutoff]        
+            __tmp2 = '%s' % [x for x in firf.window]
+        __tmp3 = '%s Hz' % [round(x, 1) for x in firf.cutoff]        
         
         return ('%s, %s, %s' % (__tmp1, __tmp2, __tmp3))
     
