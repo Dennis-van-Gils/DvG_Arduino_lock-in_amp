@@ -200,17 +200,13 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             firwin_cutoff = [  0.5,  49.5, 
                               50.5,  99.5, 
                              100.5, 149.5,
-                             150.5, dev.config.F_Nyquist]
+                             150.5]
             firwin_window = ("chebwin", 50)
         else:
             firwin_cutoff = [  0.9,  49.0,
                               51.0,  99.0,
                              101.0, 149.0,
-                             151.0, dev.config.F_Nyquist]
-            #firwin_cutoff = [  0.9,  48.0,
-            #                  52.0,  98.0,
-            #                 102.0, 148.0,
-            #                 152.0, dev.config.F_Nyquist]
+                             151.0]
             firwin_window = "blackmanharris"
         self.firf_BS_sig_I = Buffered_FIR_Filter(self.state.buffer_size,
                                                  self.state.N_buffers_in_deque,
