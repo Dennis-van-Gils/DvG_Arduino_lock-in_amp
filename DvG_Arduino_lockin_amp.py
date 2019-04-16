@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "15-04-2019"
+__date__        = "16-04-2019"
 __version__     = "1.0.0"
 
 import os
@@ -99,8 +99,8 @@ def lockin_DAQ_update():
         return False
     
     # HACK: hard-coded calibration correction on the ADC
-    #dev_sig_I = sig_I * 0.0054 + 0.0020;
-    #sig_I -= dev_sig_I
+    dev_sig_I = sig_I * 0.0054 + 0.0020;
+    sig_I -= dev_sig_I
     
     # Detect dropped samples / buffers
     lockin_pyqt.state.buffers_received += 1
