@@ -54,6 +54,12 @@ class Buffered_FIR_Filter():
         #self.starting_up = True
         """
         
+        # Friendly window description for direct printing as string
+        if isinstance(self.window, str):
+            self.window_description = '%s' % self.window
+        else:
+            self.window_description = '%s' % [x for x in self.window]
+        
         # Create filter
         self.design_fir_filter()
 
@@ -65,6 +71,10 @@ class Buffered_FIR_Filter():
             self.cutoff = cutoff
         if window is not None:
             self.window = window
+            if isinstance(self.window, str):
+                self.window_description = '%s' % self.window
+            else:
+                self.window_description = '%s' % [x for x in self.window]
         if pass_zero is not None:
             self.pass_zero = pass_zero
             
@@ -180,12 +190,7 @@ class Buffered_FIR_Filter():
         self.resp_ampl_dB   = self.full_resp_ampl_dB[idx_keep]
         self.resp_phase_rad = self.full_resp_phase_rad[idx_keep]
         
-    def report(self):
-        if isinstance(self.window, str):
-            __window = '%s' % self.window
-        else:
-            __window = '%s' % [x for x in self.window]
-        
+    def report(self):        
         print('--------------------------------')
         print('Fs                 = %.0f Hz'    % self.Fs)
         print('buffer_size        = %i samples' % self.buffer_size)
@@ -195,7 +200,7 @@ class Buffered_FIR_Filter():
         print('T_span_taps   = %.3f s'     % self.T_span_taps)
         print('T_span_buffer = %.3f s'     % self.T_span_buffer)
         print('--------------------------------')
-        print('window = %s' % __window)
+        print('window = %s' % self.window_description)
         print('cutoff = %s' % [round(x, 1) for x in self.cutoff])
         print('pass_zero = %s' % self.pass_zero)
         print('--------------------------------')
