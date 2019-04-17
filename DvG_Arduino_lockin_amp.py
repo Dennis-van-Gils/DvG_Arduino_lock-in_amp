@@ -232,6 +232,20 @@ def lockin_DAQ_update():
         Pxx_dB = (10 * np.log10(Pxx) + 300) - 300
         
         window.BP_power_spectrum.set_data(f, Pxx_dB)
+        
+    if len(state.deque_sig_I_filt) == state.deque_sig_I_filt.maxlen:
+        # When scaling='spectrum', Pxx returns units of V^2
+        # When scaling='density', Pxx returns units of V^2/Hz
+        [f, Pxx] = welch(state.deque_sig_I_filt, fs=c.Fs, nperseg=10250,
+                         scaling='spectrum')
+       
+        # From Matlab 'pow2db'
+        # We want to guarantee that the result is an integer if y is a negative
+        # power of 10. To do so, we force some rounding of precision by adding
+        # 300-300.
+        Pxx_dB = (10 * np.log10(Pxx) + 300) - 300
+        
+        window.BP_power_spectrum2.set_data(f, Pxx_dB)
     
     # Add new data to charts
     # ----------------------

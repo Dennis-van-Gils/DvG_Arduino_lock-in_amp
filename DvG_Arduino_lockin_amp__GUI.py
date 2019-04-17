@@ -665,6 +665,8 @@ class MainWindow(QtWid.QWidget):
         
         self.BP_power_spectrum = BufferedPlot(
                 self.pi_power_spectrum.plot(pen=self.PEN_03))
+        self.BP_power_spectrum2 = BufferedPlot(
+                self.pi_power_spectrum.plot(pen=self.PEN_04))
         
         # Power spectrum controls
         self.qpbt_power_spectrum_zoom_low = QtWid.QPushButton('Zoom 0 - 200 Hz')
@@ -959,6 +961,7 @@ class MainWindow(QtWid.QWidget):
         self.update_chart_mixer()
         self.update_chart_LIA_output()
         self.BP_power_spectrum.update_curve()
+        self.BP_power_spectrum2.update_curve()
     
     @QtCore.pyqtSlot()
     def clear_chart_histories_stage_1_and_2(self):
