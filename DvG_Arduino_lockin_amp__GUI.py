@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "16-04-2019"
+__date__        = "17-04-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -660,7 +660,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_power_spectrum.setAutoVisible(x=True, y=True)
         self.pi_power_spectrum.setXRange(0, self.lockin.config.F_Nyquist,
                                          padding=0.02)
-        self.pi_power_spectrum.setYRange(-90, 0, padding=0.02)
+        self.pi_power_spectrum.setYRange(-110, 0, padding=0.02)
         self.pi_power_spectrum.setClipToView(True)
         
         self.BP_power_spectrum = BufferedPlot(
@@ -725,9 +725,7 @@ class MainWindow(QtWid.QWidget):
         
         # Band-stop filter controls
         self.qtbl_filt_BS = QtWid.QTableWidget()
-        self.qtbl_filt_BS_N_cols = 2
-        self.qtbl_filt_BS_N_rows = 6
-        
+
         default_font_pt = QtWid.QApplication.font().pointSize()
         self.qtbl_filt_BS.setStyleSheet(
                 "QTableWidget {font-size: %ipt;"
@@ -737,8 +735,8 @@ class MainWindow(QtWid.QWidget):
                 "QHeaderView:section {background-color: lightgray}" %
                 (default_font_pt, default_font_pt))
     
-        self.qtbl_filt_BS.setRowCount(self.qtbl_filt_BS_N_rows)
-        self.qtbl_filt_BS.setColumnCount(self.qtbl_filt_BS_N_cols)
+        self.qtbl_filt_BS.setRowCount(6)
+        self.qtbl_filt_BS.setColumnCount(2)
         self.qtbl_filt_BS.setColumnWidth(0, width_chr8)
         self.qtbl_filt_BS.setColumnWidth(1, width_chr8)
         self.qtbl_filt_BS.setHorizontalHeaderLabels (['from', 'to'])
@@ -762,8 +760,8 @@ class MainWindow(QtWid.QWidget):
                 self.qtbl_filt_BS.horizontalHeader().height() + 2)
         
         self.qtbl_filt_BS_items = list()
-        for row in range(self.qtbl_filt_BS_N_rows):
-            for col in range(self.qtbl_filt_BS_N_cols):
+        for row in range(self.qtbl_filt_BS.rowCount()):
+            for col in range(self.qtbl_filt_BS.columnCount()):
                 myItem = QtWid.QTableWidgetItem()
                 myItem.setTextAlignment(QtCore.Qt.AlignRight |
                                         QtCore.Qt.AlignVCenter)
@@ -773,7 +771,7 @@ class MainWindow(QtWid.QWidget):
         p1 = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8}
         p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
         self.qpbt_filt_BS_coupling = QtWid.QPushButton("AC", checkable=True)
-        self.qlin_filt_BS_cutoff_freq = QtWid.QLineEdit(**{**p1, **p2})
+        self.qlin_filt_BS_DC_cutoff = QtWid.QLineEdit(**{**p1, **p2})
         self.qlin_filt_BS_window = QtWid.QLineEdit(readOnly=True)
         self.qlin_filt_BS_window.setText(
                 self.lockin_pyqt.firf_BS_sig_I.window_description)
@@ -783,7 +781,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(QtWid.QLabel('Input coupling AC/DC:') , i, 0, 1, 3); i+=1
         grid.addWidget(self.qpbt_filt_BS_coupling            , i, 0, 1, 3); i+=1
         grid.addWidget(QtWid.QLabel('Cutoff:')               , i, 0)
-        grid.addWidget(self.qlin_filt_BS_cutoff_freq         , i, 1)
+        grid.addWidget(self.qlin_filt_BS_DC_cutoff           , i, 1)
         grid.addWidget(QtWid.QLabel('Hz')                    , i, 2)      ; i+=1
         grid.addItem(QtWid.QSpacerItem(0, 10)                , i, 0, 1, 3); i+=1
         grid.addWidget(QtWid.QLabel('Band-stop ranges [Hz]:'), i, 0, 1, 3); i+=1
@@ -798,9 +796,14 @@ class MainWindow(QtWid.QWidget):
         qgrp_controls_filt_BS.setLayout(grid)
         
         self.qpbt_filt_BS_coupling.clicked.connect(
-                self.process_qpbt_filt_BS_coupling)
-        self.populate_filt_BS_design_controls()
-        self.qtbl_filt_BS.cellChanged.connect(self.test)
+                self.process_filt_BS_coupling)
+        self.qlin_filt_BS_DC_cutoff.editingFinished.connect(
+                self.process_filt_BS_coupling)        
+        self.populate_filt_BS_design_controls()        
+        self.qtbl_filt_BS.cellChanged.connect(
+                self.process_qtbl_filt_BS_cellChanged)
+        self.qtbl_filt_BS_cellChanged_lock = False  # Ignore cellChanged event
+                                                    # when locked
         
         # -----------------------------------
         # -----------------------------------
@@ -1199,6 +1202,7 @@ class MainWindow(QtWid.QWidget):
             XRange, YRange = self.pi_YT.viewRange()
             self.pi_YT.setYRange(YRange[0], YRange[1], padding=0.05)
     
+    
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
     #   Update chart/plot routines
@@ -1243,30 +1247,61 @@ class MainWindow(QtWid.QWidget):
         
         return ('%s, %s, %s' % (__tmp1, __tmp2, __tmp3))
     
-    
-    @QtCore.pyqtSlot(int, int)
-    def test(self, k, l):
-        print("%i %i" % (k, l))
-    
     @QtCore.pyqtSlot()
-    def process_qpbt_filt_BS_coupling(self):
-        cutoff = self.qlin_filt_BS_cutoff_freq.text()
+    def process_filt_BS_coupling(self):
+        DC_cutoff = self.qlin_filt_BS_DC_cutoff.text()
         try:
-            cutoff = float(cutoff)
-            cutoff = round(cutoff*10)/10;
-        except ValueError:
-            cutoff = 1.0
-        self.qlin_filt_BS_cutoff_freq.setText("%.1f" % cutoff)
+            DC_cutoff = float(DC_cutoff)
+            DC_cutoff = round(DC_cutoff*10)/10;
+        except:
+            DC_cutoff = 0
+        if DC_cutoff <= 0: DC_cutoff = 1.0
+        self.qlin_filt_BS_DC_cutoff.setText("%.1f" % DC_cutoff)
         
+        cutoff = self.lockin_pyqt.firf_BS_sig_I.cutoff
         if self.qpbt_filt_BS_coupling.isChecked():
             pass_zero = True
-            cutoff = self.lockin_pyqt.firf_BS_sig_I.cutoff[1:]
+            if not self.lockin_pyqt.firf_BS_sig_I.pass_zero:
+                cutoff = cutoff[1:]
         else:
             pass_zero = False
-            cutoff = np.insert(self.lockin_pyqt.firf_BS_sig_I.cutoff, 0, cutoff)
+            if self.lockin_pyqt.firf_BS_sig_I.pass_zero:
+                cutoff = np.insert(cutoff, 0, DC_cutoff)
+            else:
+                cutoff[0] = DC_cutoff
+        
         self.lockin_pyqt.firf_BS_sig_I.design_fir_filter(cutoff=cutoff,
                                                          pass_zero=pass_zero)
+        self.update_filt_BS_design()
         
+    @QtCore.pyqtSlot(int, int)
+    def process_qtbl_filt_BS_cellChanged(self, k, l):
+        if self.qtbl_filt_BS_cellChanged_lock:
+            return
+        #print("cellChanged %i %i" % (k, l))
+        
+        # Construct the cutoff list
+        if self.lockin_pyqt.firf_BS_sig_I.pass_zero:
+            # Input coupling: DC
+            cutoff = np.array([])
+        else:
+            # Input coupling: AC
+            cutoff = self.lockin_pyqt.firf_BS_sig_I.cutoff[0]
+
+        for row in range(self.qtbl_filt_BS.rowCount()):
+            for col in range(self.qtbl_filt_BS.columnCount()):
+                value = self.qtbl_filt_BS.item(row, col).text()
+                try:
+                    value = float(value)
+                    value = round(value*10)/10
+                    cutoff = np.append(cutoff, value)
+                except ValueError:
+                    value = None
+        
+        self.lockin_pyqt.firf_BS_sig_I.design_fir_filter(cutoff=cutoff)
+        self.update_filt_BS_design()
+    
+    def update_filt_BS_design(self):
         self.populate_filt_BS_design_controls()
         self.lockin_pyqt.firf_BS_sig_I.calc_freqz_response()
         self.update_plot_filt_resp_BS()
@@ -1277,25 +1312,26 @@ class MainWindow(QtWid.QWidget):
         if self.lockin_pyqt.firf_BS_sig_I.pass_zero:
             self.qpbt_filt_BS_coupling.setText("DC")
             self.qpbt_filt_BS_coupling.setChecked(True)
-            #self.qlin_filt_BS_cutoff_freq.setText("not used")
-            self.qlin_filt_BS_cutoff_freq.setEnabled(False)
-            self.qlin_filt_BS_cutoff_freq.setReadOnly(True)
+            self.qlin_filt_BS_DC_cutoff.setEnabled(False)
+            self.qlin_filt_BS_DC_cutoff.setReadOnly(True)
         else:
             self.qpbt_filt_BS_coupling.setText("AC")
             self.qpbt_filt_BS_coupling.setChecked(False)
-            self.qlin_filt_BS_cutoff_freq.setText("%.1f" % freq_list[0])
-            self.qlin_filt_BS_cutoff_freq.setEnabled(True)
-            self.qlin_filt_BS_cutoff_freq.setReadOnly(False)
+            self.qlin_filt_BS_DC_cutoff.setText("%.1f" % freq_list[0])
+            self.qlin_filt_BS_DC_cutoff.setEnabled(True)
+            self.qlin_filt_BS_DC_cutoff.setReadOnly(False)
             freq_list = freq_list[1:]
-            
-        for row in range(self.qtbl_filt_BS_N_rows):
-            for col in range(self.qtbl_filt_BS_N_cols):
+        
+        self.qtbl_filt_BS_cellChanged_lock = True
+        for row in range(self.qtbl_filt_BS.rowCount()):
+            for col in range(self.qtbl_filt_BS.columnCount()):
                 try:
                     freq = freq_list[row*2 + col]
                     freq_str = "%.1f" % freq
                 except IndexError:
                     freq_str = ""
                 self.qtbl_filt_BS_items[row*2 + col].setText(freq_str)
+        self.qtbl_filt_BS_cellChanged_lock = False
     
     @QtCore.pyqtSlot()
     def update_plot_filt_resp_BS(self):
