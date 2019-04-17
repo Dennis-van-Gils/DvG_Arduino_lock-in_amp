@@ -172,16 +172,16 @@ class MainWindow(QtWid.QWidget):
         self.tab_main  = QtWid.QWidget()
         self.tab_mixer = QtWid.QWidget()
         self.tab_power_spectrum = QtWid.QWidget()
-        self.tab_filter_1_response = QtWid.QWidget()
-        self.tab_filter_2_response = QtWid.QWidget()
+        self.tab_filter_1_design = QtWid.QWidget()
+        self.tab_filter_2_design = QtWid.QWidget()
         self.tab_mcu_board_info = QtWid.QWidget()
         
-        self.tabs.addTab(self.tab_main             , "Main")
-        self.tabs.addTab(self.tab_mixer            , "Mixer")
-        self.tabs.addTab(self.tab_power_spectrum   , "Power spectrum")
-        self.tabs.addTab(self.tab_filter_1_response, "Filter response: band-stop")
-        self.tabs.addTab(self.tab_filter_2_response, "Filter response: low-pass")
-        self.tabs.addTab(self.tab_mcu_board_info   , "MCU board info")
+        self.tabs.addTab(self.tab_main           , "Main")
+        self.tabs.addTab(self.tab_mixer          , "Mixer")
+        self.tabs.addTab(self.tab_power_spectrum , "Power spectrum")
+        self.tabs.addTab(self.tab_filter_1_design, "Filter design: band-stop")
+        self.tabs.addTab(self.tab_filter_2_design, "Filter design: low-pass")
+        self.tabs.addTab(self.tab_mcu_board_info , "MCU board info")
         
         def _frame_Sidebar(): pass # Spider IDE outline bookmark
         # -----------------------------------
@@ -724,9 +724,9 @@ class MainWindow(QtWid.QWidget):
         self.update_plot_filt_resp_BS()
         
         # Band-stop filter controls
-        N_cols = 2
-        N_rows = 6
         self.qtbl_filt_BS = QtWid.QTableWidget()
+        self.qtbl_filt_BS_N_cols = 2
+        self.qtbl_filt_BS_N_rows = 6
         
         default_font_pt = QtWid.QApplication.font().pointSize()
         self.qtbl_filt_BS.setStyleSheet(
@@ -737,8 +737,8 @@ class MainWindow(QtWid.QWidget):
                 "QHeaderView:section {background-color: lightgray}" %
                 (default_font_pt, default_font_pt))
     
-        self.qtbl_filt_BS.setRowCount(N_rows)
-        self.qtbl_filt_BS.setColumnCount(N_cols)
+        self.qtbl_filt_BS.setRowCount(self.qtbl_filt_BS_N_rows)
+        self.qtbl_filt_BS.setColumnCount(self.qtbl_filt_BS_N_cols)
         self.qtbl_filt_BS.setColumnWidth(0, width_chr8)
         self.qtbl_filt_BS.setColumnWidth(1, width_chr8)
         self.qtbl_filt_BS.setHorizontalHeaderLabels (['from', 'to'])
@@ -762,47 +762,45 @@ class MainWindow(QtWid.QWidget):
                 self.qtbl_filt_BS.horizontalHeader().height() + 2)
         
         self.qtbl_filt_BS_items = list()
-        for row in range(N_rows):
-            for col in range(N_cols):
+        for row in range(self.qtbl_filt_BS_N_rows):
+            for col in range(self.qtbl_filt_BS_N_cols):
                 myItem = QtWid.QTableWidgetItem()
                 myItem.setTextAlignment(QtCore.Qt.AlignRight |
                                         QtCore.Qt.AlignVCenter)
                 self.qtbl_filt_BS_items.append(myItem)
                 self.qtbl_filt_BS.setItem(row, col, myItem)
-        
-        freq_list = self.lockin_pyqt.firf_BS_sig_I.cutoff;
-        if not self.lockin_pyqt.firf_BS_sig_I.pass_zero:
-            # Left-append 0.0 Hz, because it is part of the band-stop
-            freq_list = np.insert(freq_list, 0, 0.0)
-        for row in range(N_rows):
-            for col in range(N_cols):
-                try:
-                    freq = freq_list[row*2 + col]
-                    freq_str = "%.1f" % freq
-                except IndexError:
-                    freq_str = ""
-                self.qtbl_filt_BS_items[row*2 + col].setText(freq_str)
                 
-        self.qpbt_filt_BS_passzero = QtWid.QPushButton("AC: stopping 0 Hz",
-                                                       checkable=True)
+        p1 = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8}
+        p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
+        self.qpbt_filt_BS_coupling = QtWid.QPushButton("AC", checkable=True)
+        self.qlin_filt_BS_cutoff_freq = QtWid.QLineEdit(**{**p1, **p2})
         self.qlin_filt_BS_window = QtWid.QLineEdit(readOnly=True)
         self.qlin_filt_BS_window.setText(
                 self.lockin_pyqt.firf_BS_sig_I.window_description)
                 
         i = 0
         grid = QtWid.QGridLayout()
-        grid.addWidget(QtWid.QLabel('Band-stop ranges [Hz]:'), i, 0); i+=1
-        grid.addWidget(self.qtbl_filt_BS                     , i, 0); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 10)                , i, 0); i+=1
-        grid.addWidget(QtWid.QLabel('AC / DC mode:')         , i, 0); i+=1
-        grid.addWidget(self.qpbt_filt_BS_passzero            , i, 0); i+=1
-        grid.addWidget(QtWid.QLabel('Window:')               , i, 0); i+=1
-        grid.addWidget(self.qlin_filt_BS_window              , i, 0)
+        grid.addWidget(QtWid.QLabel('Input coupling AC/DC:') , i, 0, 1, 3); i+=1
+        grid.addWidget(self.qpbt_filt_BS_coupling            , i, 0, 1, 3); i+=1
+        grid.addWidget(QtWid.QLabel('Cutoff:')               , i, 0)
+        grid.addWidget(self.qlin_filt_BS_cutoff_freq         , i, 1)
+        grid.addWidget(QtWid.QLabel('Hz')                    , i, 2)      ; i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 10)                , i, 0, 1, 3); i+=1
+        grid.addWidget(QtWid.QLabel('Band-stop ranges [Hz]:'), i, 0, 1, 3); i+=1
+        grid.addWidget(self.qtbl_filt_BS                     , i, 0, 1, 3); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 10)                , i, 0, 1, 3); i+=1
+        grid.addWidget(QtWid.QLabel('Window:')               , i, 0, 1, 3); i+=1
+        grid.addWidget(self.qlin_filt_BS_window              , i, 0, 1, 3)
         grid.setAlignment(QtCore.Qt.AlignTop)
         
         qgrp_controls_filt_BS = QtWid.QGroupBox("Filter design")
         qgrp_controls_filt_BS.setStyleSheet(SS_GROUP)
         qgrp_controls_filt_BS.setLayout(grid)
+        
+        self.qpbt_filt_BS_coupling.clicked.connect(
+                self.process_qpbt_filt_BS_coupling)
+        self.populate_filt_BS_design_controls()
+        self.qtbl_filt_BS.cellChanged.connect(self.test)
         
         # -----------------------------------
         # -----------------------------------
@@ -813,7 +811,7 @@ class MainWindow(QtWid.QWidget):
         hbox = QtWid.QHBoxLayout()
         hbox.addWidget(qgrp_controls_filt_BS, stretch=0)
         hbox.addWidget(self.gw_filt_resp_BS, stretch=1)
-        self.tab_filter_1_response.setLayout(hbox)
+        self.tab_filter_1_design.setLayout(hbox)
         
         def _frame_Filter_resp_LP(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
@@ -852,7 +850,7 @@ class MainWindow(QtWid.QWidget):
         
         hbox = QtWid.QHBoxLayout()
         hbox.addWidget(self.gw_filt_resp_LP, stretch=1)
-        self.tab_filter_2_response.setLayout(hbox)
+        self.tab_filter_2_design.setLayout(hbox)
         
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -1244,6 +1242,60 @@ class MainWindow(QtWid.QWidget):
         __tmp3 = '%s Hz' % [round(x, 1) for x in firf.cutoff]        
         
         return ('%s, %s, %s' % (__tmp1, __tmp2, __tmp3))
+    
+    
+    @QtCore.pyqtSlot(int, int)
+    def test(self, k, l):
+        print("%i %i" % (k, l))
+    
+    @QtCore.pyqtSlot()
+    def process_qpbt_filt_BS_coupling(self):
+        cutoff = self.qlin_filt_BS_cutoff_freq.text()
+        try:
+            cutoff = float(cutoff)
+            cutoff = round(cutoff*10)/10;
+        except ValueError:
+            cutoff = 1.0
+        self.qlin_filt_BS_cutoff_freq.setText("%.1f" % cutoff)
+        
+        if self.qpbt_filt_BS_coupling.isChecked():
+            pass_zero = True
+            cutoff = self.lockin_pyqt.firf_BS_sig_I.cutoff[1:]
+        else:
+            pass_zero = False
+            cutoff = np.insert(self.lockin_pyqt.firf_BS_sig_I.cutoff, 0, cutoff)
+        self.lockin_pyqt.firf_BS_sig_I.design_fir_filter(cutoff=cutoff,
+                                                         pass_zero=pass_zero)
+        
+        self.populate_filt_BS_design_controls()
+        self.lockin_pyqt.firf_BS_sig_I.calc_freqz_response()
+        self.update_plot_filt_resp_BS()
+    
+    def populate_filt_BS_design_controls(self):
+        freq_list = self.lockin_pyqt.firf_BS_sig_I.cutoff;
+        
+        if self.lockin_pyqt.firf_BS_sig_I.pass_zero:
+            self.qpbt_filt_BS_coupling.setText("DC")
+            self.qpbt_filt_BS_coupling.setChecked(True)
+            #self.qlin_filt_BS_cutoff_freq.setText("not used")
+            self.qlin_filt_BS_cutoff_freq.setEnabled(False)
+            self.qlin_filt_BS_cutoff_freq.setReadOnly(True)
+        else:
+            self.qpbt_filt_BS_coupling.setText("AC")
+            self.qpbt_filt_BS_coupling.setChecked(False)
+            self.qlin_filt_BS_cutoff_freq.setText("%.1f" % freq_list[0])
+            self.qlin_filt_BS_cutoff_freq.setEnabled(True)
+            self.qlin_filt_BS_cutoff_freq.setReadOnly(False)
+            freq_list = freq_list[1:]
+            
+        for row in range(self.qtbl_filt_BS_N_rows):
+            for col in range(self.qtbl_filt_BS_N_cols):
+                try:
+                    freq = freq_list[row*2 + col]
+                    freq_str = "%.1f" % freq
+                except IndexError:
+                    freq_str = ""
+                self.qtbl_filt_BS_items[row*2 + col].setText(freq_str)
     
     @QtCore.pyqtSlot()
     def update_plot_filt_resp_BS(self):
