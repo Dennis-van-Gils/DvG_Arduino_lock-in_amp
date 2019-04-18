@@ -18,7 +18,7 @@ from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_BufferedPlot import BufferedPlot
 from DvG_pyqt_controls     import (create_Toggle_button,
                                    create_LED_indicator_rect,
-                                   SS_GROUP,
+                                   #SS_GROUP,
                                    SS_GROUP_BORDERLESS,
                                    SS_TEXTBOX_READ_ONLY,
                                    Legend_box)
@@ -52,6 +52,23 @@ except:
     print("Check if prerequisite 'PyOpenGL' library is installed.")
     USING_OPENGL = False
 
+SS_GROUP = (
+        "QGroupBox {"
+            "background-color: " + "rgb(252, 208, 173)" + ";"
+            "border: 2px solid gray;"
+            "border-radius: 5px;"
+            "font: bold ;"
+            "padding: 8 0 0 0px;"
+            "margin-top: 2ex}"
+        "QGroupBox::title {"
+            "subcontrol-origin: margin;"
+            "subcontrol-position: top left;"
+            "padding: -5 3px}"
+        "QGroupBox::flat {"
+            "border: 0px;"
+            "border-radius: 0 0px;"
+            "padding: 0}")
+
 # ------------------------------------------------------------------------------
 #   MainWindow
 # ------------------------------------------------------------------------------
@@ -71,7 +88,13 @@ class MainWindow(QtWid.QWidget):
         
         self.setGeometry(250, 50, 1200, 960)
         self.setWindowTitle("Arduino lock-in amplifier")
-        self.setStyleSheet(SS_TEXTBOX_READ_ONLY)
+        self.setStyleSheet(SS_TEXTBOX_READ_ONLY + SS_GROUP)
+        
+        """
+        with open('darkorange.stylesheet', 'r') as file:
+            style = file.read()
+        self.setStyleSheet(style)
+        """
         
         # Define styles for plotting curves
         self.PEN_01 = pg.mkPen(color=[255, 30 , 180], width=3)
@@ -173,6 +196,33 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         self.tabs = QtWid.QTabWidget()
+        #self.tabs.setStyleSheet("QWidget {background-color: gray}")
+        #"""
+        #blue = "rgb(220, 220, 238)"
+        #greengray = "rgb(220, 220, 214)"
+        greengray = "rgb(207, 225, 225)"
+        greengraylighter = "rgb(234, 235, 233)"
+        self.tabs.setStyleSheet(
+                "QTabWidget::pane {"
+                    "border: 0px solid gray;}"
+                "QTabBar::tab:selected {"
+                    "background: " + greengray + "; "
+                    "border-bottom-color: " + greengray + ";}"
+                "QTabWidget>QWidget>QWidget {"
+                    "border: 2px solid gray;"
+                    "background: " + greengray + ";} "
+                "QTabBar::tab {"
+                    "background: " + greengraylighter + ";"
+                    "border: 2px solid gray;"
+                    "border-bottom-color: " + greengraylighter + ";"
+                    "border-top-left-radius: 4px;"
+                    "border-top-right-radius: 4px;"
+                    "min-width: 30ex;"
+                    "padding: 6px;} "
+                "QTabWidget::tab-bar {"
+                    "left: 0px;}")
+        #"""
+
         self.tab_main  = QtWid.QWidget()
         self.tab_mixer = QtWid.QWidget()
         self.tab_power_spectrum  = QtWid.QWidget()
@@ -182,10 +232,10 @@ class MainWindow(QtWid.QWidget):
         
         self.tabs.addTab(self.tab_main           , "Main")
         self.tabs.addTab(self.tab_mixer          , "Mixer")
-        self.tabs.addTab(self.tab_power_spectrum , "Power spectrum")
-        self.tabs.addTab(self.tab_filter_1_design, "Filter design: band-stop")
-        self.tabs.addTab(self.tab_filter_2_design, "Filter design: low-pass")
-        self.tabs.addTab(self.tab_mcu_board_info , "MCU board info")
+        self.tabs.addTab(self.tab_power_spectrum , "Spectrum")
+        self.tabs.addTab(self.tab_filter_1_design, "Filter: band-stop")
+        self.tabs.addTab(self.tab_filter_2_design, "Filter: low-pass")
+        self.tabs.addTab(self.tab_mcu_board_info , "MCU board")
         
         def _frame_Sidebar(): pass # Spider IDE outline bookmark
         # -----------------------------------
@@ -244,7 +294,6 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(QtWid.QLabel("V")           , i, 3)
         
         qgrp_refsig = QtWid.QGroupBox("Reference signal")
-        qgrp_refsig.setStyleSheet(SS_GROUP)
         qgrp_refsig.setLayout(grid)
         
         # QGROUP: Connections
@@ -261,7 +310,6 @@ class MainWindow(QtWid.QWidget):
                                     font=FONT_MONOSPACE), 1, 0)
         
         qgrp_connections = QtWid.QGroupBox("Analog connections")
-        qgrp_connections.setStyleSheet(SS_GROUP)
         qgrp_connections.setLayout(grid)        
 
         # QGROUP: Axes controls
@@ -276,14 +324,11 @@ class MainWindow(QtWid.QWidget):
         
         grid = QtWid.QGridLayout(spacing=4)
         grid.addWidget(self.qpbt_maxrange_xy , 0, 0, 1, 2)
-        #grid.addItem(QtWid.QSpacerItem(0, 10), 1, 0, 1, 2)
-        #grid.addWidget(QtWid.QLabel("Autorange:"), 1, 0, 1, 2)
         grid.addWidget(self.qpbt_autorange_xy, 2, 0, 1, 2)
         grid.addWidget(self.qpbt_autorange_x , 3, 0)
         grid.addWidget(self.qpbt_autorange_y , 3, 1)
         
         qgrp_axes_controls = QtWid.QGroupBox("Graphs: timeseries")
-        qgrp_axes_controls.setStyleSheet(SS_GROUP)
         qgrp_axes_controls.setLayout(grid)
 
         # QGROUP: Filters settled?
@@ -297,12 +342,11 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.LED_settled_LP_filter  , 1, 1)
         
         qgrp_settling = QtWid.QGroupBox("Filters settled?")
-        qgrp_settling.setStyleSheet(SS_GROUP)
         qgrp_settling.setLayout(grid)
 
         # Round up frame
         vbox_sidebar = QtWid.QVBoxLayout()
-        vbox_sidebar.addItem(QtWid.QSpacerItem(0, 24))
+        vbox_sidebar.addItem(QtWid.QSpacerItem(0, 30))
         vbox_sidebar.addWidget(self.qpbt_ENA_lockin, stretch=0)
         vbox_sidebar.addWidget(qgrp_refsig, stretch=0)
         vbox_sidebar.addWidget(qgrp_connections, stretch=0)
@@ -394,7 +438,6 @@ class MainWindow(QtWid.QWidget):
         grid.setAlignment(QtCore.Qt.AlignTop)
 
         qgrp_readings = QtWid.QGroupBox("Readings")
-        qgrp_readings.setStyleSheet(SS_GROUP)
         qgrp_readings.setLayout(grid)
 
         def _frame_LIA_output(): pass # Spider IDE outline bookmark
@@ -505,7 +548,6 @@ class MainWindow(QtWid.QWidget):
         grid.setAlignment(QtCore.Qt.AlignTop)
         
         qgrp_XRYT = QtWid.QGroupBox("X/R, Y/\u0398")
-        qgrp_XRYT.setStyleSheet(SS_GROUP)
         qgrp_XRYT.setLayout(grid)
      
         # -----------------------------------
@@ -515,9 +557,9 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         grid = QtWid.QGridLayout()
-        grid.addWidget(qgrp_readings , 0, 0)
+        grid.addWidget(qgrp_readings , 0, 0, QtCore.Qt.AlignTop)
         grid.addWidget(self.gw_refsig, 0, 1)
-        grid.addWidget(qgrp_XRYT     , 1, 0)
+        grid.addWidget(qgrp_XRYT     , 1, 0, QtCore.Qt.AlignTop)
         grid.addWidget(self.gw_XR    , 1, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
@@ -572,7 +614,7 @@ class MainWindow(QtWid.QWidget):
           in self.legend_box_filt_BS.chkbs])
     
         qgrp_filt_BS = QtWid.QGroupBox("BS filter")
-        qgrp_filt_BS.setStyleSheet(SS_GROUP)
+
         qgrp_filt_BS.setLayout(self.legend_box_filt_BS.grid)
         
         def _frame_Mixer(): pass # Spider IDE outline bookmark
@@ -614,7 +656,6 @@ class MainWindow(QtWid.QWidget):
           in self.legend_box_mixer.chkbs])
     
         qgrp_mixer = QtWid.QGroupBox("Mixer")
-        qgrp_mixer.setStyleSheet(SS_GROUP)
         qgrp_mixer.setLayout(self.legend_box_mixer.grid)
         
         # -----------------------------------
@@ -624,9 +665,9 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
 
         grid = QtWid.QGridLayout()
-        grid.addWidget(qgrp_filt_BS   , 0, 0)
+        grid.addWidget(qgrp_filt_BS   , 0, 0, QtCore.Qt.AlignTop)
         grid.addWidget(self.gw_filt_BS, 0, 1)
-        grid.addWidget(qgrp_mixer     , 1, 0)
+        grid.addWidget(qgrp_mixer     , 1, 0, QtCore.Qt.AlignTop)
         grid.addWidget(self.gw_mixer  , 1, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
@@ -689,7 +730,6 @@ class MainWindow(QtWid.QWidget):
         grid.setAlignment(QtCore.Qt.AlignTop)
     
         qgrp_PS = QtWid.QGroupBox("Pow. spectrum")
-        qgrp_PS.setStyleSheet(SS_GROUP)
         qgrp_PS.setLayout(grid)
         
         # -----------------------------------
@@ -699,7 +739,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         grid = QtWid.QGridLayout()
-        grid.addWidget(qgrp_PS     , 0, 0)
+        grid.addWidget(qgrp_PS     , 0, 0, QtCore.Qt.AlignTop)
         grid.addLayout(grid_PS_zoom, 0, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
@@ -803,7 +843,6 @@ class MainWindow(QtWid.QWidget):
         grid.setAlignment(QtCore.Qt.AlignTop)
         
         qgrp_controls_filt_BS = QtWid.QGroupBox("Filter design")
-        qgrp_controls_filt_BS.setStyleSheet(SS_GROUP)
         qgrp_controls_filt_BS.setLayout(grid)
         
         self.qpbt_filt_BS_coupling.clicked.connect(
@@ -880,6 +919,8 @@ class MainWindow(QtWid.QWidget):
         hbox = QtWid.QHBoxLayout()
         hbox.addWidget(self.tabs, stretch=1)
         hbox.addLayout(vbox_sidebar, stretch=0)
+        
+        vbox.addItem(QtWid.QSpacerItem(0, 10))
         vbox.addLayout(hbox)
         
         # -----------------------------------
