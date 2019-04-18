@@ -6,10 +6,10 @@ many of my projects.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
-__date__        = "02-04-2019"
-__version__     = "1.0.2"
+__date__        = "18-04-2019"
+__version__     = "1.0.3"
 
-from PyQt5 import QtWidgets as QtWid
+from PyQt5 import QtCore, QtGui, QtWidgets as QtWid
 
 COLOR_RED            = "rgb(255, 0, 0)"
 COLOR_YELLOW         = "rgb(255, 255, 0)"
@@ -172,6 +172,70 @@ SS_TITLE = (
 
 # -----------------------------------------------------------------------------
 # -----------------------------------------------------------------------------
+
+class Legend_box(QtWid.QWidget):
+    def __init__(self,
+                 text='',
+                 pen=QtGui.QPen(QtCore.Qt.red),
+                 checked=True,
+                 bg_color=QtGui.QColor(36, 36, 36),
+                 box_width=40,
+                 box_height=23,
+                 parent=None):
+        super().__init__(parent=parent)
+
+        if not isinstance(text, list): text = [text]
+        if not isinstance(pen, list): pen = [pen]
+        if not isinstance(checked, list): checked = [checked]
+        
+        self.chkbs = []
+        self.painted_lines = []
+        self.grid = QtWid.QGridLayout(spacing=1)
+        
+        for i in range(len(text)):
+            try:    _checked = checked[i]
+            except: _checked = True
+                
+            chkb = QtWid.QCheckBox(text[i],
+                                   layoutDirection=QtCore.Qt.LeftToRight,
+                                   checked=_checked)
+            self.chkbs.append(chkb)
+            
+            painted_line = self.Painted_line(pen[i], bg_color,
+                                             box_width, box_height)
+            self.painted_lines.append(painted_line)
+        
+            p = {'alignment': QtCore.Qt.AlignLeft}
+            self.grid.addWidget(chkb        , i, 0, **p)
+            self.grid.addWidget(painted_line, i, 1)
+            self.grid.setColumnStretch(0, 0)
+            self.grid.setColumnStretch(1, 1)
+            self.grid.setAlignment(QtCore.Qt.AlignTop)
+        
+    class Painted_line(QtWid.QWidget):
+        def __init__(self, pen, bg_color, box_width, box_height, parent=None):
+            super().__init__(parent=parent)
+            
+            self.pen = pen
+            self.bg_color = bg_color
+            self.box_width = box_width
+            self.box_height = box_height
+            
+            self.setFixedWidth(box_width)
+            self.setFixedHeight(box_height)
+        
+        def paintEvent(self, event):
+            w = self.width()
+            h = self.height()
+            x = 8
+            y = 6
+            
+            painter = QtGui.QPainter()
+            painter.begin(self)
+            painter.fillRect(0, 0, w, h, self.bg_color)
+            painter.setPen(self.pen)
+            painter.drawLine(QtCore.QLine(x, h - y, w - x, y))
+            painter.end()
 
 def create_Toggle_button_style_sheet(bg_clr=COLOR_BG,
                                      color='black',
