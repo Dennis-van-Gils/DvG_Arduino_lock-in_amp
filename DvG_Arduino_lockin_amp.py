@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "16-04-2019"
+__date__        = "18-04-2019"
 __version__     = "1.0.0"
 
 import os
@@ -231,21 +231,13 @@ def lockin_DAQ_update():
         # 300-300.
         Pxx_dB = (10 * np.log10(Pxx) + 300) - 300
         
-        window.BP_power_spectrum.set_data(f, Pxx_dB)
+        window.BP_PS_1.set_data(f, Pxx_dB)
         
     if len(state.deque_sig_I_filt) == state.deque_sig_I_filt.maxlen:
-        # When scaling='spectrum', Pxx returns units of V^2
-        # When scaling='density', Pxx returns units of V^2/Hz
         [f, Pxx] = welch(state.deque_sig_I_filt, fs=c.Fs, nperseg=10250,
                          scaling='spectrum')
-       
-        # From Matlab 'pow2db'
-        # We want to guarantee that the result is an integer if y is a negative
-        # power of 10. To do so, we force some rounding of precision by adding
-        # 300-300.
-        Pxx_dB = (10 * np.log10(Pxx) + 300) - 300
-        
-        window.BP_power_spectrum2.set_data(f, Pxx_dB)
+        Pxx_dB = (10 * np.log10(Pxx) + 300) - 300        
+        window.BP_PS_2.set_data(f, Pxx_dB)
     
     # Add new data to charts
     # ----------------------
@@ -278,7 +270,7 @@ def lockin_DAQ_update():
                       "ref_X[V]\t"
                       "ref_Y[V]\t"
                       "sig_I[V]\t"
-                      "sig_I_BS[V]\t"
+                      "filt_I[V]\t"
                       "mix_X[V]\t"
                       "mix_Y[V]\t"
                       "X[V]\t"

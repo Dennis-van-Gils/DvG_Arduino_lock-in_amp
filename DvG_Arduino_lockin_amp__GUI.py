@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "17-04-2019"
+__date__        = "18-04-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -20,7 +20,8 @@ from DvG_pyqt_controls     import (create_Toggle_button,
                                    create_LED_indicator_rect,
                                    SS_GROUP,
                                    SS_GROUP_BORDERLESS,
-                                   SS_TEXTBOX_READ_ONLY)
+                                   SS_TEXTBOX_READ_ONLY,
+                                   Legend_box)
 from DvG_pyqt_FileLogger   import FileLogger
 from DvG_debug_functions   import dprint
 
@@ -83,6 +84,9 @@ class MainWindow(QtWid.QWidget):
         FONT_MONOSPACE = QtGui.QFont("Courier")
         FONT_MONOSPACE.setFamily("Monospace")
         FONT_MONOSPACE.setStyleHint(QtGui.QFont.Monospace)
+        
+        # Column width left of timeseries graphs
+        LEFT_COLUMN_WIDTH = 134
         
         # Textbox widths for fitting N characters using the current font
         e = QtGui.QLineEdit()
@@ -171,7 +175,7 @@ class MainWindow(QtWid.QWidget):
         self.tabs = QtWid.QTabWidget()
         self.tab_main  = QtWid.QWidget()
         self.tab_mixer = QtWid.QWidget()
-        self.tab_power_spectrum = QtWid.QWidget()
+        self.tab_power_spectrum  = QtWid.QWidget()
         self.tab_filter_1_design = QtWid.QWidget()
         self.tab_filter_2_design = QtWid.QWidget()
         self.tab_mcu_board_info = QtWid.QWidget()
@@ -191,7 +195,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
 
         # On/off
-        self.qpbt_ENA_lockin = create_Toggle_button("lock-in OFF")
+        self.qpbt_ENA_lockin = create_Toggle_button("Lock-in OFF")
         self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
         
         # QGROUP: Reference signal
@@ -349,27 +353,13 @@ class MainWindow(QtWid.QWidget):
         self.CH_sig_I.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_refsig = [self.CH_ref_X, self.CH_ref_Y, self.CH_sig_I]
 
-        # Legend
-        vb = self.gw_refsig.addViewBox(enableMenu=False)
-        vb.setMaximumWidth(80)
-        #vb.setSizePolicy(QtWid.QSizePolicy.Minimum, QtWid.QSizePolicy.Minimum)
-        legend = pg.LegendItem()
-        legend.setParentItem(vb)
-        legend.anchor((0,0), (0,0), offset=(1, 10))
-        legend.setFixedWidth(75)
-        legend.setScale(1)
-        legend.addItem(self.CH_ref_X.curve, name='ref_X')
-        legend.addItem(self.CH_ref_Y.curve, name='ref_Y')
-        legend.addItem(self.CH_sig_I.curve, name='sig_I')
-
         # QGROUP: Readings
-        p = {'layoutDirection': QtCore.Qt.LeftToRight}
-        self.chkbs_refsig = [
-                QtWid.QCheckBox("ref_X", **p, checked=True),
-                QtWid.QCheckBox("ref_Y", **p, checked=False),
-                QtWid.QCheckBox("sig_I", **p, checked=True)]
-        ([chkb.clicked.connect(self.process_chkbs_refsig) for chkb
-          in self.chkbs_refsig])
+        self.legend_box_refsig = Legend_box(
+                text=['ref_X', 'ref_Y', 'sig_I'],
+                pen=[self.PEN_01, self.PEN_02, self.PEN_03],
+                checked=[True, False, True])
+        ([chkb.clicked.connect(self.process_chkbs_legend_box_refsig) for chkb
+          in self.legend_box_refsig.chkbs])
         
         p1 = {'maximumWidth': width_chr12, 'minimumWidth': width_chr12,
               'readOnly': True}
@@ -383,35 +373,29 @@ class MainWindow(QtWid.QWidget):
 
         i = 0
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(self.qlin_time           , i, 0, 1, 2)
-        grid.addWidget(QtWid.QLabel("us")       , i, 2)      ; i+=1
-        grid.addWidget(self.chkbs_refsig[0]     , i, 0, 1, 3); i+=1
-        grid.addWidget(self.chkbs_refsig[1]     , i, 0, 1, 3); i+=1
-        grid.addWidget(self.chkbs_refsig[2]     , i, 0, 1, 3); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 4)    , i, 0)      ; i+=1
-        grid.addWidget(QtWid.QLabel("max")      , i, 0)
-        grid.addWidget(self.qlin_sig_I_max      , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
-        grid.addWidget(QtWid.QLabel("min")      , i, 0)
-        grid.addWidget(self.qlin_sig_I_min      , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 4)    , i, 0)      ; i+=1
-        grid.addWidget(QtWid.QLabel("avg")      , i, 0)
-        grid.addWidget(self.qlin_sig_I_avg      , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
-        grid.addWidget(QtWid.QLabel("std")      , i, 0)
-        grid.addWidget(self.qlin_sig_I_std      , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
+        grid.addWidget(self.qlin_time             , i, 0, 1, 2)
+        grid.addWidget(QtWid.QLabel("us")         , i, 2)      ; i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 6)      , i, 0)      ; i+=1
+        grid.addLayout(self.legend_box_refsig.grid, i, 0, 1, 3); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 6)      , i, 0)      ; i+=1
+        grid.addWidget(QtWid.QLabel("max")        , i, 0)
+        grid.addWidget(self.qlin_sig_I_max        , i, 1)
+        grid.addWidget(QtWid.QLabel("V")          , i, 2)      ; i+=1
+        grid.addWidget(QtWid.QLabel("min")        , i, 0)
+        grid.addWidget(self.qlin_sig_I_min        , i, 1)
+        grid.addWidget(QtWid.QLabel("V")          , i, 2)      ; i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 4)      , i, 0)      ; i+=1
+        grid.addWidget(QtWid.QLabel("avg")        , i, 0)
+        grid.addWidget(self.qlin_sig_I_avg        , i, 1)
+        grid.addWidget(QtWid.QLabel("V")          , i, 2)      ; i+=1
+        grid.addWidget(QtWid.QLabel("std")        , i, 0)
+        grid.addWidget(self.qlin_sig_I_std        , i, 1)
+        grid.addWidget(QtWid.QLabel("V")          , i, 2)      ; i+=1
         grid.setAlignment(QtCore.Qt.AlignTop)
 
         qgrp_readings = QtWid.QGroupBox("Readings")
         qgrp_readings.setStyleSheet(SS_GROUP)
         qgrp_readings.setLayout(grid)
-        
-        # Round up frame
-        hbox_refsig = QtWid.QHBoxLayout()
-        hbox_refsig.addWidget(qgrp_readings, stretch=0)
-        hbox_refsig.addWidget(self.gw_refsig, stretch=1)
 
         def _frame_LIA_output(): pass # Spider IDE outline bookmark
         # -----------------------------------
@@ -503,44 +487,42 @@ class MainWindow(QtWid.QWidget):
         
         i = 0
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addLayout(hbox                     , i, 0, 1, 3); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 8)    , i, 0); i+=1
-        grid.addWidget(QtWid.QLabel("avg X")    , i, 0)
-        grid.addWidget(self.qlin_X_avg          , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
-        grid.addWidget(QtWid.QLabel("avg Y")    , i, 0)
-        grid.addWidget(self.qlin_Y_avg          , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 8)    , i, 0); i+=1
-        grid.addWidget(QtWid.QLabel("avg R")    , i, 0)
-        grid.addWidget(self.qlin_R_avg          , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
+        grid.addLayout(hbox                      , i, 0, 1, 3); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 8)     , i, 0); i+=1
+        grid.addWidget(QtWid.QLabel("avg X")     , i, 0)
+        grid.addWidget(self.qlin_X_avg           , i, 1)
+        grid.addWidget(QtWid.QLabel("V")         , i, 2); i+=1
+        grid.addWidget(QtWid.QLabel("avg Y")     , i, 0)
+        grid.addWidget(self.qlin_Y_avg           , i, 1)
+        grid.addWidget(QtWid.QLabel("V")         , i, 2); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 8)     , i, 0); i+=1
+        grid.addWidget(QtWid.QLabel("avg R")     , i, 0)
+        grid.addWidget(self.qlin_R_avg           , i, 1)
+        grid.addWidget(QtWid.QLabel("V")         , i, 2); i+=1
         grid.addWidget(QtWid.QLabel("avg \u0398"), i, 0)
-        grid.addWidget(self.qlin_T_avg          , i, 1)
-        grid.addWidget(QtWid.QLabel("deg")      , i, 2)
+        grid.addWidget(self.qlin_T_avg           , i, 1)
+        grid.addWidget(QtWid.QLabel("\u00B0")    , i, 2)
         grid.setAlignment(QtCore.Qt.AlignTop)
         
         qgrp_XRYT = QtWid.QGroupBox("X/R, Y/\u0398")
         qgrp_XRYT.setStyleSheet(SS_GROUP)
         qgrp_XRYT.setLayout(grid)
-        
-        # Round up frame
-        hbox_LIA_output = QtWid.QHBoxLayout()
-        hbox_LIA_output.addWidget(qgrp_XRYT, stretch=0)
-        hbox_LIA_output.addWidget(self.gw_XR, stretch=1)
-
+     
         # -----------------------------------
         # -----------------------------------
         #   Round up tab page 'Main'
         # -----------------------------------
         # -----------------------------------
         
-        vbox = QtWid.QVBoxLayout()
-        vbox.addLayout(hbox_refsig, stretch=1)
-        vbox.addLayout(hbox_LIA_output, stretch=1)
-        self.tab_main.setLayout(vbox)
+        grid = QtWid.QGridLayout()
+        grid.addWidget(qgrp_readings , 0, 0)
+        grid.addWidget(self.gw_refsig, 0, 1)
+        grid.addWidget(qgrp_XRYT     , 1, 0)
+        grid.addWidget(self.gw_XR    , 1, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
+        self.tab_main.setLayout(grid)
         
-        def _frame_Mixer(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -549,7 +531,14 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         
-        # Chart: Filter
+        def _frame_BS_filter_output(): pass # Spider IDE outline bookmark
+        # -----------------------------------
+        # -----------------------------------
+        #   Frame: Band-stop filter output
+        # -----------------------------------
+        # -----------------------------------
+        
+        # Chart: Band-stop filter output
         self.gw_filt_BS = pg.GraphicsWindow()
         self.gw_filt_BS.setBackground([20, 20, 20])
         self.pi_filt_BS = self.gw_filt_BS.addPlot()
@@ -576,17 +565,22 @@ class MainWindow(QtWid.QWidget):
         self.CH_filt_BS_out.x_axis_divisor = 1000    # From [us] to [ms]
         self.CHs_filt_BS = [self.CH_filt_BS_in, self.CH_filt_BS_out]
         
-        # Legend
-        vb = self.gw_filt_BS.addViewBox(enableMenu=False)
-        vb.setMaximumWidth(80)
-        #vb.setSizePolicy(QtWid.QSizePolicy.Minimum, QtWid.QSizePolicy.Minimum)
-        legend = pg.LegendItem()
-        legend.setParentItem(vb)
-        legend.anchor((0,0), (0,0), offset=(1, 10))
-        legend.setFixedWidth(75)
-        legend.setScale(1)
-        legend.addItem(self.CH_filt_BS_in.curve, name='sig_I')
-        legend.addItem(self.CH_filt_BS_out.curve, name='out')
+        # QGROUP: Band-stop filter output
+        self.legend_box_filt_BS = Legend_box(text=['sig_I', 'filt_I'],
+                                             pen=[self.PEN_03, self.PEN_04])
+        ([chkb.clicked.connect(self.process_chkbs_legend_box_filt_BS) for chkb
+          in self.legend_box_filt_BS.chkbs])
+    
+        qgrp_filt_BS = QtWid.QGroupBox("BS filter")
+        qgrp_filt_BS.setStyleSheet(SS_GROUP)
+        qgrp_filt_BS.setLayout(self.legend_box_filt_BS.grid)
+        
+        def _frame_Mixer(): pass # Spider IDE outline bookmark
+        # -----------------------------------
+        # -----------------------------------
+        #   Frame: Mixer
+        # -----------------------------------
+        # -----------------------------------
         
         # Chart: Mixer
         self.gw_mixer = pg.GraphicsWindow()
@@ -613,22 +607,15 @@ class MainWindow(QtWid.QWidget):
         self.CH_mix_Y.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_mixer = [self.CH_mix_X, self.CH_mix_Y]
         
-        # Legend
-        vb = self.gw_mixer.addViewBox(enableMenu=False)
-        vb.setMaximumWidth(80)
-        #vb.setSizePolicy(QtWid.QSizePolicy.Minimum, QtWid.QSizePolicy.Minimum)
-        legend = pg.LegendItem()
-        legend.setParentItem(vb)
-        legend.anchor((0,0), (0,0), offset=(1, 10))
-        legend.setFixedWidth(75)
-        legend.setScale(1)
-        legend.addItem(self.CH_mix_X.curve, name='mix_X')
-        legend.addItem(self.CH_mix_Y.curve, name='mix_Y')
-        
-        # Round up frame
-        vbox_mixer = QtWid.QVBoxLayout()
-        vbox_mixer.addWidget(self.gw_filt_BS, stretch=1)
-        vbox_mixer.addWidget(self.gw_mixer, stretch=1)
+        # QGROUP: Mixer
+        self.legend_box_mixer = Legend_box(text=['mix_X', 'mix_Y'],
+                                           pen=[self.PEN_01, self.PEN_02])
+        ([chkb.clicked.connect(self.process_chkbs_legend_box_mixer) for chkb
+          in self.legend_box_mixer.chkbs])
+    
+        qgrp_mixer = QtWid.QGroupBox("Mixer")
+        qgrp_mixer.setStyleSheet(SS_GROUP)
+        qgrp_mixer.setLayout(self.legend_box_mixer.grid)
         
         # -----------------------------------
         # -----------------------------------
@@ -636,7 +623,14 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
 
-        self.tab_mixer.setLayout(vbox_mixer)
+        grid = QtWid.QGridLayout()
+        grid.addWidget(qgrp_filt_BS   , 0, 0)
+        grid.addWidget(self.gw_filt_BS, 0, 1)
+        grid.addWidget(qgrp_mixer     , 1, 0)
+        grid.addWidget(self.gw_mixer  , 1, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
+        self.tab_mixer.setLayout(grid)
         
         def _frame_Power_spectrum(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
@@ -647,43 +641,56 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         
-        # Plot: Power spectrum
-        self.gw_power_spectrum = pg.GraphicsWindow()
-        self.gw_power_spectrum.setBackground([20, 20, 20])        
-        self.pi_power_spectrum = self.gw_power_spectrum.addPlot()
+        # Zoom controls
+        self.qpbt_PS_zoom_low = QtWid.QPushButton('0 - 200 Hz')
+        self.qpbt_PS_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
+        self.qpbt_PS_zoom_all = QtWid.QPushButton('Full range')
         
-        p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_power_spectrum.showGrid(x=1, y=1)
-        self.pi_power_spectrum.setTitle('Power spectrum (Welch) of sig_I', **p)
-        self.pi_power_spectrum.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_power_spectrum.setLabel('left', text='power [dB]', **p)
-        self.pi_power_spectrum.setAutoVisible(x=True, y=True)
-        self.pi_power_spectrum.setXRange(0, self.lockin.config.F_Nyquist,
-                                         padding=0.02)
-        self.pi_power_spectrum.setYRange(-110, 0, padding=0.02)
-        self.pi_power_spectrum.setClipToView(True)
-        
-        self.BP_power_spectrum = BufferedPlot(
-                self.pi_power_spectrum.plot(pen=self.PEN_03))
-        self.BP_power_spectrum2 = BufferedPlot(
-                self.pi_power_spectrum.plot(pen=self.PEN_04))
-        
-        # Power spectrum controls
-        self.qpbt_power_spectrum_zoom_low = QtWid.QPushButton('Zoom 0 - 200 Hz')
-        self.qpbt_power_spectrum_zoom_mid = QtWid.QPushButton('Zoom 0 - 1 kHz')
-        self.qpbt_power_spectrum_zoom_all = QtWid.QPushButton('Zoom full range')
-        
-        self.qpbt_power_spectrum_zoom_low.clicked.connect(lambda:
+        self.qpbt_PS_zoom_low.clicked.connect(lambda:
             self.power_spectrum_zoom(0, 200))
-        self.qpbt_power_spectrum_zoom_mid.clicked.connect(lambda:
+        self.qpbt_PS_zoom_mid.clicked.connect(lambda:
             self.power_spectrum_zoom(0, 1000))
-        self.qpbt_power_spectrum_zoom_all.clicked.connect(lambda:
+        self.qpbt_PS_zoom_all.clicked.connect(lambda:
             self.power_spectrum_zoom(0, self.lockin.config.F_Nyquist))
         
+        # Plot: Power spectrum
+        self.gw_PS = pg.GraphicsWindow()
+        self.gw_PS.setBackground([20, 20, 20])        
+        self.pi_PS = self.gw_PS.addPlot()
+        
+        p = {'color': '#BBB', 'font-size': '10pt'}
+        self.pi_PS.showGrid(x=1, y=1)
+        self.pi_PS.setTitle('Power spectrum (Welch)', **p)
+        self.pi_PS.setLabel('bottom', text='frequency [Hz]', **p)
+        self.pi_PS.setLabel('left', text='power [dB]', **p)
+        self.pi_PS.setAutoVisible(x=True, y=True)
+        self.pi_PS.setXRange(0, self.lockin.config.F_Nyquist, padding=0.02)
+        self.pi_PS.setYRange(-110, 0, padding=0.02)
+        self.pi_PS.setClipToView(True)
+        
+        self.BP_PS_1 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_03))
+        self.BP_PS_2 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_04))
+        
+        grid_PS_zoom = QtWid.QGridLayout()
+        grid_PS_zoom.addWidget(self.qpbt_PS_zoom_low, 0, 0)
+        grid_PS_zoom.addWidget(self.qpbt_PS_zoom_mid, 0, 1)
+        grid_PS_zoom.addWidget(self.qpbt_PS_zoom_all, 0, 2)
+        grid_PS_zoom.addWidget(self.gw_PS           , 1, 0, 1, 3)
+        grid_PS_zoom.setRowStretch(1, 1)
+        
+        # QGROUP: Power spectrum
+        self.legend_box_PS = Legend_box(text=['sig_I', 'filt_I'],
+                                        pen=[self.PEN_03, self.PEN_04])
+        ([chkb.clicked.connect(self.process_chkbs_legend_box_PS) for chkb
+          in self.legend_box_PS.chkbs])
+    
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(self.qpbt_power_spectrum_zoom_low, 0, 0)
-        grid.addWidget(self.qpbt_power_spectrum_zoom_mid, 0, 1)
-        grid.addWidget(self.qpbt_power_spectrum_zoom_all, 0, 2)
+        grid.addLayout(self.legend_box_PS.grid, 0, 0)
+        grid.setAlignment(QtCore.Qt.AlignTop)
+    
+        qgrp_PS = QtWid.QGroupBox("Pow. spectrum")
+        qgrp_PS.setStyleSheet(SS_GROUP)
+        qgrp_PS.setLayout(grid)
         
         # -----------------------------------
         # -----------------------------------
@@ -691,12 +698,14 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
         
-        vbox = QtWid.QVBoxLayout()
-        vbox.addLayout(grid, stretch=0)
-        vbox.addWidget(self.gw_power_spectrum, stretch=1)
-        self.tab_power_spectrum.setLayout(vbox)
-        
-        def _frame_Filter_resp_BS(): pass # Spider IDE outline bookmark
+        grid = QtWid.QGridLayout()
+        grid.addWidget(qgrp_PS     , 0, 0)
+        grid.addLayout(grid_PS_zoom, 0, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
+        self.tab_power_spectrum.setLayout(grid)
+                
+        def _frame_BS_filter_response(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -818,7 +827,7 @@ class MainWindow(QtWid.QWidget):
         hbox.addWidget(self.gw_filt_resp_BS, stretch=1)
         self.tab_filter_1_design.setLayout(hbox)
         
-        def _frame_Filter_resp_LP(): pass # Spider IDE outline bookmark
+        def _frame_LP_filter_response(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -907,13 +916,11 @@ class MainWindow(QtWid.QWidget):
         self.file_logger.signal_set_recording_text.connect(
                 self.set_text_qpbt_record)
 
-
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
     #   Handle controls
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
-
 
     @QtCore.pyqtSlot()
     def update_wall_clock(self):
@@ -960,8 +967,7 @@ class MainWindow(QtWid.QWidget):
         self.update_chart_filt_BS()
         self.update_chart_mixer()
         self.update_chart_LIA_output()
-        self.BP_power_spectrum.update_curve()
-        self.BP_power_spectrum2.update_curve()
+        self.update_plot_PS()
     
     @QtCore.pyqtSlot()
     def clear_chart_histories_stage_1_and_2(self):
@@ -976,13 +982,13 @@ class MainWindow(QtWid.QWidget):
     def process_qpbt_ENA_lockin(self):
         if self.qpbt_ENA_lockin.isChecked():
             self.lockin_pyqt.turn_on()
-            self.qpbt_ENA_lockin.setText("lock-in ON")
+            self.qpbt_ENA_lockin.setText("Lock-in ON")
             
             self.lockin_pyqt.state.reset()
             self.clear_chart_histories_stage_1_and_2()
         else:
             self.lockin_pyqt.turn_off()
-            self.qpbt_ENA_lockin.setText("lock-in OFF")
+            self.qpbt_ENA_lockin.setText("Lock-in OFF")
         
     @QtCore.pyqtSlot()
     def process_qpbt_record(self):
@@ -1076,9 +1082,24 @@ class MainWindow(QtWid.QWidget):
         self.clear_chart_histories_stage_1_and_2()
 
     @QtCore.pyqtSlot()
-    def process_chkbs_refsig(self):
+    def process_chkbs_legend_box_refsig(self):
         if self.lockin.lockin_paused:
-            self.update_chart_refsig()  # Force update graph
+            self.update_chart_refsig()      # Force update graph
+            
+    @QtCore.pyqtSlot()
+    def process_chkbs_legend_box_filt_BS(self):
+        if self.lockin.lockin_paused:
+            self.update_chart_filt_BS()     # Force update graph
+            
+    @QtCore.pyqtSlot()
+    def process_chkbs_legend_box_mixer(self):
+        if self.lockin.lockin_paused:
+            self.update_chart_mixer()       # Force update graph
+            
+    @QtCore.pyqtSlot()
+    def process_chkbs_legend_box_PS(self):
+        if self.lockin.lockin_paused:
+            self.update_plot_PS()           # Force update graph
 
     @QtCore.pyqtSlot()
     def process_qpbt_maxrange_xy(self):
@@ -1191,7 +1212,7 @@ class MainWindow(QtWid.QWidget):
             self.pi_XR.enableAutoRange('y', True)
             self.pi_XR.enableAutoRange('y', False)
             XRange, YRange = self.pi_XR.viewRange()
-            self.pi_XR.setYRange(YRange[0], YRange[1], padding=0.05)
+            self.pi_XR.setYRange(YRange[0], YRange[1], padding=0.1)
         
     def autorange_y_YT(self):
         if len(self.CH_LIA_YT._x) == 0:
@@ -1203,7 +1224,7 @@ class MainWindow(QtWid.QWidget):
             self.pi_YT.enableAutoRange('y', True)
             self.pi_YT.enableAutoRange('y', False)
             XRange, YRange = self.pi_YT.viewRange()
-            self.pi_YT.setYRange(YRange[0], YRange[1], padding=0.05)
+            self.pi_YT.setYRange(YRange[0], YRange[1], padding=0.1)
     
     
     # --------------------------------------------------------------------------
@@ -1218,15 +1239,21 @@ class MainWindow(QtWid.QWidget):
         [CH.update_curve() for CH in self.CHs_refsig]
         for i in range(3):
             self.CHs_refsig[i].curve.setVisible(
-                    self.chkbs_refsig[i].isChecked())
+                    self.legend_box_refsig.chkbs[i].isChecked())
             
     @QtCore.pyqtSlot()
     def update_chart_filt_BS(self):
         [CH.update_curve() for CH in self.CHs_filt_BS]
+        for i in range(2):
+            self.CHs_filt_BS[i].curve.setVisible(
+                    self.legend_box_filt_BS.chkbs[i].isChecked())
             
     @QtCore.pyqtSlot()
     def update_chart_mixer(self):
         [CH.update_curve() for CH in self.CHs_mixer]
+        for i in range(2):
+            self.CHs_mixer[i].curve.setVisible(
+                    self.legend_box_mixer.chkbs[i].isChecked())
         
     @QtCore.pyqtSlot()
     def update_chart_LIA_output(self):
@@ -1239,7 +1266,14 @@ class MainWindow(QtWid.QWidget):
         if self.pi_YT.request_autorange_y == True:
             self.pi_YT.request_autorange_y = False
             self.autorange_y_YT()
-        
+            
+    @QtCore.pyqtSlot()
+    def update_plot_PS(self):
+        self.BP_PS_1.update_curve()
+        self.BP_PS_2.update_curve()
+        self.BP_PS_1.curve.setVisible(self.legend_box_PS.chkbs[0].isChecked())
+        self.BP_PS_2.curve.setVisible(self.legend_box_PS.chkbs[1].isChecked())
+
     def construct_title_plot_filt_resp(self, firf):
         __tmp1 = 'N_taps = %i' % firf.N_taps
         if isinstance(firf.window, str):
@@ -1360,9 +1394,9 @@ class MainWindow(QtWid.QWidget):
                                       self.construct_title_plot_filt_resp(firf))
         
     def power_spectrum_zoom(self, xRangeLo, xRangeHi):
-        self.pi_power_spectrum.setXRange(xRangeLo, xRangeHi, padding=0.02)
-        self.pi_power_spectrum.enableAutoRange('y', True)
-        self.pi_power_spectrum.enableAutoRange('y', False)
+        self.pi_PS.setXRange(xRangeLo, xRangeHi, padding=0.02)
+        self.pi_PS.enableAutoRange('y', True)
+        self.pi_PS.enableAutoRange('y', False)
         
 if __name__ == "__main__":
     exec(open("DvG_Arduino_lockin_amp.py").read())
