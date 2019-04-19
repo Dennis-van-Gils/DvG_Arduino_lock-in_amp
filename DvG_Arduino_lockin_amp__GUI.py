@@ -386,6 +386,9 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setYRange(-3.3, 3.3, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
+        self.pi_refsig.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
+                                 lockin.config.ISR_CLOCK * 1e3,
+                                 xMax=0)
 
         self.CH_ref_X = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_refsig.plot(pen=self.PEN_01))
@@ -465,7 +468,10 @@ class MainWindow(QtWid.QWidget):
         self.pi_XR.setAutoVisible(x=True, y=True)
         self.pi_XR.setClipToView(True)
         self.pi_XR.request_autorange_y = False
-        
+        self.pi_XR.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
+                             lockin.config.ISR_CLOCK * 1e3,
+                             xMax=0)
+
         self.CH_LIA_XR = ChartHistory(lockin.config.BUFFER_SIZE,
                                       self.pi_XR.plot(pen=self.PEN_03))
         self.CH_LIA_XR.x_axis_divisor = 1000     # From [us] to [ms]
@@ -485,6 +491,9 @@ class MainWindow(QtWid.QWidget):
         self.pi_YT.setAutoVisible(x=True, y=True)
         self.pi_YT.setClipToView(True)
         self.pi_YT.request_autorange_y = False
+        self.pi_YT.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
+                             lockin.config.ISR_CLOCK * 1e3,
+                             xMax=0)
         
         self.CH_LIA_YT = ChartHistory(lockin.config.BUFFER_SIZE,
                                       self.pi_YT.plot(pen=self.PEN_03))
@@ -599,6 +608,9 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_BS.setYRange(-5, 5, padding=0.05)
         self.pi_filt_BS.setAutoVisible(x=True, y=True)
         self.pi_filt_BS.setClipToView(True)
+        self.pi_filt_BS.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) *
+                                  lockin.config.ISR_CLOCK * 1e3,
+                                  xMax=0)
         
         self.CH_filt_BS_in  = ChartHistory(
                 lockin.config.BUFFER_SIZE,
@@ -643,6 +655,9 @@ class MainWindow(QtWid.QWidget):
         self.pi_mixer.setYRange(-5, 5, padding=0.05)
         self.pi_mixer.setAutoVisible(x=True, y=True)
         self.pi_mixer.setClipToView(True)
+        self.pi_mixer.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) *
+                                lockin.config.ISR_CLOCK * 1e3,
+                                xMax=0)
         
         self.CH_mix_X = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_mixer.plot(pen=self.PEN_01))
@@ -719,6 +734,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_PS.setXRange(0, self.lockin.config.F_Nyquist, padding=0.02)
         self.pi_PS.setYRange(-110, 0, padding=0.02)
         self.pi_PS.setClipToView(True)
+        self.pi_PS.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
         
         self.BP_PS_1 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_03))
         self.BP_PS_2 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_04))
@@ -777,6 +793,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_resp_BS.enableAutoRange('x', False)
         self.pi_filt_resp_BS.enableAutoRange('y', True)
         self.pi_filt_resp_BS.setClipToView(True)
+        self.pi_filt_resp_BS.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
         
         self.curve_filt_resp_BS = pg.PlotCurveItem(pen=self.PEN_03,
                                                    brush=self.BRUSH_03)
@@ -899,6 +916,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_resp_LP.enableAutoRange('x', False)
         self.pi_filt_resp_LP.enableAutoRange('y', True)
         self.pi_filt_resp_LP.setClipToView(True)
+        self.pi_filt_resp_LP.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
         
         self.curve_filt_resp_LP = pg.PlotCurveItem(pen=self.PEN_03,
                                                    brush=self.BRUSH_03)
