@@ -56,13 +56,14 @@ SS_GROUP = (
         "QGroupBox {"
             "background-color: " + "rgb(252, 208, 173)" + ";"
             "border: 2px solid gray;"
-            "border-radius: 5px;"
+            "border-radius: 0px;"
             "font: bold ;"
             "padding: 8 0 0 0px;"
             "margin-top: 2ex}"
         "QGroupBox::title {"
             "subcontrol-origin: margin;"
             "subcontrol-position: top left;"
+            "left: 6 px;"
             "padding: -5 3px}"
         "QGroupBox::flat {"
             "border: 0px;"
@@ -233,8 +234,8 @@ class MainWindow(QtWid.QWidget):
         self.tabs.addTab(self.tab_main           , "Main")
         self.tabs.addTab(self.tab_mixer          , "Mixer")
         self.tabs.addTab(self.tab_power_spectrum , "Spectrum")
-        self.tabs.addTab(self.tab_filter_1_design, "Filter: band-stop")
-        self.tabs.addTab(self.tab_filter_2_design, "Filter: low-pass")
+        self.tabs.addTab(self.tab_filter_1_design, "Filter 1")
+        self.tabs.addTab(self.tab_filter_2_design, "Filter 2")
         self.tabs.addTab(self.tab_mcu_board_info , "MCU board")
         
         def _frame_Sidebar(): pass # Spider IDE outline bookmark
@@ -313,8 +314,8 @@ class MainWindow(QtWid.QWidget):
         qgrp_connections.setLayout(grid)        
 
         # QGROUP: Axes controls
-        self.qpbt_maxrange_xy = QtWid.QPushButton("Maximum range")
-        self.qpbt_maxrange_xy.clicked.connect(self.process_qpbt_maxrange_xy)
+        self.qpbt_fullrange_xy = QtWid.QPushButton("Full range")
+        self.qpbt_fullrange_xy.clicked.connect(self.process_qpbt_fullrange_xy)
         self.qpbt_autorange_xy = QtWid.QPushButton("Autorange")
         self.qpbt_autorange_xy.clicked.connect(self.process_qpbt_autorange_xy)
         self.qpbt_autorange_x = QtWid.QPushButton("Auto x", maximumWidth=80)
@@ -323,7 +324,7 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_autorange_y.clicked.connect(self.process_qpbt_autorange_y)
         
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(self.qpbt_maxrange_xy , 0, 0, 1, 2)
+        grid.addWidget(self.qpbt_fullrange_xy, 0, 0, 1, 2)
         grid.addWidget(self.qpbt_autorange_xy, 2, 0, 1, 2)
         grid.addWidget(self.qpbt_autorange_x , 3, 0)
         grid.addWidget(self.qpbt_autorange_y , 3, 1)
@@ -556,7 +557,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
         
-        grid = QtWid.QGridLayout()
+        grid = QtWid.QGridLayout(spacing=0)
         grid.addWidget(qgrp_readings , 0, 0, QtCore.Qt.AlignTop)
         grid.addWidget(self.gw_refsig, 0, 1)
         grid.addWidget(qgrp_XRYT     , 1, 0, QtCore.Qt.AlignTop)
@@ -564,6 +565,8 @@ class MainWindow(QtWid.QWidget):
         grid.setColumnStretch(1, 1)
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
         self.tab_main.setLayout(grid)
+        
+        #grid.setVerticalSpacing(0)
         
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -664,7 +667,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
 
-        grid = QtWid.QGridLayout()
+        grid = QtWid.QGridLayout(spacing=0)
         grid.addWidget(qgrp_filt_BS   , 0, 0, QtCore.Qt.AlignTop)
         grid.addWidget(self.gw_filt_BS, 0, 1)
         grid.addWidget(qgrp_mixer     , 1, 0, QtCore.Qt.AlignTop)
@@ -693,6 +696,14 @@ class MainWindow(QtWid.QWidget):
             self.power_spectrum_zoom(0, 1000))
         self.qpbt_PS_zoom_all.clicked.connect(lambda:
             self.power_spectrum_zoom(0, self.lockin.config.F_Nyquist))
+            
+        grid = QtWid.QGridLayout()
+        grid.addWidget(self.qpbt_PS_zoom_low, 0, 0)
+        grid.addWidget(self.qpbt_PS_zoom_mid, 0, 1)
+        grid.addWidget(self.qpbt_PS_zoom_all, 0, 2)
+        
+        qgrp_PS_zoom = QtWid.QGroupBox("Zoom")
+        qgrp_PS_zoom.setLayout(grid)
         
         # Plot: Power spectrum
         self.gw_PS = pg.GraphicsWindow()
@@ -712,12 +723,10 @@ class MainWindow(QtWid.QWidget):
         self.BP_PS_1 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_03))
         self.BP_PS_2 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_04))
         
-        grid_PS_zoom = QtWid.QGridLayout()
-        grid_PS_zoom.addWidget(self.qpbt_PS_zoom_low, 0, 0)
-        grid_PS_zoom.addWidget(self.qpbt_PS_zoom_mid, 0, 1)
-        grid_PS_zoom.addWidget(self.qpbt_PS_zoom_all, 0, 2)
-        grid_PS_zoom.addWidget(self.gw_PS           , 1, 0, 1, 3)
-        grid_PS_zoom.setRowStretch(1, 1)
+        grid_PS = QtWid.QGridLayout()
+        grid_PS.addWidget(qgrp_PS_zoom, 0, 0)
+        grid_PS.addWidget(self.gw_PS  , 1, 0)
+        grid_PS.setRowStretch(1, 1)
         
         # QGROUP: Power spectrum
         self.legend_box_PS = Legend_box(text=['sig_I', 'filt_I'],
@@ -738,9 +747,9 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
         
-        grid = QtWid.QGridLayout()
-        grid.addWidget(qgrp_PS     , 0, 0, QtCore.Qt.AlignTop)
-        grid.addLayout(grid_PS_zoom, 0, 1)
+        grid = QtWid.QGridLayout(spacing=0)
+        grid.addWidget(qgrp_PS, 0, 0, QtCore.Qt.AlignTop)
+        grid.addLayout(grid_PS, 0, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
         self.tab_power_spectrum.setLayout(grid)
@@ -861,10 +870,11 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
         
-        hbox = QtWid.QHBoxLayout()
-        hbox.addWidget(qgrp_controls_filt_BS, stretch=0)
-        hbox.addWidget(self.gw_filt_resp_BS, stretch=1)
-        self.tab_filter_1_design.setLayout(hbox)
+        grid = QtWid.QGridLayout(spacing=0)
+        grid.addWidget(qgrp_controls_filt_BS, 0, 0, QtCore.Qt.AlignTop)
+        grid.addWidget(self.gw_filt_resp_BS, 0, 1)
+        grid.setColumnStretch(1, 1)
+        self.tab_filter_1_design.setLayout(grid)
         
         def _frame_LP_filter_response(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
@@ -1143,7 +1153,7 @@ class MainWindow(QtWid.QWidget):
             self.update_plot_PS()           # Force update graph
 
     @QtCore.pyqtSlot()
-    def process_qpbt_maxrange_xy(self):
+    def process_qpbt_fullrange_xy(self):
         self.process_qpbt_autorange_x()
         self.pi_refsig.setYRange (-3.3, 3.3, padding=0.05)
         self.pi_filt_BS.setYRange(-3.3, 3.3, padding=0.05)
