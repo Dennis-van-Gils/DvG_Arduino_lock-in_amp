@@ -47,6 +47,9 @@ except:
     print("Check if prerequisite 'PyOpenGL' library is installed.")
     USING_OPENGL = False
 
+# Stylesheets
+# Note: (Top Right Bottom Left)
+    
 COLOR_BG           = "rgb(240, 240, 240)"
 COLOR_LED_RED      = "rgb(0  , 238, 118)"
 COLOR_LED_GREEN    = "rgb(205, 92 , 92 )"
@@ -54,7 +57,6 @@ COLOR_GROUP_BG     = "rgb(252, 208, 173)"
 COLOR_READ_ONLY    = "rgb(250, 230, 210)"
 COLOR_TAB_ACTIVE   = "rgb(207, 225, 225)"
 COLOR_TAB          = "rgb(234, 235, 233)"
-#COLOR_HOVER        = "rgb(184, 234, 247)"
 COLOR_HOVER        = "rgb(229, 241, 251)"
 COLOR_HOVER_BORDER = "rgb(0  , 120, 215)"
 
@@ -109,7 +111,6 @@ SS_TABS = (
         "QTabWidget::tab-bar {"
             "left: 0px;}")
 
-# T R B L
 SS_GROUP = (
         "QGroupBox {"
             "background-color: " + COLOR_GROUP_BG + ";"
@@ -129,23 +130,6 @@ SS_GROUP = (
             "border: 0 px;"
             "border-radius: 0 0 px;"
             "padding: 0 0 0 0 px;}")
-
-# QGroupBox.isFlat(True) will do the same?
-SS_GROUP_BORDERLESS = (
-        "QGroupBox {"
-            "border: 0px solid gray;"
-            "border-radius: 5px;"
-            "font: bold italic;"
-            "padding: 0 0 0 0px;"
-            "margin-top: 0ex}"
-        "QGroupBox::title {"
-            "subcontrol-origin: margin;"
-            "subcontrol-position: top center;"
-            "padding: 0 0px}"
-        "QGroupBox::flat {"
-            "border: 0px;"
-            "border-radius: 0 0px;"
-            "padding: 0}")
 
 SS_TOGGLE_BUTTON = (
         "QPushButton {"
@@ -217,7 +201,7 @@ class MainWindow(QtWid.QWidget):
         self.setStyleSheet(SS_TEXTBOX_READ_ONLY + SS_GROUP + SS_HOVER + 
                            SS_TABS)
         
-        """
+        """ # Experimental
         with open('darkorange.stylesheet', 'r') as file:
             style = file.read()
         self.setStyleSheet(style)
@@ -238,17 +222,17 @@ class MainWindow(QtWid.QWidget):
         # Column width left of timeseries graphs
         LEFT_COLUMN_WIDTH = 134
         
-        # Textbox widths for fitting N characters using the current font
+        # Textbox widths for fitting N 'x' characters using the current font
         e = QtGui.QLineEdit()
-        width_chr8  = (8 + 8 * e.fontMetrics().width('x') + 
-                       e.textMargins().left()     + e.textMargins().right() + 
-                       e.contentsMargins().left() + e.contentsMargins().right())
-        width_chr10 = (8 + 10 * e.fontMetrics().width('x') + 
-                       e.textMargins().left()     + e.textMargins().right() + 
-                       e.contentsMargins().left() + e.contentsMargins().right())
-        width_chr12 = (8 + 12 * e.fontMetrics().width('x') + 
-                       e.textMargins().left()     + e.textMargins().right() + 
-                       e.contentsMargins().left() + e.contentsMargins().right())
+        ex8  = (8 + 8 * e.fontMetrics().width('x') + 
+                e.textMargins().left()     + e.textMargins().right() + 
+                e.contentsMargins().left() + e.contentsMargins().right())
+        ex10 = (8 + 10 * e.fontMetrics().width('x') + 
+                e.textMargins().left()     + e.textMargins().right() + 
+                e.contentsMargins().left() + e.contentsMargins().right())
+        ex12 = (8 + 12 * e.fontMetrics().width('x') + 
+                e.textMargins().left()     + e.textMargins().right() + 
+                e.contentsMargins().left() + e.contentsMargins().right())
         del e
 
         def _frame_Header(): pass # Spider IDE outline bookmark
@@ -349,7 +333,7 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
         
         # QGROUP: Reference signal
-        p1 = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8}
+        p1 = {'maximumWidth': ex8, 'minimumWidth': ex8}
         p2 = {**p1, 'readOnly': True}
         self.qlin_set_ref_freq = (
                 QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p1))
@@ -508,10 +492,8 @@ class MainWindow(QtWid.QWidget):
         ([chkb.clicked.connect(self.process_chkbs_legend_box_refsig) for chkb
           in self.legend_box_refsig.chkbs])
         
-        p1 = {'maximumWidth': width_chr12, 'minimumWidth': width_chr12,
-              'readOnly': True}
-        p2 = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8,
-              'readOnly': True}
+        p1 = {'maximumWidth': ex12, 'minimumWidth': ex12, 'readOnly': True}
+        p2 = {'maximumWidth': ex8 , 'minimumWidth': ex8 , 'readOnly': True}
         self.qlin_time      = QtWid.QLineEdit(**p1)
         self.qlin_sig_I_max = QtWid.QLineEdit(**p2)
         self.qlin_sig_I_min = QtWid.QLineEdit(**p2)
@@ -613,16 +595,14 @@ class MainWindow(QtWid.QWidget):
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.addWidget(self.qrbt_XR_X)
         vbox.addWidget(self.qrbt_XR_R)
-        qgrp_XR = QtWid.QGroupBox()
-        qgrp_XR.setStyleSheet(SS_GROUP_BORDERLESS)
+        qgrp_XR = QtWid.QGroupBox(flat=True)
         qgrp_XR.setLayout(vbox)
         
         vbox = QtWid.QVBoxLayout(spacing=4)
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.addWidget(self.qrbt_YT_Y)
         vbox.addWidget(self.qrbt_YT_T)
-        qgrp_YT = QtWid.QGroupBox()
-        qgrp_YT.setStyleSheet(SS_GROUP_BORDERLESS)
+        qgrp_YT = QtWid.QGroupBox(flat=True)
         qgrp_YT.setLayout(vbox)
         
         hbox = QtWid.QHBoxLayout(spacing=4)
@@ -630,8 +610,7 @@ class MainWindow(QtWid.QWidget):
         hbox.addWidget(qgrp_XR)
         hbox.addWidget(qgrp_YT)
         
-        p = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8,
-             'readOnly': True}
+        p = {'maximumWidth': ex8, 'minimumWidth': ex8, 'readOnly': True}
         self.qlin_X_avg = QtWid.QLineEdit(**p)
         self.qlin_Y_avg = QtWid.QLineEdit(**p)
         self.qlin_R_avg = QtWid.QLineEdit(**p)
@@ -942,8 +921,8 @@ class MainWindow(QtWid.QWidget):
     
         self.qtbl_filt_BS.setRowCount(6)
         self.qtbl_filt_BS.setColumnCount(2)
-        self.qtbl_filt_BS.setColumnWidth(0, width_chr8)
-        self.qtbl_filt_BS.setColumnWidth(1, width_chr8)
+        self.qtbl_filt_BS.setColumnWidth(0, ex8)
+        self.qtbl_filt_BS.setColumnWidth(1, ex8)
         self.qtbl_filt_BS.setHorizontalHeaderLabels (['from', 'to'])
         self.qtbl_filt_BS.horizontalHeader().setDefaultAlignment(
                 QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
@@ -973,7 +952,7 @@ class MainWindow(QtWid.QWidget):
                 self.qtbl_filt_BS_items.append(myItem)
                 self.qtbl_filt_BS.setItem(row, col, myItem)
                 
-        p1 = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8}
+        p1 = {'maximumWidth': ex8, 'minimumWidth': ex8}
         p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
         self.qpbt_filt_BS_coupling = QtWid.QPushButton("AC", checkable=True)
         self.qlin_filt_BS_DC_cutoff = QtWid.QLineEdit(**{**p1, **p2})
