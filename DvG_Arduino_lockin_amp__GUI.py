@@ -47,13 +47,27 @@ except:
     print("Check if prerequisite 'PyOpenGL' library is installed.")
     USING_OPENGL = False
 
-COLOR_BG             = "rgb(240, 240, 240)"
-COLOR_SPRING_GREEN_2 = "rgb(0, 238, 118)"
-COLOR_INDIAN_RED     = "rgb(205, 92, 92)"
-COLOR_BISQUE_5       = "rgb(252, 208, 173)"
-COLOR_READ_ONLY      = "rgb(250, 230, 210)"
-COLOR_greengray      = "rgb(207, 225, 225)"
-COLOR_greengraylighter = "rgb(234, 235, 233)"
+COLOR_BG           = "rgb(240, 240, 240)"
+COLOR_LED_RED      = "rgb(0  , 238, 118)"
+COLOR_LED_GREEN    = "rgb(205, 92 , 92 )"
+COLOR_GROUP_BG     = "rgb(252, 208, 173)"
+COLOR_READ_ONLY    = "rgb(250, 230, 210)"
+COLOR_TAB_ACTIVE   = "rgb(207, 225, 225)"
+COLOR_TAB          = "rgb(234, 235, 233)"
+#COLOR_HOVER        = "rgb(184, 234, 247)"
+COLOR_HOVER        = "rgb(229, 241, 251)"
+COLOR_HOVER_BORDER = "rgb(0  , 120, 215)"
+
+SS_HOVER = (
+        "QLineEdit:hover {"
+            "background: " + COLOR_HOVER + ";"
+            "border: 1px solid " + COLOR_HOVER_BORDER + ";}"
+        "QCheckBox:hover {"
+            "background: " + COLOR_HOVER + ";"
+            "border: 0px solid " + COLOR_HOVER_BORDER + ";}"
+        "QRadioButton:hover {"
+            "background: " + COLOR_HOVER + ";"
+            "border: 0px solid " + COLOR_HOVER_BORDER + ";}")
 
 SS_TEXTBOX_READ_ONLY = (
         "QLineEdit {"
@@ -71,18 +85,26 @@ SS_TABS = (
         "QTabWidget::pane {"
             "border: 0px solid gray;}"
         "QTabBar::tab:selected {"
-            "background: " + COLOR_greengray + "; "
-            "border-bottom-color: " + COLOR_greengray + ";}"
+            "background: " + COLOR_TAB_ACTIVE + "; "
+            "border-bottom-color: " + COLOR_TAB_ACTIVE + ";}"
         "QTabWidget>QWidget>QWidget {"
             "border: 2px solid gray;"
-            "background: " + COLOR_greengray + ";} "
+            "background: " + COLOR_TAB_ACTIVE + ";} "
         "QTabBar::tab {"
-            "background: " + COLOR_greengraylighter + ";"
+            "background: " + COLOR_TAB + ";"
             "border: 2px solid gray;"
-            "border-bottom-color: " + COLOR_greengraylighter + ";"
+            "border-bottom-color: " + COLOR_TAB + ";"
             "border-top-left-radius: 4px;"
             "border-top-right-radius: 4px;"
-            "min-width: 50ex;"
+            "min-width: 42ex;"
+            "padding: 6px;} "
+        "QTabBar::tab:hover {"
+            "background: " + COLOR_HOVER + ";"
+            "border: 2px solid " + COLOR_HOVER_BORDER + ";"
+            "border-bottom-color: " + COLOR_HOVER + ";"
+            "border-top-left-radius: 4px;"
+            "border-top-right-radius: 4px;"
+            "min-width: 42ex;"
             "padding: 6px;} "
         "QTabWidget::tab-bar {"
             "left: 0px;}")
@@ -90,7 +112,7 @@ SS_TABS = (
 # T R B L
 SS_GROUP = (
         "QGroupBox {"
-            "background-color: " + COLOR_BISQUE_5 + ";"
+            "background-color: " + COLOR_GROUP_BG + ";"
             "border: 2px solid gray;"
             "border-radius: 0 px;"
             "font: bold;"
@@ -125,43 +147,46 @@ SS_GROUP_BORDERLESS = (
             "border-radius: 0 0px;"
             "padding: 0}")
 
+SS_TOGGLE_BUTTON = (
+        "QPushButton {"
+            "background-color: " + COLOR_BG + ";"
+            "color: black;" +
+            "border-style: outset;"
+            "border-width: 2px;"
+            "border-radius: 4px;"
+            "border-color: gray;"
+            "text-align: center;"
+            "padding: 1px 1px 1px 1px;}"
+        "QPushButton:hover {"
+            "background: " + COLOR_HOVER + ";"
+            "border-color: " + COLOR_HOVER_BORDER + ";}"
+        "QPushButton:disabled {"
+            "color: grey;}"
+        "QPushButton:checked {"
+            "background-color: " + COLOR_LED_RED + ";"
+            "color: black;" +
+            "font-weight: normal;"
+            "border-style: inset;}")
+
 SS_LED_RECT = (
         "QPushButton {"
-            "background-color: " + COLOR_INDIAN_RED + ";"
+            "background-color: " + COLOR_LED_GREEN + ";"
             "border-style: solid;"
             "border-width: 1px;"
             "min-height: 30px;"
-            "min-width: 76px;"
-            "max-width: 76px}"
+            "min-width: 60px;"
+            "max-width: 60px}"
         "QPushButton::disabled {"
             "border-radius: 1px;"
             "color: black}"
         "QPushButton::checked {"
-            "background-color: " + COLOR_SPRING_GREEN_2 + "}")
+            "background-color: " + COLOR_LED_RED + "}")
 
 def create_Toggle_button(text='', minimumHeight=40):
-    SS = ("QPushButton {"
-              "background-color: " + COLOR_BG + ";" +
-              "color: black;" +
-              "border-style: outset;"
-              "border-width: 2px;"
-              "border-radius: 4px;"
-              "border-color: gray;"
-              "text-align: center;"
-              "padding: 1px 1px 1px 1px;}"
-          "QPushButton:disabled {"
-              "color: grey;}"
-          "QPushButton:checked {"
-              "background-color: " + COLOR_SPRING_GREEN_2 + ";"
-              "color: black;" +
-              "font-weight: normal;"
-              "border-style: inset;}")
     button = QtWid.QPushButton(text, checkable=True)
-    button.setStyleSheet(SS)
-
+    button.setStyleSheet(SS_TOGGLE_BUTTON)
     if minimumHeight is not None:
         button.setMinimumHeight(minimumHeight)
-
     return button
 
 def create_LED_indicator_rect(initial_state=False, text=''):
@@ -189,7 +214,8 @@ class MainWindow(QtWid.QWidget):
         
         self.setGeometry(250, 50, 1200, 960)
         self.setWindowTitle("Arduino lock-in amplifier")
-        self.setStyleSheet(SS_TEXTBOX_READ_ONLY + SS_GROUP)
+        self.setStyleSheet(SS_TEXTBOX_READ_ONLY + SS_GROUP + SS_HOVER + 
+                           SS_TABS)
         
         """
         with open('darkorange.stylesheet', 'r') as file:
@@ -297,8 +323,6 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         self.tabs = QtWid.QTabWidget()
-        self.tabs.setStyleSheet(SS_TABS)
-
         self.tab_main  = QtWid.QWidget()
         self.tab_mixer = QtWid.QWidget()
         self.tab_power_spectrum  = QtWid.QWidget()
@@ -309,8 +333,8 @@ class MainWindow(QtWid.QWidget):
         self.tabs.addTab(self.tab_main           , "Main")
         self.tabs.addTab(self.tab_mixer          , "Mixer")
         self.tabs.addTab(self.tab_power_spectrum , "Spectrum")
-        self.tabs.addTab(self.tab_filter_1_design, "Filter design: sig_I")
-        self.tabs.addTab(self.tab_filter_2_design, "Filter design: mix_X/Y")
+        self.tabs.addTab(self.tab_filter_1_design, "Filter design @ sig_I")
+        self.tabs.addTab(self.tab_filter_2_design, "Filter design @ mix_X/Y")
         self.tabs.addTab(self.tab_mcu_board_info , "MCU board")
         
         def _frame_Sidebar(): pass # Spider IDE outline bookmark
@@ -412,10 +436,10 @@ class MainWindow(QtWid.QWidget):
         self.LED_settled_LP_filter = create_LED_indicator_rect(False, 'NO')
         
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(QtWid.QLabel("1: band-stop"), 0, 0)
-        grid.addWidget(self.LED_settled_BG_filter  , 0, 1)
-        grid.addWidget(QtWid.QLabel("2: low-pass") , 1, 0)
-        grid.addWidget(self.LED_settled_LP_filter  , 1, 1)
+        grid.addWidget(QtWid.QLabel("Filter @ sig_I")  , 0, 0)
+        grid.addWidget(self.LED_settled_BG_filter         , 0, 1)
+        grid.addWidget(QtWid.QLabel("Filter @ mix_X/Y"), 1, 0)
+        grid.addWidget(self.LED_settled_LP_filter         , 1, 1)
         
         qgrp_settling = QtWid.QGroupBox("Filters settled?")
         qgrp_settling.setLayout(grid)
@@ -674,7 +698,7 @@ class MainWindow(QtWid.QWidget):
         
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_filt_BS.showGrid(x=1, y=1)
-        self.pi_filt_BS.setTitle('Band-stop filter acting on sig_I', **p)
+        self.pi_filt_BS.setTitle('Filter @ sig_I', **p)
         self.pi_filt_BS.setLabel('bottom', text='time [ms]', **p)
         self.pi_filt_BS.setLabel('left', text='voltage [V]', **p)
         self.pi_filt_BS.setXRange(-lockin.config.BUFFER_SIZE *
@@ -703,7 +727,7 @@ class MainWindow(QtWid.QWidget):
         ([chkb.clicked.connect(self.process_chkbs_legend_box_filt_BS) for chkb
           in self.legend_box_filt_BS.chkbs])
     
-        qgrp_filt_BS = QtWid.QGroupBox("BS filter")
+        qgrp_filt_BS = QtWid.QGroupBox("Filter @ sig_I")
 
         qgrp_filt_BS.setLayout(self.legend_box_filt_BS.grid)
         
