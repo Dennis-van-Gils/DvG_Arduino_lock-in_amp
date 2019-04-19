@@ -52,6 +52,8 @@ COLOR_SPRING_GREEN_2 = "rgb(0, 238, 118)"
 COLOR_INDIAN_RED     = "rgb(205, 92, 92)"
 COLOR_BISQUE_5       = "rgb(252, 208, 173)"
 COLOR_READ_ONLY      = "rgb(250, 230, 210)"
+COLOR_greengray      = "rgb(207, 225, 225)"
+COLOR_greengraylighter = "rgb(234, 235, 233)"
 
 SS_TEXTBOX_READ_ONLY = (
         "QLineEdit {"
@@ -64,6 +66,27 @@ SS_TEXTBOX_READ_ONLY = (
         "QPlainTextEdit[readOnly=\"true\"] {"
             "border: 1px solid gray;"
             "background-color: " + COLOR_READ_ONLY + "}")
+
+SS_TABS = (
+        "QTabWidget::pane {"
+            "border: 0px solid gray;}"
+        "QTabBar::tab:selected {"
+            "background: " + COLOR_greengray + "; "
+            "border-bottom-color: " + COLOR_greengray + ";}"
+        "QTabWidget>QWidget>QWidget {"
+            "border: 2px solid gray;"
+            "background: " + COLOR_greengray + ";} "
+        "QTabBar::tab {"
+            "background: " + COLOR_greengraylighter + ";"
+            "border: 2px solid gray;"
+            "border-bottom-color: " + COLOR_greengraylighter + ";"
+            "border-top-left-radius: 4px;"
+            "border-top-right-radius: 4px;"
+            "min-width: 50ex;"
+            "padding: 6px;} "
+        "QTabWidget::tab-bar {"
+            "left: 0px;}")
+
 # T R B L
 SS_GROUP = (
         "QGroupBox {"
@@ -274,32 +297,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         self.tabs = QtWid.QTabWidget()
-        #self.tabs.setStyleSheet("QWidget {background-color: gray}")
-        #"""
-        #blue = "rgb(220, 220, 238)"
-        #greengray = "rgb(220, 220, 214)"
-        greengray = "rgb(207, 225, 225)"
-        greengraylighter = "rgb(234, 235, 233)"
-        self.tabs.setStyleSheet(
-                "QTabWidget::pane {"
-                    "border: 0px solid gray;}"
-                "QTabBar::tab:selected {"
-                    "background: " + greengray + "; "
-                    "border-bottom-color: " + greengray + ";}"
-                "QTabWidget>QWidget>QWidget {"
-                    "border: 2px solid gray;"
-                    "background: " + greengray + ";} "
-                "QTabBar::tab {"
-                    "background: " + greengraylighter + ";"
-                    "border: 2px solid gray;"
-                    "border-bottom-color: " + greengraylighter + ";"
-                    "border-top-left-radius: 4px;"
-                    "border-top-right-radius: 4px;"
-                    "min-width: 30ex;"
-                    "padding: 6px;} "
-                "QTabWidget::tab-bar {"
-                    "left: 0px;}")
-        #"""
+        self.tabs.setStyleSheet(SS_TABS)
 
         self.tab_main  = QtWid.QWidget()
         self.tab_mixer = QtWid.QWidget()
@@ -311,8 +309,8 @@ class MainWindow(QtWid.QWidget):
         self.tabs.addTab(self.tab_main           , "Main")
         self.tabs.addTab(self.tab_mixer          , "Mixer")
         self.tabs.addTab(self.tab_power_spectrum , "Spectrum")
-        self.tabs.addTab(self.tab_filter_1_design, "Filter 1")
-        self.tabs.addTab(self.tab_filter_2_design, "Filter 2")
+        self.tabs.addTab(self.tab_filter_1_design, "Filter design: sig_I")
+        self.tabs.addTab(self.tab_filter_2_design, "Filter design: mix_X/Y")
         self.tabs.addTab(self.tab_mcu_board_info , "MCU board")
         
         def _frame_Sidebar(): pass # Spider IDE outline bookmark
