@@ -155,13 +155,12 @@ SS_TOGGLE_BUTTON = (
 SS_LED_RECT = (
         "QPushButton {"
             "background-color: " + COLOR_LED_GREEN + ";"
-            "border-style: solid;"
-            "border-width: 1px;"
+            "border: 1px solid grey;"
             "min-height: 30px;"
             "min-width: 60px;"
             "max-width: 60px}"
         "QPushButton::disabled {"
-            "border-radius: 1px;"
+            "border-radius: 10px;"
             "color: black}"
         "QPushButton::checked {"
             "background-color: " + COLOR_LED_RED + "}")
@@ -1032,15 +1031,50 @@ class MainWindow(QtWid.QWidget):
         self.update_plot_filt_resp_LP()
         self.plot_filt_resp_LP_zoom_ROI()
         
+        # QGROUP: Zoom
+        self.qpbt_filt_resp_LP_zoom_DC  = QtWid.QPushButton('DC')
+        self.qpbt_filt_resp_LP_zoom_50  = QtWid.QPushButton('50 Hz')
+        self.qpbt_filt_resp_LP_zoom_low = QtWid.QPushButton('0 - 200 Hz')
+        self.qpbt_filt_resp_LP_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
+        self.qpbt_filt_resp_LP_zoom_all = QtWid.QPushButton('Full range')
+        self.qpbt_filt_resp_LP_zoom_ROI = QtWid.QPushButton('ROI range')
+
+        self.qpbt_filt_resp_LP_zoom_DC.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_resp_LP, 0, 2))
+        self.qpbt_filt_resp_LP_zoom_50.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_resp_LP, 47, 53))        
+        self.qpbt_filt_resp_LP_zoom_low.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_resp_LP, 0, 200))
+        self.qpbt_filt_resp_LP_zoom_mid.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_resp_LP, 0, 1000))
+        self.qpbt_filt_resp_LP_zoom_all.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_resp_LP, 0, self.lockin.config.F_Nyquist))
+        self.qpbt_filt_resp_LP_zoom_ROI.clicked.connect(
+                self.plot_filt_resp_LP_zoom_ROI)
+            
+        grid = QtWid.QGridLayout()
+        grid.addWidget(self.qpbt_filt_resp_LP_zoom_DC , 0, 0)
+        grid.addWidget(self.qpbt_filt_resp_LP_zoom_50 , 0, 1)
+        grid.addWidget(self.qpbt_filt_resp_LP_zoom_low, 0, 2)
+        grid.addWidget(self.qpbt_filt_resp_LP_zoom_mid, 0, 3)
+        grid.addWidget(self.qpbt_filt_resp_LP_zoom_all, 0, 4)
+        grid.addWidget(self.qpbt_filt_resp_LP_zoom_ROI, 0, 5)
+        
+        qgrp_zoom = QtWid.QGroupBox("Zoom")
+        qgrp_zoom.setLayout(grid)
+        
         # -----------------------------------
         # -----------------------------------
         #   Round up tab page 'Filter response: band-stop'
         # -----------------------------------
         # -----------------------------------
         
-        hbox = QtWid.QHBoxLayout()
-        hbox.addWidget(self.gw_filt_resp_LP, stretch=1)
-        self.tab_filter_2_design.setLayout(hbox)
+        grid = QtWid.QGridLayout(spacing=0)
+        #grid.addWidget(qgrp_design_filt_LP , 0, 0, 2, 1, QtCore.Qt.AlignTop)
+        grid.addWidget(qgrp_zoom           , 0, 1)
+        grid.addWidget(self.gw_filt_resp_LP, 1, 1)
+        grid.setColumnStretch(1, 1)
+        self.tab_filter_2_design.setLayout(grid)
         
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
