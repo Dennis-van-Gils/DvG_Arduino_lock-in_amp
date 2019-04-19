@@ -16,12 +16,7 @@ import numpy as np
 
 from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_BufferedPlot import BufferedPlot
-from DvG_pyqt_controls     import (create_Toggle_button,
-                                   create_LED_indicator_rect,
-                                   #SS_GROUP,
-                                   SS_GROUP_BORDERLESS,
-                                   SS_TEXTBOX_READ_ONLY,
-                                   Legend_box)
+from DvG_pyqt_controls     import Legend_box
 from DvG_pyqt_FileLogger   import FileLogger
 from DvG_debug_functions   import dprint
 
@@ -52,9 +47,27 @@ except:
     print("Check if prerequisite 'PyOpenGL' library is installed.")
     USING_OPENGL = False
 
+COLOR_BG             = "rgb(240, 240, 240)"
+COLOR_SPRING_GREEN_2 = "rgb(0, 238, 118)"
+COLOR_INDIAN_RED     = "rgb(205, 92, 92)"
+COLOR_BISQUE_5       = "rgb(252, 208, 173)"
+COLOR_READ_ONLY      = "rgb(250, 230, 210)"
+
+SS_TEXTBOX_READ_ONLY = (
+        "QLineEdit {"
+            "border: 1px solid black}"
+        "QLineEdit::read-only {"
+            "border: 1px solid gray;"
+            "background: " + COLOR_READ_ONLY + "}"
+        "QPlainTextEdit {"
+            "border: 1px solid black}"
+        "QPlainTextEdit[readOnly=\"true\"] {"
+            "border: 1px solid gray;"
+            "background-color: " + COLOR_READ_ONLY + "}")
+
 SS_GROUP = (
         "QGroupBox {"
-            "background-color: " + "rgb(252, 208, 173)" + ";"
+            "background-color: " + COLOR_BISQUE_5 + ";"
             "border: 2px solid gray;"
             "border-radius: 0px;"
             "font: bold ;"
@@ -69,6 +82,67 @@ SS_GROUP = (
             "border: 0px;"
             "border-radius: 0 0px;"
             "padding: 0}")
+
+SS_GROUP_BORDERLESS = (
+        "QGroupBox {"
+            "border: 0px solid gray;"
+            "border-radius: 5px;"
+            "font: bold italic;"
+            "padding: 0 0 0 0px;"
+            "margin-top: 0ex}"
+        "QGroupBox::title {"
+            "subcontrol-origin: margin;"
+            "subcontrol-position: top center;"
+            "padding: 0 0px}"
+        "QGroupBox::flat {"
+            "border: 0px;"
+            "border-radius: 0 0px;"
+            "padding: 0}")
+
+SS_LED_RECT = (
+        "QPushButton {"
+            "background-color: " + COLOR_INDIAN_RED + ";"
+            "border-style: solid;"
+            "border-width: 1px;"
+            "min-height: 30px;"
+            "min-width: 76px;"
+            "max-width: 76px}"
+        "QPushButton::disabled {"
+            "border-radius: 1px;"
+            "color: black}"
+        "QPushButton::checked {"
+            "background-color: " + COLOR_SPRING_GREEN_2 + "}")
+
+def create_Toggle_button(text='', minimumHeight=40):
+    SS = ("QPushButton {"
+              "background-color: " + COLOR_BG + ";" +
+              "color: black;" +
+              "border-style: outset;"
+              "border-width: 2px;"
+              "border-radius: 4px;"
+              "border-color: gray;"
+              "text-align: center;"
+              "padding: 1px 1px 1px 1px;}"
+          "QPushButton:disabled {"
+              "color: grey;}"
+          "QPushButton:checked {"
+              "background-color: " + COLOR_SPRING_GREEN_2 + ";"
+              "color: black;" +
+              "font-weight: normal;"
+              "border-style: inset;}")
+    button = QtWid.QPushButton(text, checkable=True)
+    button.setStyleSheet(SS)
+
+    if minimumHeight is not None:
+        button.setMinimumHeight(minimumHeight)
+
+    return button
+
+def create_LED_indicator_rect(initial_state=False, text=''):
+    button = QtWid.QPushButton(text, checkable=True, enabled=False)
+    button.setStyleSheet(SS_LED_RECT)
+    button.setChecked(initial_state)
+    return button
 
 # ------------------------------------------------------------------------------
 #   MainWindow
