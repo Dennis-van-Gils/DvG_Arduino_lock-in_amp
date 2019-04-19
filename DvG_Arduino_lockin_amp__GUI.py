@@ -64,25 +64,28 @@ SS_TEXTBOX_READ_ONLY = (
         "QPlainTextEdit[readOnly=\"true\"] {"
             "border: 1px solid gray;"
             "background-color: " + COLOR_READ_ONLY + "}")
-
+# T R B L
 SS_GROUP = (
         "QGroupBox {"
             "background-color: " + COLOR_BISQUE_5 + ";"
             "border: 2px solid gray;"
-            "border-radius: 0px;"
-            "font: bold ;"
-            "padding: 8 0 0 0px;"
-            "margin-top: 2ex}"
+            "border-radius: 0 px;"
+            "font: bold;"
+            "margin: 0 0 0 0 px;"
+            "padding: 14 0 0 0 px;}"
         "QGroupBox::title {"
             "subcontrol-origin: margin;"
             "subcontrol-position: top left;"
-            "left: 6 px;"
-            "padding: -5 3px}"
+            "margin: 0 0 0 0 px;"
+            "padding: 0 0 0 0 px;"
+            "top: 4 px;"
+            "left: 4 px;}"
         "QGroupBox::flat {"
-            "border: 0px;"
-            "border-radius: 0 0px;"
-            "padding: 0}")
+            "border: 0 px;"
+            "border-radius: 0 0 px;"
+            "padding: 0 0 0 0 px;}")
 
+# QGroupBox.isFlat(True) will do the same?
 SS_GROUP_BORDERLESS = (
         "QGroupBox {"
             "border: 0px solid gray;"
@@ -774,26 +777,6 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         
-        # Zoom controls
-        self.qpbt_PS_zoom_low = QtWid.QPushButton('0 - 200 Hz')
-        self.qpbt_PS_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
-        self.qpbt_PS_zoom_all = QtWid.QPushButton('Full range')
-        
-        self.qpbt_PS_zoom_low.clicked.connect(lambda:
-            self.power_spectrum_zoom(0, 200))
-        self.qpbt_PS_zoom_mid.clicked.connect(lambda:
-            self.power_spectrum_zoom(0, 1000))
-        self.qpbt_PS_zoom_all.clicked.connect(lambda:
-            self.power_spectrum_zoom(0, self.lockin.config.F_Nyquist))
-            
-        grid = QtWid.QGridLayout()
-        grid.addWidget(self.qpbt_PS_zoom_low, 0, 0)
-        grid.addWidget(self.qpbt_PS_zoom_mid, 0, 1)
-        grid.addWidget(self.qpbt_PS_zoom_all, 0, 2)
-        
-        qgrp_PS_zoom = QtWid.QGroupBox("Zoom")
-        qgrp_PS_zoom.setLayout(grid)
-        
         # Plot: Power spectrum
         self.gw_PS = pg.GraphicsWindow()
         self.gw_PS.setBackground([20, 20, 20])        
@@ -813,10 +796,25 @@ class MainWindow(QtWid.QWidget):
         self.BP_PS_1 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_03))
         self.BP_PS_2 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_04))
         
-        grid_PS = QtWid.QGridLayout()
-        grid_PS.addWidget(qgrp_PS_zoom, 0, 0)
-        grid_PS.addWidget(self.gw_PS  , 1, 0)
-        grid_PS.setRowStretch(1, 1)
+        # QGROUP: Zoom
+        self.qpbt_PS_zoom_low = QtWid.QPushButton('0 - 200 Hz')
+        self.qpbt_PS_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
+        self.qpbt_PS_zoom_all = QtWid.QPushButton('Full range')
+        
+        self.qpbt_PS_zoom_low.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_PS, 0, 200))
+        self.qpbt_PS_zoom_mid.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_PS, 0, 1000))
+        self.qpbt_PS_zoom_all.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_PS, 0, self.lockin.config.F_Nyquist))
+            
+        grid = QtWid.QGridLayout()
+        grid.addWidget(self.qpbt_PS_zoom_low, 0, 0)
+        grid.addWidget(self.qpbt_PS_zoom_mid, 0, 1)
+        grid.addWidget(self.qpbt_PS_zoom_all, 0, 2)
+        
+        qgrp_zoom = QtWid.QGroupBox("Zoom")
+        qgrp_zoom.setLayout(grid)
         
         # QGROUP: Power spectrum
         self.legend_box_PS = Legend_box(text=['sig_I', 'filt_I'],
@@ -835,11 +833,12 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         #   Round up tab page 'Power spectrum'
         # -----------------------------------
-        # -----------------------------------
+        # -----------------------------------        
         
         grid = QtWid.QGridLayout(spacing=0)
-        grid.addWidget(qgrp_PS, 0, 0, QtCore.Qt.AlignTop)
-        grid.addLayout(grid_PS, 0, 1)
+        grid.addWidget(qgrp_PS   , 0, 0, 2, 1, QtCore.Qt.AlignTop)
+        grid.addWidget(qgrp_zoom , 0, 1)
+        grid.addWidget(self.gw_PS, 1, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
         self.tab_power_spectrum.setLayout(grid)
@@ -873,8 +872,41 @@ class MainWindow(QtWid.QWidget):
                                                    brush=self.BRUSH_03)
         self.pi_filt_resp_BS.addItem(self.curve_filt_resp_BS)
         self.update_plot_filt_resp_BS()
+        self.plot_filt_resp_BS_zoom_ROI()
         
-        # Band-stop filter controls
+        # QGROUP: Zoom
+        self.qpbt_filt_resp_BS_zoom_DC  = QtWid.QPushButton('DC')
+        self.qpbt_filt_resp_BS_zoom_50  = QtWid.QPushButton('50 Hz')
+        self.qpbt_filt_resp_BS_zoom_low = QtWid.QPushButton('0 - 200 Hz')
+        self.qpbt_filt_resp_BS_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
+        self.qpbt_filt_resp_BS_zoom_all = QtWid.QPushButton('Full range')
+        self.qpbt_filt_resp_BS_zoom_ROI = QtWid.QPushButton('ROI range')
+
+        self.qpbt_filt_resp_BS_zoom_DC.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_resp_BS, 0, 2))
+        self.qpbt_filt_resp_BS_zoom_50.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_resp_BS, 47, 53))        
+        self.qpbt_filt_resp_BS_zoom_low.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_resp_BS, 0, 200))
+        self.qpbt_filt_resp_BS_zoom_mid.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_resp_BS, 0, 1000))
+        self.qpbt_filt_resp_BS_zoom_all.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_resp_BS, 0, self.lockin.config.F_Nyquist))
+        self.qpbt_filt_resp_BS_zoom_ROI.clicked.connect(
+                self.plot_filt_resp_BS_zoom_ROI)
+            
+        grid = QtWid.QGridLayout()
+        grid.addWidget(self.qpbt_filt_resp_BS_zoom_DC , 0, 0)
+        grid.addWidget(self.qpbt_filt_resp_BS_zoom_50 , 0, 1)
+        grid.addWidget(self.qpbt_filt_resp_BS_zoom_low, 0, 2)
+        grid.addWidget(self.qpbt_filt_resp_BS_zoom_mid, 0, 3)
+        grid.addWidget(self.qpbt_filt_resp_BS_zoom_all, 0, 4)
+        grid.addWidget(self.qpbt_filt_resp_BS_zoom_ROI, 0, 5)
+        
+        qgrp_zoom = QtWid.QGroupBox("Zoom")
+        qgrp_zoom.setLayout(grid)
+        
+        # QGROUP: Filter design band-stop
         self.qtbl_filt_BS = QtWid.QTableWidget()
 
         default_font_pt = QtWid.QApplication.font().pointSize()
@@ -942,9 +974,6 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.qlin_filt_BS_window              , i, 0, 1, 3)
         grid.setAlignment(QtCore.Qt.AlignTop)
         
-        qgrp_controls_filt_BS = QtWid.QGroupBox("Filter design")
-        qgrp_controls_filt_BS.setLayout(grid)
-        
         self.qpbt_filt_BS_coupling.clicked.connect(
                 self.process_filt_BS_coupling)
         self.qlin_filt_BS_DC_cutoff.editingFinished.connect(
@@ -954,6 +983,9 @@ class MainWindow(QtWid.QWidget):
                 self.process_qtbl_filt_BS_cellChanged)
         self.qtbl_filt_BS_cellChanged_lock = False  # Ignore cellChanged event
                                                     # when locked
+
+        qgrp_design_filt_BS = QtWid.QGroupBox("Filter design")
+        qgrp_design_filt_BS.setLayout(grid)
         
         # -----------------------------------
         # -----------------------------------
@@ -962,8 +994,9 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         grid = QtWid.QGridLayout(spacing=0)
-        grid.addWidget(qgrp_controls_filt_BS, 0, 0, QtCore.Qt.AlignTop)
-        grid.addWidget(self.gw_filt_resp_BS, 0, 1)
+        grid.addWidget(qgrp_design_filt_BS , 0, 0, 2, 1, QtCore.Qt.AlignTop)
+        grid.addWidget(qgrp_zoom           , 0, 1)
+        grid.addWidget(self.gw_filt_resp_BS, 1, 1)
         grid.setColumnStretch(1, 1)
         self.tab_filter_1_design.setLayout(grid)
         
@@ -996,6 +1029,7 @@ class MainWindow(QtWid.QWidget):
                                                    brush=self.BRUSH_03)
         self.pi_filt_resp_LP.addItem(self.curve_filt_resp_LP)
         self.update_plot_filt_resp_LP()
+        self.plot_filt_resp_LP_zoom_ROI()
         
         # -----------------------------------
         # -----------------------------------
@@ -1519,27 +1553,36 @@ class MainWindow(QtWid.QWidget):
         self.curve_filt_resp_BS.setFillLevel(np.min(firf.resp_ampl_dB))
         self.curve_filt_resp_BS.setData(firf.resp_freq_Hz,
                                         firf.resp_ampl_dB)
+        #self.pi_filt_resp_BS.setTitle('Filter response: band-stop<br/>%s' %
+        #                              self.construct_title_plot_filt_resp(firf))
+        
+    @QtCore.pyqtSlot()
+    def plot_filt_resp_BS_zoom_ROI(self):
+        firf = self.lockin_pyqt.firf_BS_sig_I
         self.pi_filt_resp_BS.setXRange(firf.resp_freq_Hz__ROI_start,
                                        firf.resp_freq_Hz__ROI_end,
                                        padding=0.01)
-        self.pi_filt_resp_BS.setTitle('Filter response: band-stop<br/>%s' %
-                                      self.construct_title_plot_filt_resp(firf))
+        
     @QtCore.pyqtSlot()
     def update_plot_filt_resp_LP(self):
         firf = self.lockin_pyqt.firf_LP_mix_X
         self.curve_filt_resp_LP.setFillLevel(np.min(firf.resp_ampl_dB))
         self.curve_filt_resp_LP.setData(firf.resp_freq_Hz,
                                         firf.resp_ampl_dB)
+        #self.pi_filt_resp_LP.setTitle('Filter response: low-pass<br/>%s' %
+        #                              self.construct_title_plot_filt_resp(firf))
+    
+    @QtCore.pyqtSlot()
+    def plot_filt_resp_LP_zoom_ROI(self):
+        firf = self.lockin_pyqt.firf_LP_mix_X
         self.pi_filt_resp_LP.setXRange(firf.resp_freq_Hz__ROI_start,
                                        firf.resp_freq_Hz__ROI_end,
                                        padding=0.01)
-        self.pi_filt_resp_LP.setTitle('Filter response: low-pass<br/>%s' %
-                                      self.construct_title_plot_filt_resp(firf))
         
-    def power_spectrum_zoom(self, xRangeLo, xRangeHi):
-        self.pi_PS.setXRange(xRangeLo, xRangeHi, padding=0.02)
-        self.pi_PS.enableAutoRange('y', True)
-        self.pi_PS.enableAutoRange('y', False)
+    def plot_zoom_x(self, pi_plot: pg.PlotItem, xRangeLo, xRangeHi):
+        pi_plot.setXRange(xRangeLo, xRangeHi, padding=0.02)
+        pi_plot.enableAutoRange('y', True)
+        pi_plot.enableAutoRange('y', False)
         
 if __name__ == "__main__":
     exec(open("DvG_Arduino_lockin_amp.py").read())
