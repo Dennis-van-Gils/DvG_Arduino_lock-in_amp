@@ -196,16 +196,16 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         # TODO: turn 'use_narrower_filter' into a toggle button UI
         use_narrower_filter = False
         if use_narrower_filter:
-            firwin_cutoff = [  0.5,  49.5, 
-                              50.5,  99.5, 
-                             100.5, 149.5,
-                             150.5]
+            firwin_cutoff = [  0.5,
+                              49.5,  50.5,
+                              99.5, 100.5,
+                             149.5, 150.5]
             firwin_window = ("chebwin", 50)
         else:
-            firwin_cutoff = [  0.9,  49.0,
-                              51.0,  99.0,
-                             101.0, 149.0,
-                             151.0]
+            firwin_cutoff = [   0.9,
+                               48.5,  51.5, 
+                               98.5, 101.5,
+                              148.5, 151.5]
             firwin_window = "blackmanharris"
         self.firf_1_sig_I = Buffered_FIR_Filter(self.state.buffer_size,
                                                 self.state.N_buffers_in_deque,
