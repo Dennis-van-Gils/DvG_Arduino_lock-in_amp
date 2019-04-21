@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "18-04-2019"
+__date__        = "21-04-2019"
 __version__     = "1.0.0"
 
 import os
@@ -147,7 +147,7 @@ def lockin_DAQ_update():
     # Apply filter 1 to sig_I
     filt_I = lockin_pyqt.firf_1_sig_I.process(state.deque_sig_I)
     
-    # Retrieve the block of original data from the past that alligns with
+    # Retrieve the block of original data from the past that aligns with
     # the current filter output
     time_1    = (np.array(state.deque_time, dtype=np.int64)
                  [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
@@ -183,7 +183,7 @@ def lockin_DAQ_update():
     out_X = lockin_pyqt.firf_2_mix_X.process(state.deque_mix_X)
     out_Y = lockin_pyqt.firf_2_mix_Y.process(state.deque_mix_Y)
     
-    # Retrieve the block of original data from the past that alligns with
+    # Retrieve the block of original data from the past that aligns with
     # the current filter output
     time_2 = (np.array(state.deque_time_1, dtype=np.int64)
               [lockin_pyqt.firf_2_mix_X.win_idx_valid_start:
@@ -219,25 +219,18 @@ def lockin_DAQ_update():
         
     # Power spectrum
     # --------------
+    
     if len(state.deque_sig_I) == state.deque_sig_I.maxlen:
         # When scaling='spectrum', Pxx returns units of V^2
         # When scaling='density', Pxx returns units of V^2/Hz
         [f, Pxx] = welch(state.deque_sig_I, fs=c.Fs, nperseg=10250,
                          scaling='spectrum')
-       
-        # From Matlab 'pow2db'
-        # We want to guarantee that the result is an integer if y is a negative
-        # power of 10. To do so, we force some rounding of precision by adding
-        # 300-300.
-        Pxx_dB = (10 * np.log10(Pxx) + 300) - 300
-        
-        window.BP_PS_1.set_data(f, Pxx_dB)
+        window.BP_PS_1.set_data(f, 10 * np.log10(Pxx))
         
     if len(state.deque_filt_I) == state.deque_filt_I.maxlen:
         [f, Pxx] = welch(state.deque_filt_I, fs=c.Fs, nperseg=10250,
                          scaling='spectrum')
-        Pxx_dB = (10 * np.log10(Pxx) + 300) - 300        
-        window.BP_PS_2.set_data(f, Pxx_dB)
+        window.BP_PS_2.set_data(f, 10 * np.log10(Pxx))
     
     # Add new data to charts
     # ----------------------
