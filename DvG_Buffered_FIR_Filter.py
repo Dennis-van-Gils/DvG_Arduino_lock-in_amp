@@ -111,7 +111,7 @@ class Buffered_FIR_Filter():
         #  Select region of interest for plotting later on
         # -------------------------------------------------
         # First flat-line all power below the dB floor
-        dB_floor = -80
+        dB_floor = -120
         idx_dB_floor = np.asarray(self.full_resp_ampl_dB<dB_floor).nonzero()[0]
         __ampl_dB = self.full_resp_ampl_dB
         __ampl_dB[idx_dB_floor] = dB_floor
