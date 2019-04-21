@@ -425,7 +425,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(QtWid.QLabel("Filter @ mix_X/Y"), 1, 0)
         grid.addWidget(self.LED_filt_2_deque_settled   , 1, 1)
         
-        qgrp_settling = QtWid.QGroupBox("Filter buffers settled?")
+        qgrp_settling = QtWid.QGroupBox("Buffers settled?")
         qgrp_settling.setLayout(grid)
 
         # Round up frame
@@ -789,6 +789,9 @@ class MainWindow(QtWid.QWidget):
         
         self.BP_PS_1 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_03))
         self.BP_PS_2 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_04))
+        self.BP_PS_3 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_01))
+        self.BP_PS_4 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_02))
+        self.BP_PSs = [self.BP_PS_1, self.BP_PS_2, self.BP_PS_3, self.BP_PS_4]
         
         # QGROUP: Zoom
         self.qpbt_PS_zoom_low = QtWid.QPushButton('0 - 200 Hz')
@@ -811,8 +814,9 @@ class MainWindow(QtWid.QWidget):
         qgrp_zoom.setLayout(grid)
         
         # QGROUP: Power spectrum
-        self.legend_box_PS = Legend_box(text=['sig_I', 'filt_I'],
-                                        pen=[self.PEN_03, self.PEN_04])
+        self.legend_box_PS = Legend_box(
+                text=['sig_I', 'filt_I', 'mix_X', 'mix_Y'],
+                pen=[self.PEN_03, self.PEN_04, self.PEN_01, self.PEN_02])
         ([chkb.clicked.connect(self.process_chkbs_legend_box_PS) for chkb
           in self.legend_box_PS.chkbs])
     
@@ -1426,10 +1430,10 @@ class MainWindow(QtWid.QWidget):
             
     @QtCore.pyqtSlot()
     def update_plot_PS(self):
-        self.BP_PS_1.update_curve()
-        self.BP_PS_2.update_curve()
-        self.BP_PS_1.curve.setVisible(self.legend_box_PS.chkbs[0].isChecked())
-        self.BP_PS_2.curve.setVisible(self.legend_box_PS.chkbs[1].isChecked())    
+        [BP.update_curve() for BP in self.BP_PSs]
+        for i in range(len(self.BP_PSs)):
+            self.BP_PSs[i].curve.setVisible(
+                    self.legend_box_PS.chkbs[i].isChecked())
         
     @QtCore.pyqtSlot()
     def update_plot_filt_1_resp(self):

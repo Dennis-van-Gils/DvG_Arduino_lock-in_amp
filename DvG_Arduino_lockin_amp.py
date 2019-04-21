@@ -217,14 +217,15 @@ def lockin_DAQ_update():
     state.deque_out_R.extend(out_R)
     state.deque_out_T.extend(out_T)
         
-    # Power spectrum
-    # --------------
+    # Power spectra
+    # -------------
+    # scipy.signal.welch()
+    # When scaling='spectrum', Pxx returns units of V^2
+    # When scaling='density', Pxx returns units of V^2/Hz
+    # Note: Amplitude ratio in dB: 20 log_10(A1/A2)
+    #       Power     ratio in dB: 10 log_10(P1/P2)
     
     if len(state.deque_sig_I) == state.deque_sig_I.maxlen:
-        # When scaling='spectrum', Pxx returns units of V^2
-        # When scaling='density', Pxx returns units of V^2/Hz
-        # Note: Amplitude ratio in dB: 20 log_10(A1/A2)
-        #       Power     ratio in dB: 10 log_10(P1/P2)
         [f, Pxx] = welch(state.deque_sig_I, fs=c.Fs, nperseg=10250,
                          scaling='spectrum')
         window.BP_PS_1.set_data(f, 10 * np.log10(Pxx))
@@ -233,6 +234,16 @@ def lockin_DAQ_update():
         [f, Pxx] = welch(state.deque_filt_I, fs=c.Fs, nperseg=10250,
                          scaling='spectrum')
         window.BP_PS_2.set_data(f, 10 * np.log10(Pxx))
+        
+    if len(state.deque_mix_X) == state.deque_mix_X.maxlen:
+        [f, Pxx] = welch(state.deque_mix_X, fs=c.Fs, nperseg=10250,
+                         scaling='spectrum')
+        window.BP_PS_3.set_data(f, 10 * np.log10(Pxx))
+        
+    if len(state.deque_mix_Y) == state.deque_mix_Y.maxlen:
+        [f, Pxx] = welch(state.deque_mix_Y, fs=c.Fs, nperseg=10250,
+                         scaling='spectrum')
+        window.BP_PS_4.set_data(f, 10 * np.log10(Pxx))
     
     # Add new data to charts
     # ----------------------
