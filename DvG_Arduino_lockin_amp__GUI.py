@@ -415,17 +415,17 @@ class MainWindow(QtWid.QWidget):
         qgrp_axes_controls = QtWid.QGroupBox("Zoom timeseries")
         qgrp_axes_controls.setLayout(grid)
 
-        # QGROUP: Filters settled?
-        self.LED_settled_BG_filter = create_LED_indicator_rect(False, 'NO')
-        self.LED_settled_2_filter = create_LED_indicator_rect(False, 'NO')
+        # QGROUP: Filter deques settled?
+        self.LED_filt_1_deque_settled = create_LED_indicator_rect(False, 'NO')
+        self.LED_filt_2_deque_settled = create_LED_indicator_rect(False, 'NO')
         
         grid = QtWid.QGridLayout(spacing=4)
         grid.addWidget(QtWid.QLabel("Filter @ sig_I")  , 0, 0)
-        grid.addWidget(self.LED_settled_BG_filter         , 0, 1)
+        grid.addWidget(self.LED_filt_1_deque_settled   , 0, 1)
         grid.addWidget(QtWid.QLabel("Filter @ mix_X/Y"), 1, 0)
-        grid.addWidget(self.LED_settled_2_filter         , 1, 1)
+        grid.addWidget(self.LED_filt_2_deque_settled   , 1, 1)
         
-        qgrp_settling = QtWid.QGroupBox("Filters settled?")
+        qgrp_settling = QtWid.QGroupBox("Filter buffers settled?")
         qgrp_settling.setLayout(grid)
 
         # Round up frame
@@ -1103,18 +1103,18 @@ class MainWindow(QtWid.QWidget):
         self.qlin_R_avg.setText("%.4f" % np.mean(LIA_pyqt.state.R))
         self.qlin_T_avg.setText("%.3f" % np.mean(LIA_pyqt.state.T))
         
-        if LIA_pyqt.firf_1_sig_I.has_settled:
-            self.LED_settled_BG_filter.setChecked(True)
-            self.LED_settled_BG_filter.setText("YES")
+        if LIA_pyqt.firf_1_sig_I.deque_has_settled:
+            self.LED_filt_1_deque_settled.setChecked(True)
+            self.LED_filt_1_deque_settled.setText("YES")
         else:
-            self.LED_settled_BG_filter.setChecked(False)
-            self.LED_settled_BG_filter.setText("NO")
-        if LIA_pyqt.firf_2_mix_X.has_settled:
-            self.LED_settled_2_filter.setChecked(True)
-            self.LED_settled_2_filter.setText("YES")
+            self.LED_filt_1_deque_settled.setChecked(False)
+            self.LED_filt_1_deque_settled.setText("NO")
+        if LIA_pyqt.firf_2_mix_X.deque_has_settled:
+            self.LED_filt_2_deque_settled.setChecked(True)
+            self.LED_filt_2_deque_settled.setText("YES")
         else:
-            self.LED_settled_2_filter.setChecked(False)
-            self.LED_settled_2_filter.setText("NO")
+            self.LED_filt_2_deque_settled.setChecked(False)
+            self.LED_filt_2_deque_settled.setText("NO")
             
         self.update_chart_refsig()
         self.update_chart_filt_1()

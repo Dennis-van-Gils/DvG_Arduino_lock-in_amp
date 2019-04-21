@@ -156,7 +156,7 @@ def lockin_DAQ_update():
                  [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                   lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
     
-    if lockin_pyqt.firf_1_sig_I.has_settled:
+    if lockin_pyqt.firf_1_sig_I.deque_has_settled:
         old_ref_X = (np.array(state.deque_ref_X, dtype=np.float64)
                      [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                       lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
@@ -189,7 +189,7 @@ def lockin_DAQ_update():
               [lockin_pyqt.firf_2_mix_X.win_idx_valid_start:
                lockin_pyqt.firf_2_mix_X.win_idx_valid_end])
             
-    if lockin_pyqt.firf_2_mix_X.has_settled:
+    if lockin_pyqt.firf_2_mix_X.deque_has_settled:
         # Signal amplitude and phase reconstruction
         out_R = np.sqrt(out_X**2 + out_Y**2)
         
