@@ -862,7 +862,9 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_1_resp.enableAutoRange('x', False)
         self.pi_filt_1_resp.enableAutoRange('y', True)
         self.pi_filt_1_resp.setClipToView(True)
-        self.pi_filt_1_resp.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
+        self.pi_filt_1_resp.setLimits(xMin=0,
+                                      xMax=self.lockin.config.F_Nyquist,
+                                      yMin=-120)
         
         self.curve_filt_1_resp = pg.PlotCurveItem(pen=self.PEN_03,
                                                   brush=self.BRUSH_03)
@@ -947,7 +949,9 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_2_resp.enableAutoRange('x', False)
         self.pi_filt_2_resp.enableAutoRange('y', True)
         self.pi_filt_2_resp.setClipToView(True)
-        self.pi_filt_2_resp.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
+        self.pi_filt_2_resp.setLimits(xMin=0,
+                                      xMax=self.lockin.config.F_Nyquist,
+                                      yMin=-120)
         
         self.curve_filt_2_resp = pg.PlotCurveItem(pen=self.PEN_03,
                                                   brush=self.BRUSH_03)
