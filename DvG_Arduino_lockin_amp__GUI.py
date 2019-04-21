@@ -235,7 +235,7 @@ class MainWindow(QtWid.QWidget):
                 e.contentsMargins().left() + e.contentsMargins().right())
         del e
 
-        def _frame_Header(): pass # Spider IDE outline bookmark
+        def Header(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   FRAME: Header
@@ -299,7 +299,7 @@ class MainWindow(QtWid.QWidget):
         hbox_header.addStretch(1)
         hbox_header.addLayout(vbox_right)
         
-        def _frame_Tabs(): pass # Spider IDE outline bookmark
+        def Tabs(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   FRAME: Tabs
@@ -321,7 +321,7 @@ class MainWindow(QtWid.QWidget):
         self.tabs.addTab(self.tab_filter_2_design, "Filter design @ mix_X/Y")
         self.tabs.addTab(self.tab_mcu_board_info , "MCU board")
         
-        def _frame_Sidebar(): pass # Spider IDE outline bookmark
+        def Sidebar(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   FRAME: Sidebar
@@ -399,7 +399,7 @@ class MainWindow(QtWid.QWidget):
         # QGROUP: Axes controls
         self.qpbt_fullrange_xy = QtWid.QPushButton("Full range")
         self.qpbt_fullrange_xy.clicked.connect(self.process_qpbt_fullrange_xy)
-        self.qpbt_autorange_xy = QtWid.QPushButton("Autorange")
+        self.qpbt_autorange_xy = QtWid.QPushButton("Auto range")
         self.qpbt_autorange_xy.clicked.connect(self.process_qpbt_autorange_xy)
         self.qpbt_autorange_x = QtWid.QPushButton("Auto x", maximumWidth=80)
         self.qpbt_autorange_x.clicked.connect(self.process_qpbt_autorange_x)
@@ -412,7 +412,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.qpbt_autorange_x , 3, 0)
         grid.addWidget(self.qpbt_autorange_y , 3, 1)
         
-        qgrp_axes_controls = QtWid.QGroupBox("Graphs: timeseries")
+        qgrp_axes_controls = QtWid.QGroupBox("Zoom timeseries")
         qgrp_axes_controls.setLayout(grid)
 
         # QGROUP: Filters settled?
@@ -446,10 +446,10 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
 
-        def _frame_Reference_and_signal(): pass # Spider IDE outline bookmark
+        def Reference_and_signal(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
-        #   Frame: Reference and signal
+        #   FRAME: Reference and signal
         # -----------------------------------
         # -----------------------------------
         
@@ -525,7 +525,7 @@ class MainWindow(QtWid.QWidget):
         qgrp_readings = QtWid.QGroupBox("Readings")
         qgrp_readings.setLayout(grid)
 
-        def _frame_LIA_output(): pass # Spider IDE outline bookmark
+        def LIA_output(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   FRAME: LIA output
@@ -658,10 +658,10 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         
-        def _frame_Filter_1_output(): pass # Spider IDE outline bookmark
+        def Filter_1_output(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
-        #   Frame: Filter 1 output
+        #   FRAME: Filter 1 output
         # -----------------------------------
         # -----------------------------------
         
@@ -702,10 +702,10 @@ class MainWindow(QtWid.QWidget):
         qgrp_filt_1 = QtWid.QGroupBox("Filter @ sig_I")
         qgrp_filt_1.setLayout(self.legend_box_filt_1.grid)
         
-        def _frame_Mixer(): pass # Spider IDE outline bookmark
+        def Mixer(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
-        #   Frame: Mixer
+        #   FRAME: Mixer
         # -----------------------------------
         # -----------------------------------
         
@@ -762,7 +762,7 @@ class MainWindow(QtWid.QWidget):
         
         self.tab_mixer.setLayout(grid)
         
-        def _frame_Power_spectrum(): pass # Spider IDE outline bookmark
+        def Power_spectrum(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -838,7 +838,7 @@ class MainWindow(QtWid.QWidget):
         
         self.tab_power_spectrum.setLayout(grid)
                 
-        def _frame_Filter_1_design(): pass # Spider IDE outline bookmark
+        def Filter_1_design(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -875,7 +875,7 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_filt_1_resp_zoom_low = QtWid.QPushButton('0 - 200 Hz')
         self.qpbt_filt_1_resp_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
         self.qpbt_filt_1_resp_zoom_all = QtWid.QPushButton('Full range')
-        self.qpbt_filt_1_resp_zoom_ROI = QtWid.QPushButton('ROI range')
+        self.qpbt_filt_1_resp_zoom_ROI = QtWid.QPushButton('Region of interest')
 
         self.qpbt_filt_1_resp_zoom_DC.clicked.connect(lambda:
             self.plot_zoom_x(self.pi_filt_1_resp, 0, 2))
@@ -922,7 +922,7 @@ class MainWindow(QtWid.QWidget):
         
         self.tab_filter_1_design.setLayout(grid)
         
-        def _frame_Filter_2_design(): pass # Spider IDE outline bookmark
+        def Filter_2_design(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -959,7 +959,7 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_filt_2_resp_zoom_low = QtWid.QPushButton('0 - 200 Hz')
         self.qpbt_filt_2_resp_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
         self.qpbt_filt_2_resp_zoom_all = QtWid.QPushButton('Full range')
-        self.qpbt_filt_2_resp_zoom_ROI = QtWid.QPushButton('ROI range')
+        self.qpbt_filt_2_resp_zoom_ROI = QtWid.QPushButton('Region of interest')
 
         self.qpbt_filt_2_resp_zoom_DC.clicked.connect(lambda:
             self.plot_zoom_x(self.pi_filt_2_resp, 0, 2))
@@ -987,7 +987,7 @@ class MainWindow(QtWid.QWidget):
         
         # QGROUP: Filter design
         self.filt_2_design_GUI = Filter_design_GUI(
-                self.lockin_pyqt.firf_2_mix_X)
+                [self.lockin_pyqt.firf_2_mix_X, self.lockin_pyqt.firf_2_mix_Y])
         self.filt_2_design_GUI.signal_filter_design_updated.connect(
                 self.update_plot_filt_2_resp)
         
@@ -1209,7 +1209,9 @@ class MainWindow(QtWid.QWidget):
         
         self.lockin_pyqt.firf_2_mix_X.compute_firwin(cutoff=f_cutoff)
         self.lockin_pyqt.firf_2_mix_Y.compute_firwin(cutoff=f_cutoff)
+        self.filt_2_design_GUI.update_filter_design()
         self.update_plot_filt_2_resp()
+        self.plot_zoom_ROI_filt_2()
         
         self.lockin_pyqt.state.reset()
         self.clear_chart_histories_stage_1_and_2()
@@ -1450,12 +1452,7 @@ class MainWindow(QtWid.QWidget):
         __tmp3 = '%s Hz' % [round(x, 1) for x in firf.cutoff]        
         
         return ('%s, %s, %s' % (__tmp1, __tmp2, __tmp3))
-    
-    def update_filt_1_design(self):
-        self.populate_filt_1_design_controls()
-        self.lockin_pyqt.firf_1_sig_I.calc_freqz_response()
-        self.update_plot_filt_1_resp()
-    
+
     @QtCore.pyqtSlot()
     def plot_zoom_ROI_filt_1(self):
         firf = self.lockin_pyqt.firf_1_sig_I

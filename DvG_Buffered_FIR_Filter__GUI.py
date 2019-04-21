@@ -18,10 +18,15 @@ class Filter_design_GUI(QtCore.QObject):
     def __init__(self, firf: Buffered_FIR_Filter, parent=None):
         super().__init__(parent=parent)
     
-        self.firf = firf
+        # Accept either a single instance of Buffered_FIR_Filter or accept
+        # a list of Buffered_FIR_Filter instances.
+        if not isinstance(firf, list):
+            firf = [firf]
+        
+        self.firfs = firf
         self.qgrp = QtWid.QGroupBox("Filter design")
         self.create_GUI()
-        
+
     # --------------------------------------------------------------------------
     #   create_GUI
     # --------------------------------------------------------------------------
@@ -84,7 +89,7 @@ class Filter_design_GUI(QtCore.QObject):
         self.qpbt_coupling = QtWid.QPushButton("AC", checkable=True)
         self.qlin_DC_cutoff = QtWid.QLineEdit(**{**p1, **p2})
         self.qlin_window = QtWid.QLineEdit(readOnly=True)
-        self.qlin_window.setText(self.firf.window_description)
+        self.qlin_window.setText(self.firfs[0].window_description)
                 
         i = 0
         grid = QtWid.QGridLayout()
@@ -112,9 +117,9 @@ class Filter_design_GUI(QtCore.QObject):
         self.qgrp.setLayout(grid)
     
     def populate_design_controls(self):
-        freq_list = self.firf.cutoff;
+        freq_list = self.firfs[0].cutoff;
         
-        if self.firf.pass_zero:
+        if self.firfs[0].pass_zero:
             self.qpbt_coupling.setText("DC")
             self.qpbt_coupling.setChecked(True)
             self.qlin_DC_cutoff.setEnabled(False)
@@ -149,19 +154,20 @@ class Filter_design_GUI(QtCore.QObject):
         if DC_cutoff <= 0: DC_cutoff = 1.0
         self.qlin_DC_cutoff.setText("%.1f" % DC_cutoff)
         
-        cutoff = self.firf.cutoff
+        cutoff = self.firfs[0].cutoff
         if self.qpbt_coupling.isChecked():
             pass_zero = True
-            if not self.firf.pass_zero:
+            if not self.firfs[0].pass_zero:
                 cutoff = cutoff[1:]
         else:
             pass_zero = False
-            if self.firf.pass_zero:
+            if self.firfs[0].pass_zero:
                 cutoff = np.insert(cutoff, 0, DC_cutoff)
             else:
                 cutoff[0] = DC_cutoff
         
-        self.firf.compute_firwin(cutoff=cutoff, pass_zero=pass_zero)
+        for firf in self.firfs:
+            firf.compute_firwin(cutoff=cutoff, pass_zero=pass_zero)
         self.update_filter_design()
         
     @QtCore.pyqtSlot(int, int)
@@ -171,12 +177,12 @@ class Filter_design_GUI(QtCore.QObject):
         #print("cellChanged %i %i" % (k, l))
         
         # Construct the cutoff list
-        if self.firf.pass_zero:
+        if self.firfs[0].pass_zero:
             # Input coupling: DC
             cutoff = np.array([])
         else:
             # Input coupling: AC
-            cutoff = self.firf.cutoff[0]
+            cutoff = self.firfs[0].cutoff[0]
 
         for row in range(self.qtbl_bandstop.rowCount()):
             for col in range(self.qtbl_bandstop.columnCount()):
@@ -188,7 +194,8 @@ class Filter_design_GUI(QtCore.QObject):
                 except ValueError:
                     value = None
         
-        self.firf.compute_firwin(cutoff=cutoff)
+        for firf in self.firfs:
+            firf.compute_firwin(cutoff=cutoff)
         self.update_filter_design()
         
     def update_filter_design(self):
