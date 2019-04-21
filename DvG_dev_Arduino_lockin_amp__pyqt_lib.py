@@ -17,7 +17,6 @@ import time as Time
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
-#from DvG_Buffered_FIR_Filter__CUDA import Buffered_FIR_Filter
 
 # ------------------------------------------------------------------------------
 #   Arduino_pyqt
