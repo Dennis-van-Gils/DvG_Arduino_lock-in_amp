@@ -67,12 +67,12 @@ class Buffered_FIR_Filter():
         else:
             self.window_description = '%s' % [x for x in self.window]
         
-        # Create filter
-        self.design_fir_filter()
+        # Compute the filter
+        self.compute_firwin()
         
-    def design_fir_filter(self, cutoff=None, window=None, pass_zero=None):
+    def compute_firwin(self, cutoff=None, window=None, pass_zero=None):
         """Check cutoff frequencies for illegal values and cap when necessary,
-        create the FIR filter, and calculate the frequency response.
+        compute the FIR filter and the frequency response.
         """
         if cutoff is not None:
             self.cutoff = cutoff
@@ -91,63 +91,15 @@ class Buffered_FIR_Filter():
                         window=self.window,
                         pass_zero=self.pass_zero,
                         fs=self.Fs)
-        self.calc_freqz_response()
+        self.compute_freqz()
         #self.report()
         
         if USE_CUDA_ACCELERATION:
             # Copy to cupy array (resides at the GPU!)
             self.b_cp = cupy.array(self.b)
-
-    def _constrain_cutoff(self):
-        """Check cutoff frequencies for illegal values and cap when necessary,
-        sort by increasing value and remove duplicates.
-        I.e.:
-        Frequencies <= 0 Hz will be removed.
-        Frequencies >= Nyquist freq. will be set to Nyquist - 'cutoff_grain'.
-        cutoff_grain = 1e-6 Hz
-        """
-        cutoff_grain = 1e-6
-        cutoff = np.array(self.cutoff, dtype=np.float64, ndmin=1)
-        cutoff = cutoff[cutoff > 0]
-        cutoff[cutoff >= self.Fs/2] = (self.Fs/2 - cutoff_grain)
-        self.cutoff = np.unique(np.sort(cutoff))
-        
-    def process(self, deque_sig_in: deque):
-        """
-        """
-        
-        #print("%s: %i" % (self.display_name, len(deque_sig_in)))
-        if (len(deque_sig_in) < self.N_deque) or np.isnan(deque_sig_in).any():
-            # Start-up. Filter still needs time to settle.
-            self.has_settled = False
-            valid_out = np.array([np.nan] * self.buffer_size)
-        else:
-            self.has_settled = True
-            """Select window out of the signal deque to feed into the
-            convolution. By optimal design, this happens to be the full deque.
-            Returns valid filtered signal output of current window.
-            """
-            #tick = Time.perf_counter()
-            if USE_CUDA_ACCELERATION:
-                cp_valid_out = sp.convolve(cupy.array(list(deque_sig_in)),
-                                           self.b_cp,
-                                           mode='valid')
-                valid_out = cupy.asnumpy(cp_valid_out)
-            else:
-                valid_out = fftconvolve(deque_sig_in, self.b, mode='valid')
-            #print("%.1f" % ((Time.perf_counter() - tick)*1000))
-        
-        if self.has_settled and not(self.was_settled):
-            #print("%s: Filter has settled" % self.display_name)
-            self.was_settled = True
-        elif not(self.has_settled) and self.was_settled:
-            #print("%s: Filter has reset" % self.display_name)
-            self.was_settled = False
-        
-        return valid_out
-        
-    def calc_freqz_response(self, worN=2**18):
-        # Calculate full frequency response.
+            
+    def compute_freqz(self, worN=2**18):
+        # Compute the full frequency response.
         # Note that these arrays will become of length 'worN', which could
         # overwhelm a user-interface when plotting such large number of points.
         w, h = freqz(self.b, worN=worN)
@@ -200,6 +152,54 @@ class Buffered_FIR_Filter():
         self.resp_freq_Hz   = self.full_resp_freq_Hz[idx_keep]
         self.resp_ampl_dB   = self.full_resp_ampl_dB[idx_keep]
         self.resp_phase_rad = self.full_resp_phase_rad[idx_keep]
+
+    def _constrain_cutoff(self):
+        """Check cutoff frequencies for illegal values and cap when necessary,
+        sort by increasing value and remove duplicates.
+        I.e.:
+        Frequencies <= 0 Hz will be removed.
+        Frequencies >= Nyquist freq. will be set to Nyquist - 'cutoff_grain'.
+        cutoff_grain = 1e-6 Hz
+        """
+        cutoff_grain = 1e-6
+        cutoff = np.array(self.cutoff, dtype=np.float64, ndmin=1)
+        cutoff = cutoff[cutoff > 0]
+        cutoff[cutoff >= self.Fs/2] = (self.Fs/2 - cutoff_grain)
+        self.cutoff = np.unique(np.sort(cutoff))
+        
+    def process(self, deque_sig_in: deque):
+        """
+        """
+        
+        #print("%s: %i" % (self.display_name, len(deque_sig_in)))
+        if (len(deque_sig_in) < self.N_deque) or np.isnan(deque_sig_in).any():
+            # Start-up. Filter still needs time to settle.
+            self.has_settled = False
+            valid_out = np.array([np.nan] * self.buffer_size)
+        else:
+            self.has_settled = True
+            """Select window out of the signal deque to feed into the
+            convolution. By optimal design, this happens to be the full deque.
+            Returns valid filtered signal output of current window.
+            """
+            #tick = Time.perf_counter()
+            if USE_CUDA_ACCELERATION:
+                cp_valid_out = sp.convolve(cupy.array(list(deque_sig_in)),
+                                           self.b_cp,
+                                           mode='valid')
+                valid_out = cupy.asnumpy(cp_valid_out)
+            else:
+                valid_out = fftconvolve(deque_sig_in, self.b, mode='valid')
+            #print("%.1f" % ((Time.perf_counter() - tick)*1000))
+        
+        if self.has_settled and not(self.was_settled):
+            #print("%s: Filter has settled" % self.display_name)
+            self.was_settled = True
+        elif not(self.has_settled) and self.was_settled:
+            #print("%s: Filter has reset" % self.display_name)
+            self.was_settled = False
+        
+        return valid_out
         
     def report(self):
         print('--------------------------------')
