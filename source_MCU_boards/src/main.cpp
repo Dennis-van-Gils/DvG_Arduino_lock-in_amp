@@ -30,7 +30,7 @@ proper bindings to strncmpi
 "C_Cpp.intelliSenseEngineFallback": "Disabled"
 
 Dennis van Gils
-01-04-2019
+14-04-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -223,8 +223,10 @@ void create_LUT() {
     Interrupt service routine (isr) for phase-sentive detection (psd)
 ------------------------------------------------------------------------------*/
 volatile bool fRunning = false;
-volatile uint16_t N_buffers_scheduled_to_be_sent = 0;
-uint16_t N_sent_buffers = 0;
+#ifdef DEBUG
+  volatile uint16_t N_buffers_scheduled_to_be_sent = 0;
+  uint16_t N_sent_buffers = 0;
+#endif
 
 void isr_psd() {
   static bool fPrevRunning = fRunning;
@@ -260,6 +262,10 @@ void isr_psd() {
   // stabilize.
   syncADC();
   #if defined(__SAMD21__)
+    ADC->SWTRIG.bit.START = 1;
+    while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
+    syncADC();
+    sig_I = ADC->RESULT.reg;
     ADC->SWTRIG.bit.START = 1;
     while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
     syncADC();
@@ -302,10 +308,14 @@ void isr_psd() {
 
   // Ready to send the buffer?
   if (write_idx == BUFFER_SIZE) {
-    N_buffers_scheduled_to_be_sent++;
+    #ifdef DEBUG
+      N_buffers_scheduled_to_be_sent++;
+    #endif
     fSend_buffer_A = true;
   } else if (write_idx == DOUBLE_BUFFER_SIZE) {
-    N_buffers_scheduled_to_be_sent++;
+    #ifdef DEBUG
+      N_buffers_scheduled_to_be_sent++;
+    #endif
     fSend_buffer_B = true;
     write_idx = 0;
   }
@@ -410,8 +420,8 @@ void setup() {
   // Set differential mode on A1(+) and A2(-)
   #if defined (__SAMD21__)
     ADC->CTRLB.bit.DIFFMODE = 1;
-    ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
-    ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
+    ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+    ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
     ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
     ADC->REFCTRL.bit.REFSEL = 2;  // 2: INTVCC1 on SAMD21 = 1/2 VDDANA
   #elif defined(__SAMD51__)
@@ -429,11 +439,11 @@ void setup() {
     ADC0->CALIB.bit.BIASREFBUF = NVM_ADC0_BIASREFBUF;
     ADC0->CALIB.bit.BIASR2R    = NVM_ADC0_BIASR2R;
     delay(10);
-    //*/
+    */
 
     ADC0->INPUTCTRL.bit.DIFFMODE = 1;
-    ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[PIN_A1].ulADCChannelNumber;
-    ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[PIN_A2].ulADCChannelNumber;
+    ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+    ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
     // ADC0->INPUTCTRL.bit.GAIN does not exist on SAMD51
     ADC0->REFCTRL.bit.REFSEL = 3; // 3: INTVCC1 on SAMD51 = VDDANA
 
@@ -601,8 +611,10 @@ void loop() {
           // Start lock-in amp
           noInterrupts();
           fRunning = true;
-          N_buffers_scheduled_to_be_sent = 0;
-          N_sent_buffers = 0;
+          #ifdef DEBUG
+            N_buffers_scheduled_to_be_sent = 0;
+            N_sent_buffers = 0;
+          #endif
           fSend_buffer_A = false;
           fSend_buffer_B = false;
           interrupts();
@@ -647,10 +659,12 @@ void loop() {
 
   // Send buffers over the data channel
   if (fRunning && (fSend_buffer_A || fSend_buffer_B)) {
-    int32_t  bytes_sent = 0;
-    uint16_t dropped_buffers = 0;
     uint16_t idx;
-    bool fError = false;
+    #ifdef DEBUG
+      int32_t  bytes_sent = 0;
+      uint16_t dropped_buffers = 0;
+      bool fError = false;
+    #endif
 
     if (fSend_buffer_A) {idx = 0;} else {idx = BUFFER_SIZE;}
 
@@ -670,21 +684,40 @@ void loop() {
 
     // Contrary to Arduino documentation, 'write' can return -1 as indication
     // of an error, e.g. the receiving side being overrun with data.
-    int32_t w = Ser_data.write((uint8_t *) &SOM, N_BYTES_SOM);
-    if (w == -1) {fError = true;} else {bytes_sent += w;}
+    #ifdef DEBUG
+      int32_t w = Ser_data.write((uint8_t *) &SOM, N_BYTES_SOM);
+      if (w == -1) {fError = true;} else {bytes_sent += w;}
+    #else
+      Ser_data.write((uint8_t *) &SOM, N_BYTES_SOM);
+    #endif
 
-    w = Ser_data.write((uint8_t *) &buffer_time[idx], N_BYTES_TIME);
-    if (w == -1) {fError = true;} else {bytes_sent += w;}
+    #ifdef DEBUG
+      w = Ser_data.write((uint8_t *) &buffer_time[idx], N_BYTES_TIME);
+      if (w == -1) {fError = true;} else {bytes_sent += w;}
+    #else
+      Ser_data.write((uint8_t *) &buffer_time[idx], N_BYTES_TIME);
+    #endif
 
-    w = Ser_data.write((uint8_t *) &buffer_ref_X_phase[idx], N_BYTES_REF_X_PHASE);
-    if (w == -1) {fError = true;} else {bytes_sent += w;}
+    #ifdef DEBUG
+      w = Ser_data.write((uint8_t *) &buffer_ref_X_phase[idx], N_BYTES_REF_X_PHASE);
+      if (w == -1) {fError = true;} else {bytes_sent += w;}
+    #else
+      Ser_data.write((uint8_t *) &buffer_ref_X_phase[idx], N_BYTES_REF_X_PHASE);
+    #endif
 
-    w = Ser_data.write((uint8_t *) &buffer_sig_I[idx], N_BYTES_SIG_I);
-    if (w == -1) {fError = true;} else {bytes_sent += w;}
+    #ifdef DEBUG
+      w = Ser_data.write((uint8_t *) &buffer_sig_I[idx], N_BYTES_SIG_I);
+      if (w == -1) {fError = true;} else {bytes_sent += w;}
+    #else
+      Ser_data.write((uint8_t *) &buffer_sig_I[idx], N_BYTES_SIG_I);
+    #endif
 
-    w = Ser_data.write((uint8_t *) &EOM, N_BYTES_EOM);
-    if (w == -1) {fError = true;} else {bytes_sent += w;}
-
+    #ifdef DEBUG
+      w = Ser_data.write((uint8_t *) &EOM, N_BYTES_EOM);
+      if (w == -1) {fError = true;} else {bytes_sent += w;}
+    #else
+      Ser_data.write((uint8_t *) &EOM, N_BYTES_EOM);
+    #endif
     //}
 
     /*
@@ -694,19 +727,21 @@ void loop() {
     //interrupts();   // Uncomment only for debugging purposes
     */
 
-    N_sent_buffers++;
+    #ifdef DEBUG
+      N_sent_buffers++;
+    #endif
     if (fSend_buffer_A) {fSend_buffer_A = false;}
     if (fSend_buffer_B) {fSend_buffer_B = false;}
 
-    noInterrupts();
-    N_buffers_scheduled_to_be_sent--;
-    if (N_buffers_scheduled_to_be_sent != 0) {
-      dropped_buffers = N_buffers_scheduled_to_be_sent;
-      N_buffers_scheduled_to_be_sent = 0;
-    }
-    interrupts();
-
     #ifdef DEBUG
+      noInterrupts();
+      N_buffers_scheduled_to_be_sent--;
+      if (N_buffers_scheduled_to_be_sent != 0) {
+        dropped_buffers = N_buffers_scheduled_to_be_sent;
+        N_buffers_scheduled_to_be_sent = 0;
+      }
+      interrupts();
+
       if ((dropped_buffers == 0) && (bytes_sent == N_BYTES_TRANSMIT_BUFFER)) {
         //Ser_debug << N_sent_buffers << ((idx == 0)?" A ":" B ") << bytes_sent;
         //Ser_debug << " OK" << endl;

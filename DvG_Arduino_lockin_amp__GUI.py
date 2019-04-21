@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "02-04-2019"
+__date__        = "21-04-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -16,16 +16,13 @@ import numpy as np
 
 from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_BufferedPlot import BufferedPlot
-from DvG_pyqt_controls     import (create_Toggle_button,
-                                   create_LED_indicator_rect,
-                                   SS_GROUP,
-                                   SS_GROUP_BORDERLESS,
-                                   SS_TEXTBOX_READ_ONLY)
+from DvG_pyqt_controls     import Legend_box
 from DvG_pyqt_FileLogger   import FileLogger
 from DvG_debug_functions   import dprint
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
+from DvG_Buffered_FIR_Filter__GUI import Filter_design_GUI
 
 # Monkey-patch errors in pyqtgraph v0.10
 import pyqtgraph.exporters
@@ -40,7 +37,7 @@ try:
     import OpenGL.GL as gl
     pg.setConfigOptions(useOpenGL=True)
     pg.setConfigOptions(enableExperimental=False)
-    pg.setConfigOptions(antialias=False)    
+    pg.setConfigOptions(antialias=False)
     print("OpenGL hardware acceleration enabled.")
     USING_OPENGL = True
 except:
@@ -50,6 +47,137 @@ except:
     print("WARNING: Could not enable OpenGL hardware acceleration.")
     print("Check if prerequisite 'PyOpenGL' library is installed.")
     USING_OPENGL = False
+
+# Stylesheets
+# Note: (Top Right Bottom Left)
+    
+COLOR_BG           = "rgb(240, 240, 240)"
+COLOR_LED_RED      = "rgb(0  , 238, 118)"
+COLOR_LED_GREEN    = "rgb(205, 92 , 92 )"
+COLOR_GROUP_BG     = "rgb(252, 208, 173)"
+COLOR_READ_ONLY    = "rgb(250, 230, 210)"
+COLOR_TAB_ACTIVE   = "rgb(207, 225, 225)"
+COLOR_TAB          = "rgb(234, 235, 233)"
+COLOR_HOVER        = "rgb(229, 241, 251)"
+COLOR_HOVER_BORDER = "rgb(0  , 120, 215)"
+
+SS_HOVER = (
+        "QLineEdit:hover {"
+            "background: " + COLOR_HOVER + ";"
+            "border: 1px solid " + COLOR_HOVER_BORDER + ";}"
+        "QCheckBox:hover {"
+            "background: " + COLOR_HOVER + ";"
+            "border: 0px solid " + COLOR_HOVER_BORDER + ";}"
+        "QRadioButton:hover {"
+            "background: " + COLOR_HOVER + ";"
+            "border: 0px solid " + COLOR_HOVER_BORDER + ";}")
+
+SS_TEXTBOX_READ_ONLY = (
+        "QLineEdit {"
+            "border: 1px solid black}"
+        "QLineEdit::read-only {"
+            "border: 1px solid gray;"
+            "background: " + COLOR_READ_ONLY + "}"
+        "QPlainTextEdit {"
+            "border: 1px solid black}"
+        "QPlainTextEdit[readOnly=\"true\"] {"
+            "border: 1px solid gray;"
+            "background-color: " + COLOR_READ_ONLY + "}")
+
+SS_TABS = (
+        "QTabWidget::pane {"
+            "border: 0px solid gray;}"
+        "QTabBar::tab:selected {"
+            "background: " + COLOR_TAB_ACTIVE + "; "
+            "border-bottom-color: " + COLOR_TAB_ACTIVE + ";}"
+        "QTabWidget>QWidget>QWidget {"
+            "border: 2px solid gray;"
+            "background: " + COLOR_TAB_ACTIVE + ";} "
+        "QTabBar::tab {"
+            "background: " + COLOR_TAB + ";"
+            "border: 2px solid gray;"
+            "border-bottom-color: " + COLOR_TAB + ";"
+            "border-top-left-radius: 4px;"
+            "border-top-right-radius: 4px;"
+            "min-width: 42ex;"
+            "padding: 6px;} "
+        "QTabBar::tab:hover {"
+            "background: " + COLOR_HOVER + ";"
+            "border: 2px solid " + COLOR_HOVER_BORDER + ";"
+            "border-bottom-color: " + COLOR_HOVER + ";"
+            "border-top-left-radius: 4px;"
+            "border-top-right-radius: 4px;"
+            "min-width: 42ex;"
+            "padding: 6px;} "
+        "QTabWidget::tab-bar {"
+            "left: 0px;}")
+
+SS_GROUP = (
+        "QGroupBox {"
+            "background-color: " + COLOR_GROUP_BG + ";"
+            "border: 2px solid gray;"
+            "border-radius: 0 px;"
+            "font: bold;"
+            "margin: 0 0 0 0 px;"
+            "padding: 14 0 0 0 px;}"
+        "QGroupBox::title {"
+            "subcontrol-origin: margin;"
+            "subcontrol-position: top left;"
+            "margin: 0 0 0 0 px;"
+            "padding: 0 0 0 0 px;"
+            "top: 4 px;"
+            "left: 4 px;}"
+        "QGroupBox::flat {"
+            "border: 0 px;"
+            "border-radius: 0 0 px;"
+            "padding: 0 0 0 0 px;}")
+
+SS_TOGGLE_BUTTON = (
+        "QPushButton {"
+            "background-color: " + COLOR_BG + ";"
+            "color: black;" +
+            "border-style: outset;"
+            "border-width: 2px;"
+            "border-radius: 4px;"
+            "border-color: gray;"
+            "text-align: center;"
+            "padding: 1px 1px 1px 1px;}"
+        "QPushButton:hover {"
+            "background: " + COLOR_HOVER + ";"
+            "border-color: " + COLOR_HOVER_BORDER + ";}"
+        "QPushButton:disabled {"
+            "color: grey;}"
+        "QPushButton:checked {"
+            "background-color: " + COLOR_LED_RED + ";"
+            "color: black;" +
+            "font-weight: normal;"
+            "border-style: inset;}")
+
+SS_LED_RECT = (
+        "QPushButton {"
+            "background-color: " + COLOR_LED_GREEN + ";"
+            "border: 1px solid grey;"
+            "min-height: 30px;"
+            "min-width: 60px;"
+            "max-width: 60px}"
+        "QPushButton::disabled {"
+            "border-radius: 10px;"
+            "color: black}"
+        "QPushButton::checked {"
+            "background-color: " + COLOR_LED_RED + "}")
+
+def create_Toggle_button(text='', minimumHeight=40):
+    button = QtWid.QPushButton(text, checkable=True)
+    button.setStyleSheet(SS_TOGGLE_BUTTON)
+    if minimumHeight is not None:
+        button.setMinimumHeight(minimumHeight)
+    return button
+
+def create_LED_indicator_rect(initial_state=False, text=''):
+    button = QtWid.QPushButton(text, checkable=True, enabled=False)
+    button.setStyleSheet(SS_LED_RECT)
+    button.setChecked(initial_state)
+    return button
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -68,9 +196,16 @@ class MainWindow(QtWid.QWidget):
         self.lockin_pyqt = lockin_pyqt
         self.file_logger = file_logger
         
-        self.setGeometry(250, 50, 1098, 960)
+        self.setGeometry(250, 50, 1200, 960)
         self.setWindowTitle("Arduino lock-in amplifier")
-        self.setStyleSheet(SS_TEXTBOX_READ_ONLY)
+        self.setStyleSheet(SS_TEXTBOX_READ_ONLY + SS_GROUP + SS_HOVER + 
+                           SS_TABS)
+        
+        """ # Experimental
+        with open('darkorange.stylesheet', 'r') as file:
+            style = file.read()
+        self.setStyleSheet(style)
+        """
         
         # Define styles for plotting curves
         self.PEN_01 = pg.mkPen(color=[255, 30 , 180], width=3)
@@ -84,17 +219,23 @@ class MainWindow(QtWid.QWidget):
         FONT_MONOSPACE.setFamily("Monospace")
         FONT_MONOSPACE.setStyleHint(QtGui.QFont.Monospace)
         
-        # Textbox widths for fitting N characters using the current font
+        # Column width left of timeseries graphs
+        LEFT_COLUMN_WIDTH = 134
+        
+        # Textbox widths for fitting N 'x' characters using the current font
         e = QtGui.QLineEdit()
-        width_chr8  = (8 + 8 * e.fontMetrics().width('x') + 
-                       e.textMargins().left()     + e.textMargins().right() + 
-                       e.contentsMargins().left() + e.contentsMargins().right())
-        width_chr12 = (8 + 12 * e.fontMetrics().width('x') + 
-                       e.textMargins().left()     + e.textMargins().right() + 
-                       e.contentsMargins().left() + e.contentsMargins().right())
+        ex8  = (8 + 8 * e.fontMetrics().width('x') + 
+                e.textMargins().left()     + e.textMargins().right() + 
+                e.contentsMargins().left() + e.contentsMargins().right())
+        ex10 = (8 + 10 * e.fontMetrics().width('x') + 
+                e.textMargins().left()     + e.textMargins().right() + 
+                e.contentsMargins().left() + e.contentsMargins().right())
+        ex12 = (8 + 12 * e.fontMetrics().width('x') + 
+                e.textMargins().left()     + e.textMargins().right() + 
+                e.contentsMargins().left() + e.contentsMargins().right())
         del e
 
-        def _frame_Header(): pass # Spider IDE outline bookmark
+        def Header(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   FRAME: Header
@@ -158,7 +299,7 @@ class MainWindow(QtWid.QWidget):
         hbox_header.addStretch(1)
         hbox_header.addLayout(vbox_right)
         
-        def _frame_Tabs(): pass # Spider IDE outline bookmark
+        def Tabs(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   FRAME: Tabs
@@ -168,19 +309,19 @@ class MainWindow(QtWid.QWidget):
         self.tabs = QtWid.QTabWidget()
         self.tab_main  = QtWid.QWidget()
         self.tab_mixer = QtWid.QWidget()
-        self.tab_power_spectrum = QtWid.QWidget()
-        self.tab_filter_1_response = QtWid.QWidget()
-        self.tab_filter_2_response = QtWid.QWidget()
+        self.tab_power_spectrum  = QtWid.QWidget()
+        self.tab_filter_1_design = QtWid.QWidget()
+        self.tab_filter_2_design = QtWid.QWidget()
         self.tab_mcu_board_info = QtWid.QWidget()
         
-        self.tabs.addTab(self.tab_main             , "Main")
-        self.tabs.addTab(self.tab_mixer            , "Mixer")
-        self.tabs.addTab(self.tab_power_spectrum   , "Power spectrum")
-        self.tabs.addTab(self.tab_filter_1_response, "Filter response: band-stop")
-        self.tabs.addTab(self.tab_filter_2_response, "Filter response: low-pass")
-        self.tabs.addTab(self.tab_mcu_board_info   , "MCU board info")
+        self.tabs.addTab(self.tab_main           , "Main")
+        self.tabs.addTab(self.tab_mixer          , "Mixer")
+        self.tabs.addTab(self.tab_power_spectrum , "Spectrum")
+        self.tabs.addTab(self.tab_filter_1_design, "Filter design @ sig_I")
+        self.tabs.addTab(self.tab_filter_2_design, "Filter design @ mix_X/Y")
+        self.tabs.addTab(self.tab_mcu_board_info , "MCU board")
         
-        def _frame_Sidebar(): pass # Spider IDE outline bookmark
+        def Sidebar(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   FRAME: Sidebar
@@ -188,11 +329,11 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
 
         # On/off
-        self.qpbt_ENA_lockin = create_Toggle_button("lock-in OFF")
+        self.qpbt_ENA_lockin = create_Toggle_button("Lock-in OFF")
         self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
         
         # QGROUP: Reference signal
-        p1 = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8}
+        p1 = {'maximumWidth': ex8, 'minimumWidth': ex8}
         p2 = {**p1, 'readOnly': True}
         self.qlin_set_ref_freq = (
                 QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p1))
@@ -237,7 +378,6 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(QtWid.QLabel("V")           , i, 3)
         
         qgrp_refsig = QtWid.QGroupBox("Reference signal")
-        qgrp_refsig.setStyleSheet(SS_GROUP)
         qgrp_refsig.setLayout(grid)
         
         # QGROUP: Connections
@@ -254,43 +394,43 @@ class MainWindow(QtWid.QWidget):
                                     font=FONT_MONOSPACE), 1, 0)
         
         qgrp_connections = QtWid.QGroupBox("Analog connections")
-        qgrp_connections.setStyleSheet(SS_GROUP)
         qgrp_connections.setLayout(grid)        
 
         # QGROUP: Axes controls
-        self.qpbt_full_axes = QtWid.QPushButton("Full axes")
-        self.qpbt_full_axes.clicked.connect(self.process_qpbt_full_axes)
-        self.qpbt_autorange_x = QtWid.QPushButton("Autorange x")
+        self.qpbt_fullrange_xy = QtWid.QPushButton("Full range")
+        self.qpbt_fullrange_xy.clicked.connect(self.process_qpbt_fullrange_xy)
+        self.qpbt_autorange_xy = QtWid.QPushButton("Auto range")
+        self.qpbt_autorange_xy.clicked.connect(self.process_qpbt_autorange_xy)
+        self.qpbt_autorange_x = QtWid.QPushButton("Auto x", maximumWidth=80)
         self.qpbt_autorange_x.clicked.connect(self.process_qpbt_autorange_x)
-        self.qpbt_autorange_y = QtWid.QPushButton("Autorange y")
+        self.qpbt_autorange_y = QtWid.QPushButton("Auto y", maximumWidth=80)
         self.qpbt_autorange_y.clicked.connect(self.process_qpbt_autorange_y)
         
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(self.qpbt_full_axes  , 0, 0)
-        grid.addWidget(self.qpbt_autorange_x, 1, 0)
-        grid.addWidget(self.qpbt_autorange_y, 2, 0)
+        grid.addWidget(self.qpbt_fullrange_xy, 0, 0, 1, 2)
+        grid.addWidget(self.qpbt_autorange_xy, 2, 0, 1, 2)
+        grid.addWidget(self.qpbt_autorange_x , 3, 0)
+        grid.addWidget(self.qpbt_autorange_y , 3, 1)
         
-        qgrp_axes_controls = QtWid.QGroupBox("Graphs")
-        qgrp_axes_controls.setStyleSheet(SS_GROUP)
+        qgrp_axes_controls = QtWid.QGroupBox("Zoom timeseries")
         qgrp_axes_controls.setLayout(grid)
 
         # QGROUP: Filters settled?
         self.LED_settled_BG_filter = create_LED_indicator_rect(False, 'NO')
-        self.LED_settled_LP_filter = create_LED_indicator_rect(False, 'NO')
+        self.LED_settled_2_filter = create_LED_indicator_rect(False, 'NO')
         
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(QtWid.QLabel("1: band-stop"), 0, 0)
-        grid.addWidget(self.LED_settled_BG_filter  , 0, 1)
-        grid.addWidget(QtWid.QLabel("2: low-pass") , 1, 0)
-        grid.addWidget(self.LED_settled_LP_filter  , 1, 1)
+        grid.addWidget(QtWid.QLabel("Filter @ sig_I")  , 0, 0)
+        grid.addWidget(self.LED_settled_BG_filter         , 0, 1)
+        grid.addWidget(QtWid.QLabel("Filter @ mix_X/Y"), 1, 0)
+        grid.addWidget(self.LED_settled_2_filter         , 1, 1)
         
         qgrp_settling = QtWid.QGroupBox("Filters settled?")
-        qgrp_settling.setStyleSheet(SS_GROUP)
         qgrp_settling.setLayout(grid)
 
         # Round up frame
         vbox_sidebar = QtWid.QVBoxLayout()
-        vbox_sidebar.addItem(QtWid.QSpacerItem(0, 24))
+        vbox_sidebar.addItem(QtWid.QSpacerItem(0, 30))
         vbox_sidebar.addWidget(self.qpbt_ENA_lockin, stretch=0)
         vbox_sidebar.addWidget(qgrp_refsig, stretch=0)
         vbox_sidebar.addWidget(qgrp_connections, stretch=0)
@@ -306,10 +446,10 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
 
-        def _frame_Reference_and_signal(): pass # Spider IDE outline bookmark
+        def Reference_and_signal(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
-        #   Frame: Reference and signal
+        #   FRAME: Reference and signal
         # -----------------------------------
         # -----------------------------------
         
@@ -326,9 +466,12 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
                                  lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0.01)
-        self.pi_refsig.setYRange(1, 3, padding=0.05)
+        self.pi_refsig.setYRange(-3.3, 3.3, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
+        self.pi_refsig.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
+                                 lockin.config.ISR_CLOCK * 1e3,
+                                 xMax=0)
 
         self.CH_ref_X = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_refsig.plot(pen=self.PEN_01))
@@ -341,32 +484,16 @@ class MainWindow(QtWid.QWidget):
         self.CH_sig_I.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_refsig = [self.CH_ref_X, self.CH_ref_Y, self.CH_sig_I]
 
-        # Legend
-        vb = self.gw_refsig.addViewBox(enableMenu=False)
-        vb.setMaximumWidth(80)
-        #vb.setSizePolicy(QtWid.QSizePolicy.Minimum, QtWid.QSizePolicy.Minimum)
-        legend = pg.LegendItem()
-        legend.setParentItem(vb)
-        legend.anchor((0,0), (0,0), offset=(1, 10))
-        legend.setFixedWidth(75)
-        legend.setScale(1)
-        legend.addItem(self.CH_ref_X.curve, name='ref_X')
-        legend.addItem(self.CH_ref_Y.curve, name='ref_Y')
-        legend.addItem(self.CH_sig_I.curve, name='sig_I')
-
         # QGROUP: Readings
-        p = {'layoutDirection': QtCore.Qt.LeftToRight}
-        self.chkbs_refsig = [
-                QtWid.QCheckBox("ref_X", **p, checked=True),
-                QtWid.QCheckBox("ref_Y", **p, checked=False),
-                QtWid.QCheckBox("sig_I", **p, checked=True)]
-        ([chkb.clicked.connect(self.process_chkbs_refsig) for chkb
-          in self.chkbs_refsig])
+        self.legend_box_refsig = Legend_box(
+                text=['ref_X', 'ref_Y', 'sig_I'],
+                pen=[self.PEN_01, self.PEN_02, self.PEN_03],
+                checked=[True, False, True])
+        ([chkb.clicked.connect(self.process_chkbs_legend_box_refsig) for chkb
+          in self.legend_box_refsig.chkbs])
         
-        p1 = {'maximumWidth': width_chr12, 'minimumWidth': width_chr12,
-              'readOnly': True}
-        p2 = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8,
-              'readOnly': True}
+        p1 = {'maximumWidth': ex12, 'minimumWidth': ex12, 'readOnly': True}
+        p2 = {'maximumWidth': ex8 , 'minimumWidth': ex8 , 'readOnly': True}
         self.qlin_time      = QtWid.QLineEdit(**p1)
         self.qlin_sig_I_max = QtWid.QLineEdit(**p2)
         self.qlin_sig_I_min = QtWid.QLineEdit(**p2)
@@ -375,47 +502,41 @@ class MainWindow(QtWid.QWidget):
 
         i = 0
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(self.qlin_time           , i, 0, 1, 2)
-        grid.addWidget(QtWid.QLabel("us")       , i, 2)      ; i+=1
-        grid.addWidget(self.chkbs_refsig[0]     , i, 0, 1, 3); i+=1
-        grid.addWidget(self.chkbs_refsig[1]     , i, 0, 1, 3); i+=1
-        grid.addWidget(self.chkbs_refsig[2]     , i, 0, 1, 3); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 4)    , i, 0)      ; i+=1
-        grid.addWidget(QtWid.QLabel("max")      , i, 0)
-        grid.addWidget(self.qlin_sig_I_max      , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
-        grid.addWidget(QtWid.QLabel("min")      , i, 0)
-        grid.addWidget(self.qlin_sig_I_min      , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 4)    , i, 0)      ; i+=1
-        grid.addWidget(QtWid.QLabel("avg")      , i, 0)
-        grid.addWidget(self.qlin_sig_I_avg      , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
-        grid.addWidget(QtWid.QLabel("std")      , i, 0)
-        grid.addWidget(self.qlin_sig_I_std      , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2)      ; i+=1
+        grid.addWidget(self.qlin_time             , i, 0, 1, 2)
+        grid.addWidget(QtWid.QLabel("us")         , i, 2)      ; i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 6)      , i, 0)      ; i+=1
+        grid.addLayout(self.legend_box_refsig.grid, i, 0, 1, 3); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 6)      , i, 0)      ; i+=1
+        grid.addWidget(QtWid.QLabel("max")        , i, 0)
+        grid.addWidget(self.qlin_sig_I_max        , i, 1)
+        grid.addWidget(QtWid.QLabel("V")          , i, 2)      ; i+=1
+        grid.addWidget(QtWid.QLabel("min")        , i, 0)
+        grid.addWidget(self.qlin_sig_I_min        , i, 1)
+        grid.addWidget(QtWid.QLabel("V")          , i, 2)      ; i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 4)      , i, 0)      ; i+=1
+        grid.addWidget(QtWid.QLabel("avg")        , i, 0)
+        grid.addWidget(self.qlin_sig_I_avg        , i, 1)
+        grid.addWidget(QtWid.QLabel("V")          , i, 2)      ; i+=1
+        grid.addWidget(QtWid.QLabel("std")        , i, 0)
+        grid.addWidget(self.qlin_sig_I_std        , i, 1)
+        grid.addWidget(QtWid.QLabel("V")          , i, 2)      ; i+=1
         grid.setAlignment(QtCore.Qt.AlignTop)
 
         qgrp_readings = QtWid.QGroupBox("Readings")
-        qgrp_readings.setStyleSheet(SS_GROUP)
         qgrp_readings.setLayout(grid)
-        
-        # Round up frame
-        hbox_refsig = QtWid.QHBoxLayout()
-        hbox_refsig.addWidget(qgrp_readings, stretch=0)
-        hbox_refsig.addWidget(self.gw_refsig, stretch=1)
 
-        def _frame_LIA_output(): pass # Spider IDE outline bookmark
+        def LIA_output(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
         #   FRAME: LIA output
         # -----------------------------------
         # -----------------------------------
-        
-        # Chart: X or R
-        self.gw_XR = pg.GraphicsWindow()
-        self.gw_XR.setBackground([20, 20, 20])
-        self.pi_XR = self.gw_XR.addPlot()
+
+        # Charts: (X or R) and (Y or T)
+        self.gw_XRYT = pg.GraphicsWindow()
+        self.gw_XRYT.setBackground([20, 20, 20])
+        self.pi_XR = self.gw_XRYT.addPlot()
+        self.pi_YT = self.gw_XRYT.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_XR.showGrid(x=1, y=1)
@@ -425,19 +546,14 @@ class MainWindow(QtWid.QWidget):
         self.pi_XR.setXRange(-lockin.config.BUFFER_SIZE *
                              lockin.config.ISR_CLOCK * 1e3,
                              0, padding=0.01)
-        self.pi_XR.setYRange(-1, 1, padding=0.05)
+        self.pi_XR.setYRange(0, 5, padding=0.05)
         self.pi_XR.setAutoVisible(x=True, y=True)
         self.pi_XR.setClipToView(True)
         self.pi_XR.request_autorange_y = False
+        self.pi_XR.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
+                             lockin.config.ISR_CLOCK * 1e3,
+                             xMax=0)
         
-        self.CH_LIA_XR = ChartHistory(lockin.config.BUFFER_SIZE,
-                                      self.pi_XR.plot(pen=self.PEN_03))
-        self.CH_LIA_XR.x_axis_divisor = 1000     # From [us] to [ms]
-        
-        # Chart: Y or T
-        self.pi_YT = self.gw_XR.addPlot()
-        
-        p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_YT.showGrid(x=1, y=1)
         self.pi_YT.setTitle('\u0398', **p)
         self.pi_YT.setLabel('bottom', text='time [ms]', **p)
@@ -445,13 +561,19 @@ class MainWindow(QtWid.QWidget):
         self.pi_YT.setXRange(-lockin.config.BUFFER_SIZE *
                              lockin.config.ISR_CLOCK * 1e3,
                              0, padding=0.01)
-        self.pi_YT.setYRange(-1, 1, padding=0.05)
+        self.pi_YT.setYRange(-90, 90, padding=0.1)
         self.pi_YT.setAutoVisible(x=True, y=True)
         self.pi_YT.setClipToView(True)
         self.pi_YT.request_autorange_y = False
-        
+        self.pi_YT.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
+                             lockin.config.ISR_CLOCK * 1e3,
+                             xMax=0)
+
+        self.CH_LIA_XR = ChartHistory(lockin.config.BUFFER_SIZE,
+                                      self.pi_XR.plot(pen=self.PEN_03))
         self.CH_LIA_YT = ChartHistory(lockin.config.BUFFER_SIZE,
                                       self.pi_YT.plot(pen=self.PEN_03))
+        self.CH_LIA_XR.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_LIA_YT.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_LIA_output = [self.CH_LIA_XR, self.CH_LIA_YT]
         
@@ -469,16 +591,14 @@ class MainWindow(QtWid.QWidget):
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.addWidget(self.qrbt_XR_X)
         vbox.addWidget(self.qrbt_XR_R)
-        qgrp_XR = QtWid.QGroupBox()
-        qgrp_XR.setStyleSheet(SS_GROUP_BORDERLESS)
+        qgrp_XR = QtWid.QGroupBox(flat=True)
         qgrp_XR.setLayout(vbox)
         
         vbox = QtWid.QVBoxLayout(spacing=4)
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.addWidget(self.qrbt_YT_Y)
         vbox.addWidget(self.qrbt_YT_T)
-        qgrp_YT = QtWid.QGroupBox()
-        qgrp_YT.setStyleSheet(SS_GROUP_BORDERLESS)
+        qgrp_YT = QtWid.QGroupBox(flat=True)
         qgrp_YT.setLayout(vbox)
         
         hbox = QtWid.QHBoxLayout(spacing=4)
@@ -486,8 +606,7 @@ class MainWindow(QtWid.QWidget):
         hbox.addWidget(qgrp_XR)
         hbox.addWidget(qgrp_YT)
         
-        p = {'maximumWidth': width_chr8, 'minimumWidth': width_chr8,
-             'readOnly': True}
+        p = {'maximumWidth': ex8, 'minimumWidth': ex8, 'readOnly': True}
         self.qlin_X_avg = QtWid.QLineEdit(**p)
         self.qlin_Y_avg = QtWid.QLineEdit(**p)
         self.qlin_R_avg = QtWid.QLineEdit(**p)
@@ -495,44 +614,42 @@ class MainWindow(QtWid.QWidget):
         
         i = 0
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addLayout(hbox                     , i, 0, 1, 3); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 8)    , i, 0); i+=1
-        grid.addWidget(QtWid.QLabel("avg X")    , i, 0)
-        grid.addWidget(self.qlin_X_avg          , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
-        grid.addWidget(QtWid.QLabel("avg Y")    , i, 0)
-        grid.addWidget(self.qlin_Y_avg          , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 8)    , i, 0); i+=1
-        grid.addWidget(QtWid.QLabel("avg R")    , i, 0)
-        grid.addWidget(self.qlin_R_avg          , i, 1)
-        grid.addWidget(QtWid.QLabel("V")        , i, 2); i+=1
+        grid.addLayout(hbox                      , i, 0, 1, 3); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 8)     , i, 0); i+=1
+        grid.addWidget(QtWid.QLabel("avg X")     , i, 0)
+        grid.addWidget(self.qlin_X_avg           , i, 1)
+        grid.addWidget(QtWid.QLabel("V")         , i, 2); i+=1
+        grid.addWidget(QtWid.QLabel("avg Y")     , i, 0)
+        grid.addWidget(self.qlin_Y_avg           , i, 1)
+        grid.addWidget(QtWid.QLabel("V")         , i, 2); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 8)     , i, 0); i+=1
+        grid.addWidget(QtWid.QLabel("avg R")     , i, 0)
+        grid.addWidget(self.qlin_R_avg           , i, 1)
+        grid.addWidget(QtWid.QLabel("V")         , i, 2); i+=1
         grid.addWidget(QtWid.QLabel("avg \u0398"), i, 0)
-        grid.addWidget(self.qlin_T_avg          , i, 1)
-        grid.addWidget(QtWid.QLabel("deg")      , i, 2)
+        grid.addWidget(self.qlin_T_avg           , i, 1)
+        grid.addWidget(QtWid.QLabel("\u00B0")    , i, 2)
         grid.setAlignment(QtCore.Qt.AlignTop)
         
         qgrp_XRYT = QtWid.QGroupBox("X/R, Y/\u0398")
-        qgrp_XRYT.setStyleSheet(SS_GROUP)
         qgrp_XRYT.setLayout(grid)
-        
-        # Round up frame
-        hbox_LIA_output = QtWid.QHBoxLayout()
-        hbox_LIA_output.addWidget(qgrp_XRYT, stretch=0)
-        hbox_LIA_output.addWidget(self.gw_XR, stretch=1)
-
+     
         # -----------------------------------
         # -----------------------------------
         #   Round up tab page 'Main'
         # -----------------------------------
         # -----------------------------------
         
-        vbox = QtWid.QVBoxLayout()
-        vbox.addLayout(hbox_refsig, stretch=1)
-        vbox.addLayout(hbox_LIA_output, stretch=1)
-        self.tab_main.setLayout(vbox)
+        grid = QtWid.QGridLayout(spacing=0)
+        grid.addWidget(qgrp_readings , 0, 0, QtCore.Qt.AlignTop)
+        grid.addWidget(self.gw_refsig, 0, 1)
+        grid.addWidget(qgrp_XRYT     , 1, 0, QtCore.Qt.AlignTop)
+        grid.addWidget(self.gw_XRYT  , 1, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
         
-        def _frame_Mixer(): pass # Spider IDE outline bookmark
+        self.tab_main.setLayout(grid)
+        
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -541,44 +658,56 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         
-        # Chart: Filter
-        self.gw_filt_BS = pg.GraphicsWindow()
-        self.gw_filt_BS.setBackground([20, 20, 20])
-        self.pi_filt_BS = self.gw_filt_BS.addPlot()
+        def Filter_1_output(): pass # Spider IDE outline bookmark
+        # -----------------------------------
+        # -----------------------------------
+        #   FRAME: Filter 1 output
+        # -----------------------------------
+        # -----------------------------------
+        
+        # Chart: Filter @ sig_I
+        self.gw_filt_1 = pg.GraphicsWindow()
+        self.gw_filt_1.setBackground([20, 20, 20])
+        self.pi_filt_1 = self.gw_filt_1.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_filt_BS.showGrid(x=1, y=1)
-        self.pi_filt_BS.setTitle('Band-stop filter acting on sig_I', **p)
-        self.pi_filt_BS.setLabel('bottom', text='time [ms]', **p)
-        self.pi_filt_BS.setLabel('left', text='voltage [V]', **p)
-        self.pi_filt_BS.setXRange(-lockin.config.BUFFER_SIZE *
+        self.pi_filt_1.showGrid(x=1, y=1)
+        self.pi_filt_1.setTitle('Filter @ sig_I', **p)
+        self.pi_filt_1.setLabel('bottom', text='time [ms]', **p)
+        self.pi_filt_1.setLabel('left', text='voltage [V]', **p)
+        self.pi_filt_1.setXRange(-lockin.config.BUFFER_SIZE *
                                     lockin.config.ISR_CLOCK * 1e3,
                                     0, padding=0.01)
-        self.pi_filt_BS.setYRange(-1, 1, padding=0.05)
-        self.pi_filt_BS.setAutoVisible(x=True, y=True)
-        self.pi_filt_BS.setClipToView(True)
+        self.pi_filt_1.setYRange(-5, 5, padding=0.05)
+        self.pi_filt_1.setAutoVisible(x=True, y=True)
+        self.pi_filt_1.setClipToView(True)
+        self.pi_filt_1.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) *
+                                  lockin.config.ISR_CLOCK * 1e3,
+                                  xMax=0)
         
-        self.CH_filt_BS_in  = ChartHistory(
-                lockin.config.BUFFER_SIZE,
-                self.pi_filt_BS.plot(pen=self.PEN_03))
-        self.CH_filt_BS_out = ChartHistory(
-                lockin.config.BUFFER_SIZE,
-                self.pi_filt_BS.plot(pen=self.PEN_04))
-        self.CH_filt_BS_in.x_axis_divisor = 1000     # From [us] to [ms]
-        self.CH_filt_BS_out.x_axis_divisor = 1000    # From [us] to [ms]
-        self.CHs_filt_BS = [self.CH_filt_BS_in, self.CH_filt_BS_out]
+        self.CH_filt_1_in  = ChartHistory(lockin.config.BUFFER_SIZE,
+                                          self.pi_filt_1.plot(pen=self.PEN_03))
+        self.CH_filt_1_out = ChartHistory(lockin.config.BUFFER_SIZE,
+                                          self.pi_filt_1.plot(pen=self.PEN_04))
+        self.CH_filt_1_in.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CH_filt_1_out.x_axis_divisor = 1000    # From [us] to [ms]
+        self.CHs_filt_1 = [self.CH_filt_1_in, self.CH_filt_1_out]
         
-        # Legend
-        vb = self.gw_filt_BS.addViewBox(enableMenu=False)
-        vb.setMaximumWidth(80)
-        #vb.setSizePolicy(QtWid.QSizePolicy.Minimum, QtWid.QSizePolicy.Minimum)
-        legend = pg.LegendItem()
-        legend.setParentItem(vb)
-        legend.anchor((0,0), (0,0), offset=(1, 10))
-        legend.setFixedWidth(75)
-        legend.setScale(1)
-        legend.addItem(self.CH_filt_BS_in.curve, name='sig_I')
-        legend.addItem(self.CH_filt_BS_out.curve, name='out')
+        # QGROUP: Filter output
+        self.legend_box_filt_1 = Legend_box(text=['sig_I', 'filt_I'],
+                                             pen=[self.PEN_03, self.PEN_04])
+        ([chkb.clicked.connect(self.process_chkbs_legend_box_filt_1) for chkb
+          in self.legend_box_filt_1.chkbs])
+    
+        qgrp_filt_1 = QtWid.QGroupBox("Filter @ sig_I")
+        qgrp_filt_1.setLayout(self.legend_box_filt_1.grid)
+        
+        def Mixer(): pass # Spider IDE outline bookmark
+        # -----------------------------------
+        # -----------------------------------
+        #   FRAME: Mixer
+        # -----------------------------------
+        # -----------------------------------
         
         # Chart: Mixer
         self.gw_mixer = pg.GraphicsWindow()
@@ -593,9 +722,12 @@ class MainWindow(QtWid.QWidget):
         self.pi_mixer.setXRange(-lockin.config.BUFFER_SIZE *
                                 lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0.01)
-        self.pi_mixer.setYRange(-1, 1, padding=0.05)
+        self.pi_mixer.setYRange(-5, 5, padding=0.05)
         self.pi_mixer.setAutoVisible(x=True, y=True)
         self.pi_mixer.setClipToView(True)
+        self.pi_mixer.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) *
+                                lockin.config.ISR_CLOCK * 1e3,
+                                xMax=0)
         
         self.CH_mix_X = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_mixer.plot(pen=self.PEN_01))
@@ -605,22 +737,14 @@ class MainWindow(QtWid.QWidget):
         self.CH_mix_Y.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_mixer = [self.CH_mix_X, self.CH_mix_Y]
         
-        # Legend
-        vb = self.gw_mixer.addViewBox(enableMenu=False)
-        vb.setMaximumWidth(80)
-        #vb.setSizePolicy(QtWid.QSizePolicy.Minimum, QtWid.QSizePolicy.Minimum)
-        legend = pg.LegendItem()
-        legend.setParentItem(vb)
-        legend.anchor((0,0), (0,0), offset=(1, 10))
-        legend.setFixedWidth(75)
-        legend.setScale(1)
-        legend.addItem(self.CH_mix_X.curve, name='mix_X')
-        legend.addItem(self.CH_mix_Y.curve, name='mix_Y')
-        
-        # Round up frame
-        vbox_mixer = QtWid.QVBoxLayout()
-        vbox_mixer.addWidget(self.gw_filt_BS, stretch=1)
-        vbox_mixer.addWidget(self.gw_mixer, stretch=1)
+        # QGROUP: Mixer
+        self.legend_box_mixer = Legend_box(text=['mix_X', 'mix_Y'],
+                                           pen=[self.PEN_01, self.PEN_02])
+        ([chkb.clicked.connect(self.process_chkbs_legend_box_mixer) for chkb
+          in self.legend_box_mixer.chkbs])
+    
+        qgrp_mixer = QtWid.QGroupBox("Mixer")
+        qgrp_mixer.setLayout(self.legend_box_mixer.grid)
         
         # -----------------------------------
         # -----------------------------------
@@ -628,9 +752,17 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
 
-        self.tab_mixer.setLayout(vbox_mixer)
+        grid = QtWid.QGridLayout(spacing=0)
+        grid.addWidget(qgrp_filt_1   , 0, 0, QtCore.Qt.AlignTop)
+        grid.addWidget(self.gw_filt_1, 0, 1)
+        grid.addWidget(qgrp_mixer    , 1, 0, QtCore.Qt.AlignTop)
+        grid.addWidget(self.gw_mixer , 1, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
         
-        def _frame_Power_spectrum(): pass # Spider IDE outline bookmark
+        self.tab_mixer.setLayout(grid)
+        
+        def Power_spectrum(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -640,111 +772,239 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         
         # Plot: Power spectrum
-        self.gw_power_spectrum = pg.GraphicsWindow()
-        self.gw_power_spectrum.setBackground([20, 20, 20])        
-        self.pi_power_spectrum = self.gw_power_spectrum.addPlot()
+        self.gw_PS = pg.GraphicsWindow()
+        self.gw_PS.setBackground([20, 20, 20])        
+        self.pi_PS = self.gw_PS.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_power_spectrum.showGrid(x=1, y=1)
-        self.pi_power_spectrum.setTitle('Power spectral density (Welch)', **p)
-        self.pi_power_spectrum.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_power_spectrum.setLabel('left', text='PSD [V%s/Hz]' % chr(178),
-                                        **p)
-        self.pi_power_spectrum.setAutoVisible(x=True, y=True)
-        self.pi_power_spectrum.setXRange(100, 120, padding=0.05)
-        self.pi_power_spectrum.setYRange(0, 1, padding=0.05)
-        self.pi_power_spectrum.setClipToView(True)
+        self.pi_PS.showGrid(x=1, y=1)
+        self.pi_PS.setTitle('Power spectrum (Welch)', **p)
+        self.pi_PS.setLabel('bottom', text='frequency [Hz]', **p)
+        self.pi_PS.setLabel('left', text='power [dB]', **p)
+        self.pi_PS.setAutoVisible(x=True, y=True)
+        self.pi_PS.setXRange(0, self.lockin.config.F_Nyquist, padding=0.02)
+        self.pi_PS.setYRange(-110, 0, padding=0.02)
+        self.pi_PS.setClipToView(True)
+        self.pi_PS.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
         
-        self.BP_power_spectrum = BufferedPlot(
-                self.pi_power_spectrum.plot(pen=self.PEN_03))
+        self.BP_PS_1 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_03))
+        self.BP_PS_2 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_04))
+        
+        # QGROUP: Zoom
+        self.qpbt_PS_zoom_low = QtWid.QPushButton('0 - 200 Hz')
+        self.qpbt_PS_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
+        self.qpbt_PS_zoom_all = QtWid.QPushButton('Full range')
+        
+        self.qpbt_PS_zoom_low.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_PS, 0, 200))
+        self.qpbt_PS_zoom_mid.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_PS, 0, 1000))
+        self.qpbt_PS_zoom_all.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_PS, 0, self.lockin.config.F_Nyquist))
+            
+        grid = QtWid.QGridLayout()
+        grid.addWidget(self.qpbt_PS_zoom_low, 0, 0)
+        grid.addWidget(self.qpbt_PS_zoom_mid, 0, 1)
+        grid.addWidget(self.qpbt_PS_zoom_all, 0, 2)
+        
+        qgrp_zoom = QtWid.QGroupBox("Zoom")
+        qgrp_zoom.setLayout(grid)
+        
+        # QGROUP: Power spectrum
+        self.legend_box_PS = Legend_box(text=['sig_I', 'filt_I'],
+                                        pen=[self.PEN_03, self.PEN_04])
+        ([chkb.clicked.connect(self.process_chkbs_legend_box_PS) for chkb
+          in self.legend_box_PS.chkbs])
+    
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addLayout(self.legend_box_PS.grid, 0, 0)
+        grid.setAlignment(QtCore.Qt.AlignTop)
+    
+        qgrp_PS = QtWid.QGroupBox("Pow. spectrum")
+        qgrp_PS.setLayout(grid)
         
         # -----------------------------------
         # -----------------------------------
         #   Round up tab page 'Power spectrum'
         # -----------------------------------
-        # -----------------------------------
+        # -----------------------------------        
         
-        hbox = QtWid.QHBoxLayout()
-        hbox.addWidget(self.gw_power_spectrum, stretch=1)
-        self.tab_power_spectrum.setLayout(hbox)
+        grid = QtWid.QGridLayout(spacing=0)
+        grid.addWidget(qgrp_PS   , 0, 0, 2, 1, QtCore.Qt.AlignTop)
+        grid.addWidget(qgrp_zoom , 0, 1)
+        grid.addWidget(self.gw_PS, 1, 1)
+        grid.setColumnStretch(1, 1)
+        grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
         
-        def _frame_Filter_resp_BS(): pass # Spider IDE outline bookmark
+        self.tab_power_spectrum.setLayout(grid)
+                
+        def Filter_1_design(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
-        #   TAB PAGE: Filter response band-stop
+        #   TAB PAGE: Filter design @ sig_I
         #
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         
-        # Plot: Filter response band-stop
-        self.gw_filt_resp_BS = pg.GraphicsWindow()
-        self.gw_filt_resp_BS.setBackground([20, 20, 20])        
-        self.pi_filt_resp_BS = self.gw_filt_resp_BS.addPlot()
+        # Plot: Filter response @ sig_I
+        self.gw_filt_1_resp = pg.GraphicsWindow()
+        self.gw_filt_1_resp.setBackground([20, 20, 20])        
+        self.pi_filt_1_resp = self.gw_filt_1_resp.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_filt_resp_BS.showGrid(x=1, y=1)
-        self.pi_filt_resp_BS.setTitle('Filter response', **p)
-        self.pi_filt_resp_BS.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_filt_resp_BS.setLabel('left', text='attenuation [dB]', **p)
-        self.pi_filt_resp_BS.setAutoVisible(x=True, y=True)
-        self.pi_filt_resp_BS.enableAutoRange('x', False)
-        self.pi_filt_resp_BS.enableAutoRange('y', True)
-        self.pi_filt_resp_BS.setClipToView(True)
+        self.pi_filt_1_resp.showGrid(x=1, y=1)
+        self.pi_filt_1_resp.setTitle('Filter response', **p)
+        self.pi_filt_1_resp.setLabel('bottom', text='frequency [Hz]', **p)
+        self.pi_filt_1_resp.setLabel('left', text='attenuation [dB]', **p)
+        self.pi_filt_1_resp.setAutoVisible(x=True, y=True)
+        self.pi_filt_1_resp.enableAutoRange('x', False)
+        self.pi_filt_1_resp.enableAutoRange('y', True)
+        self.pi_filt_1_resp.setClipToView(True)
+        self.pi_filt_1_resp.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
         
-        self.curve_filt_resp_BS = pg.PlotCurveItem(pen=self.PEN_03,
-                                                   brush=self.BRUSH_03)
-        self.pi_filt_resp_BS.addItem(self.curve_filt_resp_BS)
-        self.update_plot_filt_resp_BS()
+        self.curve_filt_1_resp = pg.PlotCurveItem(pen=self.PEN_03,
+                                                  brush=self.BRUSH_03)
+        self.pi_filt_1_resp.addItem(self.curve_filt_1_resp)
+        self.update_plot_filt_1_resp()
+        self.plot_zoom_ROI_filt_1()
+        
+        # QGROUP: Zoom
+        self.qpbt_filt_1_resp_zoom_DC  = QtWid.QPushButton('DC')
+        self.qpbt_filt_1_resp_zoom_50  = QtWid.QPushButton('50 Hz')
+        self.qpbt_filt_1_resp_zoom_low = QtWid.QPushButton('0 - 200 Hz')
+        self.qpbt_filt_1_resp_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
+        self.qpbt_filt_1_resp_zoom_all = QtWid.QPushButton('Full range')
+        self.qpbt_filt_1_resp_zoom_ROI = QtWid.QPushButton('Region of interest')
+
+        self.qpbt_filt_1_resp_zoom_DC.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_1_resp, 0, 2))
+        self.qpbt_filt_1_resp_zoom_50.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_1_resp, 47, 53))        
+        self.qpbt_filt_1_resp_zoom_low.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_1_resp, 0, 200))
+        self.qpbt_filt_1_resp_zoom_mid.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_1_resp, 0, 1000))
+        self.qpbt_filt_1_resp_zoom_all.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_1_resp, 0, self.lockin.config.F_Nyquist))
+        self.qpbt_filt_1_resp_zoom_ROI.clicked.connect(
+                self.plot_zoom_ROI_filt_1)
+            
+        grid = QtWid.QGridLayout()
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_DC , 0, 0)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_50 , 0, 1)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_low, 0, 2)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_mid, 0, 3)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_all, 0, 4)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_ROI, 0, 5)
+        
+        qgrp_zoom = QtWid.QGroupBox("Zoom")
+        qgrp_zoom.setLayout(grid)
+        
+        # QGROUP: Filter design
+        self.filt_1_design_GUI = Filter_design_GUI(
+                self.lockin_pyqt.firf_1_sig_I)
+        self.filt_1_design_GUI.signal_filter_design_updated.connect(
+                self.update_plot_filt_1_resp)
         
         # -----------------------------------
         # -----------------------------------
-        #   Round up tab page 'Filter response: band-stop'
+        #   Round up tab page 'Filter response @ sig_I
         # -----------------------------------
         # -----------------------------------
         
-        hbox = QtWid.QHBoxLayout()
-        hbox.addWidget(self.gw_filt_resp_BS, stretch=1)
-        self.tab_filter_1_response.setLayout(hbox)
+        grid = QtWid.QGridLayout(spacing=0)
+        grid.addWidget(self.filt_1_design_GUI.qgrp
+                                          , 0, 0, 2, 1, QtCore.Qt.AlignTop)
+        grid.addWidget(qgrp_zoom          , 0, 1)
+        grid.addWidget(self.gw_filt_1_resp, 1, 1)
+        grid.setColumnStretch(1, 1)
         
-        def _frame_Filter_resp_LP(): pass # Spider IDE outline bookmark
+        self.tab_filter_1_design.setLayout(grid)
+        
+        def Filter_2_design(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
-        #   TAB PAGE: Filter response low-pass
+        #   TAB PAGE: Filter design @ mix_X/Y
         #
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         
-        # Plot: Filter response low-pass
-        self.gw_filt_resp_LP = pg.GraphicsWindow()
-        self.gw_filt_resp_LP.setBackground([20, 20, 20])        
-        self.pi_filt_resp_LP = self.gw_filt_resp_LP.addPlot()
+        # Plot: Filter response @ mix_X/Y
+        self.gw_filt_2_resp = pg.GraphicsWindow()
+        self.gw_filt_2_resp.setBackground([20, 20, 20])        
+        self.pi_filt_2_resp = self.gw_filt_2_resp.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_filt_resp_LP.showGrid(x=1, y=1)
-        self.pi_filt_resp_LP.setTitle('Filter response', **p)
-        self.pi_filt_resp_LP.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_filt_resp_LP.setLabel('left', text='attenuation [dB]', **p)
-        self.pi_filt_resp_LP.setAutoVisible(x=True, y=True)
-        self.pi_filt_resp_LP.enableAutoRange('x', False)
-        self.pi_filt_resp_LP.enableAutoRange('y', True)
-        self.pi_filt_resp_LP.setClipToView(True)
+        self.pi_filt_2_resp.showGrid(x=1, y=1)
+        self.pi_filt_2_resp.setTitle('Filter response', **p)
+        self.pi_filt_2_resp.setLabel('bottom', text='frequency [Hz]', **p)
+        self.pi_filt_2_resp.setLabel('left', text='attenuation [dB]', **p)
+        self.pi_filt_2_resp.setAutoVisible(x=True, y=True)
+        self.pi_filt_2_resp.enableAutoRange('x', False)
+        self.pi_filt_2_resp.enableAutoRange('y', True)
+        self.pi_filt_2_resp.setClipToView(True)
+        self.pi_filt_2_resp.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
         
-        self.curve_filt_resp_LP = pg.PlotCurveItem(pen=self.PEN_03,
-                                                   brush=self.BRUSH_03)
-        self.pi_filt_resp_LP.addItem(self.curve_filt_resp_LP)
-        self.update_plot_filt_resp_LP()
+        self.curve_filt_2_resp = pg.PlotCurveItem(pen=self.PEN_03,
+                                                  brush=self.BRUSH_03)
+        self.pi_filt_2_resp.addItem(self.curve_filt_2_resp)
+        self.update_plot_filt_2_resp()
+        self.plot_zoom_ROI_filt_2()
+        
+        # QGROUP: Zoom
+        self.qpbt_filt_2_resp_zoom_DC  = QtWid.QPushButton('DC')
+        self.qpbt_filt_2_resp_zoom_50  = QtWid.QPushButton('50 Hz')
+        self.qpbt_filt_2_resp_zoom_low = QtWid.QPushButton('0 - 200 Hz')
+        self.qpbt_filt_2_resp_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
+        self.qpbt_filt_2_resp_zoom_all = QtWid.QPushButton('Full range')
+        self.qpbt_filt_2_resp_zoom_ROI = QtWid.QPushButton('Region of interest')
+
+        self.qpbt_filt_2_resp_zoom_DC.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_2_resp, 0, 2))
+        self.qpbt_filt_2_resp_zoom_50.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_2_resp, 47, 53))        
+        self.qpbt_filt_2_resp_zoom_low.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_2_resp, 0, 200))
+        self.qpbt_filt_2_resp_zoom_mid.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_2_resp, 0, 1000))
+        self.qpbt_filt_2_resp_zoom_all.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_2_resp, 0, self.lockin.config.F_Nyquist))
+        self.qpbt_filt_2_resp_zoom_ROI.clicked.connect(
+                self.plot_zoom_ROI_filt_2)
+            
+        grid = QtWid.QGridLayout()
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_DC , 0, 0)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_50 , 0, 1)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_low, 0, 2)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_mid, 0, 3)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_all, 0, 4)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_ROI, 0, 5)
+        
+        qgrp_zoom = QtWid.QGroupBox("Zoom")
+        qgrp_zoom.setLayout(grid)
+        
+        # QGROUP: Filter design
+        self.filt_2_design_GUI = Filter_design_GUI(
+                [self.lockin_pyqt.firf_2_mix_X, self.lockin_pyqt.firf_2_mix_Y])
+        self.filt_2_design_GUI.signal_filter_design_updated.connect(
+                self.update_plot_filt_2_resp)
         
         # -----------------------------------
         # -----------------------------------
-        #   Round up tab page 'Filter response: band-stop'
+        #   Round up tab page 'Filter response @ mix_X/Y
         # -----------------------------------
         # -----------------------------------
         
-        hbox = QtWid.QHBoxLayout()
-        hbox.addWidget(self.gw_filt_resp_LP, stretch=1)
-        self.tab_filter_2_response.setLayout(hbox)
+        grid = QtWid.QGridLayout(spacing=0)
+        grid.addWidget(self.filt_2_design_GUI.qgrp
+                                          , 0, 0, 2, 1, QtCore.Qt.AlignTop)
+        grid.addWidget(qgrp_zoom          , 0, 1)
+        grid.addWidget(self.gw_filt_2_resp, 1, 1)
+        grid.setColumnStretch(1, 1)
+        
+        self.tab_filter_2_design.setLayout(grid)
         
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -760,6 +1020,8 @@ class MainWindow(QtWid.QWidget):
         hbox = QtWid.QHBoxLayout()
         hbox.addWidget(self.tabs, stretch=1)
         hbox.addLayout(vbox_sidebar, stretch=0)
+        
+        vbox.addItem(QtWid.QSpacerItem(0, 10))
         vbox.addLayout(hbox)
         
         # -----------------------------------
@@ -796,13 +1058,11 @@ class MainWindow(QtWid.QWidget):
         self.file_logger.signal_set_recording_text.connect(
                 self.set_text_qpbt_record)
 
-
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
     #   Handle controls
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
-
 
     @QtCore.pyqtSlot()
     def update_wall_clock(self):
@@ -814,6 +1074,11 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def update_GUI(self):
         #dprint("Update GUI")
+        
+        # Major visual changes upcoming. Reduce CPU overhead by momentarily
+        # disabling GUI events and screen repaints.
+        self.setUpdatesEnabled(False)
+        
         LIA_pyqt = self.lockin_pyqt
         self.qlbl_update_counter.setText("%i" % LIA_pyqt.DAQ_update_counter)
         
@@ -832,29 +1097,31 @@ class MainWindow(QtWid.QWidget):
         self.qlin_R_avg.setText("%.4f" % np.mean(LIA_pyqt.state.R))
         self.qlin_T_avg.setText("%.3f" % np.mean(LIA_pyqt.state.T))
         
-        if LIA_pyqt.firf_BS_sig_I.has_settled:
+        if LIA_pyqt.firf_1_sig_I.has_settled:
             self.LED_settled_BG_filter.setChecked(True)
             self.LED_settled_BG_filter.setText("YES")
         else:
             self.LED_settled_BG_filter.setChecked(False)
             self.LED_settled_BG_filter.setText("NO")
-        if LIA_pyqt.firf_LP_mix_X.has_settled:
-            self.LED_settled_LP_filter.setChecked(True)
-            self.LED_settled_LP_filter.setText("YES")
+        if LIA_pyqt.firf_2_mix_X.has_settled:
+            self.LED_settled_2_filter.setChecked(True)
+            self.LED_settled_2_filter.setText("YES")
         else:
-            self.LED_settled_LP_filter.setChecked(False)
-            self.LED_settled_LP_filter.setText("NO")
+            self.LED_settled_2_filter.setChecked(False)
+            self.LED_settled_2_filter.setText("NO")
             
         self.update_chart_refsig()
-        self.update_chart_filt_BS()
+        self.update_chart_filt_1()
         self.update_chart_mixer()
         self.update_chart_LIA_output()
-        self.BP_power_spectrum.update_curve()
+        self.update_plot_PS()
+        
+        self.setUpdatesEnabled(True)
     
     @QtCore.pyqtSlot()
     def clear_chart_histories_stage_1_and_2(self):
-        self.CH_filt_BS_in.clear()
-        self.CH_filt_BS_out.clear()
+        self.CH_filt_1_in.clear()
+        self.CH_filt_1_out.clear()
         self.CH_mix_X.clear()
         self.CH_mix_Y.clear()
         self.CH_LIA_XR.clear()
@@ -864,13 +1131,13 @@ class MainWindow(QtWid.QWidget):
     def process_qpbt_ENA_lockin(self):
         if self.qpbt_ENA_lockin.isChecked():
             self.lockin_pyqt.turn_on()
-            self.qpbt_ENA_lockin.setText("lock-in ON")
+            self.qpbt_ENA_lockin.setText("Lock-in ON")
             
             self.lockin_pyqt.state.reset()
             self.clear_chart_histories_stage_1_and_2()
         else:
             self.lockin_pyqt.turn_off()
-            self.qpbt_ENA_lockin.setText("lock-in OFF")
+            self.qpbt_ENA_lockin.setText("Lock-in OFF")
         
     @QtCore.pyqtSlot()
     def process_qpbt_record(self):
@@ -937,12 +1204,14 @@ class MainWindow(QtWid.QWidget):
         roll_off_width = 2; # [Hz]
         f_cutoff = 2*self.lockin.config.ref_freq - roll_off_width
         if f_cutoff > self.lockin.config.F_Nyquist - roll_off_width:
-            print("WARNING: Low-pass filter cannot reach desired cut-off freq.")
+            print("WARNING: Filter @ mix_X/Y can't reach desired cut-off freq.")
             f_cutoff = self.lockin.config.F_Nyquist - roll_off_width
         
-        self.lockin_pyqt.firf_LP_mix_X.update_firwin_cutoff([0, f_cutoff])
-        self.lockin_pyqt.firf_LP_mix_Y.update_firwin_cutoff([0, f_cutoff])
-        self.update_plot_filt_resp_LP()
+        self.lockin_pyqt.firf_2_mix_X.compute_firwin(cutoff=f_cutoff)
+        self.lockin_pyqt.firf_2_mix_Y.compute_firwin(cutoff=f_cutoff)
+        self.filt_2_design_GUI.update_filter_design()
+        self.update_plot_filt_2_resp()
+        self.plot_zoom_ROI_filt_2()
         
         self.lockin_pyqt.state.reset()
         self.clear_chart_histories_stage_1_and_2()
@@ -964,19 +1233,50 @@ class MainWindow(QtWid.QWidget):
         self.clear_chart_histories_stage_1_and_2()
 
     @QtCore.pyqtSlot()
-    def process_chkbs_refsig(self):
+    def process_chkbs_legend_box_refsig(self):
         if self.lockin.lockin_paused:
-            self.update_chart_refsig()  # Force update graph
+            self.update_chart_refsig()      # Force update graph
+            
+    @QtCore.pyqtSlot()
+    def process_chkbs_legend_box_filt_1(self):
+        if self.lockin.lockin_paused:
+            self.update_chart_filt_1()     # Force update graph
+            
+    @QtCore.pyqtSlot()
+    def process_chkbs_legend_box_mixer(self):
+        if self.lockin.lockin_paused:
+            self.update_chart_mixer()       # Force update graph
+            
+    @QtCore.pyqtSlot()
+    def process_chkbs_legend_box_PS(self):
+        if self.lockin.lockin_paused:
+            self.update_plot_PS()           # Force update graph
 
     @QtCore.pyqtSlot()
-    def process_qpbt_full_axes(self):
+    def process_qpbt_fullrange_xy(self):
+        self.process_qpbt_autorange_x()
+        self.pi_refsig.setYRange(-3.3, 3.3, padding=0.05)
+        self.pi_filt_1.setYRange(-3.3, 3.3, padding=0.05)
+        self.pi_mixer.setYRange (-5, 5, padding=0.05)
+        
+        if self.qrbt_XR_X.isChecked():
+            self.pi_XR.setYRange(-5, 5, padding=0.05)
+        else:
+            self.pi_XR.setYRange(0, 5, padding=0.05)
+        if self.qrbt_YT_Y.isChecked():
+            self.pi_YT.setYRange(-5, 5, padding=0.05)
+        else:
+            self.pi_YT.setYRange(-90, 90, padding=0.1)
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_autorange_xy(self):
         self.process_qpbt_autorange_x()
         self.process_qpbt_autorange_y()
 
     @QtCore.pyqtSlot()
     def process_qpbt_autorange_x(self):
         plot_items = [self.pi_refsig,
-                      self.pi_filt_BS,
+                      self.pi_filt_1,
                       self.pi_mixer,
                       self.pi_XR,
                       self.pi_YT]
@@ -989,7 +1289,7 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbt_autorange_y(self):
         plot_items = [self.pi_refsig,
-                      self.pi_filt_BS,
+                      self.pi_filt_1,
                       self.pi_mixer]
         for pi in plot_items:
             pi.enableAutoRange('y', True)
@@ -1055,24 +1355,28 @@ class MainWindow(QtWid.QWidget):
     
     def autorange_y_XR(self):
         if len(self.CH_LIA_XR._x) == 0:
-            self.pi_XR.setYRange(0, 1.4, padding=0.1)
+            if self.qrbt_XR_X.isChecked():
+                self.pi_XR.setYRange(-5, 5, padding=0.05)
+            else:
+                self.pi_XR.setYRange(0, 5, padding=0.05)
         else:
             self.pi_XR.enableAutoRange('y', True)
             self.pi_XR.enableAutoRange('y', False)
             XRange, YRange = self.pi_XR.viewRange()
-            self.pi_XR.setYRange(YRange[0], YRange[1], padding=1.1)
+            self.pi_XR.setYRange(YRange[0], YRange[1], padding=0.1)
         
     def autorange_y_YT(self):
         if len(self.CH_LIA_YT._x) == 0:
             if self.qrbt_YT_Y.isChecked():
-                self.pi_YT.setYRange(0, 1.4, padding=0.1)
+                self.pi_YT.setYRange(-5, 5, padding=0.05)
             else:
                 self.pi_YT.setYRange(-90, 90, padding=0.1)
         else:
             self.pi_YT.enableAutoRange('y', True)
             self.pi_YT.enableAutoRange('y', False)
             XRange, YRange = self.pi_YT.viewRange()
-            self.pi_YT.setYRange(YRange[0], YRange[1], padding=1.1)
+            self.pi_YT.setYRange(YRange[0], YRange[1], padding=0.1)
+    
     
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
@@ -1086,15 +1390,21 @@ class MainWindow(QtWid.QWidget):
         [CH.update_curve() for CH in self.CHs_refsig]
         for i in range(3):
             self.CHs_refsig[i].curve.setVisible(
-                    self.chkbs_refsig[i].isChecked())
+                    self.legend_box_refsig.chkbs[i].isChecked())
             
     @QtCore.pyqtSlot()
-    def update_chart_filt_BS(self):
-        [CH.update_curve() for CH in self.CHs_filt_BS]
+    def update_chart_filt_1(self):
+        [CH.update_curve() for CH in self.CHs_filt_1]
+        for i in range(2):
+            self.CHs_filt_1[i].curve.setVisible(
+                    self.legend_box_filt_1.chkbs[i].isChecked())
             
     @QtCore.pyqtSlot()
     def update_chart_mixer(self):
         [CH.update_curve() for CH in self.CHs_mixer]
+        for i in range(2):
+            self.CHs_mixer[i].curve.setVisible(
+                    self.legend_box_mixer.chkbs[i].isChecked())
         
     @QtCore.pyqtSlot()
     def update_chart_LIA_output(self):
@@ -1107,39 +1417,60 @@ class MainWindow(QtWid.QWidget):
         if self.pi_YT.request_autorange_y == True:
             self.pi_YT.request_autorange_y = False
             self.autorange_y_YT()
+            
+    @QtCore.pyqtSlot()
+    def update_plot_PS(self):
+        self.BP_PS_1.update_curve()
+        self.BP_PS_2.update_curve()
+        self.BP_PS_1.curve.setVisible(self.legend_box_PS.chkbs[0].isChecked())
+        self.BP_PS_2.curve.setVisible(self.legend_box_PS.chkbs[1].isChecked())    
         
-    def construct_title_plot_filt_resp(self, firf):
+    @QtCore.pyqtSlot()
+    def update_plot_filt_1_resp(self):
+        firf = self.lockin_pyqt.firf_1_sig_I
+        self.curve_filt_1_resp.setFillLevel(np.min(firf.resp_ampl_dB))
+        self.curve_filt_1_resp.setData(firf.resp_freq_Hz,
+                                       firf.resp_ampl_dB)
+        #self.pi_filt_1_resp.setTitle('Filter response: <br/>%s' %
+        #                              self.filt_resp_construct_title(firf))
+                
+    @QtCore.pyqtSlot()
+    def update_plot_filt_2_resp(self):
+        firf = self.lockin_pyqt.firf_2_mix_X
+        self.curve_filt_2_resp.setFillLevel(np.min(firf.resp_ampl_dB))
+        self.curve_filt_2_resp.setData(firf.resp_freq_Hz,
+                                       firf.resp_ampl_dB)
+        #self.pi_filt_2_resp.setTitle('Filter response: <br/>%s' %
+        #                             self.filt_resp_construct_title(firf))    
+
+    def filt_resp_construct_title(self, firf):
         __tmp1 = 'N_taps = %i' % firf.N_taps
-        if isinstance(firf.firwin_window, str):
-            __tmp2 = '%s' % firf.firwin_window
+        if isinstance(firf.window, str):
+            __tmp2 = '%s' % firf.window
         else:
-            __tmp2 = '%s' % [x for x in firf.firwin_window]
-        __tmp3 = '%s Hz' % [round(x, 1) for x in firf.firwin_cutoff]        
+            __tmp2 = '%s' % [x for x in firf.window]
+        __tmp3 = '%s Hz' % [round(x, 1) for x in firf.cutoff]        
         
         return ('%s, %s, %s' % (__tmp1, __tmp2, __tmp3))
-    
+
     @QtCore.pyqtSlot()
-    def update_plot_filt_resp_BS(self):
-        firf = self.lockin_pyqt.firf_BS_sig_I
-        self.curve_filt_resp_BS.setFillLevel(np.min(firf.resp_ampl_dB))
-        self.curve_filt_resp_BS.setData(firf.resp_freq_Hz,
-                                        firf.resp_ampl_dB)
-        self.pi_filt_resp_BS.setXRange(firf.resp_freq_Hz__ROI_start,
-                                       firf.resp_freq_Hz__ROI_end,
-                                       padding=0.01)
-        self.pi_filt_resp_BS.setTitle('Filter response: band-stop<br/>%s' %
-                                      self.construct_title_plot_filt_resp(firf))
+    def plot_zoom_ROI_filt_1(self):
+        firf = self.lockin_pyqt.firf_1_sig_I
+        self.pi_filt_1_resp.setXRange(firf.resp_freq_Hz__ROI_start,
+                                      firf.resp_freq_Hz__ROI_end,
+                                      padding=0.01)
+
     @QtCore.pyqtSlot()
-    def update_plot_filt_resp_LP(self):
-        firf = self.lockin_pyqt.firf_LP_mix_X
-        self.curve_filt_resp_LP.setFillLevel(np.min(firf.resp_ampl_dB))
-        self.curve_filt_resp_LP.setData(firf.resp_freq_Hz,
-                                        firf.resp_ampl_dB)
-        self.pi_filt_resp_LP.setXRange(firf.resp_freq_Hz__ROI_start,
-                                       firf.resp_freq_Hz__ROI_end,
-                                       padding=0.01)
-        self.pi_filt_resp_LP.setTitle('Filter response: low-pass<br/>%s' %
-                                      self.construct_title_plot_filt_resp(firf))
+    def plot_zoom_ROI_filt_2(self):
+        firf = self.lockin_pyqt.firf_2_mix_X
+        self.pi_filt_2_resp.setXRange(firf.resp_freq_Hz__ROI_start,
+                                      firf.resp_freq_Hz__ROI_end,
+                                      padding=0.01)
+        
+    def plot_zoom_x(self, pi_plot: pg.PlotItem, xRangeLo, xRangeHi):
+        pi_plot.setXRange(xRangeLo, xRangeHi, padding=0.02)
+        pi_plot.enableAutoRange('y', True)
+        pi_plot.enableAutoRange('y', False)
         
 if __name__ == "__main__":
     exec(open("DvG_Arduino_lockin_amp.py").read())

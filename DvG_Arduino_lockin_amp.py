@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "02-04-2019"
+__date__        = "21-04-2019"
 __version__     = "1.0.0"
 
 import os
@@ -144,52 +144,52 @@ def lockin_DAQ_update():
     # Stage 1
     # -------
     
-    # Apply band-stop filter to sig_I
-    sig_I_filt = lockin_pyqt.firf_BS_sig_I.process(state.deque_sig_I)
+    # Apply filter 1 to sig_I
+    filt_I = lockin_pyqt.firf_1_sig_I.process(state.deque_sig_I)
     
-    # Retrieve the block of original data from the past that alligns with
+    # Retrieve the block of original data from the past that aligns with
     # the current filter output
     time_1    = (np.array(state.deque_time, dtype=np.int64)
-                 [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
-                  lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
+                 [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                  lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
     old_sig_I = (np.array(state.deque_sig_I, dtype=np.float64)
-                 [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
-                  lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
+                 [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                  lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
     
-    if lockin_pyqt.firf_BS_sig_I.has_settled:
+    if lockin_pyqt.firf_1_sig_I.has_settled:
         old_ref_X = (np.array(state.deque_ref_X, dtype=np.float64)
-                     [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
-                      lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
+                     [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                      lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
         old_ref_Y = (np.array(state.deque_ref_Y, dtype=np.float64)
-                     [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
-                      lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
+                     [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                      lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
         
         # Heterodyne mixing
-        mix_X = (old_ref_X - c.ref_V_offset) * sig_I_filt
-        mix_Y = (old_ref_Y - c.ref_V_offset) * sig_I_filt
+        mix_X = (old_ref_X - c.ref_V_offset) * filt_I
+        mix_Y = (old_ref_Y - c.ref_V_offset) * filt_I
     else:
         mix_X = np.full(c.BUFFER_SIZE, np.nan)
         mix_Y = np.full(c.BUFFER_SIZE, np.nan)
     
     state.deque_time_1.extend(time_1)
-    state.deque_sig_I_filt.extend(sig_I_filt)
+    state.deque_filt_I.extend(filt_I)
     state.deque_mix_X.extend(mix_X)
     state.deque_mix_Y.extend(mix_Y)
     
     # Stage 2
     # -------
     
-    # Apply low-pass filter to the mixer output
-    out_X = lockin_pyqt.firf_LP_mix_X.process(state.deque_mix_X)
-    out_Y = lockin_pyqt.firf_LP_mix_Y.process(state.deque_mix_Y)
+    # Apply filter 2 to the mixer output
+    out_X = lockin_pyqt.firf_2_mix_X.process(state.deque_mix_X)
+    out_Y = lockin_pyqt.firf_2_mix_Y.process(state.deque_mix_Y)
     
-    # Retrieve the block of original data from the past that alligns with
+    # Retrieve the block of original data from the past that aligns with
     # the current filter output
     time_2 = (np.array(state.deque_time_1, dtype=np.int64)
-              [lockin_pyqt.firf_LP_mix_X.win_idx_valid_start:
-               lockin_pyqt.firf_LP_mix_X.win_idx_valid_end])
+              [lockin_pyqt.firf_2_mix_X.win_idx_valid_start:
+               lockin_pyqt.firf_2_mix_X.win_idx_valid_end])
             
-    if lockin_pyqt.firf_LP_mix_X.has_settled:
+    if lockin_pyqt.firf_2_mix_X.has_settled:
         # Signal amplitude and phase reconstruction
         out_R = np.sqrt(out_X**2 + out_Y**2)
         
@@ -219,11 +219,18 @@ def lockin_DAQ_update():
         
     # Power spectrum
     # --------------
+    
     if len(state.deque_sig_I) == state.deque_sig_I.maxlen:
+        # When scaling='spectrum', Pxx returns units of V^2
+        # When scaling='density', Pxx returns units of V^2/Hz
         [f, Pxx] = welch(state.deque_sig_I, fs=c.Fs, nperseg=10250,
-                         scaling='density')
-       
-        window.BP_power_spectrum.set_data(f, Pxx)
+                         scaling='spectrum')
+        window.BP_PS_1.set_data(f, 10 * np.log10(Pxx))
+        
+    if len(state.deque_filt_I) == state.deque_filt_I.maxlen:
+        [f, Pxx] = welch(state.deque_filt_I, fs=c.Fs, nperseg=10250,
+                         scaling='spectrum')
+        window.BP_PS_2.set_data(f, 10 * np.log10(Pxx))
     
     # Add new data to charts
     # ----------------------
@@ -231,8 +238,8 @@ def lockin_DAQ_update():
     window.CH_ref_X.add_new_readings(time, ref_X)
     window.CH_ref_Y.add_new_readings(time, ref_Y)
     window.CH_sig_I.add_new_readings(time, sig_I)
-    window.CH_filt_BS_in.add_new_readings(time_1, old_sig_I)
-    window.CH_filt_BS_out.add_new_readings(time_1, sig_I_filt)
+    window.CH_filt_1_in.add_new_readings(time_1, old_sig_I)
+    window.CH_filt_1_out.add_new_readings(time_1, filt_I)
     window.CH_mix_X.add_new_readings(time_1, mix_X)
     window.CH_mix_Y.add_new_readings(time_1, mix_Y)        
     if window.qrbt_XR_X.isChecked():
@@ -256,7 +263,7 @@ def lockin_DAQ_update():
                       "ref_X[V]\t"
                       "ref_Y[V]\t"
                       "sig_I[V]\t"
-                      "sig_I_BS[V]\t"
+                      "filt_I[V]\t"
                       "mix_X[V]\t"
                       "mix_Y[V]\t"
                       "X[V]\t"
@@ -272,8 +279,8 @@ def lockin_DAQ_update():
         file_logger.close_log()
 
     if file_logger.is_recording:
-        if lockin_pyqt.firf_LP_mix_X.has_settled:
-            idx_offset = lockin_pyqt.firf_BS_sig_I.win_idx_valid_start
+        if lockin_pyqt.firf_2_mix_X.has_settled:
+            idx_offset = lockin_pyqt.firf_1_sig_I.win_idx_valid_start
             for i in range(c.BUFFER_SIZE):
                 data = (("%i\t" +
                          "%.5f\t" * 9 +
@@ -282,7 +289,7 @@ def lockin_DAQ_update():
                         state.deque_ref_X[i],
                         state.deque_ref_Y[i],
                         state.deque_sig_I[i],
-                        state.deque_sig_I_filt[i + idx_offset],
+                        state.deque_filt_I[i + idx_offset],
                         state.deque_mix_X[i + idx_offset],
                         state.deque_mix_Y[i + idx_offset],
                         out_X[i],
@@ -350,12 +357,6 @@ if __name__ == '__main__':
     window = lockin_GUI.MainWindow(lockin=lockin,
                                    lockin_pyqt=lockin_pyqt,
                                    file_logger=file_logger)
-
-    window.pi_refsig.setYRange(0.2, 3.2)
-    window.pi_filt_BS.setYRange(-1.8, 3.4)
-    window.pi_mixer.setYRange(-1.2, 2.2)
-    window.pi_XR.setYRange(0.99, 1.01)
-    window.pi_YT.setYRange(-90, 90, padding=0.1)
 
     # --------------------------------------------------------------------------
     #   Start threads

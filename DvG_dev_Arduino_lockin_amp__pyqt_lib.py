@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "03-04-2019"
+__date__        = "21-04-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -117,28 +117,28 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             # Create deques
             if self.N_buffers_in_deque > 0:
                 # Stage 0: unprocessed data
-                self.deque_time       = deque(maxlen=self.N_deque)
-                self.deque_ref_X      = deque(maxlen=self.N_deque)
-                self.deque_ref_Y      = deque(maxlen=self.N_deque)
-                self.deque_sig_I      = deque(maxlen=self.N_deque)
+                self.deque_time   = deque(maxlen=self.N_deque)
+                self.deque_ref_X  = deque(maxlen=self.N_deque)
+                self.deque_ref_Y  = deque(maxlen=self.N_deque)
+                self.deque_sig_I  = deque(maxlen=self.N_deque)
                 # Stage 1: apply band-stop filter and heterodyne mixing
-                self.deque_time_1     = deque(maxlen=self.N_deque)
-                self.deque_sig_I_filt = deque(maxlen=self.N_deque)
-                self.deque_mix_X      = deque(maxlen=self.N_deque)
-                self.deque_mix_Y      = deque(maxlen=self.N_deque)
+                self.deque_time_1 = deque(maxlen=self.N_deque)
+                self.deque_filt_I = deque(maxlen=self.N_deque)
+                self.deque_mix_X  = deque(maxlen=self.N_deque)
+                self.deque_mix_Y  = deque(maxlen=self.N_deque)
                 # Stage 2: apply low-pass filter and signal reconstruction
-                self.deque_time_2     = deque(maxlen=self.N_deque)
-                self.deque_out_X      = deque(maxlen=self.N_deque)
-                self.deque_out_Y      = deque(maxlen=self.N_deque)
-                self.deque_out_R      = deque(maxlen=self.N_deque)
-                self.deque_out_T      = deque(maxlen=self.N_deque)
+                self.deque_time_2 = deque(maxlen=self.N_deque)
+                self.deque_out_X  = deque(maxlen=self.N_deque)
+                self.deque_out_Y  = deque(maxlen=self.N_deque)
+                self.deque_out_R  = deque(maxlen=self.N_deque)
+                self.deque_out_T  = deque(maxlen=self.N_deque)
                 
                 self.deques = [self.deque_time,
                                self.deque_ref_X,
                                self.deque_ref_Y,
                                self.deque_sig_I,
                                self.deque_time_1,
-                               self.deque_sig_I_filt,
+                               self.deque_filt_I,
                                self.deque_mix_X,
                                self.deque_mix_Y,
                                self.deque_time_2,
@@ -196,37 +196,46 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         # TODO: turn 'use_narrower_filter' into a toggle button UI
         use_narrower_filter = False
         if use_narrower_filter:
-            firwin_cutoff = [0.5, 49.5, 50.5, 99.5, 100.5, dev.config.F_Nyquist]
+            firwin_cutoff = [  0.5,  49.5, 
+                              50.5,  99.5, 
+                             100.5, 149.5,
+                             150.5]
             firwin_window = ("chebwin", 50)
         else:
-            firwin_cutoff = [0.9, 49.0, 51.0, 99.0, 101.0, dev.config.F_Nyquist]
+            firwin_cutoff = [  0.9,  49.0,
+                              51.0,  99.0,
+                             101.0, 149.0,
+                             151.0]
             firwin_window = "blackmanharris"
-        self.firf_BS_sig_I = Buffered_FIR_Filter(self.state.buffer_size,
-                                                 self.state.N_buffers_in_deque,
-                                                 dev.config.Fs,
-                                                 firwin_cutoff,
-                                                 firwin_window,
-                                                 display_name="BS_sig_I")
+        self.firf_1_sig_I = Buffered_FIR_Filter(self.state.buffer_size,
+                                                self.state.N_buffers_in_deque,
+                                                dev.config.Fs,
+                                                firwin_cutoff,
+                                                firwin_window,
+                                                pass_zero=False,
+                                                display_name="firf_1_sig_I")
     
         # Create FIR filter: Low-pass on mix_X and mix_Y
         # TODO: the extra distance 'roll_off_width' to stay away from
         # f_cutoff should be calculated based on the roll-off width of the
         # filter, instead of hard-coded
         roll_off_width = 2; # [Hz]
-        firwin_cutoff = [0, 2*dev.config.ref_freq - roll_off_width]
+        firwin_cutoff = 2*dev.config.ref_freq - roll_off_width
         firwin_window = "blackman"
-        self.firf_LP_mix_X = Buffered_FIR_Filter(self.state.buffer_size,
-                                                 self.state.N_buffers_in_deque,
-                                                 dev.config.Fs,
-                                                 firwin_cutoff,
-                                                 firwin_window,
-                                                 display_name="LP_mix_X")
-        self.firf_LP_mix_Y = Buffered_FIR_Filter(self.state.buffer_size,
-                                                 self.state.N_buffers_in_deque,
-                                                 dev.config.Fs,
-                                                 firwin_cutoff,
-                                                 firwin_window,
-                                                 display_name="LP_mix_Y")
+        self.firf_2_mix_X = Buffered_FIR_Filter(self.state.buffer_size,
+                                                self.state.N_buffers_in_deque,
+                                                dev.config.Fs,
+                                                firwin_cutoff,
+                                                firwin_window,
+                                                pass_zero=True,
+                                                display_name="firf_2_mix_X")
+        self.firf_2_mix_Y = Buffered_FIR_Filter(self.state.buffer_size,
+                                                self.state.N_buffers_in_deque,
+                                                dev.config.Fs,
+                                                firwin_cutoff,
+                                                firwin_window,
+                                                pass_zero=True,
+                                                display_name="firf_2_mix_Y")
         
     def turn_on(self):
         self.worker_send.queued_instruction("turn_on")

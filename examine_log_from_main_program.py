@@ -11,6 +11,7 @@ import tkinter as tk
 from tkinter import filedialog
 import numpy as np
 import matplotlib.pyplot as plt
+plt.style.use('dark_background')
 
 plt.ion()
 fig = plt.figure()
@@ -30,10 +31,18 @@ with open(fn, 'r') as file :
   filedata = file.read()
 
 a = np.loadtxt(fn, skiprows=1)
-time  = np.array(a[:, 0])
-ref_X = np.array(a[:, 1])
-ref_Y = np.array(a[:, 2])
-sig_I = np.array(a[:, 3])
+time   = np.array(a[:, 0])
+ref_X  = np.array(a[:, 1])
+ref_Y  = np.array(a[:, 2])
+sig_I  = np.array(a[:, 3])
+filt_I = np.array(a[:, 4])
+mix_X  = np.array(a[:, 5])
+mix_Y  = np.array(a[:, 6])
+X      = np.array(a[:, 7])
+Y      = np.array(a[:, 8])
+R      = np.array(a[:, 9])
+T      = np.array(a[:, 10])
+
 time = time - time[0]
 
 time_diff = np.diff(time)
@@ -51,13 +60,31 @@ for i in range(len(time_gaps)):
     print("  gap %i @ t = %.3f msec for %.3f msec" %
           (i+1, time_gaps[i]/1e3, time_gap_durations[i]/1e3))
 
-plt.plot(time/1e3, ref_X, 'x-r')
-plt.plot(time/1e3, ref_Y, 'x-y')
-plt.plot(time/1e3, sig_I, 'x-b')
-plt.grid()
-plt.xlabel("time (ms)")
-plt.ylabel("voltage (V)")
+PEN_01 = ((1, 30/255, 180/255))
+PEN_02 = ((1, 1, 90/255))
+PEN_03 = ((0, 1, 1))
+PEN_04 = ((1, 1, 1))
+
+ax1 = plt.subplot(3, 1, 1)
+plt.subplots_adjust(right=0.8)
+plt.plot(time/1e3, ref_X, 'x-', color=PEN_01, label='ref_X')
+plt.plot(time/1e3, sig_I, 'x-', color=PEN_03, label='sig_I')
+plt.grid(); plt.xlabel("time (ms)")
 plt.title(fn)
+
+ax2 = plt.subplot(3, 1, 2, sharex=ax1)
+plt.plot(time/1e3, filt_I, 'x-', color=PEN_04, label='filt_I')
+plt.plot(time/1e3, mix_X, 'x-', color=PEN_01, label='mix_X')
+plt.grid(); plt.xlabel("time (ms)")
+
+ax3 = plt.subplot(3, 1, 3, sharex=ax1)
+plt.plot(time/1e3, X, 'x-', color=PEN_01, label='X')
+plt.grid(); plt.xlabel("time (ms)")
+
+ax1.legend(bbox_to_anchor=(1.02,1), loc="upper left")
+ax2.legend(bbox_to_anchor=(1.02,1), loc="upper left")
+ax3.legend(bbox_to_anchor=(1.02,1), loc="upper left")
+#fig.legend(loc=7) 
 
 while (1):
     plt.pause(0.5)

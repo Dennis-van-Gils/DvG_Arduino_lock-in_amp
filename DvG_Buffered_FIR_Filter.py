@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "26-03-2019"
+__date__        = "17-04-2019"
 __version__     = "1.0.0"
 
 from collections import deque
@@ -13,18 +13,26 @@ from scipy.signal import firwin, freqz, fftconvolve
 import numpy as np
 import time as Time
 
+# When True enables 1D FFT-convolution running on a NVidia GPU using CUDA.
+# Only beneficial when processing large amounts of data (approx. > 1e5 samples)
+# as the overhead of copying memory from CPU to GPU is substantial.
+# Not really worth it when buffer_size <= 500 and N_buffers_in_deque <= 41.
+USE_CUDA_ACCELERATION = False
+if USE_CUDA_ACCELERATION:
+    import cupy
+    import sigpy as sp
+
 class Buffered_FIR_Filter():
-    def __init__(self, buffer_size, N_buffers_in_deque, Fs, firwin_cutoff,
-                 firwin_window, display_name=""):
+    def __init__(self, buffer_size, N_buffers_in_deque, Fs, cutoff, window,
+                 pass_zero=True, display_name=""):
         self.buffer_size = buffer_size                # [samples]
         self.N_buffers_in_deque = N_buffers_in_deque  # [int]
         self.Fs = Fs                                  # [Hz]
-        self.firwin_window = firwin_window            # type of window, see scipy.signal.get_window        
+        self.cutoff = cutoff                          # list of [Hz], see scipy.signal.firwin
+        self.window = window                          # type of window, see scipy.signal.get_window        
+        self.pass_zero = pass_zero                    # [bool], see scipy.signal.firwin
         self.display_name = display_name              # [str]
-        
-        # Check firwin_cutoff for illegal values and cap when necessary
-        self._constrain_firwin_cutoff(firwin_cutoff)  # list of [Hz]
-       
+                
         # Deque size
         self.N_deque = self.buffer_size * self.N_buffers_in_deque # [samples]
         
@@ -53,66 +61,45 @@ class Buffered_FIR_Filter():
         #self.starting_up = True
         """
         
-        # Create filter
-        self.b = firwin(self.N_taps,
-                        self.firwin_cutoff,
-                        window=self.firwin_window,
-                        fs=self.Fs,
-                        pass_zero=False)
-        self.calc_freqz_response()
-
-    def _constrain_firwin_cutoff(self, firwin_cutoff):
-        """Check firwin_cutoff for illegal values and cap when necessary.
-        I.e.:
-        Frequencies <= 0 Hz will be set to the tiny value 'cutoff_grain'.
-        Frequencies >= Nyquist freq. will be set to Nyquist - 'cutoff_grain'.
-        cutoff_grain = 1e-6 Hz
-        """
-        cutoff_grain = 1e-6
-        firwin_cutoff = np.array(firwin_cutoff, dtype=np.float64)
-        firwin_cutoff[firwin_cutoff <= cutoff_grain] = cutoff_grain
-        firwin_cutoff[firwin_cutoff >= self.Fs/2] = (self.Fs/2 - cutoff_grain)
-        self.firwin_cutoff = firwin_cutoff
-
-    def update_firwin_cutoff(self, firwin_cutoff):
-        self._constrain_firwin_cutoff(firwin_cutoff)
-        self.b = firwin(self.N_taps,
-                        self.firwin_cutoff,
-                        window=self.firwin_window,
-                        fs=self.Fs,
-                        pass_zero=False)
-        self.calc_freqz_response()
-        
-    def process(self, deque_sig_in: deque):
-        """
-        """
-        
-        #print("%s: %i" % (self.display_name, len(deque_sig_in)))
-        if (len(deque_sig_in) < self.N_deque) or np.isnan(deque_sig_in).any():
-            # Start-up. Filter still needs time to settle.
-            self.has_settled = False
-            valid_out = np.array([np.nan] * self.buffer_size)
+        # Friendly window description for direct printing as string
+        if isinstance(self.window, str):
+            self.window_description = '%s' % self.window
         else:
-            self.has_settled = True
-            """Select window out of the signal deque to feed into the
-            convolution. By optimal design, this happens to be the full deque.
-            Returns valid filtered signal output of current window.
-            """
-            #tick = Time.perf_counter()
-            valid_out = fftconvolve(deque_sig_in, self.b, mode='valid')
-            #print("%.1f" % ((Time.perf_counter() - tick)*1000))
+            self.window_description = '%s' % [x for x in self.window]
         
-        if self.has_settled and not(self.was_settled):
-            #print("%s: Filter has settled" % self.display_name)
-            self.was_settled = True
-        elif not(self.has_settled) and self.was_settled:
-            #print("%s: Filter has reset" % self.display_name)
-            self.was_settled = False
+        # Compute the filter
+        self.compute_firwin()
         
-        return valid_out
+    def compute_firwin(self, cutoff=None, window=None, pass_zero=None):
+        """Check cutoff frequencies for illegal values and cap when necessary,
+        compute the FIR filter and the frequency response.
+        """
+        if cutoff is not None:
+            self.cutoff = cutoff
+        if window is not None:
+            self.window = window
+            if isinstance(self.window, str):
+                self.window_description = '%s' % self.window
+            else:
+                self.window_description = '%s' % [x for x in self.window]
+        if pass_zero is not None:
+            self.pass_zero = pass_zero
+            
+        self._constrain_cutoff()
+        self.b = firwin(numtaps=self.N_taps,
+                        cutoff=self.cutoff,
+                        window=self.window,
+                        pass_zero=self.pass_zero,
+                        fs=self.Fs)
+        self.compute_freqz()
+        #self.report()
         
-    def calc_freqz_response(self, worN=2**18):
-        # Calculate full frequency response.
+        if USE_CUDA_ACCELERATION:
+            # Copy to cupy array (resides at the GPU!)
+            self.b_cp = cupy.array(self.b)
+            
+    def compute_freqz(self, worN=2**18):
+        # Compute the full frequency response.
         # Note that these arrays will become of length 'worN', which could
         # overwhelm a user-interface when plotting such large number of points.
         w, h = freqz(self.b, worN=worN)
@@ -165,13 +152,56 @@ class Buffered_FIR_Filter():
         self.resp_freq_Hz   = self.full_resp_freq_Hz[idx_keep]
         self.resp_ampl_dB   = self.full_resp_ampl_dB[idx_keep]
         self.resp_phase_rad = self.full_resp_phase_rad[idx_keep]
+
+    def _constrain_cutoff(self):
+        """Check cutoff frequencies for illegal values and cap when necessary,
+        sort by increasing value and remove duplicates.
+        I.e.:
+        Frequencies <= 0 Hz will be removed.
+        Frequencies >= Nyquist freq. will be set to Nyquist - 'cutoff_grain'.
+        cutoff_grain = 1e-6 Hz
+        """
+        cutoff_grain = 1e-6
+        cutoff = np.array(self.cutoff, dtype=np.float64, ndmin=1)
+        cutoff = cutoff[cutoff > 0]
+        cutoff[cutoff >= self.Fs/2] = (self.Fs/2 - cutoff_grain)
+        self.cutoff = np.unique(np.sort(cutoff))
+        
+    def process(self, deque_sig_in: deque):
+        """
+        """
+        
+        #print("%s: %i" % (self.display_name, len(deque_sig_in)))
+        if (len(deque_sig_in) < self.N_deque) or np.isnan(deque_sig_in).any():
+            # Start-up. Filter still needs time to settle.
+            self.has_settled = False
+            valid_out = np.array([np.nan] * self.buffer_size)
+        else:
+            self.has_settled = True
+            """Select window out of the signal deque to feed into the
+            convolution. By optimal design, this happens to be the full deque.
+            Returns valid filtered signal output of current window.
+            """
+            #tick = Time.perf_counter()
+            if USE_CUDA_ACCELERATION:
+                cp_valid_out = sp.convolve(cupy.array(list(deque_sig_in)),
+                                           self.b_cp,
+                                           mode='valid')
+                valid_out = cupy.asnumpy(cp_valid_out)
+            else:
+                valid_out = fftconvolve(deque_sig_in, self.b, mode='valid')
+            #print("%.1f" % ((Time.perf_counter() - tick)*1000))
+        
+        if self.has_settled and not(self.was_settled):
+            #print("%s: Filter has settled" % self.display_name)
+            self.was_settled = True
+        elif not(self.has_settled) and self.was_settled:
+            #print("%s: Filter has reset" % self.display_name)
+            self.was_settled = False
+        
+        return valid_out
         
     def report(self):
-        if isinstance(self.firwin_window, str):
-            __window = '%s' % self.firwin_window
-        else:
-            __window = '%s' % [x for x in self.firwin_window]
-        
         print('--------------------------------')
         print('Fs                 = %.0f Hz'    % self.Fs)
         print('buffer_size        = %i samples' % self.buffer_size)
@@ -181,8 +211,9 @@ class Buffered_FIR_Filter():
         print('T_span_taps   = %.3f s'     % self.T_span_taps)
         print('T_span_buffer = %.3f s'     % self.T_span_buffer)
         print('--------------------------------')
-        print('firwin_cutoff = %s' % [round(x, 1) for x in self.firwin_cutoff])
-        print('firwin_window = %s' % __window)
+        print('window = %s' % self.window_description)
+        print('cutoff = %s' % [round(x, 1) for x in self.cutoff])
+        print('pass_zero = %s' % self.pass_zero)
         print('--------------------------------')
         print('win_idx_valid_start = %i samples' % self.win_idx_valid_start)
         print('T_settling          = %.3f s'     % self.T_settling)
