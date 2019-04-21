@@ -100,8 +100,10 @@ class Buffered_FIR_Filter():
             
     def compute_freqz(self, worN=2**18):
         # Compute the full frequency response.
-        # Note that these arrays will become of length 'worN', which could
-        # overwhelm a user-interface when plotting such large number of points.
+        # Note: these arrays will become of length 'worN', which could overwhelm
+        # a user-interface when plotting such large number of points.
+        # Note: Amplitude ratio in dB: 20 log_10(A1/A2)
+        #       Power     ratio in dB: 10 log_10(P1/P2)
         w, h = freqz(self.b, worN=worN)
         self.full_resp_freq_Hz   = w / np.pi * self.Fs / 2
         self.full_resp_ampl_dB   = 20 * np.log10(abs(h))

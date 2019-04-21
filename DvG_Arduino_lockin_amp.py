@@ -223,6 +223,8 @@ def lockin_DAQ_update():
     if len(state.deque_sig_I) == state.deque_sig_I.maxlen:
         # When scaling='spectrum', Pxx returns units of V^2
         # When scaling='density', Pxx returns units of V^2/Hz
+        # Note: Amplitude ratio in dB: 20 log_10(A1/A2)
+        #       Power     ratio in dB: 10 log_10(P1/P2)
         [f, Pxx] = welch(state.deque_sig_I, fs=c.Fs, nperseg=10250,
                          scaling='spectrum')
         window.BP_PS_1.set_data(f, 10 * np.log10(Pxx))

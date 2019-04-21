@@ -856,7 +856,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_1_resp.showGrid(x=1, y=1)
         self.pi_filt_1_resp.setTitle('Filter response', **p)
         self.pi_filt_1_resp.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_filt_1_resp.setLabel('left', text='attenuation [dB]', **p)
+        self.pi_filt_1_resp.setLabel('left', text='amplitude attenuation [dB]',
+                                     **p)
         self.pi_filt_1_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_1_resp.enableAutoRange('x', False)
         self.pi_filt_1_resp.enableAutoRange('y', True)
@@ -940,7 +941,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_2_resp.showGrid(x=1, y=1)
         self.pi_filt_2_resp.setTitle('Filter response', **p)
         self.pi_filt_2_resp.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_filt_2_resp.setLabel('left', text='attenuation [dB]', **p)
+        self.pi_filt_2_resp.setLabel('left', text='amplitude attenuation [dB]',
+                                     **p)
         self.pi_filt_2_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_2_resp.enableAutoRange('x', False)
         self.pi_filt_2_resp.enableAutoRange('y', True)
