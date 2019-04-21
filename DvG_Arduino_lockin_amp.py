@@ -144,52 +144,52 @@ def lockin_DAQ_update():
     # Stage 1
     # -------
     
-    # Apply band-stop filter to sig_I
-    sig_I_filt = lockin_pyqt.firf_BS_sig_I.process(state.deque_sig_I)
+    # Apply filter 1 to sig_I
+    filt_I = lockin_pyqt.firf_1_sig_I.process(state.deque_sig_I)
     
     # Retrieve the block of original data from the past that alligns with
     # the current filter output
     time_1    = (np.array(state.deque_time, dtype=np.int64)
-                 [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
-                  lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
+                 [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                  lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
     old_sig_I = (np.array(state.deque_sig_I, dtype=np.float64)
-                 [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
-                  lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
+                 [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                  lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
     
-    if lockin_pyqt.firf_BS_sig_I.has_settled:
+    if lockin_pyqt.firf_1_sig_I.has_settled:
         old_ref_X = (np.array(state.deque_ref_X, dtype=np.float64)
-                     [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
-                      lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
+                     [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                      lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
         old_ref_Y = (np.array(state.deque_ref_Y, dtype=np.float64)
-                     [lockin_pyqt.firf_BS_sig_I.win_idx_valid_start:
-                      lockin_pyqt.firf_BS_sig_I.win_idx_valid_end])
+                     [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                      lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
         
         # Heterodyne mixing
-        mix_X = (old_ref_X - c.ref_V_offset) * sig_I_filt
-        mix_Y = (old_ref_Y - c.ref_V_offset) * sig_I_filt
+        mix_X = (old_ref_X - c.ref_V_offset) * filt_I
+        mix_Y = (old_ref_Y - c.ref_V_offset) * filt_I
     else:
         mix_X = np.full(c.BUFFER_SIZE, np.nan)
         mix_Y = np.full(c.BUFFER_SIZE, np.nan)
     
     state.deque_time_1.extend(time_1)
-    state.deque_sig_I_filt.extend(sig_I_filt)
+    state.deque_filt_I.extend(filt_I)
     state.deque_mix_X.extend(mix_X)
     state.deque_mix_Y.extend(mix_Y)
     
     # Stage 2
     # -------
     
-    # Apply low-pass filter to the mixer output
-    out_X = lockin_pyqt.firf_LP_mix_X.process(state.deque_mix_X)
-    out_Y = lockin_pyqt.firf_LP_mix_Y.process(state.deque_mix_Y)
+    # Apply filter 2 to the mixer output
+    out_X = lockin_pyqt.firf_2_mix_X.process(state.deque_mix_X)
+    out_Y = lockin_pyqt.firf_2_mix_Y.process(state.deque_mix_Y)
     
     # Retrieve the block of original data from the past that alligns with
     # the current filter output
     time_2 = (np.array(state.deque_time_1, dtype=np.int64)
-              [lockin_pyqt.firf_LP_mix_X.win_idx_valid_start:
-               lockin_pyqt.firf_LP_mix_X.win_idx_valid_end])
+              [lockin_pyqt.firf_2_mix_X.win_idx_valid_start:
+               lockin_pyqt.firf_2_mix_X.win_idx_valid_end])
             
-    if lockin_pyqt.firf_LP_mix_X.has_settled:
+    if lockin_pyqt.firf_2_mix_X.has_settled:
         # Signal amplitude and phase reconstruction
         out_R = np.sqrt(out_X**2 + out_Y**2)
         
@@ -233,8 +233,8 @@ def lockin_DAQ_update():
         
         window.BP_PS_1.set_data(f, Pxx_dB)
         
-    if len(state.deque_sig_I_filt) == state.deque_sig_I_filt.maxlen:
-        [f, Pxx] = welch(state.deque_sig_I_filt, fs=c.Fs, nperseg=10250,
+    if len(state.deque_filt_I) == state.deque_filt_I.maxlen:
+        [f, Pxx] = welch(state.deque_filt_I, fs=c.Fs, nperseg=10250,
                          scaling='spectrum')
         Pxx_dB = (10 * np.log10(Pxx) + 300) - 300        
         window.BP_PS_2.set_data(f, Pxx_dB)
@@ -245,8 +245,8 @@ def lockin_DAQ_update():
     window.CH_ref_X.add_new_readings(time, ref_X)
     window.CH_ref_Y.add_new_readings(time, ref_Y)
     window.CH_sig_I.add_new_readings(time, sig_I)
-    window.CH_filt_BS_in.add_new_readings(time_1, old_sig_I)
-    window.CH_filt_BS_out.add_new_readings(time_1, sig_I_filt)
+    window.CH_filt_1_in.add_new_readings(time_1, old_sig_I)
+    window.CH_filt_1_out.add_new_readings(time_1, filt_I)
     window.CH_mix_X.add_new_readings(time_1, mix_X)
     window.CH_mix_Y.add_new_readings(time_1, mix_Y)        
     if window.qrbt_XR_X.isChecked():
@@ -286,8 +286,8 @@ def lockin_DAQ_update():
         file_logger.close_log()
 
     if file_logger.is_recording:
-        if lockin_pyqt.firf_LP_mix_X.has_settled:
-            idx_offset = lockin_pyqt.firf_BS_sig_I.win_idx_valid_start
+        if lockin_pyqt.firf_2_mix_X.has_settled:
+            idx_offset = lockin_pyqt.firf_1_sig_I.win_idx_valid_start
             for i in range(c.BUFFER_SIZE):
                 data = (("%i\t" +
                          "%.5f\t" * 9 +
@@ -296,7 +296,7 @@ def lockin_DAQ_update():
                         state.deque_ref_X[i],
                         state.deque_ref_Y[i],
                         state.deque_sig_I[i],
-                        state.deque_sig_I_filt[i + idx_offset],
+                        state.deque_filt_I[i + idx_offset],
                         state.deque_mix_X[i + idx_offset],
                         state.deque_mix_Y[i + idx_offset],
                         out_X[i],

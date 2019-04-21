@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "18-04-2019"
+__date__        = "21-04-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -416,13 +416,13 @@ class MainWindow(QtWid.QWidget):
 
         # QGROUP: Filters settled?
         self.LED_settled_BG_filter = create_LED_indicator_rect(False, 'NO')
-        self.LED_settled_LP_filter = create_LED_indicator_rect(False, 'NO')
+        self.LED_settled_2_filter = create_LED_indicator_rect(False, 'NO')
         
         grid = QtWid.QGridLayout(spacing=4)
         grid.addWidget(QtWid.QLabel("Filter @ sig_I")  , 0, 0)
         grid.addWidget(self.LED_settled_BG_filter         , 0, 1)
         grid.addWidget(QtWid.QLabel("Filter @ mix_X/Y"), 1, 0)
-        grid.addWidget(self.LED_settled_LP_filter         , 1, 1)
+        grid.addWidget(self.LED_settled_2_filter         , 1, 1)
         
         qgrp_settling = QtWid.QGroupBox("Filters settled?")
         qgrp_settling.setLayout(grid)
@@ -530,11 +530,12 @@ class MainWindow(QtWid.QWidget):
         #   FRAME: LIA output
         # -----------------------------------
         # -----------------------------------
-        
-        # Chart: X or R
-        self.gw_XR = pg.GraphicsWindow()
-        self.gw_XR.setBackground([20, 20, 20])
-        self.pi_XR = self.gw_XR.addPlot()
+
+        # Charts: (X or R) and (Y or T)
+        self.gw_XRYT = pg.GraphicsWindow()
+        self.gw_XRYT.setBackground([20, 20, 20])
+        self.pi_XR = self.gw_XRYT.addPlot()
+        self.pi_YT = self.gw_XRYT.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_XR.showGrid(x=1, y=1)
@@ -551,15 +552,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_XR.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
                              lockin.config.ISR_CLOCK * 1e3,
                              xMax=0)
-
-        self.CH_LIA_XR = ChartHistory(lockin.config.BUFFER_SIZE,
-                                      self.pi_XR.plot(pen=self.PEN_03))
-        self.CH_LIA_XR.x_axis_divisor = 1000     # From [us] to [ms]
         
-        # Chart: Y or T
-        self.pi_YT = self.gw_XR.addPlot()
-        
-        p = {'color': '#BBB', 'font-size': '10pt'}
         self.pi_YT.showGrid(x=1, y=1)
         self.pi_YT.setTitle('\u0398', **p)
         self.pi_YT.setLabel('bottom', text='time [ms]', **p)
@@ -574,9 +567,12 @@ class MainWindow(QtWid.QWidget):
         self.pi_YT.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
                              lockin.config.ISR_CLOCK * 1e3,
                              xMax=0)
-        
+
+        self.CH_LIA_XR = ChartHistory(lockin.config.BUFFER_SIZE,
+                                      self.pi_XR.plot(pen=self.PEN_03))
         self.CH_LIA_YT = ChartHistory(lockin.config.BUFFER_SIZE,
                                       self.pi_YT.plot(pen=self.PEN_03))
+        self.CH_LIA_XR.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_LIA_YT.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_LIA_output = [self.CH_LIA_XR, self.CH_LIA_YT]
         
@@ -647,12 +643,11 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(qgrp_readings , 0, 0, QtCore.Qt.AlignTop)
         grid.addWidget(self.gw_refsig, 0, 1)
         grid.addWidget(qgrp_XRYT     , 1, 0, QtCore.Qt.AlignTop)
-        grid.addWidget(self.gw_XR    , 1, 1)
+        grid.addWidget(self.gw_XRYT  , 1, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
-        self.tab_main.setLayout(grid)
         
-        #grid.setVerticalSpacing(0)
+        self.tab_main.setLayout(grid)
         
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -662,52 +657,49 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         
-        def _frame_BS_filter_output(): pass # Spider IDE outline bookmark
+        def _frame_Filter_1_output(): pass # Spider IDE outline bookmark
         # -----------------------------------
         # -----------------------------------
-        #   Frame: Band-stop filter output
+        #   Frame: Filter 1 output
         # -----------------------------------
         # -----------------------------------
         
-        # Chart: Band-stop filter output
-        self.gw_filt_BS = pg.GraphicsWindow()
-        self.gw_filt_BS.setBackground([20, 20, 20])
-        self.pi_filt_BS = self.gw_filt_BS.addPlot()
+        # Chart: Filter @ sig_I
+        self.gw_filt_1 = pg.GraphicsWindow()
+        self.gw_filt_1.setBackground([20, 20, 20])
+        self.pi_filt_1 = self.gw_filt_1.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_filt_BS.showGrid(x=1, y=1)
-        self.pi_filt_BS.setTitle('Filter @ sig_I', **p)
-        self.pi_filt_BS.setLabel('bottom', text='time [ms]', **p)
-        self.pi_filt_BS.setLabel('left', text='voltage [V]', **p)
-        self.pi_filt_BS.setXRange(-lockin.config.BUFFER_SIZE *
+        self.pi_filt_1.showGrid(x=1, y=1)
+        self.pi_filt_1.setTitle('Filter @ sig_I', **p)
+        self.pi_filt_1.setLabel('bottom', text='time [ms]', **p)
+        self.pi_filt_1.setLabel('left', text='voltage [V]', **p)
+        self.pi_filt_1.setXRange(-lockin.config.BUFFER_SIZE *
                                     lockin.config.ISR_CLOCK * 1e3,
                                     0, padding=0.01)
-        self.pi_filt_BS.setYRange(-5, 5, padding=0.05)
-        self.pi_filt_BS.setAutoVisible(x=True, y=True)
-        self.pi_filt_BS.setClipToView(True)
-        self.pi_filt_BS.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) *
+        self.pi_filt_1.setYRange(-5, 5, padding=0.05)
+        self.pi_filt_1.setAutoVisible(x=True, y=True)
+        self.pi_filt_1.setClipToView(True)
+        self.pi_filt_1.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) *
                                   lockin.config.ISR_CLOCK * 1e3,
                                   xMax=0)
         
-        self.CH_filt_BS_in  = ChartHistory(
-                lockin.config.BUFFER_SIZE,
-                self.pi_filt_BS.plot(pen=self.PEN_03))
-        self.CH_filt_BS_out = ChartHistory(
-                lockin.config.BUFFER_SIZE,
-                self.pi_filt_BS.plot(pen=self.PEN_04))
-        self.CH_filt_BS_in.x_axis_divisor = 1000     # From [us] to [ms]
-        self.CH_filt_BS_out.x_axis_divisor = 1000    # From [us] to [ms]
-        self.CHs_filt_BS = [self.CH_filt_BS_in, self.CH_filt_BS_out]
+        self.CH_filt_1_in  = ChartHistory(lockin.config.BUFFER_SIZE,
+                                          self.pi_filt_1.plot(pen=self.PEN_03))
+        self.CH_filt_1_out = ChartHistory(lockin.config.BUFFER_SIZE,
+                                          self.pi_filt_1.plot(pen=self.PEN_04))
+        self.CH_filt_1_in.x_axis_divisor = 1000     # From [us] to [ms]
+        self.CH_filt_1_out.x_axis_divisor = 1000    # From [us] to [ms]
+        self.CHs_filt_1 = [self.CH_filt_1_in, self.CH_filt_1_out]
         
-        # QGROUP: Band-stop filter output
-        self.legend_box_filt_BS = Legend_box(text=['sig_I', 'filt_I'],
+        # QGROUP: Filter output
+        self.legend_box_filt_1 = Legend_box(text=['sig_I', 'filt_I'],
                                              pen=[self.PEN_03, self.PEN_04])
-        ([chkb.clicked.connect(self.process_chkbs_legend_box_filt_BS) for chkb
-          in self.legend_box_filt_BS.chkbs])
+        ([chkb.clicked.connect(self.process_chkbs_legend_box_filt_1) for chkb
+          in self.legend_box_filt_1.chkbs])
     
-        qgrp_filt_BS = QtWid.QGroupBox("Filter @ sig_I")
-
-        qgrp_filt_BS.setLayout(self.legend_box_filt_BS.grid)
+        qgrp_filt_1 = QtWid.QGroupBox("Filter @ sig_I")
+        qgrp_filt_1.setLayout(self.legend_box_filt_1.grid)
         
         def _frame_Mixer(): pass # Spider IDE outline bookmark
         # -----------------------------------
@@ -760,12 +752,13 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
 
         grid = QtWid.QGridLayout(spacing=0)
-        grid.addWidget(qgrp_filt_BS   , 0, 0, QtCore.Qt.AlignTop)
-        grid.addWidget(self.gw_filt_BS, 0, 1)
-        grid.addWidget(qgrp_mixer     , 1, 0, QtCore.Qt.AlignTop)
-        grid.addWidget(self.gw_mixer  , 1, 1)
+        grid.addWidget(qgrp_filt_1   , 0, 0, QtCore.Qt.AlignTop)
+        grid.addWidget(self.gw_filt_1, 0, 1)
+        grid.addWidget(qgrp_mixer    , 1, 0, QtCore.Qt.AlignTop)
+        grid.addWidget(self.gw_mixer , 1, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
+        
         self.tab_mixer.setLayout(grid)
         
         def _frame_Power_spectrum(): pass # Spider IDE outline bookmark
@@ -841,76 +834,77 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.gw_PS, 1, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
+        
         self.tab_power_spectrum.setLayout(grid)
                 
-        def _frame_BS_filter_response(): pass # Spider IDE outline bookmark
+        def _frame_Filter_1_design(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
-        #   TAB PAGE: Filter response band-stop
+        #   TAB PAGE: Filter design @ sig_I
         #
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         
-        # Plot: Filter response band-stop
-        self.gw_filt_resp_BS = pg.GraphicsWindow()
-        self.gw_filt_resp_BS.setBackground([20, 20, 20])        
-        self.pi_filt_resp_BS = self.gw_filt_resp_BS.addPlot()
+        # Plot: Filter response @ sig_I
+        self.gw_filt_1_resp = pg.GraphicsWindow()
+        self.gw_filt_1_resp.setBackground([20, 20, 20])        
+        self.pi_filt_1_resp = self.gw_filt_1_resp.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_filt_resp_BS.showGrid(x=1, y=1)
-        self.pi_filt_resp_BS.setTitle('Filter response', **p)
-        self.pi_filt_resp_BS.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_filt_resp_BS.setLabel('left', text='attenuation [dB]', **p)
-        self.pi_filt_resp_BS.setAutoVisible(x=True, y=True)
-        self.pi_filt_resp_BS.enableAutoRange('x', False)
-        self.pi_filt_resp_BS.enableAutoRange('y', True)
-        self.pi_filt_resp_BS.setClipToView(True)
-        self.pi_filt_resp_BS.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
+        self.pi_filt_1_resp.showGrid(x=1, y=1)
+        self.pi_filt_1_resp.setTitle('Filter response', **p)
+        self.pi_filt_1_resp.setLabel('bottom', text='frequency [Hz]', **p)
+        self.pi_filt_1_resp.setLabel('left', text='attenuation [dB]', **p)
+        self.pi_filt_1_resp.setAutoVisible(x=True, y=True)
+        self.pi_filt_1_resp.enableAutoRange('x', False)
+        self.pi_filt_1_resp.enableAutoRange('y', True)
+        self.pi_filt_1_resp.setClipToView(True)
+        self.pi_filt_1_resp.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
         
-        self.curve_filt_resp_BS = pg.PlotCurveItem(pen=self.PEN_03,
-                                                   brush=self.BRUSH_03)
-        self.pi_filt_resp_BS.addItem(self.curve_filt_resp_BS)
-        self.update_plot_filt_resp_BS()
-        self.plot_filt_resp_BS_zoom_ROI()
+        self.curve_filt_1_resp = pg.PlotCurveItem(pen=self.PEN_03,
+                                                  brush=self.BRUSH_03)
+        self.pi_filt_1_resp.addItem(self.curve_filt_1_resp)
+        self.update_plot_filt_1_resp()
+        self.plot_zoom_ROI_filt_1()
         
         # QGROUP: Zoom
-        self.qpbt_filt_resp_BS_zoom_DC  = QtWid.QPushButton('DC')
-        self.qpbt_filt_resp_BS_zoom_50  = QtWid.QPushButton('50 Hz')
-        self.qpbt_filt_resp_BS_zoom_low = QtWid.QPushButton('0 - 200 Hz')
-        self.qpbt_filt_resp_BS_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
-        self.qpbt_filt_resp_BS_zoom_all = QtWid.QPushButton('Full range')
-        self.qpbt_filt_resp_BS_zoom_ROI = QtWid.QPushButton('ROI range')
+        self.qpbt_filt_1_resp_zoom_DC  = QtWid.QPushButton('DC')
+        self.qpbt_filt_1_resp_zoom_50  = QtWid.QPushButton('50 Hz')
+        self.qpbt_filt_1_resp_zoom_low = QtWid.QPushButton('0 - 200 Hz')
+        self.qpbt_filt_1_resp_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
+        self.qpbt_filt_1_resp_zoom_all = QtWid.QPushButton('Full range')
+        self.qpbt_filt_1_resp_zoom_ROI = QtWid.QPushButton('ROI range')
 
-        self.qpbt_filt_resp_BS_zoom_DC.clicked.connect(lambda:
-            self.plot_zoom_x(self.pi_filt_resp_BS, 0, 2))
-        self.qpbt_filt_resp_BS_zoom_50.clicked.connect(lambda:
-            self.plot_zoom_x(self.pi_filt_resp_BS, 47, 53))        
-        self.qpbt_filt_resp_BS_zoom_low.clicked.connect(lambda:
-            self.plot_zoom_x(self.pi_filt_resp_BS, 0, 200))
-        self.qpbt_filt_resp_BS_zoom_mid.clicked.connect(lambda:
-            self.plot_zoom_x(self.pi_filt_resp_BS, 0, 1000))
-        self.qpbt_filt_resp_BS_zoom_all.clicked.connect(lambda:
-            self.plot_zoom_x(self.pi_filt_resp_BS, 0, self.lockin.config.F_Nyquist))
-        self.qpbt_filt_resp_BS_zoom_ROI.clicked.connect(
-                self.plot_filt_resp_BS_zoom_ROI)
+        self.qpbt_filt_1_resp_zoom_DC.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_1_resp, 0, 2))
+        self.qpbt_filt_1_resp_zoom_50.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_1_resp, 47, 53))        
+        self.qpbt_filt_1_resp_zoom_low.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_1_resp, 0, 200))
+        self.qpbt_filt_1_resp_zoom_mid.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_1_resp, 0, 1000))
+        self.qpbt_filt_1_resp_zoom_all.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_1_resp, 0, self.lockin.config.F_Nyquist))
+        self.qpbt_filt_1_resp_zoom_ROI.clicked.connect(
+                self.plot_zoom_ROI_filt_1)
             
         grid = QtWid.QGridLayout()
-        grid.addWidget(self.qpbt_filt_resp_BS_zoom_DC , 0, 0)
-        grid.addWidget(self.qpbt_filt_resp_BS_zoom_50 , 0, 1)
-        grid.addWidget(self.qpbt_filt_resp_BS_zoom_low, 0, 2)
-        grid.addWidget(self.qpbt_filt_resp_BS_zoom_mid, 0, 3)
-        grid.addWidget(self.qpbt_filt_resp_BS_zoom_all, 0, 4)
-        grid.addWidget(self.qpbt_filt_resp_BS_zoom_ROI, 0, 5)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_DC , 0, 0)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_50 , 0, 1)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_low, 0, 2)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_mid, 0, 3)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_all, 0, 4)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_ROI, 0, 5)
         
         qgrp_zoom = QtWid.QGroupBox("Zoom")
         qgrp_zoom.setLayout(grid)
         
-        # QGROUP: Filter design band-stop
-        self.qtbl_filt_BS = QtWid.QTableWidget()
+        # QGROUP: Filter design
+        self.qtbl_filt_1 = QtWid.QTableWidget()
 
         default_font_pt = QtWid.QApplication.font().pointSize()
-        self.qtbl_filt_BS.setStyleSheet(
+        self.qtbl_filt_1.setStyleSheet(
                 "QTableWidget {font-size: %ipt;"
                               "font-family: MS Shell Dlg 2}"
                 "QHeaderView  {font-size: %ipt;"
@@ -918,162 +912,164 @@ class MainWindow(QtWid.QWidget):
                 "QHeaderView:section {background-color: lightgray}" %
                 (default_font_pt, default_font_pt))
     
-        self.qtbl_filt_BS.setRowCount(6)
-        self.qtbl_filt_BS.setColumnCount(2)
-        self.qtbl_filt_BS.setColumnWidth(0, ex8)
-        self.qtbl_filt_BS.setColumnWidth(1, ex8)
-        self.qtbl_filt_BS.setHorizontalHeaderLabels (['from', 'to'])
-        self.qtbl_filt_BS.horizontalHeader().setDefaultAlignment(
+        self.qtbl_filt_1.setRowCount(6)
+        self.qtbl_filt_1.setColumnCount(2)
+        self.qtbl_filt_1.setColumnWidth(0, ex8)
+        self.qtbl_filt_1.setColumnWidth(1, ex8)
+        self.qtbl_filt_1.setHorizontalHeaderLabels (['from', 'to'])
+        self.qtbl_filt_1.horizontalHeader().setDefaultAlignment(
                 QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.qtbl_filt_BS.horizontalHeader().setSectionResizeMode(
+        self.qtbl_filt_1.horizontalHeader().setSectionResizeMode(
                 QtWid.QHeaderView.Fixed)
-        self.qtbl_filt_BS.verticalHeader().setSectionResizeMode(
+        self.qtbl_filt_1.verticalHeader().setSectionResizeMode(
                 QtWid.QHeaderView.Fixed)
         
-        self.qtbl_filt_BS.setSizePolicy(
+        self.qtbl_filt_1.setSizePolicy(
                 QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
-        self.qtbl_filt_BS.setVerticalScrollBarPolicy(
+        self.qtbl_filt_1.setVerticalScrollBarPolicy(
                 QtCore.Qt.ScrollBarAlwaysOff)
-        self.qtbl_filt_BS.setHorizontalScrollBarPolicy(
+        self.qtbl_filt_1.setHorizontalScrollBarPolicy(
                 QtCore.Qt.ScrollBarAlwaysOff)
-        self.qtbl_filt_BS.setFixedSize(
-                self.qtbl_filt_BS.horizontalHeader().length() + 
-                self.qtbl_filt_BS.verticalHeader().width() + 2,
-                self.qtbl_filt_BS.verticalHeader().length() + 
-                self.qtbl_filt_BS.horizontalHeader().height() + 2)
+        self.qtbl_filt_1.setFixedSize(
+                self.qtbl_filt_1.horizontalHeader().length() + 
+                self.qtbl_filt_1.verticalHeader().width() + 2,
+                self.qtbl_filt_1.verticalHeader().length() + 
+                self.qtbl_filt_1.horizontalHeader().height() + 2)
         
-        self.qtbl_filt_BS_items = list()
-        for row in range(self.qtbl_filt_BS.rowCount()):
-            for col in range(self.qtbl_filt_BS.columnCount()):
+        self.qtbl_filt_1_items = list()
+        for row in range(self.qtbl_filt_1.rowCount()):
+            for col in range(self.qtbl_filt_1.columnCount()):
                 myItem = QtWid.QTableWidgetItem()
                 myItem.setTextAlignment(QtCore.Qt.AlignRight |
                                         QtCore.Qt.AlignVCenter)
-                self.qtbl_filt_BS_items.append(myItem)
-                self.qtbl_filt_BS.setItem(row, col, myItem)
+                self.qtbl_filt_1_items.append(myItem)
+                self.qtbl_filt_1.setItem(row, col, myItem)
                 
         p1 = {'maximumWidth': ex8, 'minimumWidth': ex8}
         p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
-        self.qpbt_filt_BS_coupling = QtWid.QPushButton("AC", checkable=True)
-        self.qlin_filt_BS_DC_cutoff = QtWid.QLineEdit(**{**p1, **p2})
-        self.qlin_filt_BS_window = QtWid.QLineEdit(readOnly=True)
-        self.qlin_filt_BS_window.setText(
-                self.lockin_pyqt.firf_BS_sig_I.window_description)
+        self.qpbt_filt_1_coupling = QtWid.QPushButton("AC", checkable=True)
+        self.qlin_filt_1_DC_cutoff = QtWid.QLineEdit(**{**p1, **p2})
+        self.qlin_filt_1_window = QtWid.QLineEdit(readOnly=True)
+        self.qlin_filt_1_window.setText(
+                self.lockin_pyqt.firf_1_sig_I.window_description)
                 
         i = 0
         grid = QtWid.QGridLayout()
         grid.addWidget(QtWid.QLabel('Input coupling AC/DC:') , i, 0, 1, 3); i+=1
-        grid.addWidget(self.qpbt_filt_BS_coupling            , i, 0, 1, 3); i+=1
+        grid.addWidget(self.qpbt_filt_1_coupling             , i, 0, 1, 3); i+=1
         grid.addWidget(QtWid.QLabel('Cutoff:')               , i, 0)
-        grid.addWidget(self.qlin_filt_BS_DC_cutoff           , i, 1)
+        grid.addWidget(self.qlin_filt_1_DC_cutoff            , i, 1)
         grid.addWidget(QtWid.QLabel('Hz')                    , i, 2)      ; i+=1
         grid.addItem(QtWid.QSpacerItem(0, 10)                , i, 0, 1, 3); i+=1
         grid.addWidget(QtWid.QLabel('Band-stop ranges [Hz]:'), i, 0, 1, 3); i+=1
-        grid.addWidget(self.qtbl_filt_BS                     , i, 0, 1, 3); i+=1
+        grid.addWidget(self.qtbl_filt_1                      , i, 0, 1, 3); i+=1
         grid.addItem(QtWid.QSpacerItem(0, 10)                , i, 0, 1, 3); i+=1
         grid.addWidget(QtWid.QLabel('Window:')               , i, 0, 1, 3); i+=1
-        grid.addWidget(self.qlin_filt_BS_window              , i, 0, 1, 3)
+        grid.addWidget(self.qlin_filt_1_window               , i, 0, 1, 3)
         grid.setAlignment(QtCore.Qt.AlignTop)
         
-        self.qpbt_filt_BS_coupling.clicked.connect(
-                self.process_filt_BS_coupling)
-        self.qlin_filt_BS_DC_cutoff.editingFinished.connect(
-                self.process_filt_BS_coupling)        
-        self.populate_filt_BS_design_controls()        
-        self.qtbl_filt_BS.cellChanged.connect(
-                self.process_qtbl_filt_BS_cellChanged)
-        self.qtbl_filt_BS_cellChanged_lock = False  # Ignore cellChanged event
+        self.qpbt_filt_1_coupling.clicked.connect(
+                self.process_filt_1_coupling)
+        self.qlin_filt_1_DC_cutoff.editingFinished.connect(
+                self.process_filt_1_coupling)        
+        self.populate_filt_1_design_controls()        
+        self.qtbl_filt_1.cellChanged.connect(
+                self.process_qtbl_filt_1_cellChanged)
+        self.qtbl_filt_1_cellChanged_lock = False  # Ignore cellChanged event
                                                     # when locked
 
-        qgrp_design_filt_BS = QtWid.QGroupBox("Filter design")
-        qgrp_design_filt_BS.setLayout(grid)
+        qgrp_filt_design = QtWid.QGroupBox("Filter design")
+        qgrp_filt_design.setLayout(grid)
         
         # -----------------------------------
         # -----------------------------------
-        #   Round up tab page 'Filter response: band-stop'
+        #   Round up tab page 'Filter response @ sig_I
         # -----------------------------------
         # -----------------------------------
         
         grid = QtWid.QGridLayout(spacing=0)
-        grid.addWidget(qgrp_design_filt_BS , 0, 0, 2, 1, QtCore.Qt.AlignTop)
-        grid.addWidget(qgrp_zoom           , 0, 1)
-        grid.addWidget(self.gw_filt_resp_BS, 1, 1)
+        grid.addWidget(qgrp_filt_design   , 0, 0, 2, 1, QtCore.Qt.AlignTop)
+        grid.addWidget(qgrp_zoom          , 0, 1)
+        grid.addWidget(self.gw_filt_1_resp, 1, 1)
         grid.setColumnStretch(1, 1)
+        
         self.tab_filter_1_design.setLayout(grid)
         
-        def _frame_LP_filter_response(): pass # Spider IDE outline bookmark
+        def _frame_Filter_2_design(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
-        #   TAB PAGE: Filter response low-pass
+        #   TAB PAGE: Filter design @ mix_X/Y
         #
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         
-        # Plot: Filter response low-pass
-        self.gw_filt_resp_LP = pg.GraphicsWindow()
-        self.gw_filt_resp_LP.setBackground([20, 20, 20])        
-        self.pi_filt_resp_LP = self.gw_filt_resp_LP.addPlot()
+        # Plot: Filter response @ mix_X/Y
+        self.gw_filt_2_resp = pg.GraphicsWindow()
+        self.gw_filt_2_resp.setBackground([20, 20, 20])        
+        self.pi_filt_2_resp = self.gw_filt_2_resp.addPlot()
         
         p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_filt_resp_LP.showGrid(x=1, y=1)
-        self.pi_filt_resp_LP.setTitle('Filter response', **p)
-        self.pi_filt_resp_LP.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_filt_resp_LP.setLabel('left', text='attenuation [dB]', **p)
-        self.pi_filt_resp_LP.setAutoVisible(x=True, y=True)
-        self.pi_filt_resp_LP.enableAutoRange('x', False)
-        self.pi_filt_resp_LP.enableAutoRange('y', True)
-        self.pi_filt_resp_LP.setClipToView(True)
-        self.pi_filt_resp_LP.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
+        self.pi_filt_2_resp.showGrid(x=1, y=1)
+        self.pi_filt_2_resp.setTitle('Filter response', **p)
+        self.pi_filt_2_resp.setLabel('bottom', text='frequency [Hz]', **p)
+        self.pi_filt_2_resp.setLabel('left', text='attenuation [dB]', **p)
+        self.pi_filt_2_resp.setAutoVisible(x=True, y=True)
+        self.pi_filt_2_resp.enableAutoRange('x', False)
+        self.pi_filt_2_resp.enableAutoRange('y', True)
+        self.pi_filt_2_resp.setClipToView(True)
+        self.pi_filt_2_resp.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
         
-        self.curve_filt_resp_LP = pg.PlotCurveItem(pen=self.PEN_03,
-                                                   brush=self.BRUSH_03)
-        self.pi_filt_resp_LP.addItem(self.curve_filt_resp_LP)
-        self.update_plot_filt_resp_LP()
-        self.plot_filt_resp_LP_zoom_ROI()
+        self.curve_filt_2_resp = pg.PlotCurveItem(pen=self.PEN_03,
+                                                  brush=self.BRUSH_03)
+        self.pi_filt_2_resp.addItem(self.curve_filt_2_resp)
+        self.update_plot_filt_2_resp()
+        self.plot_zoom_ROI_filt_2()
         
         # QGROUP: Zoom
-        self.qpbt_filt_resp_LP_zoom_DC  = QtWid.QPushButton('DC')
-        self.qpbt_filt_resp_LP_zoom_50  = QtWid.QPushButton('50 Hz')
-        self.qpbt_filt_resp_LP_zoom_low = QtWid.QPushButton('0 - 200 Hz')
-        self.qpbt_filt_resp_LP_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
-        self.qpbt_filt_resp_LP_zoom_all = QtWid.QPushButton('Full range')
-        self.qpbt_filt_resp_LP_zoom_ROI = QtWid.QPushButton('ROI range')
+        self.qpbt_filt_2_resp_zoom_DC  = QtWid.QPushButton('DC')
+        self.qpbt_filt_2_resp_zoom_50  = QtWid.QPushButton('50 Hz')
+        self.qpbt_filt_2_resp_zoom_low = QtWid.QPushButton('0 - 200 Hz')
+        self.qpbt_filt_2_resp_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
+        self.qpbt_filt_2_resp_zoom_all = QtWid.QPushButton('Full range')
+        self.qpbt_filt_2_resp_zoom_ROI = QtWid.QPushButton('ROI range')
 
-        self.qpbt_filt_resp_LP_zoom_DC.clicked.connect(lambda:
-            self.plot_zoom_x(self.pi_filt_resp_LP, 0, 2))
-        self.qpbt_filt_resp_LP_zoom_50.clicked.connect(lambda:
-            self.plot_zoom_x(self.pi_filt_resp_LP, 47, 53))        
-        self.qpbt_filt_resp_LP_zoom_low.clicked.connect(lambda:
-            self.plot_zoom_x(self.pi_filt_resp_LP, 0, 200))
-        self.qpbt_filt_resp_LP_zoom_mid.clicked.connect(lambda:
-            self.plot_zoom_x(self.pi_filt_resp_LP, 0, 1000))
-        self.qpbt_filt_resp_LP_zoom_all.clicked.connect(lambda:
-            self.plot_zoom_x(self.pi_filt_resp_LP, 0, self.lockin.config.F_Nyquist))
-        self.qpbt_filt_resp_LP_zoom_ROI.clicked.connect(
-                self.plot_filt_resp_LP_zoom_ROI)
+        self.qpbt_filt_2_resp_zoom_DC.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_2_resp, 0, 2))
+        self.qpbt_filt_2_resp_zoom_50.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_2_resp, 47, 53))        
+        self.qpbt_filt_2_resp_zoom_low.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_2_resp, 0, 200))
+        self.qpbt_filt_2_resp_zoom_mid.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_2_resp, 0, 1000))
+        self.qpbt_filt_2_resp_zoom_all.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_filt_2_resp, 0, self.lockin.config.F_Nyquist))
+        self.qpbt_filt_2_resp_zoom_ROI.clicked.connect(
+                self.plot_zoom_ROI_filt_2)
             
         grid = QtWid.QGridLayout()
-        grid.addWidget(self.qpbt_filt_resp_LP_zoom_DC , 0, 0)
-        grid.addWidget(self.qpbt_filt_resp_LP_zoom_50 , 0, 1)
-        grid.addWidget(self.qpbt_filt_resp_LP_zoom_low, 0, 2)
-        grid.addWidget(self.qpbt_filt_resp_LP_zoom_mid, 0, 3)
-        grid.addWidget(self.qpbt_filt_resp_LP_zoom_all, 0, 4)
-        grid.addWidget(self.qpbt_filt_resp_LP_zoom_ROI, 0, 5)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_DC , 0, 0)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_50 , 0, 1)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_low, 0, 2)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_mid, 0, 3)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_all, 0, 4)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_ROI, 0, 5)
         
         qgrp_zoom = QtWid.QGroupBox("Zoom")
         qgrp_zoom.setLayout(grid)
         
         # -----------------------------------
         # -----------------------------------
-        #   Round up tab page 'Filter response: band-stop'
+        #   Round up tab page 'Filter response @ mix_X/Y
         # -----------------------------------
         # -----------------------------------
         
         grid = QtWid.QGridLayout(spacing=0)
-        #grid.addWidget(qgrp_design_filt_LP , 0, 0, 2, 1, QtCore.Qt.AlignTop)
-        grid.addWidget(qgrp_zoom           , 0, 1)
-        grid.addWidget(self.gw_filt_resp_LP, 1, 1)
+        #grid.addWidget(qgrp_design_filt_2 , 0, 0, 2, 1, QtCore.Qt.AlignTop)
+        grid.addWidget(qgrp_zoom          , 0, 1)
+        grid.addWidget(self.gw_filt_2_resp, 1, 1)
         grid.setColumnStretch(1, 1)
+        
         self.tab_filter_2_design.setLayout(grid)
         
         # ----------------------------------------------------------------------
@@ -1144,6 +1140,11 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def update_GUI(self):
         #dprint("Update GUI")
+        
+        # Major visual changes upcoming. Reduce CPU overhead by momentarily
+        # disabling GUI events and screen repaints.
+        self.setUpdatesEnabled(False)
+        
         LIA_pyqt = self.lockin_pyqt
         self.qlbl_update_counter.setText("%i" % LIA_pyqt.DAQ_update_counter)
         
@@ -1162,29 +1163,31 @@ class MainWindow(QtWid.QWidget):
         self.qlin_R_avg.setText("%.4f" % np.mean(LIA_pyqt.state.R))
         self.qlin_T_avg.setText("%.3f" % np.mean(LIA_pyqt.state.T))
         
-        if LIA_pyqt.firf_BS_sig_I.has_settled:
+        if LIA_pyqt.firf_1_sig_I.has_settled:
             self.LED_settled_BG_filter.setChecked(True)
             self.LED_settled_BG_filter.setText("YES")
         else:
             self.LED_settled_BG_filter.setChecked(False)
             self.LED_settled_BG_filter.setText("NO")
-        if LIA_pyqt.firf_LP_mix_X.has_settled:
-            self.LED_settled_LP_filter.setChecked(True)
-            self.LED_settled_LP_filter.setText("YES")
+        if LIA_pyqt.firf_2_mix_X.has_settled:
+            self.LED_settled_2_filter.setChecked(True)
+            self.LED_settled_2_filter.setText("YES")
         else:
-            self.LED_settled_LP_filter.setChecked(False)
-            self.LED_settled_LP_filter.setText("NO")
+            self.LED_settled_2_filter.setChecked(False)
+            self.LED_settled_2_filter.setText("NO")
             
         self.update_chart_refsig()
-        self.update_chart_filt_BS()
+        self.update_chart_filt_1()
         self.update_chart_mixer()
         self.update_chart_LIA_output()
         self.update_plot_PS()
+        
+        self.setUpdatesEnabled(True)
     
     @QtCore.pyqtSlot()
     def clear_chart_histories_stage_1_and_2(self):
-        self.CH_filt_BS_in.clear()
-        self.CH_filt_BS_out.clear()
+        self.CH_filt_1_in.clear()
+        self.CH_filt_1_out.clear()
         self.CH_mix_X.clear()
         self.CH_mix_Y.clear()
         self.CH_LIA_XR.clear()
@@ -1267,12 +1270,12 @@ class MainWindow(QtWid.QWidget):
         roll_off_width = 2; # [Hz]
         f_cutoff = 2*self.lockin.config.ref_freq - roll_off_width
         if f_cutoff > self.lockin.config.F_Nyquist - roll_off_width:
-            print("WARNING: Low-pass filter cannot reach desired cut-off freq.")
+            print("WARNING: Filter @ mix_X/Y can't reach desired cut-off freq.")
             f_cutoff = self.lockin.config.F_Nyquist - roll_off_width
         
-        self.lockin_pyqt.firf_LP_mix_X.design_fir_filter(cutoff=f_cutoff)
-        self.lockin_pyqt.firf_LP_mix_Y.design_fir_filter(cutoff=f_cutoff)
-        self.update_plot_filt_resp_LP()
+        self.lockin_pyqt.firf_2_mix_X.design_fir_filter(cutoff=f_cutoff)
+        self.lockin_pyqt.firf_2_mix_Y.design_fir_filter(cutoff=f_cutoff)
+        self.update_plot_filt_2_resp()
         
         self.lockin_pyqt.state.reset()
         self.clear_chart_histories_stage_1_and_2()
@@ -1299,9 +1302,9 @@ class MainWindow(QtWid.QWidget):
             self.update_chart_refsig()      # Force update graph
             
     @QtCore.pyqtSlot()
-    def process_chkbs_legend_box_filt_BS(self):
+    def process_chkbs_legend_box_filt_1(self):
         if self.lockin.lockin_paused:
-            self.update_chart_filt_BS()     # Force update graph
+            self.update_chart_filt_1()     # Force update graph
             
     @QtCore.pyqtSlot()
     def process_chkbs_legend_box_mixer(self):
@@ -1316,9 +1319,9 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbt_fullrange_xy(self):
         self.process_qpbt_autorange_x()
-        self.pi_refsig.setYRange (-3.3, 3.3, padding=0.05)
-        self.pi_filt_BS.setYRange(-3.3, 3.3, padding=0.05)
-        self.pi_mixer.setYRange  (-5, 5, padding=0.05)
+        self.pi_refsig.setYRange(-3.3, 3.3, padding=0.05)
+        self.pi_filt_1.setYRange(-3.3, 3.3, padding=0.05)
+        self.pi_mixer.setYRange (-5, 5, padding=0.05)
         
         if self.qrbt_XR_X.isChecked():
             self.pi_XR.setYRange(-5, 5, padding=0.05)
@@ -1337,7 +1340,7 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbt_autorange_x(self):
         plot_items = [self.pi_refsig,
-                      self.pi_filt_BS,
+                      self.pi_filt_1,
                       self.pi_mixer,
                       self.pi_XR,
                       self.pi_YT]
@@ -1350,7 +1353,7 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbt_autorange_y(self):
         plot_items = [self.pi_refsig,
-                      self.pi_filt_BS,
+                      self.pi_filt_1,
                       self.pi_mixer]
         for pi in plot_items:
             pi.enableAutoRange('y', True)
@@ -1454,11 +1457,11 @@ class MainWindow(QtWid.QWidget):
                     self.legend_box_refsig.chkbs[i].isChecked())
             
     @QtCore.pyqtSlot()
-    def update_chart_filt_BS(self):
-        [CH.update_curve() for CH in self.CHs_filt_BS]
+    def update_chart_filt_1(self):
+        [CH.update_curve() for CH in self.CHs_filt_1]
         for i in range(2):
-            self.CHs_filt_BS[i].curve.setVisible(
-                    self.legend_box_filt_BS.chkbs[i].isChecked())
+            self.CHs_filt_1[i].curve.setVisible(
+                    self.legend_box_filt_1.chkbs[i].isChecked())
             
     @QtCore.pyqtSlot()
     def update_chart_mixer(self):
@@ -1484,9 +1487,27 @@ class MainWindow(QtWid.QWidget):
         self.BP_PS_1.update_curve()
         self.BP_PS_2.update_curve()
         self.BP_PS_1.curve.setVisible(self.legend_box_PS.chkbs[0].isChecked())
-        self.BP_PS_2.curve.setVisible(self.legend_box_PS.chkbs[1].isChecked())
+        self.BP_PS_2.curve.setVisible(self.legend_box_PS.chkbs[1].isChecked())    
+        
+    @QtCore.pyqtSlot()
+    def update_plot_filt_1_resp(self):
+        firf = self.lockin_pyqt.firf_1_sig_I
+        self.curve_filt_1_resp.setFillLevel(np.min(firf.resp_ampl_dB))
+        self.curve_filt_1_resp.setData(firf.resp_freq_Hz,
+                                       firf.resp_ampl_dB)
+        #self.pi_filt_1_resp.setTitle('Filter response: <br/>%s' %
+        #                              self.filt_resp_construct_title(firf))
+                
+    @QtCore.pyqtSlot()
+    def update_plot_filt_2_resp(self):
+        firf = self.lockin_pyqt.firf_2_mix_X
+        self.curve_filt_2_resp.setFillLevel(np.min(firf.resp_ampl_dB))
+        self.curve_filt_2_resp.setData(firf.resp_freq_Hz,
+                                       firf.resp_ampl_dB)
+        #self.pi_filt_2_resp.setTitle('Filter response: <br/>%s' %
+        #                             self.filt_resp_construct_title(firf))    
 
-    def construct_title_plot_filt_resp(self, firf):
+    def filt_resp_construct_title(self, firf):
         __tmp1 = 'N_taps = %i' % firf.N_taps
         if isinstance(firf.window, str):
             __tmp2 = '%s' % firf.window
@@ -1497,49 +1518,49 @@ class MainWindow(QtWid.QWidget):
         return ('%s, %s, %s' % (__tmp1, __tmp2, __tmp3))
     
     @QtCore.pyqtSlot()
-    def process_filt_BS_coupling(self):
-        DC_cutoff = self.qlin_filt_BS_DC_cutoff.text()
+    def process_filt_1_coupling(self):
+        DC_cutoff = self.qlin_filt_1_DC_cutoff.text()
         try:
             DC_cutoff = float(DC_cutoff)
             DC_cutoff = round(DC_cutoff*10)/10;
         except:
             DC_cutoff = 0
         if DC_cutoff <= 0: DC_cutoff = 1.0
-        self.qlin_filt_BS_DC_cutoff.setText("%.1f" % DC_cutoff)
+        self.qlin_filt_1_DC_cutoff.setText("%.1f" % DC_cutoff)
         
-        cutoff = self.lockin_pyqt.firf_BS_sig_I.cutoff
-        if self.qpbt_filt_BS_coupling.isChecked():
+        cutoff = self.lockin_pyqt.firf_1_sig_I.cutoff
+        if self.qpbt_filt_1_coupling.isChecked():
             pass_zero = True
-            if not self.lockin_pyqt.firf_BS_sig_I.pass_zero:
+            if not self.lockin_pyqt.firf_1_sig_I.pass_zero:
                 cutoff = cutoff[1:]
         else:
             pass_zero = False
-            if self.lockin_pyqt.firf_BS_sig_I.pass_zero:
+            if self.lockin_pyqt.firf_1_sig_I.pass_zero:
                 cutoff = np.insert(cutoff, 0, DC_cutoff)
             else:
                 cutoff[0] = DC_cutoff
         
-        self.lockin_pyqt.firf_BS_sig_I.design_fir_filter(cutoff=cutoff,
+        self.lockin_pyqt.firf_1_sig_I.design_fir_filter(cutoff=cutoff,
                                                          pass_zero=pass_zero)
-        self.update_filt_BS_design()
+        self.update_filt_1_design()
         
     @QtCore.pyqtSlot(int, int)
-    def process_qtbl_filt_BS_cellChanged(self, k, l):
-        if self.qtbl_filt_BS_cellChanged_lock:
+    def process_qtbl_filt_1_cellChanged(self, k, l):
+        if self.qtbl_filt_1_cellChanged_lock:
             return
         #print("cellChanged %i %i" % (k, l))
         
         # Construct the cutoff list
-        if self.lockin_pyqt.firf_BS_sig_I.pass_zero:
+        if self.lockin_pyqt.firf_1_sig_I.pass_zero:
             # Input coupling: DC
             cutoff = np.array([])
         else:
             # Input coupling: AC
-            cutoff = self.lockin_pyqt.firf_BS_sig_I.cutoff[0]
+            cutoff = self.lockin_pyqt.firf_1_sig_I.cutoff[0]
 
-        for row in range(self.qtbl_filt_BS.rowCount()):
-            for col in range(self.qtbl_filt_BS.columnCount()):
-                value = self.qtbl_filt_BS.item(row, col).text()
+        for row in range(self.qtbl_filt_1.rowCount()):
+            for col in range(self.qtbl_filt_1.columnCount()):
+                value = self.qtbl_filt_1.item(row, col).text()
                 try:
                     value = float(value)
                     value = round(value*10)/10
@@ -1547,72 +1568,54 @@ class MainWindow(QtWid.QWidget):
                 except ValueError:
                     value = None
         
-        self.lockin_pyqt.firf_BS_sig_I.design_fir_filter(cutoff=cutoff)
-        self.update_filt_BS_design()
+        self.lockin_pyqt.firf_1_sig_I.design_fir_filter(cutoff=cutoff)
+        self.update_filt_1_design()
     
-    def update_filt_BS_design(self):
-        self.populate_filt_BS_design_controls()
-        self.lockin_pyqt.firf_BS_sig_I.calc_freqz_response()
-        self.update_plot_filt_resp_BS()
+    def update_filt_1_design(self):
+        self.populate_filt_1_design_controls()
+        self.lockin_pyqt.firf_1_sig_I.calc_freqz_response()
+        self.update_plot_filt_1_resp()
     
-    def populate_filt_BS_design_controls(self):
-        freq_list = self.lockin_pyqt.firf_BS_sig_I.cutoff;
+    def populate_filt_1_design_controls(self):
+        freq_list = self.lockin_pyqt.firf_1_sig_I.cutoff;
         
-        if self.lockin_pyqt.firf_BS_sig_I.pass_zero:
-            self.qpbt_filt_BS_coupling.setText("DC")
-            self.qpbt_filt_BS_coupling.setChecked(True)
-            self.qlin_filt_BS_DC_cutoff.setEnabled(False)
-            self.qlin_filt_BS_DC_cutoff.setReadOnly(True)
+        if self.lockin_pyqt.firf_1_sig_I.pass_zero:
+            self.qpbt_filt_1_coupling.setText("DC")
+            self.qpbt_filt_1_coupling.setChecked(True)
+            self.qlin_filt_1_DC_cutoff.setEnabled(False)
+            self.qlin_filt_1_DC_cutoff.setReadOnly(True)
         else:
-            self.qpbt_filt_BS_coupling.setText("AC")
-            self.qpbt_filt_BS_coupling.setChecked(False)
-            self.qlin_filt_BS_DC_cutoff.setText("%.1f" % freq_list[0])
-            self.qlin_filt_BS_DC_cutoff.setEnabled(True)
-            self.qlin_filt_BS_DC_cutoff.setReadOnly(False)
+            self.qpbt_filt_1_coupling.setText("AC")
+            self.qpbt_filt_1_coupling.setChecked(False)
+            self.qlin_filt_1_DC_cutoff.setText("%.1f" % freq_list[0])
+            self.qlin_filt_1_DC_cutoff.setEnabled(True)
+            self.qlin_filt_1_DC_cutoff.setReadOnly(False)
             freq_list = freq_list[1:]
         
-        self.qtbl_filt_BS_cellChanged_lock = True
-        for row in range(self.qtbl_filt_BS.rowCount()):
-            for col in range(self.qtbl_filt_BS.columnCount()):
+        self.qtbl_filt_1_cellChanged_lock = True
+        for row in range(self.qtbl_filt_1.rowCount()):
+            for col in range(self.qtbl_filt_1.columnCount()):
                 try:
                     freq = freq_list[row*2 + col]
                     freq_str = "%.1f" % freq
                 except IndexError:
                     freq_str = ""
-                self.qtbl_filt_BS_items[row*2 + col].setText(freq_str)
-        self.qtbl_filt_BS_cellChanged_lock = False
+                self.qtbl_filt_1_items[row*2 + col].setText(freq_str)
+        self.qtbl_filt_1_cellChanged_lock = False
     
     @QtCore.pyqtSlot()
-    def update_plot_filt_resp_BS(self):
-        firf = self.lockin_pyqt.firf_BS_sig_I
-        self.curve_filt_resp_BS.setFillLevel(np.min(firf.resp_ampl_dB))
-        self.curve_filt_resp_BS.setData(firf.resp_freq_Hz,
-                                        firf.resp_ampl_dB)
-        #self.pi_filt_resp_BS.setTitle('Filter response: band-stop<br/>%s' %
-        #                              self.construct_title_plot_filt_resp(firf))
-        
+    def plot_zoom_ROI_filt_1(self):
+        firf = self.lockin_pyqt.firf_1_sig_I
+        self.pi_filt_1_resp.setXRange(firf.resp_freq_Hz__ROI_start,
+                                      firf.resp_freq_Hz__ROI_end,
+                                      padding=0.01)
+
     @QtCore.pyqtSlot()
-    def plot_filt_resp_BS_zoom_ROI(self):
-        firf = self.lockin_pyqt.firf_BS_sig_I
-        self.pi_filt_resp_BS.setXRange(firf.resp_freq_Hz__ROI_start,
-                                       firf.resp_freq_Hz__ROI_end,
-                                       padding=0.01)
-        
-    @QtCore.pyqtSlot()
-    def update_plot_filt_resp_LP(self):
-        firf = self.lockin_pyqt.firf_LP_mix_X
-        self.curve_filt_resp_LP.setFillLevel(np.min(firf.resp_ampl_dB))
-        self.curve_filt_resp_LP.setData(firf.resp_freq_Hz,
-                                        firf.resp_ampl_dB)
-        #self.pi_filt_resp_LP.setTitle('Filter response: low-pass<br/>%s' %
-        #                              self.construct_title_plot_filt_resp(firf))
-    
-    @QtCore.pyqtSlot()
-    def plot_filt_resp_LP_zoom_ROI(self):
-        firf = self.lockin_pyqt.firf_LP_mix_X
-        self.pi_filt_resp_LP.setXRange(firf.resp_freq_Hz__ROI_start,
-                                       firf.resp_freq_Hz__ROI_end,
-                                       padding=0.01)
+    def plot_zoom_ROI_filt_2(self):
+        firf = self.lockin_pyqt.firf_2_mix_X
+        self.pi_filt_2_resp.setXRange(firf.resp_freq_Hz__ROI_start,
+                                      firf.resp_freq_Hz__ROI_end,
+                                      padding=0.01)
         
     def plot_zoom_x(self, pi_plot: pg.PlotItem, xRangeLo, xRangeHi):
         pi_plot.setXRange(xRangeLo, xRangeHi, padding=0.02)
