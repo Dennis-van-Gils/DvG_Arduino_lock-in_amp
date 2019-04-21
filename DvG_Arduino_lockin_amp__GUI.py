@@ -22,6 +22,7 @@ from DvG_debug_functions   import dprint
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
+from DvG_Buffered_FIR_Filter__GUI import Filter_design_GUI
 
 # Monkey-patch errors in pyqtgraph v0.10
 import pyqtgraph.exporters
@@ -901,85 +902,10 @@ class MainWindow(QtWid.QWidget):
         qgrp_zoom.setLayout(grid)
         
         # QGROUP: Filter design
-        self.qtbl_filt_1 = QtWid.QTableWidget()
-
-        default_font_pt = QtWid.QApplication.font().pointSize()
-        self.qtbl_filt_1.setStyleSheet(
-                "QTableWidget {font-size: %ipt;"
-                              "font-family: MS Shell Dlg 2}"
-                "QHeaderView  {font-size: %ipt;"
-                              "font-family: MS Shell Dlg 2}"
-                "QHeaderView:section {background-color: lightgray}" %
-                (default_font_pt, default_font_pt))
-    
-        self.qtbl_filt_1.setRowCount(6)
-        self.qtbl_filt_1.setColumnCount(2)
-        self.qtbl_filt_1.setColumnWidth(0, ex8)
-        self.qtbl_filt_1.setColumnWidth(1, ex8)
-        self.qtbl_filt_1.setHorizontalHeaderLabels (['from', 'to'])
-        self.qtbl_filt_1.horizontalHeader().setDefaultAlignment(
-                QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
-        self.qtbl_filt_1.horizontalHeader().setSectionResizeMode(
-                QtWid.QHeaderView.Fixed)
-        self.qtbl_filt_1.verticalHeader().setSectionResizeMode(
-                QtWid.QHeaderView.Fixed)
-        
-        self.qtbl_filt_1.setSizePolicy(
-                QtGui.QSizePolicy.Minimum, QtGui.QSizePolicy.Minimum)
-        self.qtbl_filt_1.setVerticalScrollBarPolicy(
-                QtCore.Qt.ScrollBarAlwaysOff)
-        self.qtbl_filt_1.setHorizontalScrollBarPolicy(
-                QtCore.Qt.ScrollBarAlwaysOff)
-        self.qtbl_filt_1.setFixedSize(
-                self.qtbl_filt_1.horizontalHeader().length() + 
-                self.qtbl_filt_1.verticalHeader().width() + 2,
-                self.qtbl_filt_1.verticalHeader().length() + 
-                self.qtbl_filt_1.horizontalHeader().height() + 2)
-        
-        self.qtbl_filt_1_items = list()
-        for row in range(self.qtbl_filt_1.rowCount()):
-            for col in range(self.qtbl_filt_1.columnCount()):
-                myItem = QtWid.QTableWidgetItem()
-                myItem.setTextAlignment(QtCore.Qt.AlignRight |
-                                        QtCore.Qt.AlignVCenter)
-                self.qtbl_filt_1_items.append(myItem)
-                self.qtbl_filt_1.setItem(row, col, myItem)
-                
-        p1 = {'maximumWidth': ex8, 'minimumWidth': ex8}
-        p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
-        self.qpbt_filt_1_coupling = QtWid.QPushButton("AC", checkable=True)
-        self.qlin_filt_1_DC_cutoff = QtWid.QLineEdit(**{**p1, **p2})
-        self.qlin_filt_1_window = QtWid.QLineEdit(readOnly=True)
-        self.qlin_filt_1_window.setText(
-                self.lockin_pyqt.firf_1_sig_I.window_description)
-                
-        i = 0
-        grid = QtWid.QGridLayout()
-        grid.addWidget(QtWid.QLabel('Input coupling AC/DC:') , i, 0, 1, 3); i+=1
-        grid.addWidget(self.qpbt_filt_1_coupling             , i, 0, 1, 3); i+=1
-        grid.addWidget(QtWid.QLabel('Cutoff:')               , i, 0)
-        grid.addWidget(self.qlin_filt_1_DC_cutoff            , i, 1)
-        grid.addWidget(QtWid.QLabel('Hz')                    , i, 2)      ; i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 10)                , i, 0, 1, 3); i+=1
-        grid.addWidget(QtWid.QLabel('Band-stop ranges [Hz]:'), i, 0, 1, 3); i+=1
-        grid.addWidget(self.qtbl_filt_1                      , i, 0, 1, 3); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 10)                , i, 0, 1, 3); i+=1
-        grid.addWidget(QtWid.QLabel('Window:')               , i, 0, 1, 3); i+=1
-        grid.addWidget(self.qlin_filt_1_window               , i, 0, 1, 3)
-        grid.setAlignment(QtCore.Qt.AlignTop)
-        
-        self.qpbt_filt_1_coupling.clicked.connect(
-                self.process_filt_1_coupling)
-        self.qlin_filt_1_DC_cutoff.editingFinished.connect(
-                self.process_filt_1_coupling)        
-        self.populate_filt_1_design_controls()        
-        self.qtbl_filt_1.cellChanged.connect(
-                self.process_qtbl_filt_1_cellChanged)
-        self.qtbl_filt_1_cellChanged_lock = False  # Ignore cellChanged event
-                                                    # when locked
-
-        qgrp_filt_design = QtWid.QGroupBox("Filter design")
-        qgrp_filt_design.setLayout(grid)
+        self.filt_1_design_GUI = Filter_design_GUI(
+                self.lockin_pyqt.firf_1_sig_I)
+        self.filt_1_design_GUI.signal_filter_design_updated.connect(
+                self.update_plot_filt_1_resp)
         
         # -----------------------------------
         # -----------------------------------
@@ -988,7 +914,8 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         grid = QtWid.QGridLayout(spacing=0)
-        grid.addWidget(qgrp_filt_design   , 0, 0, 2, 1, QtCore.Qt.AlignTop)
+        grid.addWidget(self.filt_1_design_GUI.qgrp
+                                          , 0, 0, 2, 1, QtCore.Qt.AlignTop)
         grid.addWidget(qgrp_zoom          , 0, 1)
         grid.addWidget(self.gw_filt_1_resp, 1, 1)
         grid.setColumnStretch(1, 1)
@@ -1058,6 +985,12 @@ class MainWindow(QtWid.QWidget):
         qgrp_zoom = QtWid.QGroupBox("Zoom")
         qgrp_zoom.setLayout(grid)
         
+        # QGROUP: Filter design
+        self.filt_2_design_GUI = Filter_design_GUI(
+                self.lockin_pyqt.firf_2_mix_X)
+        self.filt_2_design_GUI.signal_filter_design_updated.connect(
+                self.update_plot_filt_2_resp)
+        
         # -----------------------------------
         # -----------------------------------
         #   Round up tab page 'Filter response @ mix_X/Y
@@ -1065,7 +998,8 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         grid = QtWid.QGridLayout(spacing=0)
-        #grid.addWidget(qgrp_design_filt_2 , 0, 0, 2, 1, QtCore.Qt.AlignTop)
+        grid.addWidget(self.filt_2_design_GUI.qgrp
+                                          , 0, 0, 2, 1, QtCore.Qt.AlignTop)
         grid.addWidget(qgrp_zoom          , 0, 1)
         grid.addWidget(self.gw_filt_2_resp, 1, 1)
         grid.setColumnStretch(1, 1)
@@ -1273,8 +1207,8 @@ class MainWindow(QtWid.QWidget):
             print("WARNING: Filter @ mix_X/Y can't reach desired cut-off freq.")
             f_cutoff = self.lockin.config.F_Nyquist - roll_off_width
         
-        self.lockin_pyqt.firf_2_mix_X.design_fir_filter(cutoff=f_cutoff)
-        self.lockin_pyqt.firf_2_mix_Y.design_fir_filter(cutoff=f_cutoff)
+        self.lockin_pyqt.firf_2_mix_X.compute_firwin(cutoff=f_cutoff)
+        self.lockin_pyqt.firf_2_mix_Y.compute_firwin(cutoff=f_cutoff)
         self.update_plot_filt_2_resp()
         
         self.lockin_pyqt.state.reset()
@@ -1517,91 +1451,10 @@ class MainWindow(QtWid.QWidget):
         
         return ('%s, %s, %s' % (__tmp1, __tmp2, __tmp3))
     
-    @QtCore.pyqtSlot()
-    def process_filt_1_coupling(self):
-        DC_cutoff = self.qlin_filt_1_DC_cutoff.text()
-        try:
-            DC_cutoff = float(DC_cutoff)
-            DC_cutoff = round(DC_cutoff*10)/10;
-        except:
-            DC_cutoff = 0
-        if DC_cutoff <= 0: DC_cutoff = 1.0
-        self.qlin_filt_1_DC_cutoff.setText("%.1f" % DC_cutoff)
-        
-        cutoff = self.lockin_pyqt.firf_1_sig_I.cutoff
-        if self.qpbt_filt_1_coupling.isChecked():
-            pass_zero = True
-            if not self.lockin_pyqt.firf_1_sig_I.pass_zero:
-                cutoff = cutoff[1:]
-        else:
-            pass_zero = False
-            if self.lockin_pyqt.firf_1_sig_I.pass_zero:
-                cutoff = np.insert(cutoff, 0, DC_cutoff)
-            else:
-                cutoff[0] = DC_cutoff
-        
-        self.lockin_pyqt.firf_1_sig_I.design_fir_filter(cutoff=cutoff,
-                                                         pass_zero=pass_zero)
-        self.update_filt_1_design()
-        
-    @QtCore.pyqtSlot(int, int)
-    def process_qtbl_filt_1_cellChanged(self, k, l):
-        if self.qtbl_filt_1_cellChanged_lock:
-            return
-        #print("cellChanged %i %i" % (k, l))
-        
-        # Construct the cutoff list
-        if self.lockin_pyqt.firf_1_sig_I.pass_zero:
-            # Input coupling: DC
-            cutoff = np.array([])
-        else:
-            # Input coupling: AC
-            cutoff = self.lockin_pyqt.firf_1_sig_I.cutoff[0]
-
-        for row in range(self.qtbl_filt_1.rowCount()):
-            for col in range(self.qtbl_filt_1.columnCount()):
-                value = self.qtbl_filt_1.item(row, col).text()
-                try:
-                    value = float(value)
-                    value = round(value*10)/10
-                    cutoff = np.append(cutoff, value)
-                except ValueError:
-                    value = None
-        
-        self.lockin_pyqt.firf_1_sig_I.design_fir_filter(cutoff=cutoff)
-        self.update_filt_1_design()
-    
     def update_filt_1_design(self):
         self.populate_filt_1_design_controls()
         self.lockin_pyqt.firf_1_sig_I.calc_freqz_response()
         self.update_plot_filt_1_resp()
-    
-    def populate_filt_1_design_controls(self):
-        freq_list = self.lockin_pyqt.firf_1_sig_I.cutoff;
-        
-        if self.lockin_pyqt.firf_1_sig_I.pass_zero:
-            self.qpbt_filt_1_coupling.setText("DC")
-            self.qpbt_filt_1_coupling.setChecked(True)
-            self.qlin_filt_1_DC_cutoff.setEnabled(False)
-            self.qlin_filt_1_DC_cutoff.setReadOnly(True)
-        else:
-            self.qpbt_filt_1_coupling.setText("AC")
-            self.qpbt_filt_1_coupling.setChecked(False)
-            self.qlin_filt_1_DC_cutoff.setText("%.1f" % freq_list[0])
-            self.qlin_filt_1_DC_cutoff.setEnabled(True)
-            self.qlin_filt_1_DC_cutoff.setReadOnly(False)
-            freq_list = freq_list[1:]
-        
-        self.qtbl_filt_1_cellChanged_lock = True
-        for row in range(self.qtbl_filt_1.rowCount()):
-            for col in range(self.qtbl_filt_1.columnCount()):
-                try:
-                    freq = freq_list[row*2 + col]
-                    freq_str = "%.1f" % freq
-                except IndexError:
-                    freq_str = ""
-                self.qtbl_filt_1_items[row*2 + col].setText(freq_str)
-        self.qtbl_filt_1_cellChanged_lock = False
     
     @QtCore.pyqtSlot()
     def plot_zoom_ROI_filt_1(self):
