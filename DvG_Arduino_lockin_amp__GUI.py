@@ -13,6 +13,7 @@ from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 import numpy as np
+import psutil
 
 from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_BufferedPlot import BufferedPlot
@@ -196,6 +197,8 @@ class MainWindow(QtWid.QWidget):
         self.lockin_pyqt = lockin_pyqt
         self.file_logger = file_logger
         
+        self.prev_time_CPU_load = QDateTime.currentDateTime();
+        
         self.setGeometry(250, 50, 1200, 960)
         self.setWindowTitle("Arduino lock-in amplifier")
         self.setStyleSheet(SS_TEXTBOX_READ_ONLY + SS_GROUP + SS_HOVER + 
@@ -246,14 +249,15 @@ class MainWindow(QtWid.QWidget):
         self.qlbl_update_counter = QtWid.QLabel("0")
         self.qlbl_sample_rate = QtWid.QLabel("SAMPLE RATE: %.2f Hz" %
                                              (1/lockin.config.ISR_CLOCK))
-        self.qlbl_buffer_size = QtWid.QLabel("BUFFER SIZE  : %i" %
-                                             lockin.config.BUFFER_SIZE)
+        #self.qlbl_buffer_size = QtWid.QLabel("BUFFER SIZE  : %i" %
+        #                                     lockin.config.BUFFER_SIZE)
+        self.qlbl_CPU_load = QtWid.QLabel("CPU: nan%%")
         self.qlbl_DAQ_rate = QtWid.QLabel("Buffers/s: nan")
         self.qlbl_DAQ_rate.setMinimumWidth(100)
 
         vbox_left = QtWid.QVBoxLayout()
         vbox_left.addWidget(self.qlbl_sample_rate)
-        vbox_left.addWidget(self.qlbl_buffer_size)
+        vbox_left.addWidget(self.qlbl_CPU_load)
         vbox_left.addStretch(1)
         vbox_left.addWidget(self.qlbl_DAQ_rate)
         vbox_left.addWidget(self.qlbl_update_counter)
@@ -816,7 +820,8 @@ class MainWindow(QtWid.QWidget):
         # QGROUP: Power spectrum
         self.legend_box_PS = Legend_box(
                 text=['sig_I', 'filt_I', 'mix_X', 'mix_Y'],
-                pen=[self.PEN_03, self.PEN_04, self.PEN_01, self.PEN_02])
+                pen=[self.PEN_03, self.PEN_04, self.PEN_01, self.PEN_02],
+                checked=[True, True, False, False])
         ([chkb.clicked.connect(self.process_chkbs_legend_box_PS) for chkb
           in self.legend_box_PS.chkbs])
     
@@ -1034,6 +1039,15 @@ class MainWindow(QtWid.QWidget):
         vbox.addItem(QtWid.QSpacerItem(0, 10))
         vbox.addLayout(hbox)
         
+        # List of all pyqtgraph graphics windows
+        self.gws_all = [self.gw_refsig,
+                        self.gw_XRYT,
+                        self.gw_filt_1,
+                        self.gw_mixer,
+                        self.gw_PS,
+                        self.gw_filt_1_resp,
+                        self.gw_filt_2_resp]
+        
         # -----------------------------------
         # -----------------------------------
         #   Create wall clock timer
@@ -1080,13 +1094,18 @@ class MainWindow(QtWid.QWidget):
         self.qlbl_cur_date_time.setText("%s    %s" %
                                         (cur_date_time.toString("dd-MM-yyyy"),
                                          cur_date_time.toString("HH:mm:ss")))
+        
+        if self.prev_time_CPU_load.msecsTo(cur_date_time) > 1000:
+            self.qlbl_CPU_load.setText("CPU: %.1f%%" %
+                                       psutil.cpu_percent(interval=None))
+            self.prev_time_CPU_load = cur_date_time
     
     @QtCore.pyqtSlot()
     def update_GUI(self):
         #dprint("Update GUI")
         
         # Major visual changes upcoming. Reduce CPU overhead by momentarily
-        # disabling GUI events and screen repaints.
+        # disabling screen repaints and GUI events.
         self.setUpdatesEnabled(False)
         
         LIA_pyqt = self.lockin_pyqt
@@ -1097,6 +1116,7 @@ class MainWindow(QtWid.QWidget):
         else:
             self.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
                                        LIA_pyqt.obtained_DAQ_rate_Hz)
+        
         self.qlin_time.setText("%i" % LIA_pyqt.state.time[0])
         self.qlin_sig_I_max.setText("%.4f" % LIA_pyqt.state.sig_I_max)
         self.qlin_sig_I_min.setText("%.4f" % LIA_pyqt.state.sig_I_min)
@@ -1119,13 +1139,14 @@ class MainWindow(QtWid.QWidget):
         else:
             self.LED_filt_2_deque_settled.setChecked(False)
             self.LED_filt_2_deque_settled.setText("NO")
-            
+        
         self.update_chart_refsig()
         self.update_chart_filt_1()
         self.update_chart_mixer()
         self.update_chart_LIA_output()
         self.update_plot_PS()
         
+        # Re-enable screen repaints and GUI events
         self.setUpdatesEnabled(True)
     
     @QtCore.pyqtSlot()
