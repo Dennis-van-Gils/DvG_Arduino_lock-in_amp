@@ -799,10 +799,20 @@ class MainWindow(QtWid.QWidget):
         self.BP_PSs = [self.BP_PS_1, self.BP_PS_2, self.BP_PS_3, self.BP_PS_4]
         
         # QGROUP: Zoom
-        self.qpbt_PS_zoom_low = QtWid.QPushButton('0 - 200 Hz')
-        self.qpbt_PS_zoom_mid = QtWid.QPushButton('0 - 1 kHz')
-        self.qpbt_PS_zoom_all = QtWid.QPushButton('Full range')
+        self.qpbt_PS_zoom_f_ref     = QtWid.QPushButton('ref_freq')
+        self.qpbt_PS_zoom_dbl_f_ref = QtWid.QPushButton('2x ref_freq')
+        self.qpbt_PS_zoom_low       = QtWid.QPushButton('0 - 200 Hz')
+        self.qpbt_PS_zoom_mid       = QtWid.QPushButton('0 - 1 kHz')
+        self.qpbt_PS_zoom_all       = QtWid.QPushButton('Full range')
         
+        self.qpbt_PS_zoom_f_ref.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_PS,
+                             lockin.config.ref_freq - 10,
+                             lockin.config.ref_freq + 10))
+        self.qpbt_PS_zoom_dbl_f_ref.clicked.connect(lambda:
+            self.plot_zoom_x(self.pi_PS,
+                             2*lockin.config.ref_freq - 10,
+                             2*lockin.config.ref_freq + 10))
         self.qpbt_PS_zoom_low.clicked.connect(lambda:
             self.plot_zoom_x(self.pi_PS, 0, 200))
         self.qpbt_PS_zoom_mid.clicked.connect(lambda:
@@ -811,9 +821,11 @@ class MainWindow(QtWid.QWidget):
             self.plot_zoom_x(self.pi_PS, 0, self.lockin.config.F_Nyquist))
             
         grid = QtWid.QGridLayout()
-        grid.addWidget(self.qpbt_PS_zoom_low, 0, 0)
-        grid.addWidget(self.qpbt_PS_zoom_mid, 0, 1)
-        grid.addWidget(self.qpbt_PS_zoom_all, 0, 2)
+        grid.addWidget(self.qpbt_PS_zoom_f_ref    , 0, 0)
+        grid.addWidget(self.qpbt_PS_zoom_dbl_f_ref, 0, 1)
+        grid.addWidget(self.qpbt_PS_zoom_low      , 0, 2)
+        grid.addWidget(self.qpbt_PS_zoom_mid      , 0, 3)
+        grid.addWidget(self.qpbt_PS_zoom_all      , 0, 4)
         
         qgrp_zoom = QtWid.QGroupBox("Zoom")
         qgrp_zoom.setLayout(grid)
