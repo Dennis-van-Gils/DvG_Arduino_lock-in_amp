@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "21-04-2019"
+__date__        = "22-04-2019"
 __version__     = "1.0.0"
 
 import os
@@ -82,7 +82,10 @@ def about_to_quit():
 # ------------------------------------------------------------------------------
 
 def lockin_DAQ_update():
-    """Performs the main mathematical operations for lock-in signal processing.
+    """Listen for new data buffers send by the lock-in amplifier and perform the
+    main mathematical operations for signal processing. This function will run
+    in a dedicated thread (i.e. worker_DAQ), separated from the main program
+    thread that handles the GUI.
     NOTE: NO (SLOW) GUI OPERATIONS ARE ALLOWED HERE. Otherwise it will affect
     the worker_DAQ thread negatively, resulting in lost buffers.
     """
@@ -90,15 +93,35 @@ def lockin_DAQ_update():
     c: lockin_functions.Arduino_lockin_amp.Config = lockin.config
     state: lockin_pyqt_lib.Arduino_lockin_amp_pyqt.State = lockin_pyqt.state
 
-    if lockin.lockin_paused:  # Prevent throwings errors if just paused
+    # Prevent throwings errors if just paused
+    if lockin.lockin_paused:
         return False
     
+    if 0:
+        # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
+        # events when doing heavy calculations to unburden the CPU and prevent
+        # dropped buffers. Dropped graphing frames are prefereable to dropped data
+        # buffers.
+        for gw in window.gws_all:
+            gw.setUpdatesEnabled(False)
+    
+    # Listen for data buffers send by the lock-in
     [success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
     if not(success):
         dprint("@ %s %s" % current_date_time_strings())
         return False
     
+    if 1:
+        # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
+        # events when doing heavy calculations to unburden the CPU and prevent
+        # dropped buffers. Dropped graphing frames are prefereable to dropped data
+        # buffers.
+        for gw in window.gws_all:
+            gw.setUpdatesEnabled(False)
+    
     # HACK: hard-coded calibration correction on the ADC
+    # TODO: make a self-calibration procedure and store correction results
+    # on non-volatile memory of the microprocessor.
     dev_sig_I = sig_I * 0.0054 + 0.0020;
     sig_I -= dev_sig_I
     
@@ -114,15 +137,16 @@ def lockin_DAQ_update():
         
         # Replace dropped samples with np.nan samples.
         # As a result, the filter output will contain a continuous series of
-        # np.nan values in the output for up to T_settling seconds long after
-        # the occurrence of the last dropped sample.
+        # np.nan values in the output for up to DvG_Buffered_FIR_Filter.
+        # Buffered_FIR_Filter().T_settle_deque seconds long after the occurrence
+        # of the last dropped sample.
         state.deque_time.extend(prev_last_deque_time +
                                 np.arange(1, N_dropped_samples + 1) *
                                 c.ISR_CLOCK)
         state.deque_ref_X.extend(np.full(N_dropped_samples, np.nan))
         state.deque_ref_Y.extend(np.full(N_dropped_samples, np.nan))
         state.deque_sig_I.extend(np.full(N_dropped_samples, np.nan))
-        
+    
     # Stage 0
     # -------
     
@@ -292,7 +316,7 @@ def lockin_DAQ_update():
         file_logger.close_log()
 
     if file_logger.is_recording:
-        if lockin_pyqt.firf_2_mix_X.has_settled:
+        if lockin_pyqt.firf_2_mix_X.deque_has_settled:
             idx_offset = lockin_pyqt.firf_1_sig_I.win_idx_valid_start
             for i in range(c.BUFFER_SIZE):
                 data = (("%i\t" +
@@ -313,7 +337,11 @@ def lockin_DAQ_update():
                 file_logger.write(data)
             #file_logger.write("%i\t%.4f\t%.4f\t%.4f\n" % 
             #                  (time[i], ref_X[i], ref_Y[i], sig_I[i]))
-
+    
+    # Re-enable pyqtgraph.GraphicsWindow() redraws and GUI events
+    for gw in window.gws_all:
+        gw.setUpdatesEnabled(True)
+    
     return True
 
 # ------------------------------------------------------------------------------
