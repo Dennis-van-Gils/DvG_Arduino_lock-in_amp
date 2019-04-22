@@ -822,7 +822,7 @@ class MainWindow(QtWid.QWidget):
         self.legend_box_PS = Legend_box(
                 text=['sig_I', 'filt_I', 'mix_X', 'mix_Y'],
                 pen=[self.PEN_03, self.PEN_04, self.PEN_01, self.PEN_02],
-                checked=[True, False, False, False])
+                checked=[False, False, False, False])
         ([chkb.clicked.connect(self.process_chkbs_legend_box_PS) for chkb
           in self.legend_box_PS.chkbs])
     
