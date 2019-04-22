@@ -96,11 +96,11 @@ def lockin_DAQ_update():
     if lockin.lockin_paused:
         return False
     
-    if 1:
+    if not(window.boost_fps_graphing):
         # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
         # events when doing heavy calculations to unburden the CPU and prevent
-        # dropped buffers. Dropped graphing frames are prefereable to dropped data
-        # buffers.
+        # dropped buffers. Dropped graphing frames are prefereable to dropped
+        # data buffers.
         for gw in window.gws_all:
             gw.setUpdatesEnabled(False)
     
@@ -110,11 +110,11 @@ def lockin_DAQ_update():
         dprint("@ %s %s" % current_date_time_strings())
         return False
     
-    if 0:
+    if window.boost_fps_graphing:
         # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
         # events when doing heavy calculations to unburden the CPU and prevent
-        # dropped buffers. Dropped graphing frames are prefereable to dropped data
-        # buffers.
+        # dropped buffers. Dropped graphing frames are prefereable to dropped
+        # data buffers.
         for gw in window.gws_all:
             gw.setUpdatesEnabled(False)
     
