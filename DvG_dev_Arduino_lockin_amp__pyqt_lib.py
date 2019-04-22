@@ -6,10 +6,11 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "21-04-2019"
+__date__        = "22-04-2019"
 __version__     = "1.0.0"
 
 import numpy as np
+from scipy.signal import welch
 from collections import deque
 from PyQt5 import QtCore, QtWidgets as QtWid
 import time as Time
@@ -288,9 +289,9 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     def set_ref_V_ampl(self, ref_V_ampl):
         self.worker_send.queued_instruction("set_ref_V_ampl", ref_V_ampl)
     
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
     #   alt_process_jobs_function
-    # --------------------------------------------------------------------------
+    # -------------------------------------------------------------------------
 
     def alt_process_jobs_function(self, func, args):
         if func[:8] == "set_ref_":
@@ -341,3 +342,21 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         else:
             # Default job handling
             func(*args)
+            
+    # -------------------------------------------------------------------------
+    #   compute_power_spectrum
+    # -------------------------------------------------------------------------
+
+    def compute_power_spectrum(self, deque_in: deque):
+        """Using scipy.signal.welch()
+        When scaling='spectrum', Pxx returns units of V^2
+        When scaling='density', Pxx returns units of V^2/Hz
+        Note: Amplitude ratio in dB: 20 log_10(A1/A2)
+              Power     ratio in dB: 10 log_10(P1/P2)
+        """
+        if len(deque_in) == deque_in.maxlen:
+            [f, Pxx] = welch(deque_in, fs=self.dev.config.Fs,
+                             nperseg=10250, scaling='spectrum')
+            return [f, 10 * np.log10(Pxx)]
+        else:
+            return [[], []]
