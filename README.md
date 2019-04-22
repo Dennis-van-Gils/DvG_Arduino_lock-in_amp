@@ -1,5 +1,5 @@
 # DvG_Arduino_lock-in_amp
-_Work in progress:_ A lock-in amplifier running on an Arduino M0 Pro or M4 Metro/Feather/ItsyBitsy Express microcontroller board in combination with a PC running Python.
+A lock-in amplifier running on a SAMD21 (Arduino M0) or SAMD51 (Adafruit M4 Metro/Feather/ItsyBitsy Express) microcontroller board in combination with a PC running Python.
 
 The Arduino microcontroller board generates the reference signal REF_X and subsequently acquires the input signal SIG_I. This data is sent over USB to a PC running the main graphical user interface in Python. The Python program shows the waveform graphs of the signals in real-time, performs the heterodyne mixing and filtering of the signals similar to a lock-in amplifier, and provides logging to disk.
 
