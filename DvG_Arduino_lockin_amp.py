@@ -18,7 +18,6 @@ from PyQt5 import QtCore
 from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import numpy as np
-from scipy.signal import welch
 
 from DvG_pyqt_FileLogger import FileLogger
 from DvG_debug_functions import dprint#, print_fancy_traceback as pft
@@ -97,7 +96,7 @@ def lockin_DAQ_update():
     if lockin.lockin_paused:
         return False
     
-    if 0:
+    if 1:
         # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
         # events when doing heavy calculations to unburden the CPU and prevent
         # dropped buffers. Dropped graphing frames are prefereable to dropped data
@@ -111,7 +110,7 @@ def lockin_DAQ_update():
         dprint("@ %s %s" % current_date_time_strings())
         return False
     
-    if 1:
+    if 0:
         # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
         # events when doing heavy calculations to unburden the CPU and prevent
         # dropped buffers. Dropped graphing frames are prefereable to dropped data
@@ -243,31 +242,26 @@ def lockin_DAQ_update():
         
     # Power spectra
     # -------------
-    # scipy.signal.welch()
-    # When scaling='spectrum', Pxx returns units of V^2
-    # When scaling='density', Pxx returns units of V^2/Hz
-    # Note: Amplitude ratio in dB: 20 log_10(A1/A2)
-    #       Power     ratio in dB: 10 log_10(P1/P2)
-    
-    if len(state.deque_sig_I) == state.deque_sig_I.maxlen:
-        [f, Pxx] = welch(state.deque_sig_I, fs=c.Fs, nperseg=10250,
-                         scaling='spectrum')
-        window.BP_PS_1.set_data(f, 10 * np.log10(Pxx))
+    # Will only compute the power spectrum if the checkbox is checked in the
+    # legend. Calculating power spectra is a heavy burden for the CPU and
+    # slower computers will suffer by this. Hence, only compute when requested
+    # by the user, instead of always computing.
+
+    if window.legend_box_PS.chkbs[0].isChecked():
+        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_sig_I)
+        if len(f) > 0: window.BP_PS_1.set_data(f, P_dB)
+            
+    if window.legend_box_PS.chkbs[1].isChecked():
+        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_filt_I)
+        if len(f) > 0: window.BP_PS_2.set_data(f, P_dB)
         
-    if len(state.deque_filt_I) == state.deque_filt_I.maxlen:
-        [f, Pxx] = welch(state.deque_filt_I, fs=c.Fs, nperseg=10250,
-                         scaling='spectrum')
-        window.BP_PS_2.set_data(f, 10 * np.log10(Pxx))
+    if window.legend_box_PS.chkbs[2].isChecked():
+        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_mix_X)
+        if len(f) > 0: window.BP_PS_3.set_data(f, P_dB)
         
-    if len(state.deque_mix_X) == state.deque_mix_X.maxlen:
-        [f, Pxx] = welch(state.deque_mix_X, fs=c.Fs, nperseg=10250,
-                         scaling='spectrum')
-        window.BP_PS_3.set_data(f, 10 * np.log10(Pxx))
-        
-    if len(state.deque_mix_Y) == state.deque_mix_Y.maxlen:
-        [f, Pxx] = welch(state.deque_mix_Y, fs=c.Fs, nperseg=10250,
-                         scaling='spectrum')
-        window.BP_PS_4.set_data(f, 10 * np.log10(Pxx))
+    if window.legend_box_PS.chkbs[3].isChecked():
+        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_mix_Y)
+        if len(f) > 0: window.BP_PS_4.set_data(f, P_dB)
     
     # Add new data to charts
     # ----------------------

@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "21-04-2019"
+__date__        = "22-04-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -821,12 +821,15 @@ class MainWindow(QtWid.QWidget):
         self.legend_box_PS = Legend_box(
                 text=['sig_I', 'filt_I', 'mix_X', 'mix_Y'],
                 pen=[self.PEN_03, self.PEN_04, self.PEN_01, self.PEN_02],
-                checked=[True, True, False, False])
+                checked=[True, False, False, False])
         ([chkb.clicked.connect(self.process_chkbs_legend_box_PS) for chkb
           in self.legend_box_PS.chkbs])
     
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addLayout(self.legend_box_PS.grid, 0, 0)
+        grid.addWidget(QtWid.QLabel("CPU intensive!<br/>Only check<br/>"
+                                    "when needed."), 0, 0)
+        grid.addItem(QtWid.QSpacerItem(0, 4)       , 1, 0)
+        grid.addLayout(self.legend_box_PS.grid     , 2, 0)
         grid.setAlignment(QtCore.Qt.AlignTop)
     
         qgrp_PS = QtWid.QGroupBox("Pow. spectrum")
@@ -1281,6 +1284,24 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_chkbs_legend_box_PS(self):
         if self.lockin.lockin_paused:
+            L = self.lockin_pyqt
+            
+            if self.legend_box_PS.chkbs[0].isChecked():
+                [f, P_dB] = L.compute_power_spectrum(L.state.deque_sig_I)
+                if len(f) > 0: self.BP_PS_1.set_data(f, P_dB)
+                    
+            if self.legend_box_PS.chkbs[1].isChecked():
+                [f, P_dB] = L.compute_power_spectrum(L.state.deque_filt_I)
+                if len(f) > 0: self.BP_PS_2.set_data(f, P_dB)
+                
+            if self.legend_box_PS.chkbs[2].isChecked():
+                [f, P_dB] = L.compute_power_spectrum(L.state.deque_mix_X)
+                if len(f) > 0: self.BP_PS_3.set_data(f, P_dB)
+                
+            if self.legend_box_PS.chkbs[3].isChecked():
+                [f, P_dB] = L.compute_power_spectrum(L.state.deque_mix_Y)
+                if len(f) > 0: self.BP_PS_4.set_data(f, P_dB)
+            
             self.update_plot_PS()           # Force update graph
 
     @QtCore.pyqtSlot()
