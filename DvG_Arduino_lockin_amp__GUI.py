@@ -1057,10 +1057,10 @@ class MainWindow(QtWid.QWidget):
                 "Check to favor more frames per<br>"
                 "second for graphing at the expense<br>"
                 "of a higher CPU load and possibly<br>"
-                "dropped buffers."), 1, 0)
+                "dropped samples."), 1, 0)
         grid.addWidget(QtWid.QLabel(
                 "Uncheck whenever you encounter<br>"
-                "reccuring dropped buffers."), 2, 0)
+                "reccuring dropped samples."), 2, 0)
         
         qgrp = QtWid.QGroupBox("Python program")
         qgrp.setLayout(grid)
