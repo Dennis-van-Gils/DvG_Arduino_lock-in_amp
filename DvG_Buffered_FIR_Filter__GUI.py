@@ -84,26 +84,39 @@ class Filter_design_GUI(QtCore.QObject):
                 self.qtbl_bandstop_items.append(myItem)
                 self.qtbl_bandstop.setItem(row, col, myItem)
                 
-        p1 = {'maximumWidth': ex8, 'minimumWidth': ex8}
-        p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
+        p = {'maximumWidth': ex8, 'minimumWidth': ex8,
+             'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
         self.qpbt_coupling = QtWid.QPushButton("AC", checkable=True)
-        self.qlin_DC_cutoff = QtWid.QLineEdit(**{**p1, **p2})
+        self.qlin_DC_cutoff = QtWid.QLineEdit(**p)
         self.qlin_window = QtWid.QLineEdit(readOnly=True)
         self.qlin_window.setText(self.firfs[0].window_description)
+        self.qlin_N_taps = QtWid.QLineEdit(readOnly=True, **p)
+        self.qlin_T_settle_filter = QtWid.QLineEdit(readOnly=True, **p)
+        self.qlin_T_settle_deque = QtWid.QLineEdit(readOnly=True, **p)
                 
         i = 0
-        grid = QtWid.QGridLayout()
+        grid = QtWid.QGridLayout(spacing=4)
         grid.addWidget(QtWid.QLabel('Input coupling AC/DC:') , i, 0, 1, 3); i+=1
         grid.addWidget(self.qpbt_coupling                    , i, 0, 1, 3); i+=1
         grid.addWidget(QtWid.QLabel('Cutoff:')               , i, 0)
         grid.addWidget(self.qlin_DC_cutoff                   , i, 1)
         grid.addWidget(QtWid.QLabel('Hz')                    , i, 2)      ; i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 10)                , i, 0, 1, 3); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 12)                , i, 0, 1, 3); i+=1
         grid.addWidget(QtWid.QLabel('Band-stop ranges [Hz]:'), i, 0, 1, 3); i+=1
         grid.addWidget(self.qtbl_bandstop                    , i, 0, 1, 3); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 10)                , i, 0, 1, 3); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 8)                 , i, 0, 1, 3); i+=1
         grid.addWidget(QtWid.QLabel('Window:')               , i, 0, 1, 3); i+=1
-        grid.addWidget(self.qlin_window                      , i, 0, 1, 3)
+        grid.addWidget(self.qlin_window                      , i, 0, 1, 3); i+=1
+        grid.addWidget(QtWid.QLabel('N_taps:')               , i, 0)
+        grid.addWidget(self.qlin_N_taps                      , i, 1, 1, 2); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 8)                 , i, 0, 1, 3); i+=1
+        grid.addWidget(QtWid.QLabel('Settling times:')       , i, 0, 1, 3); i+=1
+        grid.addWidget(QtWid.QLabel('Filter:')               , i, 0)
+        grid.addWidget(self.qlin_T_settle_filter             , i, 1)
+        grid.addWidget(QtWid.QLabel('s')                     , i, 2)      ; i+=1
+        grid.addWidget(QtWid.QLabel('Buffer:')               , i, 0)
+        grid.addWidget(self.qlin_T_settle_deque              , i, 1)
+        grid.addWidget(QtWid.QLabel('s')                     , i, 2)      ; i+=1
         grid.setAlignment(QtCore.Qt.AlignTop)
         
         self.qpbt_coupling.clicked.connect(self.process_coupling)
@@ -117,7 +130,8 @@ class Filter_design_GUI(QtCore.QObject):
         self.qgrp.setLayout(grid)
     
     def populate_design_controls(self):
-        freq_list = self.firfs[0].cutoff;
+        firf = self.firfs[0]
+        freq_list = firf.cutoff;
         
         if self.firfs[0].pass_zero:
             self.qpbt_coupling.setText("DC")
@@ -131,8 +145,12 @@ class Filter_design_GUI(QtCore.QObject):
             self.qlin_DC_cutoff.setEnabled(True)
             self.qlin_DC_cutoff.setReadOnly(False)
             freq_list = freq_list[1:]
+            
+        self.qlin_N_taps.setText("%i" % firf.N_taps)
+        self.qlin_T_settle_filter.setText("%.2f" % firf.T_settle_filter)
+        self.qlin_T_settle_deque.setText("%.2f" % firf.T_settle_deque)
         
-        self.qtbl_bandstop_cellChanged_lock = True # TODO: replace by setUpdatesEnabled(False)
+        self.qtbl_bandstop_cellChanged_lock = True # Can not be replaced by setUpdatesEnabled(False)
         for row in range(self.qtbl_bandstop.rowCount()):
             for col in range(self.qtbl_bandstop.columnCount()):
                 try:

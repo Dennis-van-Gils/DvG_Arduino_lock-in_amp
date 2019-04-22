@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "21-04-2019"
+__date__        = "22-04-2019"
 __version__     = "1.0.0"
 
 import os
@@ -18,7 +18,6 @@ from PyQt5 import QtCore
 from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import numpy as np
-from scipy.signal import welch
 
 from DvG_pyqt_FileLogger import FileLogger
 from DvG_debug_functions import dprint#, print_fancy_traceback as pft
@@ -82,7 +81,10 @@ def about_to_quit():
 # ------------------------------------------------------------------------------
 
 def lockin_DAQ_update():
-    """Performs the main mathematical operations for lock-in signal processing.
+    """Listen for new data buffers send by the lock-in amplifier and perform the
+    main mathematical operations for signal processing. This function will run
+    in a dedicated thread (i.e. worker_DAQ), separated from the main program
+    thread that handles the GUI.
     NOTE: NO (SLOW) GUI OPERATIONS ARE ALLOWED HERE. Otherwise it will affect
     the worker_DAQ thread negatively, resulting in lost buffers.
     """
@@ -90,15 +92,35 @@ def lockin_DAQ_update():
     c: lockin_functions.Arduino_lockin_amp.Config = lockin.config
     state: lockin_pyqt_lib.Arduino_lockin_amp_pyqt.State = lockin_pyqt.state
 
-    if lockin.lockin_paused:  # Prevent throwings errors if just paused
+    # Prevent throwings errors if just paused
+    if lockin.lockin_paused:
         return False
     
+    if 1:
+        # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
+        # events when doing heavy calculations to unburden the CPU and prevent
+        # dropped buffers. Dropped graphing frames are prefereable to dropped data
+        # buffers.
+        for gw in window.gws_all:
+            gw.setUpdatesEnabled(False)
+    
+    # Listen for data buffers send by the lock-in
     [success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
     if not(success):
         dprint("@ %s %s" % current_date_time_strings())
         return False
     
+    if 0:
+        # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
+        # events when doing heavy calculations to unburden the CPU and prevent
+        # dropped buffers. Dropped graphing frames are prefereable to dropped data
+        # buffers.
+        for gw in window.gws_all:
+            gw.setUpdatesEnabled(False)
+    
     # HACK: hard-coded calibration correction on the ADC
+    # TODO: make a self-calibration procedure and store correction results
+    # on non-volatile memory of the microprocessor.
     dev_sig_I = sig_I * 0.0054 + 0.0020;
     sig_I -= dev_sig_I
     
@@ -114,15 +136,16 @@ def lockin_DAQ_update():
         
         # Replace dropped samples with np.nan samples.
         # As a result, the filter output will contain a continuous series of
-        # np.nan values in the output for up to T_settling seconds long after
-        # the occurrence of the last dropped sample.
+        # np.nan values in the output for up to DvG_Buffered_FIR_Filter.
+        # Buffered_FIR_Filter().T_settle_deque seconds long after the occurrence
+        # of the last dropped sample.
         state.deque_time.extend(prev_last_deque_time +
                                 np.arange(1, N_dropped_samples + 1) *
                                 c.ISR_CLOCK)
         state.deque_ref_X.extend(np.full(N_dropped_samples, np.nan))
         state.deque_ref_Y.extend(np.full(N_dropped_samples, np.nan))
         state.deque_sig_I.extend(np.full(N_dropped_samples, np.nan))
-        
+    
     # Stage 0
     # -------
     
@@ -156,7 +179,7 @@ def lockin_DAQ_update():
                  [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                   lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
     
-    if lockin_pyqt.firf_1_sig_I.has_settled:
+    if lockin_pyqt.firf_1_sig_I.deque_has_settled:
         old_ref_X = (np.array(state.deque_ref_X, dtype=np.float64)
                      [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                       lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
@@ -189,7 +212,7 @@ def lockin_DAQ_update():
               [lockin_pyqt.firf_2_mix_X.win_idx_valid_start:
                lockin_pyqt.firf_2_mix_X.win_idx_valid_end])
             
-    if lockin_pyqt.firf_2_mix_X.has_settled:
+    if lockin_pyqt.firf_2_mix_X.deque_has_settled:
         # Signal amplitude and phase reconstruction
         out_R = np.sqrt(out_X**2 + out_Y**2)
         
@@ -217,20 +240,28 @@ def lockin_DAQ_update():
     state.deque_out_R.extend(out_R)
     state.deque_out_T.extend(out_T)
         
-    # Power spectrum
-    # --------------
-    
-    if len(state.deque_sig_I) == state.deque_sig_I.maxlen:
-        # When scaling='spectrum', Pxx returns units of V^2
-        # When scaling='density', Pxx returns units of V^2/Hz
-        [f, Pxx] = welch(state.deque_sig_I, fs=c.Fs, nperseg=10250,
-                         scaling='spectrum')
-        window.BP_PS_1.set_data(f, 10 * np.log10(Pxx))
+    # Power spectra
+    # -------------
+    # Will only compute the power spectrum if the checkbox is checked in the
+    # legend. Calculating power spectra is a heavy burden for the CPU and
+    # slower computers will suffer by this. Hence, only compute when requested
+    # by the user, instead of always computing.
+
+    if window.legend_box_PS.chkbs[0].isChecked():
+        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_sig_I)
+        if len(f) > 0: window.BP_PS_1.set_data(f, P_dB)
+            
+    if window.legend_box_PS.chkbs[1].isChecked():
+        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_filt_I)
+        if len(f) > 0: window.BP_PS_2.set_data(f, P_dB)
         
-    if len(state.deque_filt_I) == state.deque_filt_I.maxlen:
-        [f, Pxx] = welch(state.deque_filt_I, fs=c.Fs, nperseg=10250,
-                         scaling='spectrum')
-        window.BP_PS_2.set_data(f, 10 * np.log10(Pxx))
+    if window.legend_box_PS.chkbs[2].isChecked():
+        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_mix_X)
+        if len(f) > 0: window.BP_PS_3.set_data(f, P_dB)
+        
+    if window.legend_box_PS.chkbs[3].isChecked():
+        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_mix_Y)
+        if len(f) > 0: window.BP_PS_4.set_data(f, P_dB)
     
     # Add new data to charts
     # ----------------------
@@ -279,7 +310,7 @@ def lockin_DAQ_update():
         file_logger.close_log()
 
     if file_logger.is_recording:
-        if lockin_pyqt.firf_2_mix_X.has_settled:
+        if lockin_pyqt.firf_2_mix_X.deque_has_settled:
             idx_offset = lockin_pyqt.firf_1_sig_I.win_idx_valid_start
             for i in range(c.BUFFER_SIZE):
                 data = (("%i\t" +
@@ -300,7 +331,11 @@ def lockin_DAQ_update():
                 file_logger.write(data)
             #file_logger.write("%i\t%.4f\t%.4f\t%.4f\n" % 
             #                  (time[i], ref_X[i], ref_Y[i], sig_I[i]))
-
+    
+    # Re-enable pyqtgraph.GraphicsWindow() redraws and GUI events
+    for gw in window.gws_all:
+        gw.setUpdatesEnabled(True)
+    
     return True
 
 # ------------------------------------------------------------------------------

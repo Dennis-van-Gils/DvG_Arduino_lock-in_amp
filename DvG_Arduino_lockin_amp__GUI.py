@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "21-04-2019"
+__date__        = "22-04-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -13,6 +13,7 @@ from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 import numpy as np
+import psutil
 
 from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_BufferedPlot import BufferedPlot
@@ -196,6 +197,8 @@ class MainWindow(QtWid.QWidget):
         self.lockin_pyqt = lockin_pyqt
         self.file_logger = file_logger
         
+        self.prev_time_CPU_load = QDateTime.currentDateTime();
+        
         self.setGeometry(250, 50, 1200, 960)
         self.setWindowTitle("Arduino lock-in amplifier")
         self.setStyleSheet(SS_TEXTBOX_READ_ONLY + SS_GROUP + SS_HOVER + 
@@ -246,14 +249,15 @@ class MainWindow(QtWid.QWidget):
         self.qlbl_update_counter = QtWid.QLabel("0")
         self.qlbl_sample_rate = QtWid.QLabel("SAMPLE RATE: %.2f Hz" %
                                              (1/lockin.config.ISR_CLOCK))
-        self.qlbl_buffer_size = QtWid.QLabel("BUFFER SIZE  : %i" %
-                                             lockin.config.BUFFER_SIZE)
+        #self.qlbl_buffer_size = QtWid.QLabel("BUFFER SIZE  : %i" %
+        #                                     lockin.config.BUFFER_SIZE)
+        self.qlbl_CPU_load = QtWid.QLabel("CPU: nan%%")
         self.qlbl_DAQ_rate = QtWid.QLabel("Buffers/s: nan")
         self.qlbl_DAQ_rate.setMinimumWidth(100)
 
         vbox_left = QtWid.QVBoxLayout()
         vbox_left.addWidget(self.qlbl_sample_rate)
-        vbox_left.addWidget(self.qlbl_buffer_size)
+        vbox_left.addWidget(self.qlbl_CPU_load)
         vbox_left.addStretch(1)
         vbox_left.addWidget(self.qlbl_DAQ_rate)
         vbox_left.addWidget(self.qlbl_update_counter)
@@ -415,17 +419,17 @@ class MainWindow(QtWid.QWidget):
         qgrp_axes_controls = QtWid.QGroupBox("Zoom timeseries")
         qgrp_axes_controls.setLayout(grid)
 
-        # QGROUP: Filters settled?
-        self.LED_settled_BG_filter = create_LED_indicator_rect(False, 'NO')
-        self.LED_settled_2_filter = create_LED_indicator_rect(False, 'NO')
+        # QGROUP: Filter deques settled?
+        self.LED_filt_1_deque_settled = create_LED_indicator_rect(False, 'NO')
+        self.LED_filt_2_deque_settled = create_LED_indicator_rect(False, 'NO')
         
         grid = QtWid.QGridLayout(spacing=4)
         grid.addWidget(QtWid.QLabel("Filter @ sig_I")  , 0, 0)
-        grid.addWidget(self.LED_settled_BG_filter         , 0, 1)
+        grid.addWidget(self.LED_filt_1_deque_settled   , 0, 1)
         grid.addWidget(QtWid.QLabel("Filter @ mix_X/Y"), 1, 0)
-        grid.addWidget(self.LED_settled_2_filter         , 1, 1)
+        grid.addWidget(self.LED_filt_2_deque_settled   , 1, 1)
         
-        qgrp_settling = QtWid.QGroupBox("Filters settled?")
+        qgrp_settling = QtWid.QGroupBox("Buffers settled?")
         qgrp_settling.setLayout(grid)
 
         # Round up frame
@@ -789,6 +793,9 @@ class MainWindow(QtWid.QWidget):
         
         self.BP_PS_1 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_03))
         self.BP_PS_2 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_04))
+        self.BP_PS_3 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_01))
+        self.BP_PS_4 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_02))
+        self.BP_PSs = [self.BP_PS_1, self.BP_PS_2, self.BP_PS_3, self.BP_PS_4]
         
         # QGROUP: Zoom
         self.qpbt_PS_zoom_low = QtWid.QPushButton('0 - 200 Hz')
@@ -811,13 +818,18 @@ class MainWindow(QtWid.QWidget):
         qgrp_zoom.setLayout(grid)
         
         # QGROUP: Power spectrum
-        self.legend_box_PS = Legend_box(text=['sig_I', 'filt_I'],
-                                        pen=[self.PEN_03, self.PEN_04])
+        self.legend_box_PS = Legend_box(
+                text=['sig_I', 'filt_I', 'mix_X', 'mix_Y'],
+                pen=[self.PEN_03, self.PEN_04, self.PEN_01, self.PEN_02],
+                checked=[True, False, False, False])
         ([chkb.clicked.connect(self.process_chkbs_legend_box_PS) for chkb
           in self.legend_box_PS.chkbs])
     
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addLayout(self.legend_box_PS.grid, 0, 0)
+        grid.addWidget(QtWid.QLabel("CPU intensive!<br/>Only check<br/>"
+                                    "when needed."), 0, 0)
+        grid.addItem(QtWid.QSpacerItem(0, 4)       , 1, 0)
+        grid.addLayout(self.legend_box_PS.grid     , 2, 0)
         grid.setAlignment(QtCore.Qt.AlignTop)
     
         qgrp_PS = QtWid.QGroupBox("Pow. spectrum")
@@ -856,12 +868,15 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_1_resp.showGrid(x=1, y=1)
         self.pi_filt_1_resp.setTitle('Filter response', **p)
         self.pi_filt_1_resp.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_filt_1_resp.setLabel('left', text='attenuation [dB]', **p)
+        self.pi_filt_1_resp.setLabel('left', text='amplitude attenuation [dB]',
+                                     **p)
         self.pi_filt_1_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_1_resp.enableAutoRange('x', False)
         self.pi_filt_1_resp.enableAutoRange('y', True)
         self.pi_filt_1_resp.setClipToView(True)
-        self.pi_filt_1_resp.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
+        self.pi_filt_1_resp.setLimits(xMin=0,
+                                      xMax=self.lockin.config.F_Nyquist,
+                                      yMin=-120)
         
         self.curve_filt_1_resp = pg.PlotCurveItem(pen=self.PEN_03,
                                                   brush=self.BRUSH_03)
@@ -940,12 +955,15 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_2_resp.showGrid(x=1, y=1)
         self.pi_filt_2_resp.setTitle('Filter response', **p)
         self.pi_filt_2_resp.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_filt_2_resp.setLabel('left', text='attenuation [dB]', **p)
+        self.pi_filt_2_resp.setLabel('left', text='amplitude attenuation [dB]',
+                                     **p)
         self.pi_filt_2_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_2_resp.enableAutoRange('x', False)
         self.pi_filt_2_resp.enableAutoRange('y', True)
         self.pi_filt_2_resp.setClipToView(True)
-        self.pi_filt_2_resp.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
+        self.pi_filt_2_resp.setLimits(xMin=0,
+                                      xMax=self.lockin.config.F_Nyquist,
+                                      yMin=-120)
         
         self.curve_filt_2_resp = pg.PlotCurveItem(pen=self.PEN_03,
                                                   brush=self.BRUSH_03)
@@ -1024,6 +1042,15 @@ class MainWindow(QtWid.QWidget):
         vbox.addItem(QtWid.QSpacerItem(0, 10))
         vbox.addLayout(hbox)
         
+        # List of all pyqtgraph graphics windows
+        self.gws_all = [self.gw_refsig,
+                        self.gw_XRYT,
+                        self.gw_filt_1,
+                        self.gw_mixer,
+                        self.gw_PS,
+                        self.gw_filt_1_resp,
+                        self.gw_filt_2_resp]
+        
         # -----------------------------------
         # -----------------------------------
         #   Create wall clock timer
@@ -1070,13 +1097,18 @@ class MainWindow(QtWid.QWidget):
         self.qlbl_cur_date_time.setText("%s    %s" %
                                         (cur_date_time.toString("dd-MM-yyyy"),
                                          cur_date_time.toString("HH:mm:ss")))
+        
+        if self.prev_time_CPU_load.msecsTo(cur_date_time) > 1000:
+            self.qlbl_CPU_load.setText("CPU: %.1f%%" %
+                                       psutil.cpu_percent(interval=None))
+            self.prev_time_CPU_load = cur_date_time
     
     @QtCore.pyqtSlot()
     def update_GUI(self):
         #dprint("Update GUI")
         
         # Major visual changes upcoming. Reduce CPU overhead by momentarily
-        # disabling GUI events and screen repaints.
+        # disabling screen repaints and GUI events.
         self.setUpdatesEnabled(False)
         
         LIA_pyqt = self.lockin_pyqt
@@ -1087,6 +1119,7 @@ class MainWindow(QtWid.QWidget):
         else:
             self.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
                                        LIA_pyqt.obtained_DAQ_rate_Hz)
+        
         self.qlin_time.setText("%i" % LIA_pyqt.state.time[0])
         self.qlin_sig_I_max.setText("%.4f" % LIA_pyqt.state.sig_I_max)
         self.qlin_sig_I_min.setText("%.4f" % LIA_pyqt.state.sig_I_min)
@@ -1097,25 +1130,26 @@ class MainWindow(QtWid.QWidget):
         self.qlin_R_avg.setText("%.4f" % np.mean(LIA_pyqt.state.R))
         self.qlin_T_avg.setText("%.3f" % np.mean(LIA_pyqt.state.T))
         
-        if LIA_pyqt.firf_1_sig_I.has_settled:
-            self.LED_settled_BG_filter.setChecked(True)
-            self.LED_settled_BG_filter.setText("YES")
+        if LIA_pyqt.firf_1_sig_I.deque_has_settled:
+            self.LED_filt_1_deque_settled.setChecked(True)
+            self.LED_filt_1_deque_settled.setText("YES")
         else:
-            self.LED_settled_BG_filter.setChecked(False)
-            self.LED_settled_BG_filter.setText("NO")
-        if LIA_pyqt.firf_2_mix_X.has_settled:
-            self.LED_settled_2_filter.setChecked(True)
-            self.LED_settled_2_filter.setText("YES")
+            self.LED_filt_1_deque_settled.setChecked(False)
+            self.LED_filt_1_deque_settled.setText("NO")
+        if LIA_pyqt.firf_2_mix_X.deque_has_settled:
+            self.LED_filt_2_deque_settled.setChecked(True)
+            self.LED_filt_2_deque_settled.setText("YES")
         else:
-            self.LED_settled_2_filter.setChecked(False)
-            self.LED_settled_2_filter.setText("NO")
-            
+            self.LED_filt_2_deque_settled.setChecked(False)
+            self.LED_filt_2_deque_settled.setText("NO")
+        
         self.update_chart_refsig()
         self.update_chart_filt_1()
         self.update_chart_mixer()
         self.update_chart_LIA_output()
         self.update_plot_PS()
         
+        # Re-enable screen repaints and GUI events
         self.setUpdatesEnabled(True)
     
     @QtCore.pyqtSlot()
@@ -1250,6 +1284,24 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_chkbs_legend_box_PS(self):
         if self.lockin.lockin_paused:
+            L = self.lockin_pyqt
+            
+            if self.legend_box_PS.chkbs[0].isChecked():
+                [f, P_dB] = L.compute_power_spectrum(L.state.deque_sig_I)
+                if len(f) > 0: self.BP_PS_1.set_data(f, P_dB)
+                    
+            if self.legend_box_PS.chkbs[1].isChecked():
+                [f, P_dB] = L.compute_power_spectrum(L.state.deque_filt_I)
+                if len(f) > 0: self.BP_PS_2.set_data(f, P_dB)
+                
+            if self.legend_box_PS.chkbs[2].isChecked():
+                [f, P_dB] = L.compute_power_spectrum(L.state.deque_mix_X)
+                if len(f) > 0: self.BP_PS_3.set_data(f, P_dB)
+                
+            if self.legend_box_PS.chkbs[3].isChecked():
+                [f, P_dB] = L.compute_power_spectrum(L.state.deque_mix_Y)
+                if len(f) > 0: self.BP_PS_4.set_data(f, P_dB)
+            
             self.update_plot_PS()           # Force update graph
 
     @QtCore.pyqtSlot()
@@ -1420,10 +1472,10 @@ class MainWindow(QtWid.QWidget):
             
     @QtCore.pyqtSlot()
     def update_plot_PS(self):
-        self.BP_PS_1.update_curve()
-        self.BP_PS_2.update_curve()
-        self.BP_PS_1.curve.setVisible(self.legend_box_PS.chkbs[0].isChecked())
-        self.BP_PS_2.curve.setVisible(self.legend_box_PS.chkbs[1].isChecked())    
+        [BP.update_curve() for BP in self.BP_PSs]
+        for i in range(len(self.BP_PSs)):
+            self.BP_PSs[i].curve.setVisible(
+                    self.legend_box_PS.chkbs[i].isChecked())
         
     @QtCore.pyqtSlot()
     def update_plot_filt_1_resp(self):

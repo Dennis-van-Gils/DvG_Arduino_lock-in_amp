@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "17-04-2019"
+__date__        = "21-04-2019"
 __version__     = "1.0.0"
 
 from collections import deque
@@ -46,20 +46,10 @@ class Buffered_FIR_Filter():
         self.win_idx_valid_start = int((self.N_taps - 1)/2)
         self.win_idx_valid_end   = self.N_deque - self.win_idx_valid_start
                 
-        # Keep track of filter settling
-        # Note: 'T_settling' was named 'self.T_delay_valid_start'
-        self.T_settling = self.win_idx_valid_start / self.Fs # [s]
-        self.was_settled = False
-        self.has_settled = False
-        
-        """ RAMBLINGS: rethink if I should implement this the following.
-        Boolean 'self.starting_up' is used to distinguish deque buffers being
-        populated from scratch, in contrast to 'was/has_settled' that are used
-        to signal a mathematically valid settling time has been reached
-        regardless of the number of samples in deque.
-        #self.N_buffers_received = 0
-        #self.starting_up = True
-        """
+        self.T_settle_filter = self.win_idx_valid_start / self.Fs # [s]
+        self.T_settle_deque  = self.T_settle_filter * 2           # [s]
+        self.deque_was_settled = False
+        self.deque_has_settled = False
         
         # Friendly window description for direct printing as string
         if isinstance(self.window, str):
@@ -100,8 +90,10 @@ class Buffered_FIR_Filter():
             
     def compute_freqz(self, worN=2**18):
         # Compute the full frequency response.
-        # Note that these arrays will become of length 'worN', which could
-        # overwhelm a user-interface when plotting such large number of points.
+        # Note: these arrays will become of length 'worN', which could overwhelm
+        # a user-interface when plotting such large number of points.
+        # Note: Amplitude ratio in dB: 20 log_10(A1/A2)
+        #       Power     ratio in dB: 10 log_10(P1/P2)
         w, h = freqz(self.b, worN=worN)
         self.full_resp_freq_Hz   = w / np.pi * self.Fs / 2
         self.full_resp_ampl_dB   = 20 * np.log10(abs(h))
@@ -111,7 +103,7 @@ class Buffered_FIR_Filter():
         #  Select region of interest for plotting later on
         # -------------------------------------------------
         # First flat-line all power below the dB floor
-        dB_floor = -80
+        dB_floor = -120
         idx_dB_floor = np.asarray(self.full_resp_ampl_dB<dB_floor).nonzero()[0]
         __ampl_dB = self.full_resp_ampl_dB
         __ampl_dB[idx_dB_floor] = dB_floor
@@ -173,11 +165,11 @@ class Buffered_FIR_Filter():
         
         #print("%s: %i" % (self.display_name, len(deque_sig_in)))
         if (len(deque_sig_in) < self.N_deque) or np.isnan(deque_sig_in).any():
-            # Start-up. Filter still needs time to settle.
-            self.has_settled = False
+            # Start-up. Deque still needs time to settle.
+            self.deque_has_settled = False
             valid_out = np.array([np.nan] * self.buffer_size)
         else:
-            self.has_settled = True
+            self.deque_has_settled = True
             """Select window out of the signal deque to feed into the
             convolution. By optimal design, this happens to be the full deque.
             Returns valid filtered signal output of current window.
@@ -192,12 +184,12 @@ class Buffered_FIR_Filter():
                 valid_out = fftconvolve(deque_sig_in, self.b, mode='valid')
             #print("%.1f" % ((Time.perf_counter() - tick)*1000))
         
-        if self.has_settled and not(self.was_settled):
-            #print("%s: Filter has settled" % self.display_name)
-            self.was_settled = True
-        elif not(self.has_settled) and self.was_settled:
-            #print("%s: Filter has reset" % self.display_name)
-            self.was_settled = False
+        if self.deque_has_settled and not(self.deque_was_settled):
+            #print("%s: Deque has settled" % self.display_name)
+            self.deque_was_settled = True
+        elif not(self.deque_has_settled) and self.deque_was_settled:
+            #print("%s: Deque has reset" % self.display_name)
+            self.deque_was_settled = False
         
         return valid_out
         
@@ -216,5 +208,6 @@ class Buffered_FIR_Filter():
         print('pass_zero = %s' % self.pass_zero)
         print('--------------------------------')
         print('win_idx_valid_start = %i samples' % self.win_idx_valid_start)
-        print('T_settling          = %.3f s'     % self.T_settling)
+        print('T_settle_filter     = %.3f s'     % self.T_settle_filter)
+        print('T_settle_deque      = %.3f s'     % self.T_settle_deque)
         print('--------------------------------')
