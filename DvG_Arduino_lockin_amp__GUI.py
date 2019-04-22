@@ -198,6 +198,7 @@ class MainWindow(QtWid.QWidget):
         self.file_logger = file_logger
         
         self.prev_time_CPU_load = QDateTime.currentDateTime();
+        self.boost_fps_graphing = False
         
         self.setGeometry(250, 50, 1200, 960)
         self.setWindowTitle("Arduino lock-in amplifier")
@@ -316,14 +317,14 @@ class MainWindow(QtWid.QWidget):
         self.tab_power_spectrum  = QtWid.QWidget()
         self.tab_filter_1_design = QtWid.QWidget()
         self.tab_filter_2_design = QtWid.QWidget()
-        self.tab_mcu_board_info = QtWid.QWidget()
+        self.tab_settings = QtWid.QWidget()
         
         self.tabs.addTab(self.tab_main           , "Main")
         self.tabs.addTab(self.tab_mixer          , "Mixer")
         self.tabs.addTab(self.tab_power_spectrum , "Spectrum")
         self.tabs.addTab(self.tab_filter_1_design, "Filter design @ sig_I")
         self.tabs.addTab(self.tab_filter_2_design, "Filter design @ mix_X/Y")
-        self.tabs.addTab(self.tab_mcu_board_info , "MCU board")
+        self.tabs.addTab(self.tab_settings       , "Settings")
         
         def Sidebar(): pass # Spider IDE outline bookmark
         # -----------------------------------
@@ -1024,6 +1025,46 @@ class MainWindow(QtWid.QWidget):
         
         self.tab_filter_2_design.setLayout(grid)
         
+        def Settings(): pass # Spider IDE outline bookmark
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        #
+        #   TAB PAGE: Settings
+        #
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        
+        self.qchk_boost_fps_graphing = QtWid.QCheckBox(
+                "Boost fps graphing", checked=self.boost_fps_graphing)
+        self.qchk_boost_fps_graphing.clicked.connect(
+                self.process_qchk_boost_fps_graphing)
+        
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addWidget(self.qchk_boost_fps_graphing, 0, 0)
+        grid.addWidget(QtWid.QLabel(
+                "Check to favor more frames per<br>"
+                "second for graphing at the expense<br>"
+                "of a higher CPU load and possibly<br>"
+                "dropped buffers."), 1, 0)
+        grid.addWidget(QtWid.QLabel(
+                "Uncheck whenever you encounter<br>"
+                "reccuring dropped buffers."), 2, 0)
+        
+        qgrp = QtWid.QGroupBox("Python program")
+        qgrp.setLayout(grid)
+        
+        # -----------------------------------
+        # -----------------------------------
+        #   Round up tab page 'Settings'
+        # -----------------------------------
+        # -----------------------------------
+        
+        grid = QtWid.QGridLayout()
+        grid.addWidget(qgrp, 0, 0, QtCore.Qt.AlignTop)
+        grid.setColumnStretch(1, 1)
+        
+        self.tab_settings.setLayout(grid)
+        
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
         #
@@ -1523,6 +1564,10 @@ class MainWindow(QtWid.QWidget):
         pi_plot.setXRange(xRangeLo, xRangeHi, padding=0.02)
         pi_plot.enableAutoRange('y', True)
         pi_plot.enableAutoRange('y', False)
+        
+    @QtCore.pyqtSlot()
+    def process_qchk_boost_fps_graphing(self):
+        self.boost_fps_graphing = not self.boost_fps_graphing
         
 if __name__ == "__main__":
     exec(open("DvG_Arduino_lockin_amp.py").read())
