@@ -3,10 +3,10 @@
 Minimal test case for CUDA hardware support on NVidia GPU's using numba.
 
 Dennis van Gils
-07-04-2019
+23-04-2019
 """
 
-from __future__ import division
+import matplotlib.pyplot as plt
 from numba import cuda
 import numpy as np
 import cupy
@@ -30,11 +30,20 @@ MakeProductReal<<<blockSize, GridSize>>>(PRODUCT)   // extract the real part of 
 if __name__ == "__main__":
     print(cuda.gpus) # Reads '<Managed Device 0>' if a CUDA-enabled GPU is found
     
-    a = np.identity(int(1e4), dtype=np.float32)
-    b = np.identity(int(1e4), dtype=np.float32)
-    c = np.empty((int(1e4), int(1e4)), dtype=np.float32)
+    a_np = np.identity(1000)
+    b_np = np.ones((100, 100))
     
-    x = cupy.array([1, 2, 3, 4, 5])
-    y = cupy.array([1, 1, 1])
-    z = sigpy.convolve(a, b)
+    # Transfer to GPU memory
+    a_cp = cupy.array(a_np)
+    b_cp = cupy.array(b_np)
     
+    # Perform fft convolution on the GPU
+    z_cp = sigpy.convolve(a_cp, b_cp, mode='valid')
+    
+    # Transfer result back to CPU memory
+    z_np = cupy.asnumpy(z_cp)
+    z_np = z_np/np.max(z_np)
+    
+    plt.imshow(z_np)
+    plt.gray()
+    plt.show()

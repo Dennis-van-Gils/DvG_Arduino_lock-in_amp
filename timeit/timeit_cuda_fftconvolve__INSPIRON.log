@@ -1,0 +1,7 @@
+cuda_fftconv
+len(a) = 81000, len(b) = 80001
+Test on computer: INSPIRON
+timeit N = 1000
+
+cuda_fftconv             : 7.6 ms
+fftconv_dq_np__dq_to_list: 10.5 ms
