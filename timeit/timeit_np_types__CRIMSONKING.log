@@ -1,0 +1,9 @@
+Test on computer: CRIMSONKING
+timeit N = 100
+
+numpy.distutils.system_info.get_info('mkl'):
+{}
+
+np_float  : 211.11 ms
+np_float64: 210.58 ms
+np_float32: 91.82 ms
