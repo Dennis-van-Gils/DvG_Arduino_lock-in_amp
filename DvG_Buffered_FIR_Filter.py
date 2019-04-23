@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "21-04-2019"
+__date__        = "23-04-2019"
 __version__     = "1.0.0"
 
 from collections import deque
@@ -13,18 +13,9 @@ from scipy.signal import firwin, freqz, fftconvolve
 import numpy as np
 import time as Time
 
-# When True enables 1D FFT-convolution running on a NVidia GPU using CUDA.
-# Only beneficial when processing large amounts of data (approx. > 1e5 samples)
-# as the overhead of copying memory from CPU to GPU is substantial.
-# Not really worth it when buffer_size <= 500 and N_buffers_in_deque <= 41.
-USE_CUDA_ACCELERATION = False
-if USE_CUDA_ACCELERATION:
-    import cupy
-    import sigpy as sp
-
 class Buffered_FIR_Filter():
     def __init__(self, buffer_size, N_buffers_in_deque, Fs, cutoff, window,
-                 pass_zero=True, display_name=""):
+                 pass_zero=True, display_name="", use_CUDA=False):
         self.buffer_size = buffer_size                # [samples]
         self.N_buffers_in_deque = N_buffers_in_deque  # [int]
         self.Fs = Fs                                  # [Hz]
@@ -32,6 +23,16 @@ class Buffered_FIR_Filter():
         self.window = window                          # type of window, see scipy.signal.get_window        
         self.pass_zero = pass_zero                    # [bool], see scipy.signal.firwin
         self.display_name = display_name              # [str]
+        
+        # When True enables 1D FFT-convolution running on a NVidia GPU using
+        # CUDA. Only beneficial when processing large amounts of data (approx.
+        # > 1e5 samples) as the overhead of copying memory from CPU to GPU is
+        # substantial. Not really worth it when buffer_size <= 500 and
+        # N_buffers_in_deque <= 41.
+        self.use_CUDA = use_CUDA       # [bool] Use NVidia's CUDA acceleration?
+        if self.use_CUDA:
+            self.cupy  = __import__('cupy')
+            self.sigpy = __import__('sigpy')
                 
         # Deque size
         self.N_deque = self.buffer_size * self.N_buffers_in_deque # [samples]
@@ -84,9 +85,9 @@ class Buffered_FIR_Filter():
         self.compute_freqz()
         #self.report()
         
-        if USE_CUDA_ACCELERATION:
+        if self.use_CUDA:
             # Copy to cupy array (resides at the GPU!)
-            self.b_cp = cupy.array(self.b)
+            self.b_cp = self.cupy.array(self.b)
             
     def compute_freqz(self, worN=2**18):
         # Compute the full frequency response.
@@ -175,11 +176,12 @@ class Buffered_FIR_Filter():
             Returns valid filtered signal output of current window.
             """
             #tick = Time.perf_counter()
-            if USE_CUDA_ACCELERATION:
-                cp_valid_out = sp.convolve(cupy.array(list(deque_sig_in)),
-                                           self.b_cp,
-                                           mode='valid')
-                valid_out = cupy.asnumpy(cp_valid_out)
+            if self.use_CUDA:
+                cp_valid_out = self.sigpy.convolve(
+                        self.cupy.array(list(deque_sig_in)),
+                        self.b_cp,
+                        mode='valid')
+                valid_out = self.cupy.asnumpy(cp_valid_out)
             else:
                 valid_out = fftconvolve(deque_sig_in, self.b, mode='valid')
             #print("%.1f" % ((Time.perf_counter() - tick)*1000))
