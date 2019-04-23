@@ -1,0 +1,9 @@
+Test on computer: ONERA
+timeit N = 100
+
+numpy.distutils.system_info.get_info('mkl'):
+{}
+
+np_float  : 110.28 ms
+np_float64: 109.89 ms
+np_float32: 47.57 ms
