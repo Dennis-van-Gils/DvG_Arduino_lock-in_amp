@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Arduino lock-in amplifier
-Minimum running example for trouble-shooting library
+Minimal running example for trouble-shooting library
 """
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "29-03-2019"
+__date__        = "24-04-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -26,16 +26,20 @@ from DvG_debug_functions import dprint
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 
+# Monkey-patch errors in pyqtgraph v0.10
+import DvG_monkeypatch_pyqtgraph as pgmp
+pg.PlotCurveItem.paintGL = pgmp.PlotCurveItem_paintGL
+
+# BOOST_FPS_GRAPHING = true:
+# Favors more frames per second for graphing at the expense of a higher CPU load and possibly
+# dropped samples.
+BOOST_FPS_GRAPHING = True
+
 try:
     import OpenGL.GL as gl
     pg.setConfigOptions(useOpenGL=True)
     pg.setConfigOptions(enableExperimental=True)
     pg.setConfigOptions(antialias=False)
-    
-    # Monkey patch error in pyqtgraph
-    import DvG_fix_pyqtgraph_PlotCurveItem
-    pg.PlotCurveItem.paintGL = DvG_fix_pyqtgraph_PlotCurveItem.paintGL
-    
     print("OpenGL hardware acceleration enabled.")
 except:
     pg.setConfigOptions(useOpenGL=False)
@@ -275,30 +279,49 @@ def lockin_DAQ_update():
     if lockin.lockin_paused:  # Prevent throwings errors if just paused
         return False
     
+    if not(BOOST_FPS_GRAPHING):
+        # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
+        # events when doing heavy calculations to unburden the CPU and prevent
+        # dropped buffers. Dropped graphing frames are prefereable to dropped
+        # data buffers.
+        window.gw_refsig.setUpdatesEnabled(False)
+    
     tick = Time.perf_counter()
     [success, time, ref_X, ref_Y, sig_I] = lockin.listen_to_lockin_amp()
     dprint("%i" % ((Time.perf_counter() - tick)*1e3))
     
     if not(success):
         return False
-    
-    if 0:
-        # HACK: hard-coded calibration correction on the ADC
-        dev_sig_I = sig_I * 0.0054 + 0.005;
-        sig_I -= dev_sig_I
+        
+    if BOOST_FPS_GRAPHING:
+        # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
+        # events when doing heavy calculations to unburden the CPU and prevent
+        # dropped buffers. Dropped graphing frames are prefereable to dropped
+        # data buffers.
+        window.gw_refsig.setUpdatesEnabled(False)
 
     window.CH_ref_X.add_new_readings(time, ref_X)    
     window.CH_sig_I.add_new_readings(time, sig_I)
     
+    # Re-enable pyqtgraph.GraphicsWindow() redraws and GUI events
+    window.gw_refsig.setUpdatesEnabled(True)
+    
     return True
 
 def update_GUI():
+    # Major visual changes upcoming. Reduce CPU overhead by momentarily
+    # disabling screen repaints and GUI events.
+    window.setUpdatesEnabled(False)
+    
     window.qlbl_update_counter.setText("%i" % lockin_pyqt.DAQ_update_counter)
     
     if not lockin.lockin_paused:
         window.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
                                      lockin_pyqt.obtained_DAQ_rate_Hz)
         window.update_chart_refsig()
+        
+    # Re-enable screen repaints and GUI events
+    window.setUpdatesEnabled(True)
 
 # ------------------------------------------------------------------------------
 #   Main
@@ -309,10 +332,10 @@ if __name__ == '__main__':
     
     # Connect to Arduino
     lockin = lockin_functions.Arduino_lockin_amp(baudrate=1e6, read_timeout=1)
-    if not lockin.connect_at_port("COM11"):
+    if not lockin.connect_at_port("COM10"):
         print("Can't connect to Arduino")
         sys.exit(0)
-    lockin.begin(ref_freq=100, ref_V_offset=1.5, ref_V_ampl=0.5)
+    lockin.begin(ref_freq=109.8, ref_V_offset=1.5, ref_V_ampl=0.5)
     
     # Create workers and threads
     lockin_pyqt = Arduino_lockin_amp_pyqt(
