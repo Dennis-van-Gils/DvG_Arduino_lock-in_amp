@@ -1,0 +1,9 @@
+Test on computer: ONERA
+timeit N = 100
+
+numpy.distutils.system_info.get_info('mkl'):
+{'libraries': ['mkl_rt'], 'library_dirs': ['C:/Users/vangi/Anaconda3/envs/idp\\Library\\lib'], 'define_macros': [('SCIPY_MKL_H', None), ('HAVE_CBLAS', None)], 'include_dirs': ['C:/Users/vangi/Anaconda3/envs/idp\\Library\\include']}
+
+np_float  : 109.68 ms
+np_float64: 109.84 ms
+np_float32: 47.92 ms

@@ -172,18 +172,18 @@ def lockin_DAQ_update():
     
     # Retrieve the block of original data from the past that aligns with
     # the current filter output
-    time_1    = (np.array(state.deque_time, dtype=np.int64)
+    time_1    = (np.array(state.deque_time, dtype=c.return_type_time)
                  [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                   lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
-    old_sig_I = (np.array(state.deque_sig_I, dtype=np.float64)
+    old_sig_I = (np.array(state.deque_sig_I, dtype=c.return_type_sig_I)
                  [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                   lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
     
     if lockin_pyqt.firf_1_sig_I.deque_has_settled:
-        old_ref_X = (np.array(state.deque_ref_X, dtype=np.float64)
+        old_ref_X = (np.array(state.deque_ref_X, dtype=c.return_type_ref_X)
                      [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                       lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
-        old_ref_Y = (np.array(state.deque_ref_Y, dtype=np.float64)
+        old_ref_Y = (np.array(state.deque_ref_Y, dtype=c.return_type_ref_X)
                      [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                       lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
         
@@ -208,7 +208,7 @@ def lockin_DAQ_update():
     
     # Retrieve the block of original data from the past that aligns with
     # the current filter output
-    time_2 = (np.array(state.deque_time_1, dtype=np.int64)
+    time_2 = (np.array(state.deque_time_1, dtype=c.return_type_time)
               [lockin_pyqt.firf_2_mix_X.win_idx_valid_start:
                lockin_pyqt.firf_2_mix_X.win_idx_valid_end])
             
@@ -239,7 +239,7 @@ def lockin_DAQ_update():
     state.deque_out_Y.extend(out_Y)
     state.deque_out_R.extend(out_R)
     state.deque_out_T.extend(out_T)
-        
+
     # Power spectra
     # -------------
     # Will only compute the power spectrum if the checkbox is checked in the

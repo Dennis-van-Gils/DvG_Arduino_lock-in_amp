@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "22-04-2019"
+__date__        = "23-04-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -85,15 +85,15 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             self.N_buffers_in_deque = N_buffers_in_deque    # [int]
             self.N_deque = buffer_size * N_buffers_in_deque # [samples]
             
-            self.time  = np.array([], int)      # [ms]
-            self.ref_X = np.array([], float)
-            self.ref_Y = np.array([], float)
-            self.sig_I = np.array([], float)
-            self.time2 = np.array([], int)      # [ms]
-            self.X     = np.array([], float)
-            self.Y     = np.array([], float)
-            self.R     = np.array([], float)
-            self.T     = np.array([], float)
+            self.time  = np.array([])#, np.int64)           # [ms]
+            self.ref_X = np.array([])#, np.float64)
+            self.ref_Y = np.array([])#, np.float64)
+            self.sig_I = np.array([])#, np.float64)
+            self.time2 = np.array([])#, np.int64)           # [ms]
+            self.X     = np.array([])#, np.float64)
+            self.Y     = np.array([])#, np.float64)
+            self.R     = np.array([])#, np.float64)
+            self.T     = np.array([])#, np.float64)
             
             self.sig_I_min = np.nan
             self.sig_I_max = np.nan

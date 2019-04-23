@@ -6,7 +6,7 @@ connection.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "01-04-2019"
+__date__        = "23-04-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -27,9 +27,14 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         N_BYTES_EOM = len(EOM) 
         
         # Data types to decode from binary stream
-        type_time  = 'L'   # uint32_t
-        type_ref_X = 'H'   # uint16_t
-        type_sig_I = 'h'   # int16_t
+        binary_type_time  = 'L'   # uint32_t
+        binary_type_ref_X = 'H'   # uint16_t
+        binary_type_sig_I = 'h'   # int16_t
+        
+        # Return types
+        return_type_time  = np.int64   # Signed to allow for flexible arithmetic
+        return_type_ref_X = np.float64
+        return_type_sig_I = np.float64
         
         ISR_CLOCK               = 0    # [s]
         Fs                      = 0    # [Hz]
@@ -301,22 +306,25 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                    (self.name, c.N_BYTES_TRANSMIT_BUFFER, len(ans_bytes)))
             return [False, empty, empty, empty, empty]
 
-        end_byte_time  = c.BUFFER_SIZE * struct.calcsize(c.type_time)
+        end_byte_time  = c.BUFFER_SIZE * struct.calcsize(c.binary_type_time)
         end_byte_ref_X = (end_byte_time + c.BUFFER_SIZE *
-                          struct.calcsize(c.type_ref_X))
+                          struct.calcsize(c.binary_type_ref_X))
         end_byte_sig_I = (end_byte_ref_X + c.BUFFER_SIZE *
-                          struct.calcsize(c.type_sig_I))
+                          struct.calcsize(c.binary_type_sig_I))
         ans_bytes   = ans_bytes[c.N_BYTES_SOM  : -c.N_BYTES_EOM]
         bytes_time  = ans_bytes[0              : end_byte_time]
         bytes_ref_X = ans_bytes[end_byte_time  : end_byte_ref_X]
         bytes_sig_I = ans_bytes[end_byte_ref_X : end_byte_sig_I]
         try:
             time        = np.array(struct.unpack('<' +
-                            c.type_time * c.BUFFER_SIZE, bytes_time))
+                            c.binary_type_time * c.BUFFER_SIZE, bytes_time),
+                            dtype=c.return_type_time)
             ref_X_phase = np.array(struct.unpack('<' + 
-                            c.type_ref_X * c.BUFFER_SIZE, bytes_ref_X))
+                            c.binary_type_ref_X * c.BUFFER_SIZE, bytes_ref_X),
+                            dtype=c.return_type_ref_X)
             sig_I       = np.array(struct.unpack('<' +
-                            c.type_sig_I * c.BUFFER_SIZE, bytes_sig_I))
+                            c.binary_type_sig_I * c.BUFFER_SIZE, bytes_sig_I),
+                            dtype=c.return_type_sig_I)
         except:
             dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
             return [False, empty, empty, empty, empty]
