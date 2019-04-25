@@ -28,3 +28,6 @@ NUMBAPRO_LIBDEVICE = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\nv
 
 5) Optionally, if you want Spyder IDE
 conda install matplotlib spyder
+
+6) Install HDF5 for Python
+pip install h5py   (Use pip to get the latest 2.9.0. If you use 'conda install' it will install 2.8.0 because of the 'intel' channel)
