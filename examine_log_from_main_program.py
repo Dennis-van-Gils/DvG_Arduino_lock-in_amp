@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Dennis van Gils
-02-12-2018
+25-04-2019
 """
 
 import os
@@ -12,6 +12,7 @@ from tkinter import filedialog
 import numpy as np
 import matplotlib.pyplot as plt
 plt.style.use('dark_background')
+marker = '.-'
 
 plt.ion()
 fig = plt.figure()
@@ -67,18 +68,18 @@ PEN_04 = ((1, 1, 1))
 
 ax1 = plt.subplot(3, 1, 1)
 plt.subplots_adjust(right=0.8)
-plt.plot(time/1e3, ref_X, 'x-', color=PEN_01, label='ref_X')
-plt.plot(time/1e3, sig_I, 'x-', color=PEN_03, label='sig_I')
+plt.plot(time/1e3, ref_X, marker, color=PEN_01, label='ref_X')
+plt.plot(time/1e3, sig_I, marker, color=PEN_03, label='sig_I')
 plt.grid(); plt.xlabel("time (ms)")
 plt.title(fn)
 
 ax2 = plt.subplot(3, 1, 2, sharex=ax1)
-plt.plot(time/1e3, filt_I, 'x-', color=PEN_04, label='filt_I')
-plt.plot(time/1e3, mix_X, 'x-', color=PEN_01, label='mix_X')
+plt.plot(time/1e3, filt_I, marker, color=PEN_04, label='filt_I')
+plt.plot(time/1e3, mix_X, marker, color=PEN_01, label='mix_X')
 plt.grid(); plt.xlabel("time (ms)")
 
 ax3 = plt.subplot(3, 1, 3, sharex=ax1)
-plt.plot(time/1e3, X, 'x-', color=PEN_01, label='X')
+plt.plot(time/1e3, X, marker, color=PEN_01, label='X')
 plt.grid(); plt.xlabel("time (ms)")
 
 ax1.legend(bbox_to_anchor=(1.02,1), loc="upper left")
