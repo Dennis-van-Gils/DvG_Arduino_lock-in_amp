@@ -123,7 +123,12 @@ dependencies:
   - zeromq=4.2.5=he025d50_1
   - zlib=1.2.11=vc14h21ff451_5
   - pip:
+    - cupy-cuda101==5.4.0
+    - fastrlock==0.4
     - pyopengl==3.1.3b2
     - pyopengl-accelerate==3.1.3b2
+    - pywavelets==1.0.3
+    - sigpy==0.1.8
+    - tqdm==4.31.1
 prefix: C:\Users\vangi\Anaconda3\envs\idp
 

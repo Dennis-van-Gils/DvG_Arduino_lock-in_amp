@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "23-04-2019"
+__date__        = "25-04-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -197,16 +197,16 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         # TODO: turn 'use_narrower_filter' into a toggle button UI
         use_narrower_filter = False
         if use_narrower_filter:
-            firwin_cutoff = [  0.5,  49.5, 
-                              50.5,  99.5, 
-                             100.5, 149.5,
-                             150.5]
+            firwin_cutoff = [  0.5,
+                              49.5,  50.5,
+                              99.5, 100.5,
+                             149.5, 150.5]
             firwin_window = ("chebwin", 50)
         else:
-            firwin_cutoff = [  0.9,  49.0,
-                              51.0,  99.0,
-                             101.0, 149.0,
-                             151.0]
+            firwin_cutoff = [  1.0,
+                              49.0,  51.0,
+                              99.0, 101.0,
+                             149.0, 151.0]
             firwin_window = "blackmanharris"
         self.firf_1_sig_I = Buffered_FIR_Filter(self.state.buffer_size,
                                                 self.state.N_buffers_in_deque,
@@ -355,8 +355,12 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
               Power     ratio in dB: 10 log_10(P1/P2)
         """
         if len(deque_in) == deque_in.maxlen:
-            [f, Pxx] = welch(deque_in, fs=self.dev.config.Fs,
-                             nperseg=10250, scaling='spectrum')
+            [f, Pxx] = welch(deque_in,
+                             fs=self.dev.config.Fs,
+                             window='hanning',
+                             nperseg=self.dev.config.Fs,
+                             detrend=False,
+                             scaling='spectrum')
             return [f, 10 * np.log10(Pxx)]
         else:
             return [[], []]

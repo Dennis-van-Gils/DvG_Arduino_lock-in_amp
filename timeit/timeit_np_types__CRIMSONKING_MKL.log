@@ -1,0 +1,9 @@
+Test on computer: CRIMSONKING
+timeit N = 100
+
+numpy.distutils.system_info.get_info('mkl'):
+{'libraries': ['mkl_rt'], 'library_dirs': ['C:/Users/Dennis_van_Gils/Anaconda3/envs/idp\\Library\\lib'], 'define_macros': [('SCIPY_MKL_H', None), ('HAVE_CBLAS', None)], 'include_dirs': ['C:/Users/Dennis_van_Gils/Anaconda3/envs/idp\\Library\\include']}
+
+np_float  : 211.78 ms
+np_float64: 212.08 ms
+np_float32: 92.20 ms
