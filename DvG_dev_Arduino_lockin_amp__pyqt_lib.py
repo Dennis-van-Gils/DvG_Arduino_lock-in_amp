@@ -222,7 +222,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         # filter, instead of hard-coded
         roll_off_width = 2; # [Hz]
         firwin_cutoff = 2*dev.config.ref_freq - roll_off_width
-        firwin_window = "blackman"
+        firwin_window = "blackmanharris"
         self.firf_2_mix_X = Buffered_FIR_Filter(self.state.buffer_size,
                                                 self.state.N_buffers_in_deque,
                                                 dev.config.Fs,
