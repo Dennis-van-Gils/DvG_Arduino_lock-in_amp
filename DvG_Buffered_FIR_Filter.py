@@ -58,12 +58,11 @@ class Buffered_FIR_Filter():
         else:
             self.window_description = '%s' % [x for x in self.window]
         
-        # Compute the filter
+        # Compute the FIR filter tap array
         self.compute_firwin()
         
     def compute_firwin(self, cutoff=None, window=None, pass_zero=None):
-        """Check cutoff frequencies for illegal values and cap when necessary,
-        compute the FIR filter and the frequency response.
+        """Compute the FIR filter tap array and the frequency response.
         """
         if cutoff is not None:
             self.cutoff = cutoff
@@ -76,15 +75,12 @@ class Buffered_FIR_Filter():
         if pass_zero is not None:
             self.pass_zero = pass_zero
         
-        # Compute the FIR filter tap array
         self._constrain_cutoff()
         self.b = firwin(numtaps=self.N_taps,
                         cutoff=self.cutoff,
                         window=self.window,
                         pass_zero=self.pass_zero,
                         fs=self.Fs)
-        
-        # Compute the frequency response
         self.compute_freqz()
         #self.report()
         
