@@ -24,7 +24,7 @@ class Filter_design_GUI(QtCore.QObject):
             firf = [firf]
         
         self.firfs = firf
-        self.qgrp = QtWid.QGroupBox("Filter design")
+        self.qgrp = QtWid.QGroupBox("FIR filter design")
         self.create_GUI()
 
     # --------------------------------------------------------------------------
