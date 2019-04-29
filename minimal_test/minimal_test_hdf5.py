@@ -45,6 +45,9 @@ if 1:
 if 1:
     filename = "minimal_test_hdf5_h5py.h5"
     with h5.File(filename, "w", track_order=True) as f:
+        f.attrs['dd-MM-yyyy'] = np.string_('24-04-2019')
+        f.attrs['HH:mm:ss']   = np.string_('11:52:03')
+        
         sub_mcu = f.create_group('mcu')
         sub_mcu.attrs['device'] = np.string_('SAMD51J19A')
         sub_mcu.attrs['uid'] = np.string_('e40b5d133254375320202039292210ff')
