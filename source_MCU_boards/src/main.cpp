@@ -532,6 +532,11 @@ void setup() {
 
   // Start the interrupt timer
   TC.startTimer(ISR_CLOCK, isr_psd);
+
+  // Experimental: Output a pulse train on pin 9 to act as clock source for
+  // a (future) variable anti-aliasing filter IC placed in front of the ADC
+  // input ports.
+  TCC_pulse_train.startTimer(10);
 }
 
 /*------------------------------------------------------------------------------
