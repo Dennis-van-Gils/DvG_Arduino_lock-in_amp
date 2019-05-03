@@ -154,7 +154,7 @@ static inline void TCC0_wait_for_sync() {
 }
 
 void TCC_Timer_Pulse_Train::startTimer(unsigned long period) {
-  // Activate timer TCC1
+  // Activate timer TCC0
   MCLK->APBBMASK.reg |= MCLK_APBBMASK_TCC0;
 
   // Set up the generic clock
@@ -182,17 +182,20 @@ void TCC_Timer_Pulse_Train::startTimer(unsigned long period) {
       GCLK_PCHCTRL_GEN_GCLK7;
   while (GCLK->SYNCBUSY.reg > 0);
 
-  // Enable the peripheral multiplexer on pin D9
-  PORT->Group[g_APinDescription[9].ulPort].
-      PINCFG[g_APinDescription[9].ulPin].bit.PMUXEN = 1;
+  // Enable the peripheral multiplexer on the desired digital output pin
+  PORT->Group[g_APinDescription[5].ulPort].
+      PINCFG[g_APinDescription[5].ulPin].bit.PMUXEN = 1;
 
-  // Set the D9 (PORT_PA19) peripheral multiplexer to
-  // peripheral (odd port number) E(6): TCC0, Channel 0
-  // check if you need even or odd PMUX!!!
+  // Set the peripheral multiplexer
   // See datasheet, page 32, 6. I/O Multiplexing and Considerations
+  // (peripheral A=0, B=1, C=2, D=3, E=4, F=5, G=6, etc)
   // http://forum.arduino.cc/index.php?topic=589655.msg4064311#msg4064311
-  PORT->Group[g_APinDescription[9].ulPort].
-      PMUX[g_APinDescription[9].ulPin >> 1].reg |= PORT_PMUX_PMUXO(6);
+  // 
+  // Case A, Feather and Itsy: pin [9] (PORT_PA19), PORT_PMUX_PMUXO(6), TCC0
+  // Case B, Itsy            : pin [5] (PORT_PA15), PORT_PMUX_PMUXO(6), TCC1
+  // Case C, Feather         : pin [5] (PORT_PA16), PORT_PMUX_PMUXE(6), TCC0
+  PORT->Group[g_APinDescription[5].ulPort].
+      PMUX[g_APinDescription[5].ulPin >> 1].reg |= PORT_PMUX_PMUXE(6);
 
   TCC0->CTRLA.bit.ENABLE = 0;
   
