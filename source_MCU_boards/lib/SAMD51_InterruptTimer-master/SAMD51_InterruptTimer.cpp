@@ -149,13 +149,13 @@ TC_Timer TC;
 
 
 
-static inline void TCC0_wait_for_sync() {
-  while (TCC0->SYNCBUSY.reg != 0) {}
+static inline void TCC1_wait_for_sync() {
+  while (TCC1->SYNCBUSY.reg != 0) {}
 }
 
 void TCC_Timer_Pulse_Train::startTimer(unsigned long period) {
-  // Activate timer TCC0
-  MCLK->APBBMASK.reg |= MCLK_APBBMASK_TCC0;
+  // Activate timer TCC1
+  MCLK->APBBMASK.reg |= MCLK_APBBMASK_TCC1;
 
   // Set up the generic clock
   GCLK->GENCTRL[7].reg =
@@ -175,7 +175,7 @@ void TCC_Timer_Pulse_Train::startTimer(unsigned long period) {
   while (GCLK->SYNCBUSY.bit.GENCTRL7);
 
   // Enable the TC bus clock
-  GCLK->PCHCTRL[TCC0_GCLK_ID].reg =
+  GCLK->PCHCTRL[TCC1_GCLK_ID].reg =
       // Enable the peripheral channel
       GCLK_PCHCTRL_CHEN |
       // Connect generic clock
@@ -183,26 +183,26 @@ void TCC_Timer_Pulse_Train::startTimer(unsigned long period) {
   while (GCLK->SYNCBUSY.reg > 0);
 
   // Enable the peripheral multiplexer on the desired digital output pin
-  PORT->Group[g_APinDescription[5].ulPort].
-      PINCFG[g_APinDescription[5].ulPin].bit.PMUXEN = 1;
+  PORT->Group[g_APinDescription[9].ulPort].
+      PINCFG[g_APinDescription[9].ulPin].bit.PMUXEN = 1;
 
   // Set the peripheral multiplexer
   // See datasheet, page 32, 6. I/O Multiplexing and Considerations
   // (peripheral A=0, B=1, C=2, D=3, E=4, F=5, G=6, etc)
   // http://forum.arduino.cc/index.php?topic=589655.msg4064311#msg4064311
   // 
-  // Case A, Feather and Itsy: pin [9] (PORT_PA19), PORT_PMUX_PMUXO(6), TCC0
-  // Case B, Itsy            : pin [5] (PORT_PA15), PORT_PMUX_PMUXO(6), TCC1
-  // Case C, Feather         : pin [5] (PORT_PA16), PORT_PMUX_PMUXE(6), TCC0
-  PORT->Group[g_APinDescription[5].ulPort].
-      PMUX[g_APinDescription[5].ulPin >> 1].reg |= PORT_PMUX_PMUXE(6);
+  // Case A, Feather and Itsy: pin [9] (PORT_PA19), PORT_PMUX_PMUXO(5), TCC_1
+  // Case B, Itsy            : pin [5] (PORT_PA15), PORT_PMUX_PMUXO(6), TCC_1
+  // Case C, Feather         : pin [5] (PORT_PA16), PORT_PMUX_PMUXE(5), TCC_1
+  PORT->Group[g_APinDescription[9].ulPort].
+      PMUX[g_APinDescription[9].ulPin >> 1].reg |= PORT_PMUX_PMUXO(5);
 
-  TCC0->CTRLA.bit.ENABLE = 0;
+  TCC1->CTRLA.bit.ENABLE = 0;
   
   // Use match mode so that the timer counter resets when the count matches the
   // compare register
-  TCC0->WAVE.bit.WAVEGEN = TCC_WAVE_WAVEGEN_MFRQ;
-  TCC0_wait_for_sync();
+  TCC1->WAVE.bit.WAVEGEN = TCC_WAVE_WAVEGEN_MFRQ;
+  TCC1_wait_for_sync();
   
   setPeriod(period);
 }
@@ -211,22 +211,22 @@ void TCC_Timer_Pulse_Train::setPeriod(unsigned long period) {
   int prescaler;
   uint32_t TCC_CTRLA_PRESCALER_DIVN;
 
-  TCC0->CTRLA.reg &= ~TCC_CTRLA_ENABLE;
-  TCC0_wait_for_sync();
-  TCC0->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV1024;
-  TCC0_wait_for_sync();
-  TCC0->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV256;
-  TCC0_wait_for_sync();
-  TCC0->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV64;
-  TCC0_wait_for_sync();
-  TCC0->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV16;
-  TCC0_wait_for_sync();
-  TCC0->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV4;
-  TCC0_wait_for_sync();
-  TCC0->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV2;
-  TCC0_wait_for_sync();
-  TCC0->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV1;
-  TCC0_wait_for_sync();
+  TCC1->CTRLA.reg &= ~TCC_CTRLA_ENABLE;
+  TCC1_wait_for_sync();
+  TCC1->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV1024;
+  TCC1_wait_for_sync();
+  TCC1->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV256;
+  TCC1_wait_for_sync();
+  TCC1->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV64;
+  TCC1_wait_for_sync();
+  TCC1->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV16;
+  TCC1_wait_for_sync();
+  TCC1->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV4;
+  TCC1_wait_for_sync();
+  TCC1->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV2;
+  TCC1_wait_for_sync();
+  TCC1->CTRLA.reg &= ~TCC_CTRLA_PRESCALER_DIV1;
+  TCC1_wait_for_sync();
 
   if (period > 300000) {
     TCC_CTRLA_PRESCALER_DIVN = TCC_CTRLA_PRESCALER_DIV1024;
@@ -253,20 +253,20 @@ void TCC_Timer_Pulse_Train::setPeriod(unsigned long period) {
     TCC_CTRLA_PRESCALER_DIVN = TCC_CTRLA_PRESCALER_DIV1;
     prescaler = 1;
   }
-  TCC0->CTRLA.reg |= TCC_CTRLA_PRESCALER_DIVN;
-  TCC0_wait_for_sync();
+  TCC1->CTRLA.reg |= TCC_CTRLA_PRESCALER_DIVN;
+  TCC1_wait_for_sync();
 
   int compareValue = (int)(CPU_HZ / (prescaler/((float)period / 1000000))) - 1;
 
   // Make sure the count is in a proportional position to where it was
   // to prevent any jitter or disconnect when changing the compare value.
-  TCC0->COUNT.reg = map(TCC0->COUNT.reg, 0,
-                        TCC0->CC[0].reg, 0, compareValue);
-  TCC0->CC[0].reg = compareValue;
-  TCC0_wait_for_sync();
+  TCC1->COUNT.reg = map(TCC1->COUNT.reg, 0,
+                        TCC1->CC[0].reg, 0, compareValue);
+  TCC1->CC[0].reg = compareValue;
+  TCC1_wait_for_sync();
 
-  TCC0->CTRLA.bit.ENABLE = 1;
-  TCC0_wait_for_sync();
+  TCC1->CTRLA.bit.ENABLE = 1;
+  TCC1_wait_for_sync();
 }
 
 TCC_Timer_Pulse_Train TCC_pulse_train;
