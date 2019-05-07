@@ -293,13 +293,18 @@ class Dev_Base_pyqt(QtCore.QObject):
 
     def close_thread_worker_DAQ(self):
         if self.thread_DAQ is not None:
+            
             if (self.worker_DAQ.trigger_by ==
                 DAQ_trigger.EXTERNAL_WAKE_UP_CALL):
+                
                 self.worker_DAQ.stop()
                 self.worker_DAQ.qwc.wakeAll()
+                
             elif (self.worker_DAQ.trigger_by ==
                 DAQ_trigger.CONTINUOUS):
+                
                 self.worker_DAQ.stop()
+                
             self.thread_DAQ.quit()
             print("Closing thread %s " %
                   "{:.<16}".format(self.thread_DAQ.objectName()), end='')
