@@ -30,7 +30,7 @@ proper bindings to strncmpi
 "C_Cpp.intelliSenseEngineFallback": "Disabled"
 
 Dennis van Gils
-14-04-2019
+26-04-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -376,6 +376,56 @@ void isr_psd() {
 #endif
 
 /*------------------------------------------------------------------------------
+    mcu_get_uid
+------------------------------------------------------------------------------*/
+#define MCU_UID_LENGTH 16
+
+void get_mcu_uid(uint8_t raw_uid[MCU_UID_LENGTH]) {
+  // Return the uid (serial number) of the microcontroller as a byte array.
+  // Mashed up from:
+  // https://github.com/adafruit/circuitpython/blob/master/ports/atmel-samd/common-hal/microcontroller/Processor.c
+  // https://github.com/adafruit/circuitpython/blob/master/shared-bindings/microcontroller/Processor.c
+
+  #ifdef __SAMD21__
+  uint32_t* id_addresses[4] = {
+    (uint32_t *) 0x0080A00C, (uint32_t *) 0x0080A040,
+    (uint32_t *) 0x0080A044, (uint32_t *) 0x0080A048};
+  #endif
+  #ifdef __SAMD51__
+  uint32_t* id_addresses[4] = {
+    (uint32_t *) 0x008061FC, (uint32_t *) 0x00806010,
+    (uint32_t *) 0x00806014, (uint32_t *) 0x00806018};
+  #endif
+
+  for (int i = 0; i < 4; i++) {
+    for (int k = 0; k < 4; k++) {
+      raw_uid[4 * i + k] = (*(id_addresses[i]) >> k * 8) & 0xff;
+    }
+  }
+}
+
+void print_hex_8(Stream& mySerial, uint8_t *data, uint8_t length) {
+  // Format 8-bit data to hex, while preserving leading 0's per uint8_t.
+  // Source: https://forum.arduino.cc/index.php?topic=38107.msg282342#msg282342
+  char tmp[length * 2 + 1];
+  byte b1;
+  byte b2;
+  for (int i = 0; i < length; i++) {
+    b1 = (data[i] >> 4) & 0x0f;
+    b2 = data[i] & 0x0f;
+    // Base for converting single digit numbers to ASCII is 48
+    // Base for 10-16 to become lower-case characters a-f is 87
+    // Note: difference is 39
+    tmp[i * 2]     = b1 + 48;
+    tmp[i * 2 + 1] = b2 + 48;
+    if (b1 > 9) tmp[i * 2]     += 39;
+    if (b2 > 9) tmp[i * 2 + 1] += 39;
+  }
+  tmp[length * 2] = 0;
+  mySerial.println(tmp);
+}
+
+/*------------------------------------------------------------------------------
     setup
 ------------------------------------------------------------------------------*/
 
@@ -482,6 +532,11 @@ void setup() {
 
   // Start the interrupt timer
   TC.startTimer(ISR_CLOCK, isr_psd);
+
+  // Experimental: Output a pulse train on pin 9 to act as clock source for
+  // a (future) variable anti-aliasing filter IC placed in front of the ADC
+  // input ports.
+  TCC_pulse_train.startTimer(10);
 }
 
 /*------------------------------------------------------------------------------
@@ -559,6 +614,12 @@ void loop() {
             Ser_data.println("unknown MCU");
           #endif
 
+        } else if (strcmpi(strCmd, "mcu_uid?") == 0) {
+          // Reply microcontroller unique identifier (serial) number
+          uint8_t mcu_uid[MCU_UID_LENGTH];
+          get_mcu_uid(mcu_uid);
+          print_hex_8(Ser_data, mcu_uid, MCU_UID_LENGTH);
+         
         } else if (strcmpi(strCmd, "bias?") == 0) {
           #if defined (__SAMD51__)
             Ser_data.println(NVM_ADC0_BIASCOMP);

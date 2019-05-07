@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "23-04-2019"
+__date__        = "26-04-2019"
 __version__     = "1.0.0"
 
 from collections import deque
@@ -58,12 +58,11 @@ class Buffered_FIR_Filter():
         else:
             self.window_description = '%s' % [x for x in self.window]
         
-        # Compute the filter
+        # Compute the FIR filter tap array
         self.compute_firwin()
         
     def compute_firwin(self, cutoff=None, window=None, pass_zero=None):
-        """Check cutoff frequencies for illegal values and cap when necessary,
-        compute the FIR filter and the frequency response.
+        """Compute the FIR filter tap array and the frequency response.
         """
         if cutoff is not None:
             self.cutoff = cutoff
@@ -75,7 +74,7 @@ class Buffered_FIR_Filter():
                 self.window_description = '%s' % [x for x in self.window]
         if pass_zero is not None:
             self.pass_zero = pass_zero
-            
+        
         self._constrain_cutoff()
         self.b = firwin(numtaps=self.N_taps,
                         cutoff=self.cutoff,
@@ -86,15 +85,20 @@ class Buffered_FIR_Filter():
         #self.report()
         
         if self.use_CUDA:
-            # Copy to cupy array (resides at the GPU!)
+            # Copy FIR filter tap array from CPU to GPU memory
             self.b_cp = self.cupy.array(self.b)
             
     def compute_freqz(self, worN=2**18):
-        # Compute the full frequency response.
-        # Note: these arrays will become of length 'worN', which could overwhelm
-        # a user-interface when plotting such large number of points.
-        # Note: Amplitude ratio in dB: 20 log_10(A1/A2)
-        #       Power     ratio in dB: 10 log_10(P1/P2)
+        """Compute the full frequency response.
+        
+        Note: The full result arrays will become of length 'worN', which could
+        overwhelm a user-interface when plotting so many points. Hence, we will
+        also calculate a 'lossy compressed' dataset: resp_freq_Hz,
+        resp_ampl_dB, and resp_phase_rad, useful for plotting.
+        
+        Note: Amplitude ratio in dB: 20 log_10(A1/A2)
+              Power     ratio in dB: 10 log_10(P1/P2)
+        """
         w, h = freqz(self.b, worN=worN)
         self.full_resp_freq_Hz   = w / np.pi * self.Fs / 2
         self.full_resp_ampl_dB   = 20 * np.log10(abs(h))
@@ -161,7 +165,10 @@ class Buffered_FIR_Filter():
         self.cutoff = np.unique(np.sort(cutoff))
         
     def process(self, deque_sig_in: deque):
-        """
+        """Perform a convolution between the FIR filter tap array and the
+        deque_sig_in array and return the valid convolution output. Will track
+        if the filter has settled. Any NaNs in deque_sig_in will desettle the
+        filter.
         """
         
         #print("%s: %i" % (self.display_name, len(deque_sig_in)))
@@ -177,12 +184,15 @@ class Buffered_FIR_Filter():
             """
             #tick = Time.perf_counter()
             if self.use_CUDA:
+                # Perform convolution on the GPU
                 cp_valid_out = self.sigpy.convolve(
                         self.cupy.array(list(deque_sig_in)),
                         self.b_cp,
                         mode='valid')
+                # Transfer result from GPU to CPU memory
                 valid_out = self.cupy.asnumpy(cp_valid_out)
             else:
+                # Perform convolution on the CPU
                 valid_out = fftconvolve(deque_sig_in, self.b, mode='valid')
             #print("%.1f" % ((Time.perf_counter() - tick)*1000))
         
@@ -196,6 +206,7 @@ class Buffered_FIR_Filter():
         return valid_out
         
     def report(self):
+        # TODO: print out filter name
         print('--------------------------------')
         print('Fs                 = %.0f Hz'    % self.Fs)
         print('buffer_size        = %i samples' % self.buffer_size)
