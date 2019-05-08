@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "25-04-2019"
+__date__        = "08-05-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -100,7 +100,7 @@ SS_TABS = (
             "border-bottom-color: " + COLOR_TAB + ";"
             "border-top-left-radius: 4px;"
             "border-top-right-radius: 4px;"
-            "min-width: 42ex;"
+            "min-width: 39ex;"
             "padding: 6px;} "
         "QTabBar::tab:hover {"
             "background: " + COLOR_HOVER + ";"
@@ -317,6 +317,7 @@ class MainWindow(QtWid.QWidget):
         self.tab_power_spectrum  = QtWid.QWidget()
         self.tab_filter_1_design = QtWid.QWidget()
         self.tab_filter_2_design = QtWid.QWidget()
+        self.tab_diagram = QtWid.QWidget()
         self.tab_settings = QtWid.QWidget()
         
         self.tabs.addTab(self.tab_main           , "Main")
@@ -324,6 +325,7 @@ class MainWindow(QtWid.QWidget):
         self.tabs.addTab(self.tab_power_spectrum , "Spectrum")
         self.tabs.addTab(self.tab_filter_1_design, "Filter design @ sig_I")
         self.tabs.addTab(self.tab_filter_2_design, "Filter design @ mix_X/Y")
+        self.tabs.addTab(self.tab_diagram        , "Diagram")
         self.tabs.addTab(self.tab_settings       , "Settings")
         
         def Sidebar(): pass # Spider IDE outline bookmark
@@ -364,7 +366,7 @@ class MainWindow(QtWid.QWidget):
         p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter}
         i = 0;
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(QtWid.QLabel("ref_X : cosine wave", **p2)
+        grid.addWidget(QtWid.QLabel("ref_X*: cosine wave", **p2)
                                                    , i, 0, 1, 4); i+=1
         grid.addItem(QtWid.QSpacerItem(0, 4)       , i, 0); i+=1
         grid.addWidget(QtWid.QLabel("Set")         , i, 1)
@@ -387,7 +389,7 @@ class MainWindow(QtWid.QWidget):
         
         # QGROUP: Connections
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(QtWid.QLabel("Output: ref_X\n"
+        grid.addWidget(QtWid.QLabel("Output: ref_X*\n"
                                     "  [ 0.0, %.1f] V\n"
                                     "  pin A0 wrt GND" %
                                     lockin.config.A_REF,
@@ -491,7 +493,7 @@ class MainWindow(QtWid.QWidget):
 
         # QGROUP: Readings
         self.legend_box_refsig = Legend_box(
-                text=['ref_X', 'ref_Y', 'sig_I'],
+                text=["ref_X*", "ref_Y*", "sig_I"],
                 pen=[self.PEN_01, self.PEN_02, self.PEN_03],
                 checked=[True, False, True])
         ([chkb.clicked.connect(self.process_chkbs_legend_box_refsig) for chkb
@@ -1040,6 +1042,32 @@ class MainWindow(QtWid.QWidget):
         grid.setColumnStretch(1, 1)
         
         self.tab_filter_2_design.setLayout(grid)
+        
+        def Diagram(): pass # Spider IDE outline bookmark
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        #
+        #   TAB PAGE: Diagram
+        #
+        # ----------------------------------------------------------------------
+        # ----------------------------------------------------------------------
+        
+        # Schematic diagram
+        qlbl = QtGui.QLabel()
+        qpix = QtGui.QPixmap('diagram_signal_processing.png')
+        qlbl.setPixmap(qpix)
+        
+        # -----------------------------------
+        # -----------------------------------
+        #   Round up tab page 'Settings'
+        # -----------------------------------
+        # -----------------------------------
+        
+        grid = QtWid.QGridLayout(spacing=0)
+        grid.addWidget(qlbl, 0, 0, QtCore.Qt.AlignTop)
+        grid.setColumnStretch(1, 1)
+        
+        self.tab_diagram.setLayout(grid)
         
         def Settings(): pass # Spider IDE outline bookmark
         # ----------------------------------------------------------------------
