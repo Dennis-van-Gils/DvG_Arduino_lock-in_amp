@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "25-04-2019"
+__date__        = "08-05-2019"
 __version__     = "1.0.0"
 
 import os
@@ -291,8 +291,8 @@ def lockin_DAQ_update():
             file_logger.signal_set_recording_text.emit(
                 "Recording to file: " + fn_log)
             header = ("time[us]\t"
-                      "ref_X[V]\t"
-                      "ref_Y[V]\t"
+                      "ref_X*[V]\t"
+                      "ref_Y*[V]\t"
                       "sig_I[V]\t"
                       "filt_I[V]\t"
                       "mix_X[V]\t"
