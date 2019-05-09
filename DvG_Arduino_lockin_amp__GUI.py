@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "08-05-2019"
+__date__        = "09-05-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -787,7 +787,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_PS.showGrid(x=1, y=1)
         self.pi_PS.setTitle('Power spectrum (Welch)', **p)
         self.pi_PS.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_PS.setLabel('left', text='power [dB]', **p)
+        self.pi_PS.setLabel('left', text='power [dBV]', **p)
         self.pi_PS.setAutoVisible(x=True, y=True)
         self.pi_PS.setXRange(0, self.lockin.config.F_Nyquist, padding=0.02)
         self.pi_PS.setYRange(-110, 0, padding=0.02)
