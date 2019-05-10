@@ -1,0 +1,11 @@
+Support for Linux: Ubuntu
+
+*** Perhaps not necessary
+{
+* Install Arduino IDE
+* Add Adafruit channel
+* Install Adafruit SAMD boards
+}
+
+* Fix access to serial ports
+sudo chmod 666 /dev/ttyACM0
