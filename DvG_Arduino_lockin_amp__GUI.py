@@ -495,7 +495,7 @@ class MainWindow(QtWid.QWidget):
         self.legend_box_refsig = Legend_box(
                 text=["ref_X*", "ref_Y*", "sig_I"],
                 pen=[self.PEN_01, self.PEN_02, self.PEN_03],
-                checked=[True, False, True])
+                checked=[False, False, True])
         ([chkb.clicked.connect(self.process_chkbs_legend_box_refsig) for chkb
           in self.legend_box_refsig.chkbs])
         
