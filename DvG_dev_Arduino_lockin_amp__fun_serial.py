@@ -6,7 +6,7 @@ connection.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "23-04-2019"
+__date__        = "28-05-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -27,7 +27,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         N_BYTES_EOM = len(EOM) 
         
         # Data types to decode from binary stream
-        binary_type_time  = 'L'   # uint32_t
+        binary_type_time  = 'I'   # uint32_t
         binary_type_ref_X = 'H'   # uint16_t
         binary_type_sig_I = 'h'   # int16_t
         
