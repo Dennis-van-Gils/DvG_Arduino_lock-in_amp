@@ -121,13 +121,26 @@ class Filter_design_GUI(QtCore.QObject):
         
         self.qpbt_coupling.clicked.connect(self.process_coupling)
         self.qlin_DC_cutoff.editingFinished.connect(self.process_coupling)        
-        self.populate_design_controls()        
+        self.populate_design_controls()     
+        self.qtbl_bandstop.keyPressEvent = self.myKeyPressEvent
         self.qtbl_bandstop.cellChanged.connect(
                 self.process_qtbl_bandstop_cellChanged)
         self.qtbl_bandstop_cellChanged_lock = False  # Ignore cellChanged event
                                                      # when locked
     
         self.qgrp.setLayout(grid)
+        
+    def myKeyPressEvent(self, event):
+        if event.key() == QtCore.Qt.Key_Delete:
+            pass
+        
+            # TODO: WORK IN PROGRESS
+            #print("delete")
+            #print(self.qtbl_bandstop.selectedItems())
+            #a = self.qtbl_bandstop.selectedItems()
+            #print(a[0])
+        
+        return QtGui.QTableWidget.keyPressEvent(self.qtbl_bandstop, event)
     
     def populate_design_controls(self):
         firf = self.firfs[0]
