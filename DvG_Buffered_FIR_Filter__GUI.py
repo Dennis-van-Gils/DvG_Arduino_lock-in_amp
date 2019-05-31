@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "21-04-2019"
+__date__        = "31-05-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -122,25 +122,13 @@ class Filter_design_GUI(QtCore.QObject):
         self.qpbt_coupling.clicked.connect(self.process_coupling)
         self.qlin_DC_cutoff.editingFinished.connect(self.process_coupling)        
         self.populate_design_controls()     
-        self.qtbl_bandstop.keyPressEvent = self.myKeyPressEvent
+        self.qtbl_bandstop.keyPressEvent = self.qtbl_bandstop_KeyPressEvent
         self.qtbl_bandstop.cellChanged.connect(
                 self.process_qtbl_bandstop_cellChanged)
         self.qtbl_bandstop_cellChanged_lock = False  # Ignore cellChanged event
                                                      # when locked
     
         self.qgrp.setLayout(grid)
-        
-    def myKeyPressEvent(self, event):
-        if event.key() == QtCore.Qt.Key_Delete:
-            pass
-        
-            # TODO: WORK IN PROGRESS
-            #print("delete")
-            #print(self.qtbl_bandstop.selectedItems())
-            #a = self.qtbl_bandstop.selectedItems()
-            #print(a[0])
-        
-        return QtGui.QTableWidget.keyPressEvent(self.qtbl_bandstop, event)
     
     def populate_design_controls(self):
         firf = self.firfs[0]
@@ -196,18 +184,16 @@ class Filter_design_GUI(QtCore.QObject):
                 cutoff = np.insert(cutoff, 0, DC_cutoff)
             else:
                 cutoff[0] = DC_cutoff
+                
+        # cutoff list cannot be empty. Force at least one value in the list
+        if np.size(cutoff) == 0:
+            cutoff = np.append(cutoff, 1.0)
         
         for firf in self.firfs:
             firf.compute_firwin(cutoff=cutoff, pass_zero=pass_zero)
         self.update_filter_design()
-        
-    @QtCore.pyqtSlot(int, int)
-    def process_qtbl_bandstop_cellChanged(self, k, l):
-        if self.qtbl_bandstop_cellChanged_lock:
-            return
-        #print("cellChanged %i %i" % (k, l))
-        
-        # Construct the cutoff list
+    
+    def construct_cutoff_list(self):
         if self.firfs[0].pass_zero:
             # Input coupling: DC
             cutoff = np.array([])
@@ -225,8 +211,43 @@ class Filter_design_GUI(QtCore.QObject):
                 except ValueError:
                     value = None
         
+        # cutoff list cannot be empty. Force at least one value in the list
+        if np.size(cutoff) == 0:
+            cutoff = np.append(cutoff, 1.0)
+            
+            msg = QtGui.QMessageBox()
+            msg.setIcon(QtGui.QMessageBox.Information)
+        
+            msg.setText("Filter design")
+            msg.setInformativeText("The list can not be empty.")
+            msg.setWindowTitle("Filter design")            
+            msg.setStandardButtons(QtGui.QMessageBox.Ok)
+            msg.exec_()
+        
         for firf in self.firfs:
             firf.compute_firwin(cutoff=cutoff)
+    
+    def qtbl_bandstop_KeyPressEvent(self, event):
+        # Handle special events
+        if event.key() == QtCore.Qt.Key_Delete:
+            self.qtbl_bandstop_cellChanged_lock = True
+            for item in self.qtbl_bandstop.selectedItems():
+                item.setText('')
+            self.qtbl_bandstop_cellChanged_lock = False
+
+            self.construct_cutoff_list()
+            self.update_filter_design()
+        
+        # Regular event handling for QTableWidgets
+        return QtGui.QTableWidget.keyPressEvent(self.qtbl_bandstop, event)
+    
+    @QtCore.pyqtSlot(int, int)
+    def process_qtbl_bandstop_cellChanged(self, k, l):
+        if self.qtbl_bandstop_cellChanged_lock:
+            return
+        #print("cellChanged %i %i" % (k, l))
+        
+        self.construct_cutoff_list()
         self.update_filter_design()
         
     def update_filter_design(self):
