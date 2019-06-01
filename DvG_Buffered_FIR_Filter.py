@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "26-04-2019"
+__date__        = "01-06-2019"
 __version__     = "1.0.0"
 
 from collections import deque
@@ -136,6 +136,14 @@ class Buffered_FIR_Filter():
         dAdF_2 = np.abs(np.diff(__ampl_dB, 2))
         idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0]
         
+        # Extend each individual continuous island by one next index
+        # This makes the dB floor show up as a horizontal line
+        if len(idx_keep > 2):
+            idx_island_endings = np.asarray(np.diff(idx_keep) > 1).nonzero()[0]
+            print(self.full_resp_freq_Hz[idx_keep[idx_island_endings]])
+            for index in np.flip(idx_island_endings):
+                idx_keep = np.insert(idx_keep, index + 1, idx_keep[index] + 1)
+        
         if len(idx_keep) <= 1:
             idx_keep = np.array([0, len(self.full_resp_ampl_dB) - 1])
             
@@ -147,7 +155,7 @@ class Buffered_FIR_Filter():
         
         # Store compressed curves
         self.resp_freq_Hz   = self.full_resp_freq_Hz[idx_keep]
-        self.resp_ampl_dB   = self.full_resp_ampl_dB[idx_keep]
+        self.resp_ampl_dB   = __ampl_dB[idx_keep]
         self.resp_phase_rad = self.full_resp_phase_rad[idx_keep]
 
     def _constrain_cutoff(self):
