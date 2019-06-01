@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "09-05-2019"
+__date__        = "01-06-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -897,8 +897,15 @@ class MainWindow(QtWid.QWidget):
                                       xMax=self.lockin.config.F_Nyquist,
                                       yMin=-120)
         
-        self.curve_filt_1_resp = pg.PlotCurveItem(pen=self.PEN_03,
-                                                  brush=self.BRUSH_03)
+        if 0:
+            # Only enable for debugging
+            # This will show individual symbols per data point, which is slow
+            self.curve_filt_1_resp = pg.ScatterPlotItem(pen=self.PEN_03,
+                                                        size=8, symbol='o')
+        else:
+            # Fast line plotting
+            self.curve_filt_1_resp = pg.PlotCurveItem(pen=self.PEN_03,
+                                                      brush=self.BRUSH_03)
         self.pi_filt_1_resp.addItem(self.curve_filt_1_resp)
         self.update_plot_filt_1_resp()
         self.plot_zoom_ROI_filt_1()
@@ -984,8 +991,15 @@ class MainWindow(QtWid.QWidget):
                                       xMax=self.lockin.config.F_Nyquist,
                                       yMin=-120)
         
-        self.curve_filt_2_resp = pg.PlotCurveItem(pen=self.PEN_03,
-                                                  brush=self.BRUSH_03)
+        if 0:
+            # Only enable for debugging
+            # This will show individual symbols per data point, which is slow
+            self.curve_filt_2_resp = pg.ScatterPlotItem(pen=self.PEN_03,
+                                                        size=8, symbol='o')
+        else:
+            # Fast line plotting
+            self.curve_filt_2_resp = pg.PlotCurveItem(pen=self.PEN_03,
+                                                      brush=self.BRUSH_03)
         self.pi_filt_2_resp.addItem(self.curve_filt_2_resp)
         self.update_plot_filt_2_resp()
         self.plot_zoom_ROI_filt_2()
@@ -1565,7 +1579,8 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def update_plot_filt_1_resp(self):
         firf = self.lockin_pyqt.firf_1_sig_I
-        self.curve_filt_1_resp.setFillLevel(np.min(firf.resp_ampl_dB))
+        if isinstance(self.curve_filt_1_resp, pg.PlotCurveItem):
+            self.curve_filt_1_resp.setFillLevel(np.min(firf.resp_ampl_dB))
         self.curve_filt_1_resp.setData(firf.resp_freq_Hz,
                                        firf.resp_ampl_dB)
         #self.pi_filt_1_resp.setTitle('Filter response: <br/>%s' %
@@ -1574,7 +1589,8 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def update_plot_filt_2_resp(self):
         firf = self.lockin_pyqt.firf_2_mix_X
-        self.curve_filt_2_resp.setFillLevel(np.min(firf.resp_ampl_dB))
+        if isinstance(self.curve_filt_2_resp, pg.PlotCurveItem):
+            self.curve_filt_2_resp.setFillLevel(np.min(firf.resp_ampl_dB))
         self.curve_filt_2_resp.setData(firf.resp_freq_Hz,
                                        firf.resp_ampl_dB)
         #self.pi_filt_2_resp.setTitle('Filter response: <br/>%s' %

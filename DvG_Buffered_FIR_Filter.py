@@ -23,6 +23,7 @@ class Buffered_FIR_Filter():
         self.window = window                          # type of window, see scipy.signal.get_window        
         self.pass_zero = pass_zero                    # [bool], see scipy.signal.firwin
         self.display_name = display_name              # [str]
+        self.dB_floor = -120                          # [dB], floor used for plotting
         
         # When True enables 1D FFT-convolution running on a NVidia GPU using
         # CUDA. Only beneficial when processing large amounts of data (approx.
@@ -108,16 +109,15 @@ class Buffered_FIR_Filter():
         #  Select region of interest for plotting later on
         # -------------------------------------------------
         # First flat-line all power below the dB floor
-        dB_floor = -120
-        idx_dB_floor = np.asarray(self.full_resp_ampl_dB<dB_floor).nonzero()[0]
+        idx_dB_floor = np.asarray(self.full_resp_ampl_dB < self.dB_floor).nonzero()[0]
         __ampl_dB = self.full_resp_ampl_dB
-        __ampl_dB[idx_dB_floor] = dB_floor
+        __ampl_dB[idx_dB_floor] = self.dB_floor
         
         # Keep points on the curve with large absolute acceleration.
         # Will in effect simplify a 'boring' region to a linear curve.
         dAdF_2_threshold = 1e-4
         dAdF_2 = np.abs(np.diff(__ampl_dB, 2))
-        idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0]
+        idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0] + 1
 
         # Store region of interest
         if len(idx_keep) <= 1:
@@ -134,16 +134,8 @@ class Buffered_FIR_Filter():
         # Will in effect simplify a 'boring' region to a linear curve.
         dAdF_2_threshold = 1e-6
         dAdF_2 = np.abs(np.diff(__ampl_dB, 2))
-        idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0]
-        
-        # Extend each individual continuous island by one next index
-        # This makes the dB floor show up as a horizontal line
-        if len(idx_keep > 2):
-            idx_island_endings = np.asarray(np.diff(idx_keep) > 1).nonzero()[0]
-            print(self.full_resp_freq_Hz[idx_keep[idx_island_endings]])
-            for index in np.flip(idx_island_endings):
-                idx_keep = np.insert(idx_keep, index + 1, idx_keep[index] + 1)
-        
+        idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0] + 1
+            
         if len(idx_keep) <= 1:
             idx_keep = np.array([0, len(self.full_resp_ampl_dB) - 1])
             
