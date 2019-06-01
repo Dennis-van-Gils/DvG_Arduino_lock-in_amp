@@ -593,6 +593,8 @@ class MainWindow(QtWid.QWidget):
         self.qrbt_XR_R.clicked.connect(self.process_qrbt_XR)
         self.qrbt_YT_Y.clicked.connect(self.process_qrbt_YT)
         self.qrbt_YT_T.clicked.connect(self.process_qrbt_YT)
+        self.process_qrbt_XR()
+        self.process_qrbt_YT()
         
         vbox = QtWid.QVBoxLayout(spacing=4)
         vbox.setContentsMargins(0, 0, 0, 0)
