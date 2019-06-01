@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "21-04-2019"
+__date__        = "01-06-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -121,7 +121,8 @@ class Filter_design_GUI(QtCore.QObject):
         
         self.qpbt_coupling.clicked.connect(self.process_coupling)
         self.qlin_DC_cutoff.editingFinished.connect(self.process_coupling)        
-        self.populate_design_controls()        
+        self.populate_design_controls()     
+        self.qtbl_bandstop.keyPressEvent = self.qtbl_bandstop_KeyPressEvent
         self.qtbl_bandstop.cellChanged.connect(
                 self.process_qtbl_bandstop_cellChanged)
         self.qtbl_bandstop_cellChanged_lock = False  # Ignore cellChanged event
@@ -183,18 +184,17 @@ class Filter_design_GUI(QtCore.QObject):
                 cutoff = np.insert(cutoff, 0, DC_cutoff)
             else:
                 cutoff[0] = DC_cutoff
+                
+        # cutoff list cannot be empty. Force at least one value in the list
+        if np.size(cutoff) == 0:
+            cutoff = np.append(cutoff, 1.0)
+            # And refrain from displaying a QMessageBox
         
         for firf in self.firfs:
             firf.compute_firwin(cutoff=cutoff, pass_zero=pass_zero)
         self.update_filter_design()
-        
-    @QtCore.pyqtSlot(int, int)
-    def process_qtbl_bandstop_cellChanged(self, k, l):
-        if self.qtbl_bandstop_cellChanged_lock:
-            return
-        #print("cellChanged %i %i" % (k, l))
-        
-        # Construct the cutoff list
+    
+    def construct_cutoff_list(self):
         if self.firfs[0].pass_zero:
             # Input coupling: DC
             cutoff = np.array([])
@@ -212,8 +212,59 @@ class Filter_design_GUI(QtCore.QObject):
                 except ValueError:
                     value = None
         
+        # cutoff list cannot be empty. Force at least one value in the list
+        if np.size(cutoff) == 0:
+            cutoff = np.append(cutoff, 1.0)
+            
+            msg = QtGui.QMessageBox()
+            msg.setIcon(QtGui.QMessageBox.Information)
+            msg.setWindowTitle("FIR filter design")
+            msg.setText("The list cannot be empty when input coupling is set "
+                        "to DC.<br>Putting 1.0 Hz back into the list.<br><br>"
+                        "You could set the input coupling to AC first.")
+            msg.setStandardButtons(QtGui.QMessageBox.Ok)
+            msg.exec_()
+        
         for firf in self.firfs:
             firf.compute_firwin(cutoff=cutoff)
+    
+    def qtbl_bandstop_KeyPressEvent(self, event):
+        # Handle special events
+        if event.key() == QtCore.Qt.Key_Delete:
+            msg = QtGui.QMessageBox()
+            msg.setIcon(QtGui.QMessageBox.Information)
+            msg.setWindowTitle("FIR filter design")
+            msg.setText("Are you sure you want to remove the<br>"
+                        "following frequencies from the list?")
+            list_freqs = np.array([])
+            for item in self.qtbl_bandstop.selectedItems():
+                if item.text() != '':
+                    list_freqs = np.append(list_freqs, item.text())
+            str_freqs = ", ".join(map(str, list_freqs))
+            msg.setInformativeText("%s [Hz]" % str_freqs)
+            msg.setStandardButtons(QtGui.QMessageBox.Yes |
+                                   QtGui.QMessageBox.No)
+            answer = msg.exec_()
+            
+            if answer == QtGui.QMessageBox.Yes:
+                self.qtbl_bandstop_cellChanged_lock = True
+                for item in self.qtbl_bandstop.selectedItems():
+                    item.setText('')
+                self.qtbl_bandstop_cellChanged_lock = False
+    
+                self.construct_cutoff_list()
+                self.update_filter_design()
+        
+        # Regular event handling for QTableWidgets
+        return QtGui.QTableWidget.keyPressEvent(self.qtbl_bandstop, event)
+    
+    @QtCore.pyqtSlot(int, int)
+    def process_qtbl_bandstop_cellChanged(self, k, l):
+        if self.qtbl_bandstop_cellChanged_lock:
+            return
+        #print("cellChanged %i %i" % (k, l))
+        
+        self.construct_cutoff_list()
         self.update_filter_design()
         
     def update_filter_design(self):
