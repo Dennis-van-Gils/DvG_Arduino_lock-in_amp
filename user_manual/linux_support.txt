@@ -8,4 +8,7 @@ Support for Linux: Ubuntu
 }
 
 * Fix access to serial ports
-sudo chmod 666 /dev/ttyACM0
+** 1) Need to apply at every reboot
+sudo chmod 666 /dev/ttyS0
+** 2) Or permanent solution
+sudo gpasswd --add ${USER} dialout
