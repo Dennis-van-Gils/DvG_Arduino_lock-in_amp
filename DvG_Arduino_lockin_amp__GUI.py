@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "04-06-2019"
+__date__        = "05-06-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -1348,6 +1348,7 @@ class MainWindow(QtWid.QWidget):
     def update_newly_set_ref_freq(self):
         self.qlin_read_ref_freq.setText("%.2f" % self.lockin.config.ref_freq)
 
+        """
         # TODO: the extra distance 'roll_off_width' to stay away from
         # f_cutoff should be calculated based on the roll-off width of the
         # filter, instead of hard-coded
@@ -1362,6 +1363,7 @@ class MainWindow(QtWid.QWidget):
         self.filt_2_design_GUI.update_filter_design()
         self.update_plot_filt_2_resp()
         self.plot_zoom_ROI_filt_2()
+        """
         
         self.lockin_pyqt.state.reset()
         self.clear_chart_histories_stage_1_and_2()
