@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "08-05-2019"
+__date__        = "04-06-2019"
 __version__     = "1.0.0"
 
 import os
@@ -262,6 +262,10 @@ def lockin_DAQ_update():
     if window.legend_box_PS.chkbs[3].isChecked():
         [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_mix_Y)
         if len(f) > 0: window.BP_PS_4.set_data(f, P_dB)
+        
+    if window.legend_box_PS.chkbs[4].isChecked():
+        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_out_R)
+        if len(f) > 0: window.BP_PS_5.set_data(f, P_dB)
     
     # Add new data to charts
     # ----------------------

@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "01-06-2019"
+__date__        = "04-06-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -216,6 +216,7 @@ class MainWindow(QtWid.QWidget):
         self.PEN_02 = pg.mkPen(color=[255, 255, 90 ], width=3)
         self.PEN_03 = pg.mkPen(color=[0  , 255, 255], width=3)
         self.PEN_04 = pg.mkPen(color=[255, 255, 255], width=3)        
+        self.PEN_05 = pg.mkPen(color=[0  , 255, 0  ], width=3)        
         self.BRUSH_03 = pg.mkBrush(0, 255, 255, 64)
         
         # Fonts
@@ -477,8 +478,10 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
         self.pi_refsig.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
-                                 lockin.config.ISR_CLOCK * 1e3,
-                                 xMax=0)
+                                      lockin.config.ISR_CLOCK * 1e3,
+                                 xMax=0,
+                                 yMin=-3.4,
+                                 yMax=3.4)
 
         self.CH_ref_X = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_refsig.plot(pen=self.PEN_01))
@@ -691,8 +694,10 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_1.setAutoVisible(x=True, y=True)
         self.pi_filt_1.setClipToView(True)
         self.pi_filt_1.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) *
-                                  lockin.config.ISR_CLOCK * 1e3,
-                                  xMax=0)
+                                      lockin.config.ISR_CLOCK * 1e3,
+                                 xMax=0,
+                                 yMin=-5.25,
+                                 yMax=5.25)
         
         self.CH_filt_1_in  = ChartHistory(lockin.config.BUFFER_SIZE,
                                           self.pi_filt_1.plot(pen=self.PEN_03))
@@ -735,8 +740,10 @@ class MainWindow(QtWid.QWidget):
         self.pi_mixer.setAutoVisible(x=True, y=True)
         self.pi_mixer.setClipToView(True)
         self.pi_mixer.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) *
-                                lockin.config.ISR_CLOCK * 1e3,
-                                xMax=0)
+                                     lockin.config.ISR_CLOCK * 1e3,
+                                xMax=0,
+                                yMin=-5.25,
+                                yMax=5.25)
         
         self.CH_mix_X = ChartHistory(lockin.config.BUFFER_SIZE,
                                      self.pi_mixer.plot(pen=self.PEN_01))
@@ -794,13 +801,18 @@ class MainWindow(QtWid.QWidget):
         self.pi_PS.setXRange(0, self.lockin.config.F_Nyquist, padding=0.02)
         self.pi_PS.setYRange(-110, 0, padding=0.02)
         self.pi_PS.setClipToView(True)
-        self.pi_PS.setLimits(xMin=0, xMax=self.lockin.config.F_Nyquist)
+        self.pi_PS.setLimits(xMin=0,
+                             xMax=self.lockin.config.F_Nyquist,
+                             yMin=-300,
+                             yMax=60)
         
         self.BP_PS_1 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_03))
         self.BP_PS_2 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_04))
         self.BP_PS_3 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_01))
         self.BP_PS_4 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_02))
-        self.BP_PSs = [self.BP_PS_1, self.BP_PS_2, self.BP_PS_3, self.BP_PS_4]
+        self.BP_PS_5 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_05))
+        self.BP_PSs = [self.BP_PS_1, self.BP_PS_2, self.BP_PS_3, self.BP_PS_4,
+                       self.BP_PS_5]
         
         # QGROUP: Zoom
         self.qpbt_PS_zoom_DC        = QtWid.QPushButton('DC')
@@ -840,9 +852,10 @@ class MainWindow(QtWid.QWidget):
         
         # QGROUP: Power spectrum
         self.legend_box_PS = Legend_box(
-                text=['sig_I', 'filt_I', 'mix_X', 'mix_Y'],
-                pen=[self.PEN_03, self.PEN_04, self.PEN_01, self.PEN_02],
-                checked=[False, False, False, False])
+                text=['sig_I', 'filt_I', 'mix_X', 'mix_Y', 'R'],
+                pen=[self.PEN_03, self.PEN_04, self.PEN_01, self.PEN_02,
+                     self.PEN_05],
+                checked=[False, False, False, False, False])
         ([chkb.clicked.connect(self.process_chkbs_legend_box_PS) for chkb
           in self.legend_box_PS.chkbs])
     
@@ -897,7 +910,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_1_resp.setClipToView(True)
         self.pi_filt_1_resp.setLimits(xMin=0,
                                       xMax=self.lockin.config.F_Nyquist,
-                                      yMin=-120)
+                                      yMin=-120,
+                                      yMax=20)
         
         if 0:
             # Only enable for debugging
@@ -991,7 +1005,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_2_resp.setClipToView(True)
         self.pi_filt_2_resp.setLimits(xMin=0,
                                       xMax=self.lockin.config.F_Nyquist,
-                                      yMin=-120)
+                                      yMin=-120,
+                                      yMax=20)
         
         if 0:
             # Only enable for debugging
@@ -1507,6 +1522,11 @@ class MainWindow(QtWid.QWidget):
             self.pi_YT.request_autorange_y = True
     
     def autorange_y_XR(self):
+        if self.qrbt_XR_X.isChecked():
+            self.pi_XR.setLimits(yMin=-5.25, yMax=5.25)
+        else:
+            self.pi_XR.setLimits(yMin=-0.1, yMax=5.25)
+        
         if len(self.CH_LIA_XR._x) == 0:
             if self.qrbt_XR_X.isChecked():
                 self.pi_XR.setYRange(-5, 5, padding=0.05)
@@ -1519,6 +1539,11 @@ class MainWindow(QtWid.QWidget):
             self.pi_XR.setYRange(YRange[0], YRange[1], padding=0.1)
         
     def autorange_y_YT(self):
+        if self.qrbt_YT_Y.isChecked():
+            self.pi_YT.setLimits(yMin=-5.25, yMax=5.25)
+        else:
+            self.pi_YT.setLimits(yMin=-100, yMax=100)
+            
         if len(self.CH_LIA_YT._x) == 0:
             if self.qrbt_YT_Y.isChecked():
                 self.pi_YT.setYRange(-5, 5, padding=0.05)
@@ -1529,7 +1554,6 @@ class MainWindow(QtWid.QWidget):
             self.pi_YT.enableAutoRange('y', False)
             XRange, YRange = self.pi_YT.viewRange()
             self.pi_YT.setYRange(YRange[0], YRange[1], padding=0.1)
-    
     
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
@@ -1614,6 +1638,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_1_resp.setXRange(firf.resp_freq_Hz__ROI_start,
                                       firf.resp_freq_Hz__ROI_end,
                                       padding=0.01)
+        self.pi_filt_1_resp.enableAutoRange('y', True)
+        self.pi_filt_1_resp.enableAutoRange('y', False)
 
     @QtCore.pyqtSlot()
     def plot_zoom_ROI_filt_2(self):
@@ -1621,6 +1647,8 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_2_resp.setXRange(firf.resp_freq_Hz__ROI_start,
                                       firf.resp_freq_Hz__ROI_end,
                                       padding=0.01)
+        self.pi_filt_2_resp.enableAutoRange('y', True)
+        self.pi_filt_2_resp.enableAutoRange('y', False)
         
     def plot_zoom_x(self, pi_plot: pg.PlotItem, xRangeLo, xRangeHi):
         pi_plot.setXRange(xRangeLo, xRangeHi, padding=0.02)
