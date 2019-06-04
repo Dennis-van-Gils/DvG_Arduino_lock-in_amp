@@ -1,0 +1,3 @@
+* Tell Martin to check his solder connections
+* Demo: ref_freq = 647 Hz, f_LP = 330 Hz
+* Perhaps impedance issue of Martin's electronics
