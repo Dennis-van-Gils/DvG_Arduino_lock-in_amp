@@ -188,7 +188,9 @@ def lockin_DAQ_update():
                       lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
         
         # Heterodyne mixing
-        mix_X = (old_ref_X - c.ref_V_offset) * filt_I
+        # TODO: use np.multiply(x, 10, out=y), see np.ufunc. Speeds up by non buffering
+        # See https://jakevdp.github.io/PythonDataScienceHandbook/02.03-computation-on-arrays-ufuncs.html
+        mix_X = (old_ref_X - c.ref_V_offset) * filt_I  
         mix_Y = (old_ref_Y - c.ref_V_offset) * filt_I
     else:
         mix_X = np.full(c.BUFFER_SIZE, np.nan)
