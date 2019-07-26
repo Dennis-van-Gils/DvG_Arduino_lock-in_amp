@@ -11,7 +11,6 @@ __version__     = "1.0.0"
 
 import numpy as np
 from scipy.signal import welch
-#from collections import deque
 from numpy_ringbuffer import RingBuffer
 from PyQt5 import QtCore, QtWidgets as QtWid
 import time as Time

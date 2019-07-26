@@ -8,7 +8,6 @@ __url__         = "https://github.com/Dennis-van-Gils"
 __date__        = "26-07-2019"
 __version__     = "1.0.0"
 
-#from collections import deque
 from numpy_ringbuffer import RingBuffer
 from scipy.signal import firwin, freqz, fftconvolve
 import numpy as np

@@ -45,7 +45,7 @@ Class:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
-__date__        = "29-03-2019"
+__date__        = "27-07-2019"
 __version__     = "1.1.0"
 
 #import collections
@@ -68,8 +68,8 @@ class ChartHistory(object):
         self.x_axis_divisor = 1
         self.y_axis_divisor = 1
 
-        self._x = collections.deque(maxlen=chart_history_length)
-        self._y = collections.deque(maxlen=chart_history_length)
+        self._x = RingBuffer(capacity=chart_history_length)
+        self._y = RingBuffer(capacity=chart_history_length)
         self._x_snapshot = [0]
         self._y_snapshot = [0]
 
@@ -128,6 +128,8 @@ class ChartHistory(object):
 
     def clear(self):
         locker = QtCore.QMutexLocker(self.mutex)
-        self._x.clear()
-        self._y.clear()
+        self._x._left_index = 0
+        self._x._right_index = 0
+        self._y._left_index = 0
+        self._y._right_index = 0
         locker.unlock()
