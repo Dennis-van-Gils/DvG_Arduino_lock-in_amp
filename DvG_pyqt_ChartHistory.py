@@ -48,7 +48,8 @@ __url__         = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
 __date__        = "29-03-2019"
 __version__     = "1.1.0"
 
-import collections
+#import collections
+from numpy_ringbuffer import RingBuffer
 
 import numpy as np
 from PyQt5 import QtCore

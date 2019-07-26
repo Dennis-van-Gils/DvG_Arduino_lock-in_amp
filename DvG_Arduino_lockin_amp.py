@@ -173,18 +173,18 @@ def lockin_DAQ_update():
     
     # Retrieve the block of original data from the past that aligns with
     # the current filter output
-    state.time_1 = (np.array(state.deque_time, dtype=c.return_type_time)
+    state.time_1 = (np.array(state.deque_time)
                     [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                      lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
-    old_sig_I = (np.array(state.deque_sig_I, dtype=c.return_type_sig_I)
+    old_sig_I = (np.array(state.deque_sig_I)
                  [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                   lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
     
     if lockin_pyqt.firf_1_sig_I.deque_has_settled:
-        old_ref_X = (np.array(state.deque_ref_X, dtype=c.return_type_ref_X)
+        old_ref_X = (np.array(state.deque_ref_X)
                      [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                       lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
-        old_ref_Y = (np.array(state.deque_ref_Y, dtype=c.return_type_ref_X)
+        old_ref_Y = (np.array(state.deque_ref_Y)
                      [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
                       lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
         
@@ -214,7 +214,7 @@ def lockin_DAQ_update():
     
     # Retrieve the block of original data from the past that aligns with
     # the current filter output
-    state.time_2 = (np.array(state.deque_time_1, dtype=c.return_type_time)
+    state.time_2 = (np.array(state.deque_time_1)
                     [lockin_pyqt.firf_2_mix_X.win_idx_valid_start:
                      lockin_pyqt.firf_2_mix_X.win_idx_valid_end])
             

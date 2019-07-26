@@ -11,7 +11,8 @@ __version__     = "1.0.0"
 
 import numpy as np
 from scipy.signal import welch
-from collections import deque
+#from collections import deque
+from numpy_ringbuffer import RingBuffer
 from PyQt5 import QtCore, QtWidgets as QtWid
 import time as Time
 
@@ -125,21 +126,23 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             # Create deques
             if self.N_buffers_in_deque > 0:
                 # Stage 0: unprocessed data
-                self.deque_time   = deque(maxlen=self.N_deque)
-                self.deque_ref_X  = deque(maxlen=self.N_deque)
-                self.deque_ref_Y  = deque(maxlen=self.N_deque)
-                self.deque_sig_I  = deque(maxlen=self.N_deque)
+                p = {'capacity': self.N_deque, 'dtype': np.float64}
+                p_time = {'capacity': self.N_deque, 'dtype': np.int64}
+                self.deque_time   = RingBuffer(**p_time)
+                self.deque_ref_X  = RingBuffer(**p)
+                self.deque_ref_Y  = RingBuffer(**p)
+                self.deque_sig_I  = RingBuffer(**p)
                 # Stage 1: apply band-stop filter and heterodyne mixing
-                self.deque_time_1 = deque(maxlen=self.N_deque)
-                self.deque_filt_I = deque(maxlen=self.N_deque)
-                self.deque_mix_X  = deque(maxlen=self.N_deque)
-                self.deque_mix_Y  = deque(maxlen=self.N_deque)
+                self.deque_time_1 = RingBuffer(**p_time)
+                self.deque_filt_I = RingBuffer(**p)
+                self.deque_mix_X  = RingBuffer(**p)
+                self.deque_mix_Y  = RingBuffer(**p)
                 # Stage 2: apply low-pass filter and signal reconstruction
-                self.deque_time_2 = deque(maxlen=self.N_deque)
-                self.deque_X      = deque(maxlen=self.N_deque)
-                self.deque_Y      = deque(maxlen=self.N_deque)
-                self.deque_R      = deque(maxlen=self.N_deque)
-                self.deque_T      = deque(maxlen=self.N_deque)
+                self.deque_time_2 = RingBuffer(**p_time)
+                self.deque_X      = RingBuffer(**p)
+                self.deque_Y      = RingBuffer(**p)
+                self.deque_R      = RingBuffer(**p)
+                self.deque_T      = RingBuffer(**p)
                 
                 self.deques = [self.deque_time,
                                self.deque_ref_X,
@@ -163,10 +166,15 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         def reset(self):
             """Clears the received buffer counter and clears all deques.
             """
+            locker = QtCore.QMutexLocker(self.mutex)
+            
             self.buffers_received = 0
             if self.N_buffers_in_deque > 0:
                 for this_deque in self.deques:
-                    this_deque.clear()
+                    this_deque._left_index = 0
+                    this_deque._right_index = 0
+                    
+            locker.unlock()
                 
     def __init__(self,
                  dev: lockin_functions.Arduino_lockin_amp,
@@ -354,7 +362,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     #   compute_power_spectrum
     # -------------------------------------------------------------------------
 
-    def compute_power_spectrum(self, deque_in: deque):
+    def compute_power_spectrum(self, deque_in: RingBuffer):
         """Using scipy.signal.welch()
         When scaling='spectrum', Pxx returns units of V^2
         When scaling='density', Pxx returns units of V^2/Hz
