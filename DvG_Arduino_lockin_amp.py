@@ -322,17 +322,32 @@ def lockin_DAQ_update():
     if file_logger.is_recording:
         if lockin_pyqt.firf_2_mix_X.deque_has_settled:
             idx_offset = lockin_pyqt.firf_1_sig_I.win_idx_valid_start
+            
+            # Because we changed collections.deque to numpy_ringbuffer
+            # the following write operations are slower than before. This
+            # is because of the extra unwrapping required by ringbuffer,
+            # before we can apply proper indexing.
+            # Thus, we transform to numpy array first and only then
+            # loop over all elements.
+            tmp_time   = np.array(state.deque_time)
+            tmp_ref_X  = np.array(state.deque_ref_X)
+            tmp_ref_Y  = np.array(state.deque_ref_Y)
+            tmp_sig_I  = np.array(state.deque_sig_I)
+            tmp_filt_I = np.array(state.deque_filt_I)
+            tmp_mix_X  = np.array(state.deque_mix_X)
+            tmp_mix_Y  = np.array(state.deque_mix_Y)
+            
             for i in range(c.BUFFER_SIZE):
                 data = (("%i\t" +
                          "%.5f\t" * 9 +
                          "%.4f\n") % (
-                        state.deque_time[i],
-                        state.deque_ref_X[i],
-                        state.deque_ref_Y[i],
-                        state.deque_sig_I[i],
-                        state.deque_filt_I[i + idx_offset],
-                        state.deque_mix_X[i + idx_offset],
-                        state.deque_mix_Y[i + idx_offset],
+                        tmp_time[i],
+                        tmp_ref_X[i],
+                        tmp_ref_Y[i],
+                        tmp_sig_I[i],
+                        tmp_filt_I[i + idx_offset],
+                        tmp_mix_X[i + idx_offset],
+                        tmp_mix_Y[i + idx_offset],
                         state.X[i],
                         state.Y[i],
                         state.R[i],
