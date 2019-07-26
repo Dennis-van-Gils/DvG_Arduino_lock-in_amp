@@ -5,10 +5,10 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "01-06-2019"
+__date__        = "26-07-2019"
 __version__     = "1.0.0"
 
-from collections import deque
+from numpy_ringbuffer import RingBuffer
 from scipy.signal import firwin, freqz, fftconvolve
 import numpy as np
 import time as Time
@@ -164,7 +164,7 @@ class Buffered_FIR_Filter():
         cutoff[cutoff >= self.Fs/2] = (self.Fs/2 - cutoff_grain)
         self.cutoff = np.unique(np.sort(cutoff))
         
-    def process(self, deque_sig_in: deque):
+    def process(self, deque_sig_in: RingBuffer):
         """Perform a convolution between the FIR filter tap array and the
         deque_sig_in array and return the valid convolution output. Will track
         if the filter has settled. Any NaNs in deque_sig_in will desettle the
@@ -186,7 +186,7 @@ class Buffered_FIR_Filter():
             if self.use_CUDA:
                 # Perform convolution on the GPU
                 cp_valid_out = self.sigpy.convolve(
-                        self.cupy.array(list(deque_sig_in)),
+                        self.cupy.array(deque_sig_in),
                         self.b_cp,
                         mode='valid')
                 # Transfer result from GPU to CPU memory

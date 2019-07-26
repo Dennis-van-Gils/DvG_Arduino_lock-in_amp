@@ -6,12 +6,12 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "25-04-2019"
+__date__        = "26-07-2019"
 __version__     = "1.0.0"
 
 import numpy as np
 from scipy.signal import welch
-from collections import deque
+from numpy_ringbuffer import RingBuffer
 from PyQt5 import QtCore, QtWidgets as QtWid
 import time as Time
 
@@ -85,16 +85,23 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             self.N_buffers_in_deque = N_buffers_in_deque    # [int]
             self.N_deque = buffer_size * N_buffers_in_deque # [samples]
             
-            self.time  = np.array([])#, np.int64)           # [ms]
-            self.ref_X = np.array([])#, np.float64)
-            self.ref_Y = np.array([])#, np.float64)
-            self.sig_I = np.array([])#, np.float64)
-            self.time2 = np.array([])#, np.int64)           # [ms]
-            self.X     = np.array([])#, np.float64)
-            self.Y     = np.array([])#, np.float64)
-            self.R     = np.array([])#, np.float64)
-            self.T     = np.array([])#, np.float64)
+            # Predefine arrays for clarity
+            self.time   = np.zeros(buffer_size)#, np.int64) # [ms]
+            self.ref_X  = np.zeros(buffer_size, np.float64)
+            self.ref_Y  = np.zeros(buffer_size, np.float64)
+            self.sig_I  = np.zeros(buffer_size, np.float64)
             
+            self.time_1 = np.zeros(buffer_size)#, np.int64) # [ms]
+            self.filt_I = np.zeros(buffer_size, np.float64)
+            self.mix_X  = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
+            self.mix_Y  = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
+            
+            self.time_2 = np.zeros(buffer_size)#, np.int64) # [ms]
+            self.X      = np.zeros(buffer_size, np.float64)
+            self.Y      = np.zeros(buffer_size, np.float64)
+            self.R      = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
+            self.T      = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
+
             self.sig_I_min = np.nan
             self.sig_I_max = np.nan
             self.sig_I_avg = np.nan
@@ -118,21 +125,23 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             # Create deques
             if self.N_buffers_in_deque > 0:
                 # Stage 0: unprocessed data
-                self.deque_time   = deque(maxlen=self.N_deque)
-                self.deque_ref_X  = deque(maxlen=self.N_deque)
-                self.deque_ref_Y  = deque(maxlen=self.N_deque)
-                self.deque_sig_I  = deque(maxlen=self.N_deque)
+                p = {'capacity': self.N_deque, 'dtype': np.float64}
+                p_time = {'capacity': self.N_deque, 'dtype': np.int64}
+                self.deque_time   = RingBuffer(**p_time)
+                self.deque_ref_X  = RingBuffer(**p)
+                self.deque_ref_Y  = RingBuffer(**p)
+                self.deque_sig_I  = RingBuffer(**p)
                 # Stage 1: apply band-stop filter and heterodyne mixing
-                self.deque_time_1 = deque(maxlen=self.N_deque)
-                self.deque_filt_I = deque(maxlen=self.N_deque)
-                self.deque_mix_X  = deque(maxlen=self.N_deque)
-                self.deque_mix_Y  = deque(maxlen=self.N_deque)
+                self.deque_time_1 = RingBuffer(**p_time)
+                self.deque_filt_I = RingBuffer(**p)
+                self.deque_mix_X  = RingBuffer(**p)
+                self.deque_mix_Y  = RingBuffer(**p)
                 # Stage 2: apply low-pass filter and signal reconstruction
-                self.deque_time_2 = deque(maxlen=self.N_deque)
-                self.deque_out_X  = deque(maxlen=self.N_deque)
-                self.deque_out_Y  = deque(maxlen=self.N_deque)
-                self.deque_out_R  = deque(maxlen=self.N_deque)
-                self.deque_out_T  = deque(maxlen=self.N_deque)
+                self.deque_time_2 = RingBuffer(**p_time)
+                self.deque_X      = RingBuffer(**p)
+                self.deque_Y      = RingBuffer(**p)
+                self.deque_R      = RingBuffer(**p)
+                self.deque_T      = RingBuffer(**p)
                 
                 self.deques = [self.deque_time,
                                self.deque_ref_X,
@@ -143,10 +152,10 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                                self.deque_mix_X,
                                self.deque_mix_Y,
                                self.deque_time_2,
-                               self.deque_out_X,
-                               self.deque_out_Y,
-                               self.deque_out_R,
-                               self.deque_out_T]
+                               self.deque_X,
+                               self.deque_Y,
+                               self.deque_R,
+                               self.deque_T]
             
             # Mutex for proper multithreading. If the state variables are not
             # atomic or thread-safe, you should lock and unlock this mutex for
@@ -156,10 +165,15 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         def reset(self):
             """Clears the received buffer counter and clears all deques.
             """
+            locker = QtCore.QMutexLocker(self.mutex)
+            
             self.buffers_received = 0
             if self.N_buffers_in_deque > 0:
                 for this_deque in self.deques:
-                    this_deque.clear()
+                    this_deque._left_index = 0
+                    this_deque._right_index = 0
+                    
+            locker.unlock()
                 
     def __init__(self,
                  dev: lockin_functions.Arduino_lockin_amp,
@@ -347,7 +361,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     #   compute_power_spectrum
     # -------------------------------------------------------------------------
 
-    def compute_power_spectrum(self, deque_in: deque):
+    def compute_power_spectrum(self, deque_in: RingBuffer):
         """Using scipy.signal.welch()
         When scaling='spectrum', Pxx returns units of V^2
         When scaling='density', Pxx returns units of V^2/Hz
