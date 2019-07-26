@@ -1,0 +1,7 @@
+fftconvolve(a, b)
+len(a) = 20500, len(b) = 20001
+Test on computer: ONERA
+timeit N = 10000
+
+fftconv_scipy             : 1.5 ms
+fftconv_fftw              : 1.9 ms
