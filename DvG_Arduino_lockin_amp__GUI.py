@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "05-06-2019"
+__date__        = "26-07-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -1482,11 +1482,14 @@ class MainWindow(QtWid.QWidget):
             # however to make a copy of the lockin_pyqt.state timeseries,
             # because the GUI can't interfere with the DAQ thread now that it is
             # in suspended mode. Hence, we copy new data into the chart.
+            if np.sum(self.lockin_pyqt.state.time_2) == 0:
+                return
+            
             if self.qrbt_XR_X.isChecked():
-                self.CH_LIA_XR.add_new_readings(self.lockin_pyqt.state.time2,
+                self.CH_LIA_XR.add_new_readings(self.lockin_pyqt.state.time_2,
                                                 self.lockin_pyqt.state.X)
             else:
-                self.CH_LIA_XR.add_new_readings(self.lockin_pyqt.state.time2,
+                self.CH_LIA_XR.add_new_readings(self.lockin_pyqt.state.time_2,
                                                 self.lockin_pyqt.state.R)
             self.CH_LIA_XR.update_curve()        
             self.autorange_y_XR()
@@ -1511,11 +1514,14 @@ class MainWindow(QtWid.QWidget):
             # however to make a copy of the lockin_pyqt.state timeseries,
             # because the GUI can't interfere with the DAQ thread now that it is
             # in suspended mode. Hence, we copy new data into the chart.
+            if np.sum(self.lockin_pyqt.state.time_2) == 0:
+                return
+            
             if self.qrbt_YT_Y.isChecked():
-                self.CH_LIA_YT.add_new_readings(self.lockin_pyqt.state.time2,
+                self.CH_LIA_YT.add_new_readings(self.lockin_pyqt.state.time_2,
                                                 self.lockin_pyqt.state.Y)
             else:
-                self.CH_LIA_YT.add_new_readings(self.lockin_pyqt.state.time2,
+                self.CH_LIA_YT.add_new_readings(self.lockin_pyqt.state.time_2,
                                                 self.lockin_pyqt.state.T)
             self.CH_LIA_YT.update_curve()
             self.autorange_y_YT()

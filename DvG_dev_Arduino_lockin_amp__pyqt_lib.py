@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "25-04-2019"
+__date__        = "26-07-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -85,16 +85,23 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             self.N_buffers_in_deque = N_buffers_in_deque    # [int]
             self.N_deque = buffer_size * N_buffers_in_deque # [samples]
             
-            self.time  = np.array([])#, np.int64)           # [ms]
-            self.ref_X = np.array([])#, np.float64)
-            self.ref_Y = np.array([])#, np.float64)
-            self.sig_I = np.array([])#, np.float64)
-            self.time2 = np.array([])#, np.int64)           # [ms]
-            self.X     = np.array([])#, np.float64)
-            self.Y     = np.array([])#, np.float64)
-            self.R     = np.array([])#, np.float64)
-            self.T     = np.array([])#, np.float64)
+            # Predefine arrays for clarity
+            self.time   = np.zeros(buffer_size)#, np.int64) # [ms]
+            self.ref_X  = np.zeros(buffer_size, np.float64)
+            self.ref_Y  = np.zeros(buffer_size, np.float64)
+            self.sig_I  = np.zeros(buffer_size, np.float64)
             
+            self.time_1 = np.zeros(buffer_size)#, np.int64) # [ms]
+            self.filt_I = np.zeros(buffer_size, np.float64)
+            self.mix_X  = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
+            self.mix_Y  = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
+            
+            self.time_2 = np.zeros(buffer_size)#, np.int64) # [ms]
+            self.X      = np.zeros(buffer_size, np.float64)
+            self.Y      = np.zeros(buffer_size, np.float64)
+            self.R      = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
+            self.T      = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
+
             self.sig_I_min = np.nan
             self.sig_I_max = np.nan
             self.sig_I_avg = np.nan
@@ -129,10 +136,10 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 self.deque_mix_Y  = deque(maxlen=self.N_deque)
                 # Stage 2: apply low-pass filter and signal reconstruction
                 self.deque_time_2 = deque(maxlen=self.N_deque)
-                self.deque_out_X  = deque(maxlen=self.N_deque)
-                self.deque_out_Y  = deque(maxlen=self.N_deque)
-                self.deque_out_R  = deque(maxlen=self.N_deque)
-                self.deque_out_T  = deque(maxlen=self.N_deque)
+                self.deque_X      = deque(maxlen=self.N_deque)
+                self.deque_Y      = deque(maxlen=self.N_deque)
+                self.deque_R      = deque(maxlen=self.N_deque)
+                self.deque_T      = deque(maxlen=self.N_deque)
                 
                 self.deques = [self.deque_time,
                                self.deque_ref_X,
@@ -143,10 +150,10 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                                self.deque_mix_X,
                                self.deque_mix_Y,
                                self.deque_time_2,
-                               self.deque_out_X,
-                               self.deque_out_Y,
-                               self.deque_out_R,
-                               self.deque_out_T]
+                               self.deque_X,
+                               self.deque_Y,
+                               self.deque_R,
+                               self.deque_T]
             
             # Mutex for proper multithreading. If the state variables are not
             # atomic or thread-safe, you should lock and unlock this mutex for
