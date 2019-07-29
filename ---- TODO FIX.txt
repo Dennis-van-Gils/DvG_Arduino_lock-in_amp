@@ -1,0 +1,3 @@
+# Reshape 1D array to 1D vector
+# Memory address of underlying numpy buffer remains intact
+ar.reshape(-1, 1)
