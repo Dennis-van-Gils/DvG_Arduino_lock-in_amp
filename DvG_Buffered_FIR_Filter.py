@@ -5,12 +5,12 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "26-07-2019"
+__date__        = "30-07-2019"
 __version__     = "1.0.0"
 
-from numpy_ringbuffer import RingBuffer
-from scipy.signal import firwin, freqz, fftconvolve
 import numpy as np
+from scipy.signal import firwin, freqz, fftconvolve
+from DvG_RingBuffer import DvG_RingBuffer as RingBuffer
 import time as Time
 
 class Buffered_FIR_Filter():
@@ -87,7 +87,8 @@ class Buffered_FIR_Filter():
         
         if self.use_CUDA:
             # Copy FIR filter tap array from CPU to GPU memory
-            self.b_cp = self.cupy.array(self.b)
+            # Turning 1-D array into column vector by [:, None] for CUDA
+            self.b_cp = self.cupy.array(self.b[:, None])
             
     def compute_freqz(self, worN=2**18):
         """Compute the full frequency response.
@@ -172,10 +173,10 @@ class Buffered_FIR_Filter():
         """
         
         #print("%s: %i" % (self.display_name, len(deque_sig_in)))
-        if (len(deque_sig_in) < self.N_deque) or np.isnan(deque_sig_in).any():
+        if (not deque_sig_in.is_full) or np.isnan(deque_sig_in).any():
             # Start-up. Deque still needs time to settle.
             self.deque_has_settled = False
-            valid_out = np.array([np.nan] * self.buffer_size)
+            valid_out = np.full(self.buffer_size, np.nan)
         else:
             self.deque_has_settled = True
             """Select window out of the signal deque to feed into the
@@ -185,12 +186,18 @@ class Buffered_FIR_Filter():
             #tick = Time.perf_counter()
             if self.use_CUDA:
                 # Perform convolution on the GPU
+                
+                # Turning 1-D array into column vector by [:, None] for CUDA
                 cp_valid_out = self.sigpy.convolve(
-                        self.cupy.array(deque_sig_in),
+                        self.cupy.array(np.asarray(deque_sig_in)[:, None]),
                         self.b_cp,
                         mode='valid')
+                
                 # Transfer result from GPU to CPU memory
                 valid_out = self.cupy.asnumpy(cp_valid_out)
+                
+                # Reduce the dimension again
+                valid_out = valid_out[:, 0]
             else:
                 # Perform convolution on the CPU
                 valid_out = fftconvolve(deque_sig_in, self.b, mode='valid')
