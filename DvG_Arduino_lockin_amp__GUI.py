@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "26-07-2019"
+__date__        = "30-07-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -34,19 +34,25 @@ pg.exporters.ImageExporter.export = pgmp.ImageExporter_export
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 
-try:
-    import OpenGL.GL as gl
-    pg.setConfigOptions(useOpenGL=True)
-    pg.setConfigOptions(enableExperimental=False)
-    pg.setConfigOptions(antialias=False)
-    print("OpenGL hardware acceleration enabled.")
-    USING_OPENGL = True
-except:
-    pg.setConfigOptions(useOpenGL=False)
-    pg.setConfigOptions(enableExperimental=False)
-    pg.setConfigOptions(antialias=False)
-    print("WARNING: Could not enable OpenGL hardware acceleration.")
-    print("Check if prerequisite 'PyOpenGL' library is installed.")
+# TODO: take out global TRY_USING_OPENGL and move it to the main .py file
+TRY_USING_OPENGL = False
+if TRY_USING_OPENGL:
+    try:
+        import OpenGL.GL as gl
+        pg.setConfigOptions(useOpenGL=True)
+        pg.setConfigOptions(enableExperimental=False)
+        pg.setConfigOptions(antialias=False)
+        print("OpenGL hardware acceleration enabled.")
+        USING_OPENGL = True
+    except:
+        pg.setConfigOptions(useOpenGL=False)
+        pg.setConfigOptions(enableExperimental=False)
+        pg.setConfigOptions(antialias=False)
+        print("WARNING: Could not enable OpenGL hardware acceleration.")
+        print("Check if prerequisite 'PyOpenGL' library is installed.")
+        USING_OPENGL = False
+else:
+    print("OpenGL hardware acceleration is disabled.")
     USING_OPENGL = False
 
 # Stylesheets
