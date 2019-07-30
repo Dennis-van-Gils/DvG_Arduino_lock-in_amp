@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "26-07-2019"
+__date__        = "30-07-2019"
 __version__     = "1.0.0"
 
 import os
@@ -29,6 +29,10 @@ import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
+
+# Enable GPU-accelerated computations on an NVIDIA videocard with CUDA support?
+# Computations like fftconvolve (FIR filters) and power spectra.
+USE_CUDA = False
 
 # TODO: Handle Arduino timer roll-over at t = 4294967295 us correctly. Current
 # Python code will think there are dropped samples at timer roll-over.
@@ -132,10 +136,11 @@ def lockin_DAQ_update():
     
     # Detect dropped samples / buffers
     lockin_pyqt.state.buffers_received += 1
+    """
     prev_last_deque_time = (state.deque_time[-1] if state.buffers_received > 1
                             else np.nan)
     dT = (state.time[0] - prev_last_deque_time) / 1e6 # Transform [usec] to [sec]
-    if dT > (c.ISR_CLOCK)*1.05: # Allow a few percent clock jitter
+    if dT > (c.ISR_CLOCK)*1.10: # Allow a few percent clock jitter
         N_dropped_samples = int(round(dT / c.ISR_CLOCK) - 1)
         print("Dropped samples: idx %i, %i" %
               (state.buffers_received, N_dropped_samples))
@@ -151,9 +156,12 @@ def lockin_DAQ_update():
         state.deque_ref_X.extend(np.full(N_dropped_samples, np.nan))
         state.deque_ref_Y.extend(np.full(N_dropped_samples, np.nan))
         state.deque_sig_I.extend(np.full(N_dropped_samples, np.nan))
+    """
+    
     
     # Stage 0
     # -------
+    
     
     state.sig_I_min = np.min (state.sig_I)
     state.sig_I_max = np.max (state.sig_I)
@@ -165,28 +173,36 @@ def lockin_DAQ_update():
     state.deque_ref_Y.extend(state.ref_Y)
     state.deque_sig_I.extend(state.sig_I)
 
+    window.CH_ref_X.add_new_readings(state.time, state.ref_X)
+    window.CH_ref_Y.add_new_readings(state.time, state.ref_Y)
+    window.CH_sig_I.add_new_readings(state.time, state.sig_I)
+
+
     # Stage 1
     # -------
+
     
     # Apply filter 1 to sig_I
     state.filt_I = lockin_pyqt.firf_1_sig_I.process(state.deque_sig_I)
     
-    # Retrieve the block of original data from the past that aligns with
-    # the current filter output
-    state.time_1 = (np.array(state.deque_time)
-                    [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
-                     lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
-    old_sig_I = (np.array(state.deque_sig_I)
-                 [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
-                  lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
-    
     if lockin_pyqt.firf_1_sig_I.deque_has_settled:
-        old_ref_X = (np.array(state.deque_ref_X)
-                     [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
-                      lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
-        old_ref_Y = (np.array(state.deque_ref_Y)
-                     [lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
-                      lockin_pyqt.firf_1_sig_I.win_idx_valid_end])
+        # Retrieve the block of original data from the past that aligns with
+        # the current filter output
+        state.time_1 = state.deque_time[
+                            lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                            lockin_pyqt.firf_1_sig_I.win_idx_valid_end]
+        
+        old_sig_I = state.deque_sig_I[
+                            lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                            lockin_pyqt.firf_1_sig_I.win_idx_valid_end]
+        
+        old_ref_X = state.deque_ref_X[
+                            lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                            lockin_pyqt.firf_1_sig_I.win_idx_valid_end]
+        
+        old_ref_Y = state.deque_ref_Y[
+                            lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                            lockin_pyqt.firf_1_sig_I.win_idx_valid_end]
         
         # Heterodyne mixing       
         # Equivalent to:
@@ -196,29 +212,33 @@ def lockin_DAQ_update():
         np.subtract(old_ref_Y, c.ref_V_offset, out=old_ref_Y)
         np.multiply(old_ref_X, state.filt_I  , out=state.mix_X)
         np.multiply(old_ref_Y, state.filt_I  , out=state.mix_Y)
-    else:
-        state.mix_X.fill(np.nan)
-        state.mix_Y.fill(np.nan)
+        
+        state.deque_time_1.extend(state.time_1)
+        state.deque_filt_I.extend(state.filt_I)
+        state.deque_mix_X.extend(state.mix_X)
+        state.deque_mix_Y.extend(state.mix_Y)
+        
+        window.CH_filt_1_in.add_new_readings (state.time_1, old_sig_I)
+        window.CH_filt_1_out.add_new_readings(state.time_1, state.filt_I)
+        window.CH_mix_X.add_new_readings     (state.time_1, state.mix_X)
+        window.CH_mix_Y.add_new_readings     (state.time_1, state.mix_Y)
     
-    state.deque_time_1.extend(state.time_1)
-    state.deque_filt_I.extend(state.filt_I)
-    state.deque_mix_X .extend(state.mix_X)
-    state.deque_mix_Y .extend(state.mix_Y)
     
     # Stage 2
     # -------
+    
     
     # Apply filter 2 to the mixer output
     state.X = lockin_pyqt.firf_2_mix_X.process(state.deque_mix_X)
     state.Y = lockin_pyqt.firf_2_mix_Y.process(state.deque_mix_Y)
     
-    # Retrieve the block of original data from the past that aligns with
-    # the current filter output
-    state.time_2 = (np.array(state.deque_time_1)
-                    [lockin_pyqt.firf_2_mix_X.win_idx_valid_start:
-                     lockin_pyqt.firf_2_mix_X.win_idx_valid_end])
-            
-    if lockin_pyqt.firf_2_mix_X.deque_has_settled:
+    if lockin_pyqt.firf_2_mix_X.deque_has_settled:            
+        # Retrieve the block of time data from the past that aligns with
+        # the current filter output
+        state.time_2 = state.deque_time_1[
+                            lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
+                            lockin_pyqt.firf_1_sig_I.win_idx_valid_end]
+        
         # Signal amplitude and phase reconstruction
         np.sqrt(state.X**2 + state.Y**2, out=state.R)
         
@@ -231,20 +251,34 @@ def lockin_DAQ_update():
         np.arctan(state.T, out=state.T)
         np.multiply(state.T, 180/np.pi, out=state.T) # Transform [rad] to [deg]
         np.seterr(divide='warn')
-    else:
-        state.R.fill(np.nan)
-        state.T.fill(np.nan)
+        
+        state.deque_time_2.extend(state.time_2)
+        state.deque_X.extend(state.X)
+        state.deque_Y.extend(state.Y)
+        state.deque_R.extend(state.R)
+        state.deque_T.extend(state.T)
+        
+        if window.qrbt_XR_X.isChecked():
+            window.CH_LIA_XR.add_new_readings(state.time_2, state.X)
+        else:
+            window.CH_LIA_XR.add_new_readings(state.time_2, state.R)
+        if window.qrbt_YT_Y.isChecked():
+            window.CH_LIA_YT.add_new_readings(state.time_2, state.Y)
+        else:
+            window.CH_LIA_YT.add_new_readings(state.time_2, state.T)
     
-    state.deque_time_2.extend(state.time_2)
-    state.deque_X.extend(state.X)
-    state.deque_Y.extend(state.Y)
-    state.deque_R.extend(state.R)
-    state.deque_T.extend(state.T)
     
-    # Check if memory address of underlying numpy-buffer is still unchanged
-    #dprint(state.filt_I.__array_interface__['data'][0])
-    #dprint(state.mix_X.__array_interface__['data'][0])
-    #dprint(state.T.__array_interface__['data'][0])
+    # Check if memory address of underlying buffer is still unchanged
+    #"""
+    test = np.asarray(state.deque_X)
+    print("%6i, mem: %i, cont?: %i, rb buf mem: %i, full? %i" % (
+            state.buffers_received,
+            test.__array_interface__['data'][0],
+            test.flags['C_CONTIGUOUS'],
+            state.deque_X._unwrap_buffer.__array_interface__['data'][0],
+            state.deque_X.is_full))
+    #"""
+    
 
     # Power spectra
     # -------------
@@ -253,47 +287,36 @@ def lockin_DAQ_update():
     # slower computers will suffer by this. Hence, only compute when requested
     # by the user, instead of always computing.
 
+
     if window.legend_box_PS.chkbs[0].isChecked():
-        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_sig_I)
-        if len(f) > 0: window.BP_PS_1.set_data(f, P_dB)
+        if state.deque_sig_I.is_full:
+            [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_sig_I)
+            window.BP_PS_1.set_data(f, P_dB)
             
     if window.legend_box_PS.chkbs[1].isChecked():
-        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_filt_I)
-        if len(f) > 0: window.BP_PS_2.set_data(f, P_dB)
+        if state.deque_filt_I.is_full:
+            [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_filt_I)
+            window.BP_PS_2.set_data(f, P_dB)
         
     if window.legend_box_PS.chkbs[2].isChecked():
-        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_mix_X)
-        if len(f) > 0: window.BP_PS_3.set_data(f, P_dB)
+        if state.deque_mix_X.is_full:
+            [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_mix_X)
+            window.BP_PS_3.set_data(f, P_dB)
         
     if window.legend_box_PS.chkbs[3].isChecked():
-        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_mix_Y)
-        if len(f) > 0: window.BP_PS_4.set_data(f, P_dB)
+        if state.deque_mix_Y.is_full:
+            [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_mix_Y)
+            window.BP_PS_4.set_data(f, P_dB)
         
     if window.legend_box_PS.chkbs[4].isChecked():
-        [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_R)
-        if len(f) > 0: window.BP_PS_5.set_data(f, P_dB)
+        if state.deque_R.is_full:
+            [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_R)
+            window.BP_PS_5.set_data(f, P_dB)
     
-    # Add new data to charts
-    # ----------------------
-    
-    window.CH_ref_X.add_new_readings     (state.time  , state.ref_X)
-    window.CH_ref_Y.add_new_readings     (state.time  , state.ref_Y)
-    window.CH_sig_I.add_new_readings     (state.time  , state.sig_I)
-    window.CH_filt_1_in.add_new_readings (state.time_1, old_sig_I)
-    window.CH_filt_1_out.add_new_readings(state.time_1, state.filt_I)
-    window.CH_mix_X.add_new_readings     (state.time_1, state.mix_X)
-    window.CH_mix_Y.add_new_readings     (state.time_1, state.mix_Y)        
-    if window.qrbt_XR_X.isChecked():
-        window.CH_LIA_XR.add_new_readings(state.time_2, state.X)
-    else:
-        window.CH_LIA_XR.add_new_readings(state.time_2, state.R)
-    if window.qrbt_YT_Y.isChecked():
-        window.CH_LIA_YT.add_new_readings(state.time_2, state.Y)
-    else:
-        window.CH_LIA_YT.add_new_readings(state.time_2, state.T)
     
     # Logging to file
     #----------------
+
 
     if file_logger.starting:
         fn_log = QDateTime.currentDateTime().toString("yyMMdd_HHmmss") + ".txt"
@@ -320,38 +343,27 @@ def lockin_DAQ_update():
         file_logger.close_log()
 
     if file_logger.is_recording:
-        if lockin_pyqt.firf_2_mix_X.deque_has_settled:
+        if lockin_pyqt.firf_2_mix_X.deque_has_settled: # All lights green!
             idx_offset = lockin_pyqt.firf_1_sig_I.win_idx_valid_start
-            
-            # Because we changed collections.deque to numpy_ringbuffer
-            # the following write operations are slower than before. This
-            # is because of the extra unwrapping required by ringbuffer,
-            # before we can apply proper indexing.
-            # Thus, we transform to numpy array first and only then
-            # loop over all elements.
-            tmp_time   = np.array(state.deque_time)
-            tmp_ref_X  = np.array(state.deque_ref_X)
-            tmp_ref_Y  = np.array(state.deque_ref_Y)
-            tmp_sig_I  = np.array(state.deque_sig_I)
-            tmp_filt_I = np.array(state.deque_filt_I)
-            tmp_mix_X  = np.array(state.deque_mix_X)
-            tmp_mix_Y  = np.array(state.deque_mix_Y)
             
             for i in range(c.BUFFER_SIZE):
                 data = (("%i\t" +
                          "%.5f\t" * 9 +
                          "%.4f\n") % (
-                        tmp_time[i],
-                        tmp_ref_X[i],
-                        tmp_ref_Y[i],
-                        tmp_sig_I[i],
-                        tmp_filt_I[i + idx_offset],
-                        tmp_mix_X[i + idx_offset],
-                        tmp_mix_Y[i + idx_offset],
+                         #"%.4f\t%i\t%i\n") % (
+                        state.deque_time  [i],
+                        state.deque_ref_X [i],
+                        state.deque_ref_Y [i],
+                        state.deque_sig_I [i],
+                        state.deque_filt_I[i + idx_offset],
+                        state.deque_mix_X [i + idx_offset],
+                        state.deque_mix_Y [i + idx_offset],
                         state.X[i],
                         state.Y[i],
                         state.R[i],
-                        state.T[i]                    
+                        state.T[i]#,
+                        #state.deque_time_1[i + idx_offset],
+                        #state.time_2[i]
                         ))
                 file_logger.write(data)
             #file_logger.write("%i\t%.4f\t%.4f\t%.4f\n" % 
@@ -399,7 +411,8 @@ if __name__ == '__main__':
                             calc_DAQ_rate_every_N_iter=10,
                             N_buffers_in_deque=41,
                             DEBUG_worker_DAQ=False,
-                            DEBUG_worker_send=False)
+                            DEBUG_worker_send=False,
+                            use_CUDA=USE_CUDA)
     lockin_pyqt.signal_connection_lost.connect(notify_connection_lost)
     
     # Manage logging to disk
