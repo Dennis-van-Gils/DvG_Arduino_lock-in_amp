@@ -30,8 +30,10 @@ MakeProductReal<<<blockSize, GridSize>>>(PRODUCT)   // extract the real part of 
 if __name__ == "__main__":
     print(cuda.gpus) # Reads '<Managed Device 0>' if a CUDA-enabled GPU is found
     
-    a_np = np.identity(1000)
-    b_np = np.ones((100, 100))
+    #a_np = np.identity(1000)
+    #b_np = np.ones((100, 100))
+    a_np = np.random.rand(4000, 1)
+    b_np = np.random.rand(2001, 1)
     
     # Transfer to GPU memory
     a_cp = cupy.array(a_np)
