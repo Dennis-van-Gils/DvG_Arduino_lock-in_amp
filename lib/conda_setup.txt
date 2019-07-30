@@ -1,3 +1,5 @@
+**** FOR WINDOWS
+
 Using Anaconda Python Distribution
 
 1) Install 'Intel Math Kernel Library'
@@ -6,7 +8,7 @@ For Windows: w_mkl_2019.3.203_online.exe
 2) Create a new environment in conda called 'idp', standing for Intel Distribution for Python
 conda config --add channels intel
 conda config --add channels intel
-conda create -n idp intelpython3_core python=3.7
+conda create -n idp intelpython3_core python=3
 activate idp
 conda install ipython pyserial pyqtgraph pathlib2 psutil
 
@@ -31,3 +33,160 @@ conda install matplotlib spyder
 
 6) Install HDF5 for Python
 pip install h5py   (Use pip to get the latest 2.9.0. If you use 'conda install' it will install 2.8.0 because of the 'intel' channel)
+
+
+*******************************************************
+*******************************************************
+**
+**   FOR UBUNTU LINUX
+**
+*******************************************************
+*******************************************************
+
+Using Anaconda Python Distribution
+But don't install yet! First install Intel MKL
+
+*******************************************************
+**
+**  0: g++ compiler for C++, plus other useful stuff
+**
+*******************************************************
+
+$ sudo apt install build-essential
+
+*******************************************************
+**
+**  1: Install 'Intel Math Kernel Library'
+**
+*******************************************************
+
+Requirements: g++, see above
+Download and unzip, e.g.: l_mkl_2019.3.199.tgz
+$ sudo ./install.sh
+
+*******************************************************
+**
+**  2: Install Anaconda3
+**
+*******************************************************
+
+$ bash Anaconda3-2019.07-Linux-x86_64
+
+*******************************************************
+**
+**  3) Create a new environment in conda called 'idp',
+**     standing for Intel Distribution for Python
+**
+*******************************************************
+
+conda config --add channels intel
+conda config --add channels intel
+conda create -n idp intelpython3_core python=3
+source activate idp
+
+conda install cython
+conda install matplotlib
+conda install ipython
+conda install spyder  # Will install PyQt5 correctly, prerequisite for pyqtgraph
+conda install pyserial pathlib2 psutil
+conda install pyqtgraph
+
+
+*******************************************************
+**
+**  4: PyOpenGL
+**
+*******************************************************
+
+NOTE: pyqtgraph has issues when using PyOpenGL under
+Ubuntu
+
+$ pip install PyOpenGL PyOpenGL_accelerate
+
+*******************************************************
+**
+**  x: Fix access to serial ports
+**
+*******************************************************
+
+Either) Need to apply at every reboot, where /dev/ttyS0 is
+the serial port you need access to:
+$ sudo chmod 666 /dev/ttyS0
+
+Or) Permanent solution:
+$ sudo gpasswd --add ${USER} dialout
+
+*******************************************************
+**
+**  5: CUDA acceleration
+**
+*******************************************************
+
+Sources:
+https://www.howtoforge.com/tutorial/how-to-install-nvidia-cuda-on-ubuntu-1804/
+https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html
+
+
+1)
+In Ubuntu Software & Updates, go to tab page
+'Additional drivers' and switch the video driver from
+'Nouveau' to 'NVIDIA driver metapackage from
+nvidia-driver-390 (propietary, tested)'.
+
+2) 
+Download NVIDIA CUDA Toolkit:
+cuda-repo-ubuntu1804-10-1-local-10.1.168-418.67_1.0-1_amd64.deb
+Do not install yet!
+
+3)
+The kernel headers and development packages for the currently running kernel
+can be installed with:
+$ sudo apt-get install linux-headers-$(uname -r)
+$ sudo apt autoremove   # to remove unused libllvm7
+
+4)
+Install NVIDIA CUDA Toolkit
+$ sudo dpkg -i cuda-repo-ubuntu1804-10-1-local-10.1.168-418.67_1.0-1_amd64.deb
+$ sudo apt-key add /var/cuda-repo-<version>/7fa2af80.pub
+$ sudo apt-get update
+$ sudo apt-get install cuda
+
+5)
+Mandatory post installation steps
+
+CUDA Environment Setup
+$ export PATH=/usr/local/cuda-10.1/bin:/usr/local/cuda-10.1/NsightCompute-2019.3${PATH:+:${PATH}}
+
+To change the environment variables for 64-bit operating systems:
+$ export LD_LIBRARY_PATH=/usr/local/cuda-10.1/lib64\ ${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
+
+Do not worry about the POWER9 stuff. We don't have it.
+
+6)
+Recommended post installation steps
+$ /usr/bin/nvidia-persistenced --verbose
+---> Failed to initialize. Check syslog for more details.
+See https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#install-persistenced
+
+7)
+NVidia examples:
+Create folder /home/areno/NVIDIA_samples
+$ sudo /usr/local/cuda-10.1/bin/cuda-install-samples-10.1.sh /home/areno/NVIDIA_samples
+$ sudo su
+Go into /home/areno/NVIDIA_samples/NVdi....
+$ make
+
+Finally time to reboot before testing CUDA capabilities
+$ sudo reboot
+
+Test the recently compiled examples and more in /bin folder
+$ ./deviceQuery
+$ ./bandwidthTest
+
+8)
+CUDA acceleration in numba Python
+$ conda install numba cudatoolkit
+[DO NOT] conda install numba pyculib          (NOTE: DEPRECATED. Will downgrade to Python 3.6 and break pyqt5. Use CuPy instead)
+$ pip install cupy-cuda101
+$ pip install sigpy
+
