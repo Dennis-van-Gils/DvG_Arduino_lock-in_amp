@@ -6,12 +6,12 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "26-07-2019"
+__date__        = "30-07-2019"
 __version__     = "1.0.0"
 
 import numpy as np
 from scipy.signal import welch
-from numpy_ringbuffer import RingBuffer
+from DvG_RingBuffer import DvG_RingBuffer as RingBuffer
 from PyQt5 import QtCore, QtWidgets as QtWid
 import time as Time
 
@@ -86,21 +86,22 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             self.N_deque = buffer_size * N_buffers_in_deque # [samples]
             
             # Predefine arrays for clarity
-            self.time   = np.zeros(buffer_size)#, np.int64) # [ms]
-            self.ref_X  = np.zeros(buffer_size, np.float64)
-            self.ref_Y  = np.zeros(buffer_size, np.float64)
-            self.sig_I  = np.zeros(buffer_size, np.float64)
+            # Keep .time as dtype=np.float64, because it can contain np.nan
+            self.time   = np.full(buffer_size, np.nan, dtype=np.float64) # [ms]
+            self.ref_X  = np.full(buffer_size, np.nan, dtype=np.float64)
+            self.ref_Y  = np.full(buffer_size, np.nan, dtype=np.float64)
+            self.sig_I  = np.full(buffer_size, np.nan, dtype=np.float64)
+
+            self.time_1 = np.full(buffer_size, np.nan, dtype=np.float64) # [ms]
+            self.filt_I = np.full(buffer_size, np.nan, dtype=np.float64)
+            self.mix_X  = np.full(buffer_size, np.nan, dtype=np.float64)
+            self.mix_Y  = np.full(buffer_size, np.nan, dtype=np.float64)
             
-            self.time_1 = np.zeros(buffer_size)#, np.int64) # [ms]
-            self.filt_I = np.zeros(buffer_size, np.float64)
-            self.mix_X  = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
-            self.mix_Y  = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
-            
-            self.time_2 = np.zeros(buffer_size)#, np.int64) # [ms]
-            self.X      = np.zeros(buffer_size, np.float64)
-            self.Y      = np.zeros(buffer_size, np.float64)
-            self.R      = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
-            self.T      = np.zeros(buffer_size, np.float64) # Fixed numpy-buffer memory location
+            self.time_2 = np.full(buffer_size, np.nan, dtype=np.float64) # [ms]
+            self.X      = np.full(buffer_size, np.nan, dtype=np.float64)
+            self.Y      = np.full(buffer_size, np.nan, dtype=np.float64)
+            self.R      = np.full(buffer_size, np.nan, dtype=np.float64)
+            self.T      = np.full(buffer_size, np.nan, dtype=np.float64)
 
             self.sig_I_min = np.nan
             self.sig_I_max = np.nan
@@ -126,18 +127,17 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             if self.N_buffers_in_deque > 0:
                 # Stage 0: unprocessed data
                 p = {'capacity': self.N_deque, 'dtype': np.float64}
-                p_time = {'capacity': self.N_deque, 'dtype': np.int64}
-                self.deque_time   = RingBuffer(**p_time)
+                self.deque_time   = RingBuffer(**p)
                 self.deque_ref_X  = RingBuffer(**p)
                 self.deque_ref_Y  = RingBuffer(**p)
                 self.deque_sig_I  = RingBuffer(**p)
                 # Stage 1: apply band-stop filter and heterodyne mixing
-                self.deque_time_1 = RingBuffer(**p_time)
+                self.deque_time_1 = RingBuffer(**p)
                 self.deque_filt_I = RingBuffer(**p)
                 self.deque_mix_X  = RingBuffer(**p)
                 self.deque_mix_Y  = RingBuffer(**p)
                 # Stage 2: apply low-pass filter and signal reconstruction
-                self.deque_time_2 = RingBuffer(**p_time)
+                self.deque_time_2 = RingBuffer(**p)
                 self.deque_X      = RingBuffer(**p)
                 self.deque_Y      = RingBuffer(**p)
                 self.deque_R      = RingBuffer(**p)
@@ -170,8 +170,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
             self.buffers_received = 0
             if self.N_buffers_in_deque > 0:
                 for this_deque in self.deques:
-                    this_deque._left_index = 0
-                    this_deque._right_index = 0
+                    this_deque.clear()
                     
             locker.unlock()
                 
@@ -186,6 +185,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                  N_buffers_in_deque=41,
                  DEBUG_worker_DAQ=False,
                  DEBUG_worker_send=False,
+                 use_CUDA=False,
                  parent=None):
         super(Arduino_lockin_amp_pyqt, self).__init__(parent=parent)
 
@@ -206,6 +206,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 DEBUG=DEBUG_worker_send)
         
         self.state = self.State(dev.config.BUFFER_SIZE, N_buffers_in_deque)
+        self.use_CUDA = use_CUDA
         
         # Create FIR filter: Band-stop on sig_I
         # TODO: turn 'use_narrower_filter' into a toggle button UI
@@ -228,7 +229,8 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                                                 firwin_cutoff,
                                                 firwin_window,
                                                 pass_zero=False,
-                                                display_name="firf_1_sig_I")
+                                                display_name="firf_1_sig_I",
+                                                use_CUDA=self.use_CUDA)
     
         # Create FIR filter: Low-pass on mix_X and mix_Y
         # TODO: the extra distance 'roll_off_width' to stay away from
@@ -243,14 +245,16 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                                                 firwin_cutoff,
                                                 firwin_window,
                                                 pass_zero=True,
-                                                display_name="firf_2_mix_X")
+                                                display_name="firf_2_mix_X",
+                                                use_CUDA=self.use_CUDA)
         self.firf_2_mix_Y = Buffered_FIR_Filter(self.state.buffer_size,
                                                 self.state.N_buffers_in_deque,
                                                 dev.config.Fs,
                                                 firwin_cutoff,
                                                 firwin_window,
                                                 pass_zero=True,
-                                                display_name="firf_2_mix_Y")
+                                                display_name="firf_2_mix_Y",
+                                                use_CUDA=self.use_CUDA)
         
     def turn_on(self):
         self.worker_send.queued_instruction("turn_on")
@@ -368,13 +372,12 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         Note: Amplitude ratio in dB: 20 log_10(A1/A2)
               Power     ratio in dB: 10 log_10(P1/P2)
         """
-        if len(deque_in) == deque_in.maxlen:
-            [f, Pxx] = welch(deque_in,
-                             fs=self.dev.config.Fs,
-                             window='hanning',
-                             nperseg=self.dev.config.Fs,
-                             detrend=False,
-                             scaling='spectrum')
-            return [f, 10 * np.log10(Pxx)]
-        else:
-            return [[], []]
+        # TODO: implement CUDA support
+        [f, Pxx] = welch(deque_in,
+                         fs=self.dev.config.Fs,
+                         window='hanning',
+                         nperseg=self.dev.config.Fs,
+                         detrend=False,
+                         scaling='spectrum')
+        
+        return [f, 10 * np.log10(Pxx)]
