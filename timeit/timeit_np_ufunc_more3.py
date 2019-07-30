@@ -9,6 +9,8 @@ from timeit import timeit
 
 setup = '''
 import numpy as np
+from math import atan
+from numba import jit
 
 np.random.seed(0)
 
@@ -33,16 +35,25 @@ def ufunc_2(a_np, b_np, c_np):
     np.multiply(c_np, 180/np.pi, out=c_np)
     #c_np *= 180/np.pi
     #print(c_np[0])
-    
+	
+@jit(nopython=True, parallel=True)
+def numba_jit(a_np, b_np, c_np):
+    c_np = np.arctan(a_np / b_np)
+    c_np *= 180/np.pi
+	#print(c_np[0])
+
 '''
     
 N = 1000
 print("Numpy multiply strategies")
-print("ufunc_0: %.3f ms" %
+print("ufunc_0  : %.3f ms" %
       (timeit('ufunc_0(a_np, b_np, c_np)', setup=setup, number=N)/N*1000))
 
-print("ufunc_1: %.3f ms" %
+print("ufunc_1  : %.3f ms" %
       (timeit('ufunc_1(a_np, b_np, c_np)', setup=setup, number=N)/N*1000))
       
-print("ufunc_2: %.3f ms" %
+print("ufunc_2  : %.3f ms" %
       (timeit('ufunc_2(a_np, b_np, c_np)', setup=setup, number=N)/N*1000))
+	  
+print("numba_jit: %.3f ms" %
+      (timeit('numba_jit(a_np, b_np, c_np)', setup=setup, number=N)/N*1000))
