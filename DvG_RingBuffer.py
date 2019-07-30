@@ -25,7 +25,7 @@ The data array that is returned by a full ring buffer is a pass by reference
 of the 'unwrap' buffer! It is not a copy. Hence, changing values in the
 returned data array is identical to changing values in the 'unwrap' buffer.
 
-Source: 
+Based on: 
 https://pypi.org/project/numpy_ringbuffer/
 
 Dennis van Gils
