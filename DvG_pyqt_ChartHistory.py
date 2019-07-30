@@ -45,15 +45,13 @@ Class:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
-__date__        = "27-07-2019"
-__version__     = "1.1.0"
-
-#import collections
-from numpy_ringbuffer import RingBuffer
+__date__        = "30-07-2019"
+__version__     = "2.0.0"
 
 import numpy as np
 from PyQt5 import QtCore
 import pyqtgraph as pg
+from DvG_RingBuffer import DvG_RingBuffer as RingBuffer
 
 class ChartHistory(object):
     def __init__(self,
@@ -128,8 +126,6 @@ class ChartHistory(object):
 
     def clear(self):
         locker = QtCore.QMutexLocker(self.mutex)
-        self._x._left_index = 0
-        self._x._right_index = 0
-        self._y._left_index = 0
-        self._y._right_index = 0
+        self._x.clear()
+        self._y.clear()
         locker.unlock()
