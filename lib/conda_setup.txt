@@ -1,22 +1,73 @@
-**** FOR WINDOWS
+*******************************************************
+*******************************************************
+**
+**   FOR WINDOWS
+**
+*******************************************************
+*******************************************************
 
 Using Anaconda Python Distribution
+But don't install yet! First install Intel MKL
 
-1) Install 'Intel Math Kernel Library'
-For Windows: w_mkl_2019.3.203_online.exe
+*******************************************************
+**
+**  1: Install 'Intel Math Kernel Library'
+**
+*******************************************************
 
-2) Create a new environment in conda called 'idp', standing for Intel Distribution for Python
-conda config --add channels intel
-conda config --add channels intel
-conda create -n idp intelpython3_core python=3
-activate idp
-conda install ipython pyserial pyqtgraph pathlib2 psutil
+Download and install, e.g.: w_mkl_2019.4.245.exe
 
-3) Install unofficial but more up-to-date OpenGL libraries
-pip install PyOpenGL-3.1.3b2-cp37-cp37m-win_amd64.whl
-pip install PyOpenGL_accelerate-3.1.3b2-cp37-cp37m-win_amd64.whl
+*******************************************************
+**
+**  2: Install Anaconda3
+**
+*******************************************************
 
-4) CUDA acceleration in numba
+Download and install, e.g.: Anaconda3-2019.07-Windows-x86_64
+
+*******************************************************
+**
+**  3) Create a new environment in conda called 'idp',
+**     standing for Intel Distribution for Python
+**
+*******************************************************
+
+In Anaconda Prompt:
+> conda update -n base conda
+> conda config --add channels intel
+> conda config --add channels intel
+> conda create -n idp intelpython3_core python=3.6
+> activate idp
+
+> conda install cython matplotlib ipython spyder
+> conda install pyserial pathlib2 psutil pyqtgraph
+> pip install pyfftw    # Do not use 'conda install -forge pyfftw'. It will
+                        # exchange many packages to use forge instead of
+                        # intel as source base
+ 
+Troubleshooting PyQt5 import fails:
+See folder /lib/Python3.6.8_AMD64_Qt5_dlls
+Copy python3.dll and python36.dll to %USERPROFILE%\Anaconda3\envs\idp\Scripts
+
+Troubleshooting Spyder can't start kernel:
+spyder --reset
+ 
+*******************************************************
+**
+**  4: PyOpenGL
+**
+*******************************************************
+
+Install unofficial but more up-to-date OpenGL libraries:
+> pip install PyOpenGL-3.1.3b2-cp36-cp36m-win_amd64.whl
+> pip install PyOpenGL_accelerate-3.1.3b2-cp36-cp36m-win_amd64.whl
+
+*******************************************************
+**
+**  5: CUDA acceleration
+**
+*******************************************************
+
 a) Install Visual C++ 2015 Build Tools: visualcppbuildtools_full.exe
 b) Install CUDA Toolkit 10.1
 c) conda install numba cudatoolkit
@@ -27,9 +78,6 @@ e) pip install sigpy
 Environmental variables Windows:
 NUMBAPRO_NVVM = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\nvvm\bin\nvvm64_33_0.dll
 NUMBAPRO_LIBDEVICE = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\nvvm\libdevice
-
-5) Optionally, if you want Spyder IDE
-conda install matplotlib spyder
 
 6) Install HDF5 for Python
 pip install h5py   (Use pip to get the latest 2.9.0. If you use 'conda install' it will install 2.8.0 because of the 'intel' channel)
@@ -79,17 +127,21 @@ $ bash Anaconda3-2019.07-Linux-x86_64
 **
 *******************************************************
 
-conda config --add channels intel
-conda config --add channels intel
-conda create -n idp intelpython3_core python=3
-source activate idp
+In Anaconda Prompt:
+$ conda config --add channels intel
+$ conda config --add channels intel
+$ conda create -n idp intelpython3_core python=3
+$ source activate idp
 
-conda install cython
-conda install matplotlib
-conda install ipython
-conda install spyder  # Will install PyQt5 correctly, prerequisite for pyqtgraph
-conda install pyserial pathlib2 psutil
-conda install pyqtgraph
+$ conda install cython
+$ conda install matplotlib
+$ conda install ipython
+$ conda install spyder  # Will install PyQt5 correctly, prerequisite for pyqtgraph
+$ conda install pyserial pathlib2 psutil
+$ conda install pyqtgraph
+$ pip install pyfftw    # Do not use 'conda install -forge pyfftw'. It will
+                        # exchange many packages to use forge instead of
+  	          # intel as source base
 
 
 *******************************************************
