@@ -35,7 +35,7 @@ pg.exporters.ImageExporter.export = pgmp.ImageExporter_export
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 
 # TODO: take out global TRY_USING_OPENGL and move it to the main .py file
-TRY_USING_OPENGL = False
+TRY_USING_OPENGL = True
 if TRY_USING_OPENGL:
     try:
         import OpenGL.GL as gl

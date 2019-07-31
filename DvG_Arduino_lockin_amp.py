@@ -31,7 +31,7 @@ import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
 DEBUG = False
 
 # Enable GPU-accelerated computations on an NVIDIA videocard with CUDA support?
-# Computations like fftconvolve (FIR filters) and power spectra.
+# Will handle fftconvolve (FIR filters).
 USE_CUDA = False
 
 # TODO: Handle Arduino timer roll-over at t = 4294967295 us correctly. Current

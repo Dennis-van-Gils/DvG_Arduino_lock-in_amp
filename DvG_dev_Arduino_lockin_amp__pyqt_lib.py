@@ -19,6 +19,15 @@ import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
 
+# WORK IN PROGRESS
+"""
+import pyfftw
+# Monkey patch fftpack
+np.fft = pyfftw.interfaces.numpy_fft
+# Turn on the cache for optimum performance
+pyfftw.interfaces.cache.enable()
+"""
+
 # ------------------------------------------------------------------------------
 #   Arduino_pyqt
 # ------------------------------------------------------------------------------
@@ -372,7 +381,6 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         Note: Amplitude ratio in dB: 20 log_10(A1/A2)
               Power     ratio in dB: 10 log_10(P1/P2)
         """
-        # TODO: implement CUDA support
         [f, Pxx] = welch(deque_in,
                          fs=self.dev.config.Fs,
                          window='hanning',
