@@ -22,6 +22,7 @@ import numpy as np
 
 from DvG_pyqt_FileLogger import FileLogger
 from DvG_debug_functions import dprint#, print_fancy_traceback as pft
+from DvG_FFTW_WelchPowerSpectrum import FFTW_WelchPowerSpectrum
 
 import DvG_Arduino_lockin_amp__GUI            as lockin_GUI
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
@@ -33,6 +34,13 @@ DEBUG = False
 # Enable GPU-accelerated computations on an NVIDIA videocard with CUDA support?
 # Will handle fftconvolve (FIR filters).
 USE_CUDA = False
+
+# WORK IN PROGRESS
+#"""
+import pyfftw
+np.fft = pyfftw.interfaces.numpy_fft  # Monkey patch fftpack
+pyfftw.interfaces.cache.enable()      # Turn on cache for optimum performance
+#"""
 
 # TODO: Handle Arduino timer roll-over at t = 4294967295 us correctly. Current
 # Python code will think there are dropped samples at timer roll-over.
@@ -282,37 +290,32 @@ def lockin_DAQ_update():
 
     # Power spectra
     # -------------
-    # Will only compute the power spectrum if the checkbox is checked in the
-    # legend. Calculating power spectra is a heavy burden for the CPU and
-    # slower computers will suffer by this. Hence, only compute when requested
-    # by the user, instead of always computing.
 
-
-    if window.legend_box_PS.chkbs[0].isChecked():
-        if state.deque_sig_I.is_full:
-            [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_sig_I)
-            window.BP_PS_1.set_data(f, P_dB)
+    if window.legend_box_PS.chkbs[0].isChecked() and state.deque_sig_I.is_full:
+        window.BP_PS_1.set_data(
+                fftw_PS_sig_I.freqs,
+                fftw_PS_sig_I.process_dB(state.deque_sig_I))
             
-    if window.legend_box_PS.chkbs[1].isChecked():
-        if state.deque_filt_I.is_full:
-            [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_filt_I)
-            window.BP_PS_2.set_data(f, P_dB)
+    if window.legend_box_PS.chkbs[1].isChecked() and state.deque_filt_I.is_full:
+        window.BP_PS_2.set_data(
+                fftw_PS_filt_I.freqs,
+                fftw_PS_filt_I.process_dB(state.deque_filt_I))
         
-    if window.legend_box_PS.chkbs[2].isChecked():
-        if state.deque_mix_X.is_full:
-            [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_mix_X)
-            window.BP_PS_3.set_data(f, P_dB)
+    if window.legend_box_PS.chkbs[2].isChecked() and state.deque_mix_X.is_full:
+        window.BP_PS_3.set_data(
+                fftw_PS_mix_X.freqs,
+                fftw_PS_mix_X.process_dB(state.deque_mix_X))
         
-    if window.legend_box_PS.chkbs[3].isChecked():
-        if state.deque_mix_Y.is_full:
-            [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_mix_Y)
-            window.BP_PS_4.set_data(f, P_dB)
+    if window.legend_box_PS.chkbs[3].isChecked() and state.deque_mix_Y.is_full:
+        window.BP_PS_4.set_data(
+                fftw_PS_mix_Y.freqs,
+                fftw_PS_mix_Y.process_dB(state.deque_mix_Y))
         
-    if window.legend_box_PS.chkbs[4].isChecked():
-        if state.deque_R.is_full:
-            [f, P_dB] = lockin_pyqt.compute_power_spectrum(state.deque_R)
-            window.BP_PS_5.set_data(f, P_dB)
-    
+    if window.legend_box_PS.chkbs[4].isChecked() and state.deque_R.is_full:
+        window.BP_PS_5.set_data(
+                fftw_PS_R.freqs, 
+                fftw_PS_R.process_dB(state.deque_R))
+
     
     # Logging to file
     #----------------
@@ -430,6 +433,18 @@ if __name__ == '__main__':
     window = lockin_GUI.MainWindow(lockin=lockin,
                                    lockin_pyqt=lockin_pyqt,
                                    file_logger=file_logger)
+
+    # --------------------------------------------------------------------------
+    #   Create power spectrum FFTW plans
+    # --------------------------------------------------------------------------
+
+    p = {'input_length': lockin_pyqt.state.N_deque, 'fs': lockin.config.Fs,
+         'nperseg': lockin.config.Fs}
+    fftw_PS_sig_I  = FFTW_WelchPowerSpectrum(**p)
+    fftw_PS_filt_I = FFTW_WelchPowerSpectrum(**p)
+    fftw_PS_mix_X  = FFTW_WelchPowerSpectrum(**p)
+    fftw_PS_mix_Y  = FFTW_WelchPowerSpectrum(**p)
+    fftw_PS_R      = FFTW_WelchPowerSpectrum(**p)
 
     # --------------------------------------------------------------------------
     #   Start threads

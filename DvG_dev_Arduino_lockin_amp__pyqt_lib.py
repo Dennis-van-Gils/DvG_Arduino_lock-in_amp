@@ -10,23 +10,13 @@ __date__        = "30-07-2019"
 __version__     = "1.0.0"
 
 import numpy as np
-from scipy.signal import welch
-from DvG_RingBuffer import DvG_RingBuffer as RingBuffer
 from PyQt5 import QtCore, QtWidgets as QtWid
 import time as Time
 
 import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
-
-# WORK IN PROGRESS
-"""
-import pyfftw
-# Monkey patch fftpack
-np.fft = pyfftw.interfaces.numpy_fft
-# Turn on the cache for optimum performance
-pyfftw.interfaces.cache.enable()
-"""
+from DvG_RingBuffer import RingBuffer
 
 # ------------------------------------------------------------------------------
 #   Arduino_pyqt
@@ -369,23 +359,3 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         else:
             # Default job handling
             func(*args)
-            
-    # -------------------------------------------------------------------------
-    #   compute_power_spectrum
-    # -------------------------------------------------------------------------
-
-    def compute_power_spectrum(self, deque_in: RingBuffer):
-        """Using scipy.signal.welch()
-        When scaling='spectrum', Pxx returns units of V^2
-        When scaling='density', Pxx returns units of V^2/Hz
-        Note: Amplitude ratio in dB: 20 log_10(A1/A2)
-              Power     ratio in dB: 10 log_10(P1/P2)
-        """
-        [f, Pxx] = welch(deque_in,
-                         fs=self.dev.config.Fs,
-                         window='hanning',
-                         nperseg=self.dev.config.Fs,
-                         detrend=False,
-                         scaling='spectrum')
-        
-        return [f, 10 * np.log10(Pxx)]
