@@ -132,5 +132,4 @@ class FFTW_WelchPowerSpectrum:
         return Pxx
     
     def process_dB(self, data):
-        Pxx = self.process(data)
-        return 10 * np.log10(Pxx)
+        return 10 * np.log10(self.process(data))
