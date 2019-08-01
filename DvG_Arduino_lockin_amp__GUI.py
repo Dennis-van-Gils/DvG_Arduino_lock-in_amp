@@ -866,8 +866,8 @@ class MainWindow(QtWid.QWidget):
           in self.legend_box_PS.chkbs])
     
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(QtWid.QLabel("CPU intensive!<br/>Only check<br/>"
-                                    "when needed."), 0, 0)
+        #grid.addWidget(QtWid.QLabel("CPU intensive!<br/>Only check<br/>"
+        #                            "when needed."), 0, 0)
         grid.addItem(QtWid.QSpacerItem(0, 4)       , 1, 0)
         grid.addLayout(self.legend_box_PS.grid     , 2, 0)
         grid.setAlignment(QtCore.Qt.AlignTop)
