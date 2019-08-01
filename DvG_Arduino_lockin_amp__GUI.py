@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "30-07-2019"
+__date__        = "01-08-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -14,6 +14,7 @@ from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 import numpy as np
 import psutil
+import os
 
 from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_BufferedPlot import BufferedPlot
@@ -34,13 +35,18 @@ pg.exporters.ImageExporter.export = pgmp.ImageExporter_export
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 
-# TODO: take out global TRY_USING_OPENGL and move it to the main .py file
-TRY_USING_OPENGL = True
+if os.name == 'nt':
+    # Windows
+    TRY_USING_OPENGL = True
+else:
+    # Linux and MacOS
+    TRY_USING_OPENGL = False
+
 if TRY_USING_OPENGL:
     try:
         import OpenGL.GL as gl
         pg.setConfigOptions(useOpenGL=True)
-        pg.setConfigOptions(enableExperimental=False)
+        pg.setConfigOptions(enableExperimental=True)
         pg.setConfigOptions(antialias=False)
         print("OpenGL hardware acceleration enabled.")
         USING_OPENGL = True
