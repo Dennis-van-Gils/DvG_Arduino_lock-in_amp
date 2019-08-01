@@ -10,7 +10,7 @@ __version__     = "1.0.0"
 
 import numpy as np
 from scipy.signal import firwin, freqz, fftconvolve
-from DvG_RingBuffer import DvG_RingBuffer as RingBuffer
+from DvG_RingBuffer import RingBuffer
 import time as Time
 
 class Buffered_FIR_Filter():

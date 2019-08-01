@@ -51,7 +51,7 @@ __version__     = "2.0.0"
 import numpy as np
 from PyQt5 import QtCore
 import pyqtgraph as pg
-from DvG_RingBuffer import DvG_RingBuffer as RingBuffer
+from DvG_RingBuffer import RingBuffer
 
 class ChartHistory(object):
     def __init__(self,

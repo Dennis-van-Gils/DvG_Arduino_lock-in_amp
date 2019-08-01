@@ -27,16 +27,17 @@ returned data array is identical to changing values in the 'unwrap' buffer.
 
 Based on: 
 https://pypi.org/project/numpy_ringbuffer/
-
-Dennis van Gils
-30-07-2019
 """
-
+__author__      = "Dennis van Gils"
+__authoremail__ = "vangils.dennis@gmail.com"
+__url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
+__date__        = "01-08-2019"
+__version__     = "1.0.0"
 
 import numpy as np
 from collections import Sequence
 
-class DvG_RingBuffer(Sequence):
+class RingBuffer(Sequence):
     def __init__(self, capacity, dtype=float, allow_overwrite=True):
         """
         Create a new ring buffer with the given capacity and element type
