@@ -277,7 +277,7 @@ def lockin_DAQ_update():
     
     
     # Check if memory address of underlying buffer is still unchanged
-    #"""
+    """
     test = np.asarray(state.deque_X)
     print("%6i, mem: %i, cont?: %i, rb buf mem: %i, full? %i" % (
             state.buffers_received,
@@ -285,7 +285,7 @@ def lockin_DAQ_update():
             test.flags['C_CONTIGUOUS'],
             state.deque_X._unwrap_buffer.__array_interface__['data'][0],
             state.deque_X.is_full))
-    #"""
+    """
     
 
     # Power spectra
