@@ -9,7 +9,8 @@ __date__        = "30-07-2019"
 __version__     = "1.0.0"
 
 import numpy as np
-from scipy.signal import firwin, freqz, fftconvolve
+from scipy.signal import firwin, freqz #, fftconvolve
+from DvG_FFTW_fftconvolve_1D_valid import fftconvolve
 from DvG_RingBuffer import RingBuffer
 import time as Time
 
