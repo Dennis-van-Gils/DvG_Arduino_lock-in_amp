@@ -1,0 +1,19 @@
+Timeit: Welch power spectrum
+Running on computer: UT-KILAEJLP6P23
+N = 1000, REPS = 5
+
+scipy.signal.welch:
+               1.643 ms
+               1.618 ms
+               1.620 ms
+               1.610 ms
+               1.620 ms
+
+DvG_FFTW_WelchPowerSpectrum:
+               1.217 ms
+               1.145 ms
+               1.135 ms
+               1.156 ms
+               1.202 ms
+
+Faster by 71 %
