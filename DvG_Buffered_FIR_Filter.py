@@ -5,14 +5,13 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "30-07-2019"
+__date__        = "02-08-2019"
 __version__     = "1.0.0"
 
 import numpy as np
-from scipy.signal import firwin, freqz #, fftconvolve
-from DvG_FFTW_fftconvolve_1D_valid import fftconvolve
+from scipy.signal import firwin, freqz
+from DvG_FFTW_ConvolveValid1D import FFTW_ConvolveValid1D
 from DvG_RingBuffer import RingBuffer
-import time as Time
 
 class Buffered_FIR_Filter():
     def __init__(self, buffer_size, N_buffers_in_deque, Fs, cutoff, window,
@@ -25,16 +24,6 @@ class Buffered_FIR_Filter():
         self.pass_zero = pass_zero                    # [bool], see scipy.signal.firwin
         self.display_name = display_name              # [str]
         self.dB_floor = -120                          # [dB], floor used for plotting
-        
-        # When True enables 1D FFT-convolution running on a NVidia GPU using
-        # CUDA. Only beneficial when processing large amounts of data (approx.
-        # > 1e5 samples) as the overhead of copying memory from CPU to GPU is
-        # substantial. Not really worth it when buffer_size <= 500 and
-        # N_buffers_in_deque <= 41.
-        self.use_CUDA = use_CUDA       # [bool] Use NVidia's CUDA acceleration?
-        if self.use_CUDA:
-            self.cupy  = __import__('cupy')
-            self.sigpy = __import__('sigpy')
                 
         # Deque size
         self.N_deque = self.buffer_size * self.N_buffers_in_deque # [samples]
@@ -59,6 +48,20 @@ class Buffered_FIR_Filter():
             self.window_description = '%s' % self.window
         else:
             self.window_description = '%s' % [x for x in self.window]
+        
+        # When True enables 1D FFT-convolution running on a NVidia GPU using
+        # CUDA. Only beneficial when processing large amounts of data (approx.
+        # > 1e5 samples) as the overhead of copying memory from CPU to GPU is
+        # substantial. Not really worth it when buffer_size <= 500 and
+        # N_buffers_in_deque <= 41.
+        self.use_CUDA = use_CUDA       # [bool] Use NVidia's CUDA acceleration?
+        if self.use_CUDA:
+            self.cupy  = __import__('cupy')
+            self.sigpy = __import__('sigpy')
+        else:
+            # Create FFTW plans for fft convolution
+            self.fftw_fftconvolve = FFTW_ConvolveValid1D(self.N_deque,
+                                                         self.N_taps)
         
         # Compute the FIR filter tap array
         self.compute_firwin()
@@ -201,7 +204,8 @@ class Buffered_FIR_Filter():
                 valid_out = valid_out[:, 0]
             else:
                 # Perform convolution on the CPU
-                valid_out = fftconvolve(deque_sig_in, self.b, mode='valid')
+                valid_out = self.fftw_fftconvolve.process(deque_sig_in,
+                                                          self.b)
             #print("%.1f" % ((Time.perf_counter() - tick)*1000))
         
         if self.deque_has_settled and not(self.deque_was_settled):

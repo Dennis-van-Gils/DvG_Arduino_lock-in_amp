@@ -5,13 +5,13 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "30-07-2019"
+__date__        = "02-08-2019"
 __version__     = "1.0.0"
 
 import os
 import sys
 from pathlib2 import Path
-import time as Time
+#import time as Time
 
 import psutil
 
@@ -35,12 +35,13 @@ DEBUG = False
 # Will handle fftconvolve (FIR filters).
 USE_CUDA = False
 
-# WORK IN PROGRESS
-#"""
+# SNIPPET: To quickly enable FFTW running inside numpy and (partially) scipy
+# Used for debugging only
+"""
 import pyfftw
 np.fft = pyfftw.interfaces.numpy_fft  # Monkey patch fftpack
 pyfftw.interfaces.cache.enable()      # Turn on cache for optimum performance
-#"""
+"""
 
 # TODO: Handle Arduino timer roll-over at t = 4294967295 us correctly. Current
 # Python code will think there are dropped samples at timer roll-over.
@@ -430,7 +431,7 @@ if __name__ == '__main__':
     #   Create power spectrum FFTW plans
     # --------------------------------------------------------------------------
 
-    p = {'input_length': lockin_pyqt.state.N_deque, 'fs': lockin.config.Fs,
+    p = {'len_data': lockin_pyqt.state.N_deque, 'fs': lockin.config.Fs,
          'nperseg': lockin.config.Fs}
     fftw_PS_sig_I  = FFTW_WelchPowerSpectrum(**p)
     fftw_PS_filt_I = FFTW_WelchPowerSpectrum(**p)
