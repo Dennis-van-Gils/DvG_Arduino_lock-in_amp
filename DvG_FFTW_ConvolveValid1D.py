@@ -8,7 +8,6 @@ __date__        = "01-08-2019"
 __version__     = "1.0.0"
 
 import numpy as np
-from scipy import fftpack
 import pyfftw
 
 class FFTW_ConvolveValid1D:
@@ -76,6 +75,7 @@ class FFTW_ConvolveValid1D:
         
         return ret[self.valid_slice]
 
+"""
 def fftconvolve(in1, in2, mode=None):
     # Defaults:
     # in1.ndim = 1, not imaginary
@@ -111,10 +111,10 @@ def fftconvolve(in1, in2, mode=None):
     return ret[startind:startind + newshape]
 
 if __name__ == "__main__":    
-    """Demo when run from main
-    """
+    # Demo when run from main
     import matplotlib.pyplot as plt
     from scipy.signal import firwin
+    from scipy import fftpack
     
     buffer_size = 500
     N_buffers_in_deque = 41
@@ -141,3 +141,4 @@ if __name__ == "__main__":
     
     plt.plot(result, '.-')
     plt.show
+"""
