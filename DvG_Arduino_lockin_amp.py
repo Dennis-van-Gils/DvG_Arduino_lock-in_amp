@@ -196,21 +196,13 @@ def lockin_DAQ_update():
     if lockin_pyqt.firf_1_sig_I.deque_has_settled:
         # Retrieve the block of original data from the past that aligns with
         # the current filter output
-        state.time_1 = state.deque_time[
-                            lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
-                            lockin_pyqt.firf_1_sig_I.win_idx_valid_end]
+        valid_slice = slice(lockin_pyqt.firf_1_sig_I.win_idx_valid_start,
+                            lockin_pyqt.firf_1_sig_I.win_idx_valid_end)
         
-        old_sig_I = state.deque_sig_I[
-                            lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
-                            lockin_pyqt.firf_1_sig_I.win_idx_valid_end]
-        
-        old_ref_X = state.deque_ref_X[
-                            lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
-                            lockin_pyqt.firf_1_sig_I.win_idx_valid_end]
-        
-        old_ref_Y = state.deque_ref_Y[
-                            lockin_pyqt.firf_1_sig_I.win_idx_valid_start:
-                            lockin_pyqt.firf_1_sig_I.win_idx_valid_end]
+        state.time_1 = state.deque_time [valid_slice]        
+        old_sig_I    = state.deque_sig_I[valid_slice]        
+        old_ref_X    = state.deque_ref_X[valid_slice]
+        old_ref_Y    = state.deque_ref_Y[valid_slice]
         
         # Heterodyne mixing       
         # Equivalent to:
@@ -218,18 +210,18 @@ def lockin_DAQ_update():
         #   mix_Y = (old_ref_Y - c.ref_V_offset) * filt_I  # SLOW code
         np.subtract(old_ref_X, c.ref_V_offset, out=old_ref_X)
         np.subtract(old_ref_Y, c.ref_V_offset, out=old_ref_Y)
-        np.multiply(old_ref_X, state.filt_I  , out=state.mix_X)
-        np.multiply(old_ref_Y, state.filt_I  , out=state.mix_Y)
+        np.multiply(old_ref_X, state.filt_I, out=state.mix_X)
+        np.multiply(old_ref_Y, state.filt_I, out=state.mix_Y)
         
         state.deque_time_1.extend(state.time_1)
         state.deque_filt_I.extend(state.filt_I)
-        state.deque_mix_X.extend(state.mix_X)
-        state.deque_mix_Y.extend(state.mix_Y)
+        state.deque_mix_X .extend(state.mix_X)
+        state.deque_mix_Y .extend(state.mix_Y)
         
-        window.CH_filt_1_in.add_new_readings (state.time_1, old_sig_I)
+        window.CH_filt_1_in .add_new_readings(state.time_1, old_sig_I)
         window.CH_filt_1_out.add_new_readings(state.time_1, state.filt_I)
-        window.CH_mix_X.add_new_readings     (state.time_1, state.mix_X)
-        window.CH_mix_Y.add_new_readings     (state.time_1, state.mix_Y)
+        window.CH_mix_X     .add_new_readings(state.time_1, state.mix_X)
+        window.CH_mix_Y     .add_new_readings(state.time_1, state.mix_Y)
     
     
     # Stage 2
