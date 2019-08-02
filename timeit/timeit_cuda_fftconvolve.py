@@ -57,7 +57,7 @@ N = 1000
 p = {'setup': setup, 'number': N}
 report("cuda_fftconv")
 report("len(a) = 81000, len(b) = 80001")
-report("Test on computer: %s" % os.environ['COMPUTERNAME'])
+#report("Test on computer: %s" % os.environ['COMPUTERNAME'])
 report("timeit N = %i" % N)
 report("")
 report("cuda_fftconv             : %.1f ms" %

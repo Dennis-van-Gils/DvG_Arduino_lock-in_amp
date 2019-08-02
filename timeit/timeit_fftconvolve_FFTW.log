@@ -1,7 +1,0 @@
-fftconvolve(a, b)
-len(a) = 20500, len(b) = 20001
-Test on computer: ONERA
-timeit N = 1000
-
-fftconv_scipy             : 1.5 ms
- : 1.8 ms

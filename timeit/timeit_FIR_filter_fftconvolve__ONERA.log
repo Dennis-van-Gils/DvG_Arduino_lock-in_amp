@@ -1,0 +1,39 @@
+Timeit: fftconvolve
+
+Running on...
+  node   : Onera
+  system : Windows
+  release: 10
+  version: 10.0.18362
+  machine: AMD64
+  proc   : Intel64 Family 6 Model 58 Stepping 9, GenuineIntel
+  Python : 3.6.8
+
+N = 1000, REPS = 5
+
+N_buffers   = 41
+buffer size = 500
+               
+#1  scipy.signal.fftconvolve:
+               0.830 ms
+               0.883 ms
+               0.851 ms
+               0.809 ms
+               0.842 ms
+
+#2  DvG_FFTW_ConvolveValid1D:
+               0.620 ms
+               0.589 ms
+               0.593 ms
+               0.589 ms
+               0.592 ms
+
+#3  CUDA sigpy.convolve:
+              14.747 ms
+              13.537 ms
+              13.523 ms
+              13.525 ms
+              13.520 ms
+
+Times faster #1/#2: 1.37
+Times faster #1/#3: 0.06

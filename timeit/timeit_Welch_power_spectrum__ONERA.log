@@ -1,0 +1,28 @@
+Timeit: Welch power spectrum
+
+Running on...
+  node   : Onera
+  system : Windows
+  release: 10
+  version: 10.0.18362
+  machine: AMD64
+  proc   : Intel64 Family 6 Model 58 Stepping 9, GenuineIntel
+  Python : 3.6.8
+
+N = 1000, REPS = 5
+
+scipy.signal.welch:
+               1.446 ms
+               1.459 ms
+               1.444 ms
+               1.431 ms
+               1.422 ms
+
+DvG_FFTW_WelchPowerSpectrum:
+               0.728 ms
+               0.694 ms
+               0.696 ms
+               0.692 ms
+               0.693 ms
+
+Times faster: 2.05

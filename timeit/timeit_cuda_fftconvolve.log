@@ -1,0 +1,6 @@
+cuda_fftconv
+len(a) = 81000, len(b) = 80001
+timeit N = 1000
+
+cuda_fftconv             : 15.1 ms
+fftconv_dq_np__dq_to_list: 13.7 ms

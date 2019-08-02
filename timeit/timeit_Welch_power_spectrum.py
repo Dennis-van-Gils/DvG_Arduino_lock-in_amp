@@ -3,20 +3,20 @@
 Testing faster Welch power spectrum calculation
 
 Dennis van Gils
-01-08-2019
+02-08-2019
 """
 
 import timeit
-import os
+import platform
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal
 import pyfftw
 
-#import os, sys, inspect
-#currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-#parentdir = os.path.dirname(currentdir)
-#sys.path.insert(0, parentdir) 
+import os, sys, inspect
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir) 
 from DvG_FFTW_WelchPowerSpectrum import FFTW_WelchPowerSpectrum
 
 
@@ -71,9 +71,19 @@ if __name__ == "__main__":
     REPS = 5
     p = {'number': N, 'repeat': REPS}#, 'setup': 'gc.enable()'}
     
-    report("Timeit: Welch power spectrum")
-    report("Running on computer: %s" % os.environ['COMPUTERNAME'])
-    report("N = %i, REPS = %i" % (N, REPS))
+    report("Timeit: Welch power spectrum\n")
+    
+    uname = platform.uname()
+    report("Running on...")
+    report("  node   : %s" % uname.node)
+    report("  system : %s" % uname.system)
+    report("  release: %s" % uname.release)
+    report("  version: %s" % uname.version)
+    report("  machine: %s" % uname.machine)
+    report("  proc   : %s" % uname.processor)
+    report("  Python : %s" % platform.python_version())
+    
+    report("\nN = %i, REPS = %i" % (N, REPS))
 
     result1 = np.array(timeit.repeat(test1, **p)) / N * 1000
     report("\nscipy.signal.welch:")
