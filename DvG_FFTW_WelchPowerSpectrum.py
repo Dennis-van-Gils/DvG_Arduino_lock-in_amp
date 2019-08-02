@@ -5,12 +5,13 @@ upon the highly optimized FFTW library, which will outperform the numpy or
 scipy libraries by a factor of ~8!
 
 The windowing function is fixed to hanning with 50% overlap and no detrending
-will take place on the input data.
+will take place on the input data. The input data must always be of the same
+length.
 
 Class:
-    FFTW_WelchPowerSpectrum(input_length, fs, nperseg):
+    FFTW_WelchPowerSpectrum(len_data, fs, nperseg):
         Args:
-            input_length:
+            len_data:
                 Length of the 1-D data array that will be fed into the power
                 spectrum calculation each time when calling 'process()'.
             fs:
@@ -44,7 +45,7 @@ Based on: scipy.signal.welch()
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "01-08-2019"
+__date__        = "02-08-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -52,63 +53,55 @@ from scipy import signal
 import pyfftw
 
 class FFTW_WelchPowerSpectrum:
-    def __init__(self, input_length, fs, nperseg):        
+    def __init__(self, len_data, fs, nperseg):        
         nperseg = int(nperseg)
-        if nperseg > input_length:
+        if nperseg > len_data:
             print('nperseg = {0:d} is greater than input length '
                   ' = {1:d}, using nperseg = {1:d}'
-                  .format(nperseg, input_length))
-            nperseg = input_length
+                  .format(nperseg, len_data))
+            nperseg = len_data
         
-        self.input_length = input_length
-        self.fs           = fs
-        self.nperseg      = nperseg
+        self.len_data = len_data
+        self.fs       = fs
+        self.nperseg  = nperseg
         
         # Calculate the Hanning window in advance
         self.win = signal.hann(nperseg, False)
         self.scale = 1.0 / self.win.sum()**2    # For normalization
         
-        # Calculate the frequency table
+        # Calculate the frequency table in advance
         self.freqs = np.fft.rfftfreq(nperseg, 1/fs)
 
         # Prepare the FFTW plan
-        self.noverlap = nperseg // 2
-        self.step     = nperseg - self.noverlap
+        self.noverlap  = nperseg // 2
+        self.step      = nperseg - self.noverlap
+        self.shape_in  = ((len_data - self.noverlap)//self.step, nperseg)
+        self.shape_out = ((len_data - self.noverlap)//self.step, nperseg//2 + 1)
         
-        self.shape_in  = ((input_length - self.noverlap)//self.step,
-                          nperseg)
-        self.shape_out = ((input_length - self.noverlap)//self.step,
-                          nperseg//2 + 1)
+        self._rfft_in  = pyfftw.empty_aligned(self.shape_in,  dtype='float64')
+        self._rfft_out = pyfftw.empty_aligned(self.shape_out, dtype='complex128')
         
-        self.var_in  = pyfftw.empty_aligned(self.shape_in,  dtype='float64')
-        self.var_out = pyfftw.empty_aligned(self.shape_out, dtype='complex128')
-        
-        self.fftw_welch = pyfftw.FFTW(self.var_in,
-                                      self.var_out,
-                                      flags=('FFTW_PATIENT',
-                                             'FFTW_DESTROY_INPUT'),
-                                      threads=1)        
+        flags = ('FFTW_PATIENT', 'FFTW_DESTROY_INPUT')
+        self._fftw_welch = pyfftw.FFTW(self._rfft_in, self._rfft_out,
+                                       flags=flags)
         
     def process(self, data):
-        """ Performs the windowed FFTs
-        """
         x = np.asarray(data)
     
-        if self.input_length != len(x):
-            return (np.full(self.input_length, np.nan),
-                    np.full(self.input_length, np.nan))
+        if self.len_data != len(x):
+            return (np.full(self.len_data, np.nan),
+                    np.full(self.len_data, np.nan))
         
         strides = (self.step * x.strides[-1], x.strides[-1])
-        Pxx_in = np.lib.stride_tricks.as_strided(x,
-                                                 shape=self.shape_in,
+        Pxx_in = np.lib.stride_tricks.as_strided(x, shape=self.shape_in,
                                                  strides=strides)
     
         # Apply window by multiplication
         Pxx_in = self.win * Pxx_in  # float64, leave as A = B * A
     
         # Perform the fft
-        self.var_in[:] = Pxx_in     # float64
-        Pxx = self.fftw_welch()     # returns complex128
+        self._rfft_in[:] = Pxx_in   # float64
+        Pxx = self._fftw_welch()    # returns complex128
         
         Pxx = np.conjugate(Pxx) * Pxx
         Pxx = Pxx.real
