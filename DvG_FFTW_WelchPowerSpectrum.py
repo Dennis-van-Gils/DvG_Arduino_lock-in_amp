@@ -82,8 +82,10 @@ class FFTW_WelchPowerSpectrum:
         self._rfft_out = pyfftw.empty_aligned(self.shape_out, dtype='complex128')
         
         flags = ('FFTW_PATIENT', 'FFTW_DESTROY_INPUT')
+        print("Creating FFTW plan for Welch power spectrum...", end="")
         self._fftw_welch = pyfftw.FFTW(self._rfft_in, self._rfft_out,
                                        flags=flags)
+        print(" done.")
         
     def process(self, data):
         x = np.asarray(data)

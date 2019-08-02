@@ -4,7 +4,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "01-08-2019"
+__date__        = "02-08-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -44,6 +44,7 @@ class FFTW_ConvolveValid1D:
         self._irfft_in  = pyfftw.empty_aligned(fshape_2   , dtype='complex128')
         self._irfft_out = pyfftw.empty_aligned(self.fshape, dtype='float64')
         
+        print("Creating FFTW plans for convolution...", end="")
         flags = ('FFTW_PATIENT', 'FFTW_DESTROY_INPUT')
         self._fftw_rfft1 = pyfftw.FFTW(self._rfft_in1, self._rfft_out1,
                                        flags=flags)
@@ -52,6 +53,7 @@ class FFTW_ConvolveValid1D:
         self._fftw_irfft = pyfftw.FFTW(self._irfft_in, self._irfft_out,
                                        direction='FFTW_BACKWARD',
                                        flags=flags)
+        print(" done.")
 
     def process(self, in1, in2):
         in1 = np.asarray(in1)
