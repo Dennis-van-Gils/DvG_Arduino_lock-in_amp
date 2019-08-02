@@ -83,7 +83,7 @@ if __name__ == "__main__":
     report("\nDvG_FFTW_WelchPowerSpectrum:")
     for r in result2: report("%20.3f ms" % r)
     
-    report("\nFaster by %.0f %%" % (min(result2)/min(result1)*100))
+    report("\nTimes faster: %.2f" % (min(result1)/min(result2)))
     
     # -----------------------------------
     #   Plot for comparison
