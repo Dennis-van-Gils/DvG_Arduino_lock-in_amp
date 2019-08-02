@@ -35,11 +35,9 @@ pg.exporters.ImageExporter.export = pgmp.ImageExporter_export
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 
-if os.name == 'nt':
-    # Windows
+if os.name == 'nt': # Windows
     TRY_USING_OPENGL = True
-else:
-    # Linux and MacOS
+else:               # Linux and MacOS
     TRY_USING_OPENGL = False
 
 if TRY_USING_OPENGL:
@@ -1556,7 +1554,7 @@ class MainWindow(QtWid.QWidget):
             self.pi_XR.enableAutoRange('y', True)
             self.pi_XR.enableAutoRange('y', False)
             XRange, YRange = self.pi_XR.viewRange()
-            self.pi_XR.setYRange(YRange[0], YRange[1], padding=0.1)
+            self.pi_XR.setYRange(YRange[0], YRange[1], padding=1.0)
         
     def autorange_y_YT(self):
         if self.qrbt_YT_Y.isChecked():
@@ -1573,7 +1571,7 @@ class MainWindow(QtWid.QWidget):
             self.pi_YT.enableAutoRange('y', True)
             self.pi_YT.enableAutoRange('y', False)
             XRange, YRange = self.pi_YT.viewRange()
-            self.pi_YT.setYRange(YRange[0], YRange[1], padding=0.1)
+            self.pi_YT.setYRange(YRange[0], YRange[1], padding=1.0)
     
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
