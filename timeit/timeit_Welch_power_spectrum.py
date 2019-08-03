@@ -45,7 +45,6 @@ if __name__ == "__main__":
     wave += np.sin(2*np.pi*f2*t)
 
     # Init
-    pyfftw.forget_wisdom()
     fftw_welch = FFTW_WelchPowerSpectrum(len(wave),
                                          fs=Fs,
                                          nperseg=Fs)
@@ -85,9 +84,11 @@ if __name__ == "__main__":
     
     report("\nN = %i, REPS = %i" % (N, REPS))
 
+    #"""
     result1 = np.array(timeit.repeat(test1, **p)) / N * 1000
     report("\nscipy.signal.welch:")
     for r in result1: report("%20.3f ms" % r)
+    #"""
     
     result2 = np.array(timeit.repeat(test2, **p)) / N * 1000
     report("\nDvG_FFTW_WelchPowerSpectrum:")
