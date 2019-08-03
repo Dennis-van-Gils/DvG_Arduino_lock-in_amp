@@ -11,7 +11,6 @@ import platform
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy import signal
-import pyfftw
 
 import os, sys, inspect
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -19,7 +18,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir) 
 from DvG_FFTW_ConvolveValid1D import FFTW_ConvolveValid1D
 
-TEST_CUDA = True
+TEST_CUDA = False
 if TEST_CUDA:
     from numba import cuda
     import cupy
@@ -73,7 +72,6 @@ if __name__ == "__main__":
     if TEST_CUDA: b_cp = cupy.array(b_np[:, None])
 
     # Init
-    #pyfftw.forget_wisdom()
     fftw_convolve = FFTW_ConvolveValid1D(len(wave), len(b_np))
     
     wave_out1 = np.empty(N_deque - N_taps + 1)

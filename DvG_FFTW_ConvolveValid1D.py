@@ -45,7 +45,7 @@ class FFTW_ConvolveValid1D:
         self._irfft_out = pyfftw.empty_aligned(self.fshape, dtype='float64')
         
         print("Creating FFTW plans for convolution...", end="")
-        flags = ('FFTW_PATIENT', 'FFTW_DESTROY_INPUT')
+        flags = ('FFTW_MEASURE', 'FFTW_DESTROY_INPUT')
         self._fftw_rfft1 = pyfftw.FFTW(self._rfft_in1, self._rfft_out1,
                                        flags=flags)
         self._fftw_rfft2 = pyfftw.FFTW(self._rfft_in2, self._rfft_out2,
