@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "26-07-2019"
+__date__        = "04-08-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -14,6 +14,7 @@ from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 import numpy as np
 import psutil
+import os
 
 from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_BufferedPlot import BufferedPlot
@@ -34,20 +35,35 @@ pg.exporters.ImageExporter.export = pgmp.ImageExporter_export
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 
-try:
-    import OpenGL.GL as gl
-    pg.setConfigOptions(useOpenGL=True)
-    pg.setConfigOptions(enableExperimental=False)
-    pg.setConfigOptions(antialias=False)
-    print("OpenGL hardware acceleration enabled.")
-    USING_OPENGL = True
-except:
-    pg.setConfigOptions(useOpenGL=False)
-    pg.setConfigOptions(enableExperimental=False)
-    pg.setConfigOptions(antialias=False)
-    print("WARNING: Could not enable OpenGL hardware acceleration.")
-    print("Check if prerequisite 'PyOpenGL' library is installed.")
+if os.name == 'nt' or os.name == 'posix':
+    # Tested succesful in Windows & Linux
+    TRY_USING_OPENGL = True
+else:
+    # Untested in MacOS
+    TRY_USING_OPENGL = False
+
+if TRY_USING_OPENGL:
+    try:
+        import OpenGL.GL as gl
+        pg.setConfigOptions(useOpenGL=True)
+        pg.setConfigOptions(enableExperimental=True)
+        pg.setConfigOptions(antialias=False)
+        print("OpenGL hardware acceleration enabled.")
+        USING_OPENGL = True
+    except:
+        pg.setConfigOptions(useOpenGL=False)
+        pg.setConfigOptions(enableExperimental=False)
+        pg.setConfigOptions(antialias=False)
+        print("WARNING: Could not enable OpenGL hardware acceleration.")
+        print("Check if prerequisite 'PyOpenGL' library is installed.")
+        USING_OPENGL = False
+else:
+    print("OpenGL hardware acceleration is disabled.")
     USING_OPENGL = False
+
+# Default settings for graphs
+pg.setConfigOption('background', [00, 20, 20])
+pg.setConfigOption('foreground', [240, 240, 240])
 
 # Stylesheets
 # Note: (Top Right Bottom Left)
@@ -100,15 +116,14 @@ SS_TABS = (
             "border-bottom-color: " + COLOR_TAB + ";"
             "border-top-left-radius: 4px;"
             "border-top-right-radius: 4px;"
-            "min-width: 39ex;"
+            "min-width: 119px;"
             "padding: 6px;} "
         "QTabBar::tab:hover {"
             "background: " + COLOR_HOVER + ";"
             "border: 2px solid " + COLOR_HOVER_BORDER + ";"
             "border-bottom-color: " + COLOR_HOVER + ";"
             "border-top-left-radius: 4px;"
-            "border-top-right-radius: 4px;"
-            "min-width: 42ex;"
+            "border-top-right-radius: 4px;"            
             "padding: 6px;} "
         "QTabWidget::tab-bar {"
             "left: 0px;}")
@@ -180,6 +195,93 @@ def create_LED_indicator_rect(initial_state=False, text=''):
     button.setChecked(initial_state)
     return button
 
+class CustomAxis(pg.AxisItem):
+    @property
+    def nudge(self):
+        if not hasattr(self, "_nudge"):
+            self._nudge = 5
+        return self._nudge
+
+    @nudge.setter
+    def nudge(self, nudge):
+        self._nudge = nudge
+        s = self.size()
+        # call resizeEvent indirectly
+        self.resize(s + QtCore.QSizeF(1, 1))
+        self.resize(s)
+
+    def resizeEvent(self, ev=None):
+        # s = self.size()
+
+        ## Set the position of the label
+        nudge = self.nudge
+        br = self.label.boundingRect()
+        p = QtCore.QPointF(0, 0)
+        if self.orientation == "left":
+            p.setY(int(self.size().height() / 2 + br.width() / 2))
+            p.setX(-nudge)
+        elif self.orientation == "right":
+            p.setY(int(self.size().height() / 2 + br.width() / 2))
+            p.setX(int(self.size().width() - br.height() + nudge))
+        elif self.orientation == "top":
+            p.setY(-nudge)
+            p.setX(int(self.size().width() / 2.0 - br.width() / 2.0))
+        elif self.orientation == "bottom":
+            p.setX(int(self.size().width() / 2.0 - br.width() / 2.0))
+            p.setY(int(self.size().height() - br.height() + nudge))
+        self.label.setPos(p)
+        self.picture = None
+
+def apply_PlotItem_style(pi,
+                         lbl_title ='',
+                         lbl_bottom='',
+                         lbl_left='',
+                         lbl_right=''):
+    # Note: We are not using 'title' but use label 'top' instead
+    
+    fg = pg.getConfigOption('foreground')
+    fg = "#%02X%02X%02X" % (fg[0], fg[1], fg[2])
+
+    p_title = {'color': fg, 'font-size': '12pt', 'font-family': 'Helvetica',
+               'font-weight': 'bold'}
+    p_label = {'color': fg, 'font-size': '12pt', 'font-family': 'Helvetica'}
+    pi.setLabel('bottom', lbl_bottom, **p_label)
+    pi.setLabel('left'  , lbl_left  , **p_label)
+    pi.setLabel('top'   , lbl_title , **p_title)
+    pi.setLabel('right' , lbl_right , **p_label)
+    
+    try:
+        pi.getAxis("bottom").nudge -= 8
+        pi.getAxis("left").nudge -= 4
+        pi.getAxis("top").nudge -= 6
+    except:
+        pass
+    
+    pi.showGrid(x=1, y=1)
+    
+    font = QtGui.QFont()
+    font.setPixelSize(16)
+    pi.getAxis('bottom').tickFont = font
+    pi.getAxis('left')  .tickFont = font
+    pi.getAxis('top')   .tickFont = font
+    pi.getAxis('right') .tickFont = font
+    
+    pi.getAxis("bottom").setStyle(tickTextOffset=10)
+    pi.getAxis("left")  .setStyle(tickTextOffset=10)
+
+    pi.getAxis('bottom').setHeight(60)
+    pi.getAxis('left')  .setWidth(90)
+    pi.getAxis('top')   .setHeight(40)
+    pi.getAxis('right') .setWidth(16)
+    
+    pi.getAxis('top')  .setStyle(showValues=False) 
+    pi.getAxis('right').setStyle(showValues=False) 
+
+# Fonts
+FONT_MONOSPACE = QtGui.QFont("Courier")
+FONT_MONOSPACE.setFamily("Monospace")
+FONT_MONOSPACE.setStyleHint(QtGui.QFont.Monospace)
+    
 # ------------------------------------------------------------------------------
 #   MainWindow
 # ------------------------------------------------------------------------------
@@ -197,6 +299,8 @@ class MainWindow(QtWid.QWidget):
         self.lockin_pyqt = lockin_pyqt
         self.file_logger = file_logger
         
+        self.proc = psutil.Process(os.getpid())
+        self.cpu_count = psutil.cpu_count()
         self.prev_time_CPU_load = QDateTime.currentDateTime();
         self.boost_fps_graphing = False
         
@@ -204,12 +308,6 @@ class MainWindow(QtWid.QWidget):
         self.setWindowTitle("Arduino lock-in amplifier")
         self.setStyleSheet(SS_TEXTBOX_READ_ONLY + SS_GROUP + SS_HOVER + 
                            SS_TABS)
-        
-        """ # Experimental
-        with open('darkorange.stylesheet', 'r') as file:
-            style = file.read()
-        self.setStyleSheet(style)
-        """
         
         # Define styles for plotting curves
         self.PEN_01 = pg.mkPen(color=[255, 30 , 180], width=3)
@@ -219,26 +317,12 @@ class MainWindow(QtWid.QWidget):
         self.PEN_05 = pg.mkPen(color=[0  , 255, 0  ], width=3)        
         self.BRUSH_03 = pg.mkBrush(0, 255, 255, 64)
         
-        # Fonts
-        FONT_MONOSPACE = QtGui.QFont("Courier")
-        FONT_MONOSPACE.setFamily("Monospace")
-        FONT_MONOSPACE.setStyleHint(QtGui.QFont.Monospace)
-        
         # Column width left of timeseries graphs
         LEFT_COLUMN_WIDTH = 134
         
-        # Textbox widths for fitting N 'x' characters using the current font
-        e = QtGui.QLineEdit()
-        ex8  = (8 + 8 * e.fontMetrics().width('x') + 
-                e.textMargins().left()     + e.textMargins().right() + 
-                e.contentsMargins().left() + e.contentsMargins().right())
-        ex10 = (8 + 10 * e.fontMetrics().width('x') + 
-                e.textMargins().left()     + e.textMargins().right() + 
-                e.contentsMargins().left() + e.contentsMargins().right())
-        ex12 = (8 + 12 * e.fontMetrics().width('x') + 
-                e.textMargins().left()     + e.textMargins().right() + 
-                e.contentsMargins().left() + e.contentsMargins().right())
-        del e
+        # Textbox widths for fitting N characters using the current font
+        ex8  = 8 + 8  * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
+        ex12 = 8 + 12 * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
 
         def Header(): pass # Spider IDE outline bookmark
         # -----------------------------------
@@ -249,18 +333,20 @@ class MainWindow(QtWid.QWidget):
 
         # Left box
         self.qlbl_update_counter = QtWid.QLabel("0")
-        self.qlbl_sample_rate = QtWid.QLabel("SAMPLE RATE: %.2f Hz" %
+        self.qlbl_sample_rate = QtWid.QLabel("Sample rate: %.2f Hz" %
                                              (1/lockin.config.ISR_CLOCK))
         #self.qlbl_buffer_size = QtWid.QLabel("BUFFER SIZE  : %i" %
         #                                     lockin.config.BUFFER_SIZE)
-        self.qlbl_CPU_load = QtWid.QLabel("CPU: nan%%")
+        self.qlbl_CPU_syst = QtWid.QLabel("CPU system : nan%")
+        self.qlbl_CPU_proc = QtWid.QLabel("CPU process: nan%")
         self.qlbl_DAQ_rate = QtWid.QLabel("Buffers/s: nan")
         self.qlbl_DAQ_rate.setMinimumWidth(100)
 
         vbox_left = QtWid.QVBoxLayout()
         vbox_left.addWidget(self.qlbl_sample_rate)
-        vbox_left.addWidget(self.qlbl_CPU_load)
-        vbox_left.addStretch(1)
+        vbox_left.addWidget(self.qlbl_CPU_syst)
+        vbox_left.addWidget(self.qlbl_CPU_proc)
+        #vbox_left.addStretch(1)
         vbox_left.addWidget(self.qlbl_DAQ_rate)
         vbox_left.addWidget(self.qlbl_update_counter)
 
@@ -462,15 +548,16 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         # Chart: Readings
-        self.gw_refsig = pg.GraphicsWindow()
-        self.gw_refsig.setBackground([20, 20, 20])
-        self.pi_refsig = self.gw_refsig.addPlot()
-
-        p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_refsig.showGrid(x=1, y=1)
-        self.pi_refsig.setTitle('Readings', **p)
-        self.pi_refsig.setLabel('bottom', text='time [ms]', **p)
-        self.pi_refsig.setLabel('left', text='voltage [V]', **p)
+        self.pw_refsig = pg.PlotWidget(
+                axisItems={"bottom": CustomAxis(orientation="bottom"),
+                           "left"  : CustomAxis(orientation="left"),
+                           "top"   : CustomAxis(orientation="top"),
+                           "right" : CustomAxis(orientation="right")})
+        self.pi_refsig = self.pw_refsig.getPlotItem()
+        apply_PlotItem_style(self.pi_refsig, 'Readings',
+                                             'time (ms)',
+                                             'voltage (V)')
+        
         self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
                                  lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0.01)
@@ -543,16 +630,26 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
 
         # Charts: (X or R) and (Y or T)
-        self.gw_XRYT = pg.GraphicsWindow()
-        self.gw_XRYT.setBackground([20, 20, 20])
-        self.pi_XR = self.gw_XRYT.addPlot()
-        self.pi_YT = self.gw_XRYT.addPlot()
+        self.pw_XR = pg.PlotWidget(
+                axisItems={"bottom": CustomAxis(orientation="bottom"),
+                           "left"  : CustomAxis(orientation="left"),
+                           "top"   : CustomAxis(orientation="top"),
+                           "right" : CustomAxis(orientation="right")})
+        self.pi_XR = self.pw_XR.getPlotItem()
+        apply_PlotItem_style(self.pi_XR, 'R',
+                                         'time (ms)',
+                                         'voltage (V)')
         
-        p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_XR.showGrid(x=1, y=1)
-        self.pi_XR.setTitle('R', **p)
-        self.pi_XR.setLabel('bottom', text='time [ms]', **p)
-        self.pi_XR.setLabel('left', text='voltage [V]', **p)
+        self.pw_YT = pg.PlotWidget(
+                axisItems={"bottom": CustomAxis(orientation="bottom"),
+                           "left"  : CustomAxis(orientation="left"),
+                           "top"   : CustomAxis(orientation="top"),
+                           "right" : CustomAxis(orientation="right")})
+        self.pi_YT = self.pw_YT.getPlotItem()
+        apply_PlotItem_style(self.pi_YT, '\u0398',
+                                         'time (ms)',
+                                         'phase (deg)')
+
         self.pi_XR.setXRange(-lockin.config.BUFFER_SIZE *
                              lockin.config.ISR_CLOCK * 1e3,
                              0, padding=0.01)
@@ -564,10 +661,6 @@ class MainWindow(QtWid.QWidget):
                              lockin.config.ISR_CLOCK * 1e3,
                              xMax=0)
         
-        self.pi_YT.showGrid(x=1, y=1)
-        self.pi_YT.setTitle('\u0398', **p)
-        self.pi_YT.setLabel('bottom', text='time [ms]', **p)
-        self.pi_YT.setLabel('left', text='phase [deg]', **p)
         self.pi_YT.setXRange(-lockin.config.BUFFER_SIZE *
                              lockin.config.ISR_CLOCK * 1e3,
                              0, padding=0.01)
@@ -578,7 +671,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_YT.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
                              lockin.config.ISR_CLOCK * 1e3,
                              xMax=0)
-
+        
         self.CH_LIA_XR = ChartHistory(lockin.config.BUFFER_SIZE,
                                       self.pi_XR.plot(pen=self.PEN_03))
         self.CH_LIA_YT = ChartHistory(lockin.config.BUFFER_SIZE,
@@ -586,6 +679,10 @@ class MainWindow(QtWid.QWidget):
         self.CH_LIA_XR.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_LIA_YT.x_axis_divisor = 1000     # From [us] to [ms]
         self.CHs_LIA_output = [self.CH_LIA_XR, self.CH_LIA_YT]
+        
+        self.grid_pws_XYRT = QtWid.QGridLayout(spacing=0)
+        self.grid_pws_XYRT.addWidget(self.pw_XR, 0, 0)
+        self.grid_pws_XYRT.addWidget(self.pw_YT, 0, 1)
         
         # QGROUP: Show X-Y or R-Theta
         self.qrbt_XR_X = QtWid.QRadioButton("X")
@@ -653,11 +750,11 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         grid = QtWid.QGridLayout(spacing=0)
-        grid.addWidget(qgrp_readings , 0, 0, QtCore.Qt.AlignTop)
-        grid.addWidget(self.gw_refsig, 0, 1)
-        grid.addWidget(qgrp_XRYT     , 1, 0, QtCore.Qt.AlignTop)
-        grid.addWidget(self.gw_XRYT  , 1, 1)
-        grid.setColumnStretch(1, 1)
+        grid.addWidget(qgrp_readings     , 0, 0, QtCore.Qt.AlignTop)
+        grid.addWidget(self.pw_refsig    , 0, 1)
+        grid.addWidget(qgrp_XRYT         , 1, 0, QtCore.Qt.AlignTop)
+        grid.addLayout(self.grid_pws_XYRT, 1, 1)
+        grid.setColumnStretch(1, 1) 
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
         
         self.tab_main.setLayout(grid)
@@ -678,15 +775,16 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         # Chart: Filter @ sig_I
-        self.gw_filt_1 = pg.GraphicsWindow()
-        self.gw_filt_1.setBackground([20, 20, 20])
-        self.pi_filt_1 = self.gw_filt_1.addPlot()
+        self.pw_filt_1 = pg.PlotWidget(
+                axisItems={"bottom": CustomAxis(orientation="bottom"),
+                           "left"  : CustomAxis(orientation="left"),
+                           "top"   : CustomAxis(orientation="top"),
+                           "right" : CustomAxis(orientation="right")})
+        self.pi_filt_1 = self.pw_filt_1.getPlotItem()
+        apply_PlotItem_style(self.pi_filt_1, 'Filter @ sig_I',
+                                             'time (ms)',
+                                             'voltage (V)')
         
-        p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_filt_1.showGrid(x=1, y=1)
-        self.pi_filt_1.setTitle('Filter @ sig_I', **p)
-        self.pi_filt_1.setLabel('bottom', text='time [ms]', **p)
-        self.pi_filt_1.setLabel('left', text='voltage [V]', **p)
         self.pi_filt_1.setXRange(-lockin.config.BUFFER_SIZE *
                                     lockin.config.ISR_CLOCK * 1e3,
                                     0, padding=0.01)
@@ -724,15 +822,16 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         
         # Chart: Mixer
-        self.gw_mixer = pg.GraphicsWindow()
-        self.gw_mixer.setBackground([20, 20, 20])
-        self.pi_mixer = self.gw_mixer.addPlot()
+        self.pw_mixer = pg.PlotWidget(
+                axisItems={"bottom": CustomAxis(orientation="bottom"),
+                           "left"  : CustomAxis(orientation="left"),
+                           "top"   : CustomAxis(orientation="top"),
+                           "right" : CustomAxis(orientation="right")})
+        self.pi_mixer = self.pw_mixer.getPlotItem()
+        apply_PlotItem_style(self.pi_mixer, 'Mixer',
+                                            'time (ms)',
+                                            'voltage (V)')
         
-        p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_mixer.showGrid(x=1, y=1)
-        self.pi_mixer.setTitle('Mixer', **p)
-        self.pi_mixer.setLabel('bottom', text='time [ms]', **p)
-        self.pi_mixer.setLabel('left', text='voltage [V]', **p)
         self.pi_mixer.setXRange(-lockin.config.BUFFER_SIZE *
                                 lockin.config.ISR_CLOCK * 1e3,
                                  0, padding=0.01)
@@ -770,9 +869,9 @@ class MainWindow(QtWid.QWidget):
 
         grid = QtWid.QGridLayout(spacing=0)
         grid.addWidget(qgrp_filt_1   , 0, 0, QtCore.Qt.AlignTop)
-        grid.addWidget(self.gw_filt_1, 0, 1)
+        grid.addWidget(self.pw_filt_1, 0, 1)
         grid.addWidget(qgrp_mixer    , 1, 0, QtCore.Qt.AlignTop)
-        grid.addWidget(self.gw_mixer , 1, 1)
+        grid.addWidget(self.pw_mixer , 1, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
         
@@ -788,15 +887,16 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         
         # Plot: Power spectrum
-        self.gw_PS = pg.GraphicsWindow()
-        self.gw_PS.setBackground([20, 20, 20])        
-        self.pi_PS = self.gw_PS.addPlot()
+        self.pw_PS = pg.PlotWidget(
+                axisItems={"bottom": CustomAxis(orientation="bottom"),
+                           "left"  : CustomAxis(orientation="left"),
+                           "top"   : CustomAxis(orientation="top"),
+                           "right" : CustomAxis(orientation="right")})
+        self.pi_PS = self.pw_PS.getPlotItem()
+        apply_PlotItem_style(self.pi_PS, 'Power spectrum (Welch)',
+                                         'frequency (Hz)',
+                                         'power (dBV)')
         
-        p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_PS.showGrid(x=1, y=1)
-        self.pi_PS.setTitle('Power spectrum (Welch)', **p)
-        self.pi_PS.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_PS.setLabel('left', text='power [dBV]', **p)
         self.pi_PS.setAutoVisible(x=True, y=True)
         self.pi_PS.setXRange(0, self.lockin.config.F_Nyquist, padding=0.02)
         self.pi_PS.setYRange(-110, 0, padding=0.02)
@@ -860,8 +960,8 @@ class MainWindow(QtWid.QWidget):
           in self.legend_box_PS.chkbs])
     
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(QtWid.QLabel("CPU intensive!<br/>Only check<br/>"
-                                    "when needed."), 0, 0)
+        #grid.addWidget(QtWid.QLabel("CPU intensive!<br/>Only check<br/>"
+        #                            "when needed."), 0, 0)
         grid.addItem(QtWid.QSpacerItem(0, 4)       , 1, 0)
         grid.addLayout(self.legend_box_PS.grid     , 2, 0)
         grid.setAlignment(QtCore.Qt.AlignTop)
@@ -878,7 +978,7 @@ class MainWindow(QtWid.QWidget):
         grid = QtWid.QGridLayout(spacing=0)
         grid.addWidget(qgrp_PS   , 0, 0, 2, 1, QtCore.Qt.AlignTop)
         grid.addWidget(qgrp_zoom , 0, 1)
-        grid.addWidget(self.gw_PS, 1, 1)
+        grid.addWidget(self.pw_PS, 1, 1)
         grid.setColumnStretch(1, 1)
         grid.setColumnMinimumWidth(0, LEFT_COLUMN_WIDTH)
         
@@ -894,16 +994,16 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         
         # Plot: Filter response @ sig_I
-        self.gw_filt_1_resp = pg.GraphicsWindow()
-        self.gw_filt_1_resp.setBackground([20, 20, 20])        
-        self.pi_filt_1_resp = self.gw_filt_1_resp.addPlot()
+        self.pw_filt_1_resp = pg.PlotWidget(
+                axisItems={"bottom": CustomAxis(orientation="bottom"),
+                           "left"  : CustomAxis(orientation="left"),
+                           "top"   : CustomAxis(orientation="top"),
+                           "right" : CustomAxis(orientation="right")})
+        self.pi_filt_1_resp = self.pw_filt_1_resp.getPlotItem()
+        apply_PlotItem_style(self.pi_filt_1_resp, 'Filter response @ sig_I',
+                                                  'frequency (Hz)',
+                                                  'amplitude attenuation (dB)')
         
-        p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_filt_1_resp.showGrid(x=1, y=1)
-        self.pi_filt_1_resp.setTitle('Filter response', **p)
-        self.pi_filt_1_resp.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_filt_1_resp.setLabel('left', text='amplitude attenuation [dB]',
-                                     **p)
         self.pi_filt_1_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_1_resp.enableAutoRange('x', False)
         self.pi_filt_1_resp.enableAutoRange('y', True)
@@ -974,7 +1074,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.filt_1_design_GUI.qgrp
                                           , 0, 0, 2, 1, QtCore.Qt.AlignTop)
         grid.addWidget(qgrp_zoom          , 0, 1)
-        grid.addWidget(self.gw_filt_1_resp, 1, 1)
+        grid.addWidget(self.pw_filt_1_resp, 1, 1)
         grid.setColumnStretch(1, 1)
         
         self.tab_filter_1_design.setLayout(grid)
@@ -989,16 +1089,16 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         
         # Plot: Filter response @ mix_X/Y
-        self.gw_filt_2_resp = pg.GraphicsWindow()
-        self.gw_filt_2_resp.setBackground([20, 20, 20])        
-        self.pi_filt_2_resp = self.gw_filt_2_resp.addPlot()
-        
-        p = {'color': '#BBB', 'font-size': '10pt'}
-        self.pi_filt_2_resp.showGrid(x=1, y=1)
-        self.pi_filt_2_resp.setTitle('Filter response', **p)
-        self.pi_filt_2_resp.setLabel('bottom', text='frequency [Hz]', **p)
-        self.pi_filt_2_resp.setLabel('left', text='amplitude attenuation [dB]',
-                                     **p)
+        self.pw_filt_2_resp = pg.PlotWidget(
+                axisItems={"bottom": CustomAxis(orientation="bottom"),
+                           "left"  : CustomAxis(orientation="left"),
+                           "top"   : CustomAxis(orientation="top"),
+                           "right" : CustomAxis(orientation="right")})
+        self.pi_filt_2_resp = self.pw_filt_2_resp.getPlotItem()
+        apply_PlotItem_style(self.pi_filt_2_resp, 'Filter response @ mix_X/Y',
+                                                  'frequency (Hz)',
+                                                  'amplitude attenuation (dB)')
+
         self.pi_filt_2_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_2_resp.enableAutoRange('x', False)
         self.pi_filt_2_resp.enableAutoRange('y', True)
@@ -1069,7 +1169,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.filt_2_design_GUI.qgrp
                                           , 0, 0, 2, 1, QtCore.Qt.AlignTop)
         grid.addWidget(qgrp_zoom          , 0, 1)
-        grid.addWidget(self.gw_filt_2_resp, 1, 1)
+        grid.addWidget(self.pw_filt_2_resp, 1, 1)
         grid.setColumnStretch(1, 1)
         
         self.tab_filter_2_design.setLayout(grid)
@@ -1156,16 +1256,17 @@ class MainWindow(QtWid.QWidget):
         hbox.addLayout(vbox_sidebar, stretch=0)
         
         vbox.addItem(QtWid.QSpacerItem(0, 10))
-        vbox.addLayout(hbox)
+        vbox.addLayout(hbox, stretch=1)
         
-        # List of all pyqtgraph graphics windows
-        self.gws_all = [self.gw_refsig,
-                        self.gw_XRYT,
-                        self.gw_filt_1,
-                        self.gw_mixer,
-                        self.gw_PS,
-                        self.gw_filt_1_resp,
-                        self.gw_filt_2_resp]
+        # List of all pyqtgraph PlotWidgets containing charts and plots
+        self.all_charts = [self.pw_refsig,
+                           self.pw_XR,
+                           self.pw_YT,
+                           self.pw_filt_1,
+                           self.pw_mixer,
+                           self.pw_PS,
+                           self.pw_filt_1_resp,
+                           self.pw_filt_2_resp]
         
         # -----------------------------------
         # -----------------------------------
@@ -1215,8 +1316,10 @@ class MainWindow(QtWid.QWidget):
                                          cur_date_time.toString("HH:mm:ss")))
         
         if self.prev_time_CPU_load.msecsTo(cur_date_time) > 1000:
-            self.qlbl_CPU_load.setText("CPU: %.1f%%" %
-                                       psutil.cpu_percent(interval=None))
+            cpu_syst = psutil.cpu_percent(interval=None)
+            cpu_proc = self.proc.cpu_percent(interval=None) / self.cpu_count
+            self.qlbl_CPU_syst.setText("CPU system : %.1f%%" % cpu_syst)
+            self.qlbl_CPU_proc.setText("CPU process: %.1f%%" % cpu_proc)
             self.prev_time_CPU_load = cur_date_time
     
     @QtCore.pyqtSlot()
@@ -1403,22 +1506,37 @@ class MainWindow(QtWid.QWidget):
     def process_chkbs_legend_box_PS(self):
         if self.lockin.lockin_paused:
             L = self.lockin_pyqt
+            state = self.lockin_pyqt.state
             
-            if self.legend_box_PS.chkbs[0].isChecked():
-                [f, P_dB] = L.compute_power_spectrum(L.state.deque_sig_I)
-                if len(f) > 0: self.BP_PS_1.set_data(f, P_dB)
+            if (self.legend_box_PS.chkbs[0].isChecked() and
+                state.deque_sig_I.is_full):
+                self.BP_PS_1.set_data(
+                        L.fftw_PS_sig_I.freqs,
+                        L.fftw_PS_sig_I.process_dB(state.deque_sig_I))
                     
-            if self.legend_box_PS.chkbs[1].isChecked():
-                [f, P_dB] = L.compute_power_spectrum(L.state.deque_filt_I)
-                if len(f) > 0: self.BP_PS_2.set_data(f, P_dB)
+            if (self.legend_box_PS.chkbs[1].isChecked() and
+                state.deque_filt_I.is_full):
+                self.BP_PS_2.set_data(
+                        L.fftw_PS_filt_I.freqs,
+                        L.fftw_PS_filt_I.process_dB(state.deque_filt_I))
                 
-            if self.legend_box_PS.chkbs[2].isChecked():
-                [f, P_dB] = L.compute_power_spectrum(L.state.deque_mix_X)
-                if len(f) > 0: self.BP_PS_3.set_data(f, P_dB)
+            if (self.legend_box_PS.chkbs[2].isChecked() and
+                state.deque_mix_X.is_full):
+                self.BP_PS_3.set_data(
+                        L.fftw_PS_mix_X.freqs,
+                        L.fftw_PS_mix_X.process_dB(state.deque_mix_X))
                 
-            if self.legend_box_PS.chkbs[3].isChecked():
-                [f, P_dB] = L.compute_power_spectrum(L.state.deque_mix_Y)
-                if len(f) > 0: self.BP_PS_4.set_data(f, P_dB)
+            if (self.legend_box_PS.chkbs[3].isChecked() and
+                state.deque_mix_Y.is_full):
+                self.BP_PS_4.set_data(
+                        L.fftw_PS_mix_Y.freqs,
+                        L.fftw_PS_mix_Y.process_dB(state.deque_mix_Y))
+                
+            if (self.legend_box_PS.chkbs[4].isChecked() and
+                state.deque_R.is_full):
+                self.BP_PS_5.set_data(
+                        L.fftw_PS_R.freqs,
+                        L.fftw_PS_R.process_dB(state.deque_R))
             
             self.update_plot_PS()           # Force update graph
 
@@ -1471,10 +1589,10 @@ class MainWindow(QtWid.QWidget):
     def process_qrbt_XR(self):        
         if self.qrbt_XR_X.isChecked():
             self.CH_LIA_XR.curve.setPen(self.PEN_01)
-            self.pi_XR.setTitle('X')
+            self.pi_XR.setLabel('top', 'X')
         else:
             self.CH_LIA_XR.curve.setPen(self.PEN_03)
-            self.pi_XR.setTitle('R')
+            self.pi_XR.setLabel('top', 'R')
             
         if self.lockin_pyqt.worker_DAQ.suspended:
             # The graphs are not being updated with the newly chosen timeseries
@@ -1501,12 +1619,12 @@ class MainWindow(QtWid.QWidget):
     def process_qrbt_YT(self):
         if self.qrbt_YT_Y.isChecked():
             self.CH_LIA_YT.curve.setPen(self.PEN_02)
-            self.pi_YT.setTitle('Y')
-            self.pi_YT.setLabel('left', text='voltage [V]')
+            self.pi_YT.setLabel('top', 'Y')
+            self.pi_YT.setLabel('left', text='voltage (V)')
         else:
             self.CH_LIA_YT.curve.setPen(self.PEN_03)
-            self.pi_YT.setTitle('%s' % chr(0x398))
-            self.pi_YT.setLabel('left', text='phase [deg]')
+            self.pi_YT.setLabel('top', '%s' % chr(0x398))
+            self.pi_YT.setLabel('left', text='phase (deg)')
             
         if self.lockin_pyqt.worker_DAQ.suspended:
             # The graphs are not being updated with the newly chosen timeseries
@@ -1544,7 +1662,7 @@ class MainWindow(QtWid.QWidget):
             self.pi_XR.enableAutoRange('y', True)
             self.pi_XR.enableAutoRange('y', False)
             XRange, YRange = self.pi_XR.viewRange()
-            self.pi_XR.setYRange(YRange[0], YRange[1], padding=0.1)
+            self.pi_XR.setYRange(YRange[0], YRange[1], padding=1.0)
         
     def autorange_y_YT(self):
         if self.qrbt_YT_Y.isChecked():
@@ -1561,7 +1679,7 @@ class MainWindow(QtWid.QWidget):
             self.pi_YT.enableAutoRange('y', True)
             self.pi_YT.enableAutoRange('y', False)
             XRange, YRange = self.pi_YT.viewRange()
-            self.pi_YT.setYRange(YRange[0], YRange[1], padding=0.1)
+            self.pi_YT.setYRange(YRange[0], YRange[1], padding=1.0)
     
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------

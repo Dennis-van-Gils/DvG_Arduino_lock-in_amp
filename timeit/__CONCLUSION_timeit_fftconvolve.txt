@@ -3,8 +3,7 @@ Dennis van Gils
 
 CONCLUSION
 
-Stick to using scipy.signal.fftconvolve and ditch the use of deque, but use a
-numpy buffer instead.
+Ditch the use of deque, but use a numpy buffer instead.
 I.e.
   Not: signal.fftconvolve(collections.deque           , numpy.ndarray[dtype=float64])
   But: signal.fftconvolve(numpy.ndarray[dtype=float64], numpy.ndarray[dtype=float64])
@@ -13,6 +12,3 @@ We don't need the thread-safe behavior and left-rigt appending possibilties of d
 We only extend the buffers in method 'lockin_DAQ_update', which is mutex locked already.
 Sticking to a numpy array is faster. That is because, when using deque, we spend time
 transforming the deque into numpy array. This happens behind the scenes of scipy.
-
-Using FFTW library monkey-patched into scipy is not faster than scipy with numpy
-arrays directly.

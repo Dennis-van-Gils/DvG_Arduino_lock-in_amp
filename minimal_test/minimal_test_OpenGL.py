@@ -12,7 +12,7 @@ PyOpenGL-3.1.3b2-cp37-cp37m-win_amd64.whl
 PyOpenGL_accelerate-3.1.3b2-cp37-cp37m-win_amd64.whl
 
 Dennis van Gils
-02-04-2019
+04-08-2019
 """
 import os
 import sys
@@ -60,14 +60,19 @@ class Window(QtWid.QWidget):
         #self.setGeometry(800, 400, 800, 600)
         self.setWindowTitle("PyOpenGL demo in pyqtgraph")
         
-        #self.glWidget = GLWidget()
-        
         num_points = int(5e3)
         x = np.array(np.arange(num_points), dtype=float)
         y = np.random.rand(num_points)
         
-        self.gw = pg.GraphicsWindow()
-        self.pi = self.gw.addPlot()
+        # NOTE: the following two lines seem only to work in Windows with OpenGL.
+        # When running under Linux, the GraphicsWindow is placed outside of the
+        # main app window into a separate window
+        #self.gw = pg.GraphicsWindow()
+        #self.pi = self.gw.addPlot()
+        
+        # This works under both Windows and Linux
+        self.pi = pg.PlotWidget()
+        
         self.pi.plot(x=x, y=y, pen=pg.mkPen(color=[255, 30 , 180], width=3))
         self.pi.setAutoVisible(x=True, y=True)
         self.pi.enableAutoRange('x', False)
@@ -79,24 +84,10 @@ class Window(QtWid.QWidget):
         self.qpbt_info.clicked.connect(lambda: print(getOpenglInfo()))
         
         main_layout = QtWid.QHBoxLayout()
-        #main_layout.addWidget(self.glWidget)
-        main_layout.addWidget(self.gw)
+        #main_layout.addWidget(self.gw)
+        main_layout.addWidget(self.pi)
         main_layout.addWidget(self.qpbt_info)
         self.setLayout(main_layout)
-
-class GLWidget(QtWid.QOpenGLWidget):
-    def __init__(self, parent=None):
-        super(GLWidget, self).__init__(parent)
-    
-    def initializeGL(self):
-        print(getOpenglInfo())
-        gl.glEnable(gl.GL_STENCIL_TEST)
-        
-    def minimumSizeHint(self):
-        return QSize(50, 50)
-
-    def sizeHint(self):
-        return QSize(400, 400)
 
 if __name__ == '__main__':
     print("PID: %s\n" % os.getpid())
