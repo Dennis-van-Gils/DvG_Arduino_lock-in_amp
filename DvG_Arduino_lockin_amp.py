@@ -385,10 +385,10 @@ if __name__ == '__main__':
     print("PID: %s\n" % os.getpid())
     try:
         proc = psutil.Process(os.getpid())
-        if os.name == "nt": proc.nice(psutil.REALTIME_PRIORITY_CLASS) # Windows
-        else: proc.nice(-20)                                          # Other
+        if os.name == "nt": proc.nice(psutil.HIGH_PRIORITY_CLASS) # Windows
+        else: proc.nice(-20)                                      # Other
     except:
-        print("Warning: Could not set process to maximum priority.\n")
+        print("Warning: Could not set process to high priority.\n")
 
     # --------------------------------------------------------------------------
     #   Arduino
