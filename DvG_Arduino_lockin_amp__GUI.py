@@ -1317,9 +1317,7 @@ class MainWindow(QtWid.QWidget):
         
         if self.prev_time_CPU_load.msecsTo(cur_date_time) > 1000:
             cpu_syst = psutil.cpu_percent(interval=None)
-            cpu_proc = self.proc.cpu_percent(interval=None)
-            if os.name == 'nt': cpu_proc /= self.cpu_count
-            
+            cpu_proc = self.proc.cpu_percent(interval=None) / self.cpu_count
             self.qlbl_CPU_syst.setText("CPU system : %.1f%%" % cpu_syst)
             self.qlbl_CPU_proc.setText("CPU process: %.1f%%" % cpu_proc)
             self.prev_time_CPU_load = cur_date_time
