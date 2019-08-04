@@ -32,6 +32,19 @@ Download and install, e.g.: Anaconda3-2019.07-Windows-x86_64
 **
 *******************************************************
 
+(((( Alternative environment 'lia', without Intel MKL: 
+> conda create -n lia -c anaconda python=3.7 numpy scipy numba pyqt cython matplotlib ipython pyserial pathlib2 psutil pyqtgraph
+> conda activate lia
+> conda install spyder
+> pip install pyfftw
+> pip install PyOpenGL-3.1.3b2-cp37-cp37m-win_amd64.whl
+> pip install PyOpenGL_accelerate-3.1.3b2-cp37-cp37m-win_amd64.whl
+
+> conda install cudatoolkit
+> pip install cupy-cuda101
+> pip install sigpy
+))))
+
 In Anaconda Prompt:
 > conda update -n base conda
 > conda config --add channels intel
