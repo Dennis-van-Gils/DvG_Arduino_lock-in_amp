@@ -299,6 +299,8 @@ class MainWindow(QtWid.QWidget):
         self.lockin_pyqt = lockin_pyqt
         self.file_logger = file_logger
         
+        self.proc = psutil.Process(os.getpid())
+        self.cpu_count = psutil.cpu_count()
         self.prev_time_CPU_load = QDateTime.currentDateTime();
         self.boost_fps_graphing = False
         
@@ -331,18 +333,20 @@ class MainWindow(QtWid.QWidget):
 
         # Left box
         self.qlbl_update_counter = QtWid.QLabel("0")
-        self.qlbl_sample_rate = QtWid.QLabel("SAMPLE RATE: %.2f Hz" %
+        self.qlbl_sample_rate = QtWid.QLabel("Sample rate: %.2f Hz" %
                                              (1/lockin.config.ISR_CLOCK))
         #self.qlbl_buffer_size = QtWid.QLabel("BUFFER SIZE  : %i" %
         #                                     lockin.config.BUFFER_SIZE)
-        self.qlbl_CPU_load = QtWid.QLabel("CPU: nan%%")
+        self.qlbl_CPU_syst = QtWid.QLabel("CPU system : nan%")
+        self.qlbl_CPU_proc = QtWid.QLabel("CPU process: nan%")
         self.qlbl_DAQ_rate = QtWid.QLabel("Buffers/s: nan")
         self.qlbl_DAQ_rate.setMinimumWidth(100)
 
         vbox_left = QtWid.QVBoxLayout()
         vbox_left.addWidget(self.qlbl_sample_rate)
-        vbox_left.addWidget(self.qlbl_CPU_load)
-        vbox_left.addStretch(1)
+        vbox_left.addWidget(self.qlbl_CPU_syst)
+        vbox_left.addWidget(self.qlbl_CPU_proc)
+        #vbox_left.addStretch(1)
         vbox_left.addWidget(self.qlbl_DAQ_rate)
         vbox_left.addWidget(self.qlbl_update_counter)
 
@@ -1312,8 +1316,12 @@ class MainWindow(QtWid.QWidget):
                                          cur_date_time.toString("HH:mm:ss")))
         
         if self.prev_time_CPU_load.msecsTo(cur_date_time) > 1000:
-            self.qlbl_CPU_load.setText("CPU: %.1f%%" %
-                                       psutil.cpu_percent(interval=None))
+            cpu_syst = psutil.cpu_percent(interval=None)
+            cpu_proc = self.proc.cpu_percent(interval=None)
+            if os.name == 'nt': cpu_proc /= self.cpu_count
+            
+            self.qlbl_CPU_syst.setText("CPU system : %.1f%%" % cpu_syst)
+            self.qlbl_CPU_proc.setText("CPU process: %.1f%%" % cpu_proc)
             self.prev_time_CPU_load = cur_date_time
     
     @QtCore.pyqtSlot()
