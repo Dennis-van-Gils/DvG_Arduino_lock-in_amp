@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "02-08-2019"
+__date__        = "04-08-2019"
 __version__     = "1.0.0"
 
 import os
@@ -111,11 +111,11 @@ def lockin_DAQ_update():
         return False
     
     if not(window.boost_fps_graphing):
-        # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
+        # Prevent possible concurrent pyqtgraph.PlotWidget() redraws and GUI
         # events when doing heavy calculations to unburden the CPU and prevent
         # dropped buffers. Dropped graphing frames are prefereable to dropped
         # data buffers.
-        for gw in window.gws_all:
+        for gw in window.all_charts:
             gw.setUpdatesEnabled(False)
     
     # Listen for data buffers send by the lock-in
@@ -130,11 +130,11 @@ def lockin_DAQ_update():
         return False
     
     if window.boost_fps_graphing:
-        # Prevent possible concurrent pyqtgraph.GraphicsWindow() redraws and GUI
+        # Prevent possible concurrent pyqtgraph.PlotWidget() redraws and GUI
         # events when doing heavy calculations to unburden the CPU and prevent
         # dropped buffers. Dropped graphing frames are prefereable to dropped
         # data buffers.
-        for gw in window.gws_all:
+        for gw in window.all_charts:
             gw.setUpdatesEnabled(False)
     
     # HACK: hard-coded calibration correction on the ADC
@@ -284,30 +284,35 @@ def lockin_DAQ_update():
     # Power spectra
     # -------------
 
-    if window.legend_box_PS.chkbs[0].isChecked() and state.deque_sig_I.is_full:
+    if (window.legend_box_PS.chkbs[0].isChecked() and
+        state.deque_sig_I.is_full):
         window.BP_PS_1.set_data(
-                fftw_PS_sig_I.freqs,
-                fftw_PS_sig_I.process_dB(state.deque_sig_I))
+                lockin_pyqt.fftw_PS_sig_I.freqs,
+                lockin_pyqt.fftw_PS_sig_I.process_dB(state.deque_sig_I))
             
-    if window.legend_box_PS.chkbs[1].isChecked() and state.deque_filt_I.is_full:
+    if (window.legend_box_PS.chkbs[1].isChecked() and
+        state.deque_filt_I.is_full):
         window.BP_PS_2.set_data(
-                fftw_PS_filt_I.freqs,
-                fftw_PS_filt_I.process_dB(state.deque_filt_I))
+                lockin_pyqt.fftw_PS_filt_I.freqs,
+                lockin_pyqt.fftw_PS_filt_I.process_dB(state.deque_filt_I))
         
-    if window.legend_box_PS.chkbs[2].isChecked() and state.deque_mix_X.is_full:
+    if (window.legend_box_PS.chkbs[2].isChecked() and
+        state.deque_mix_X.is_full):
         window.BP_PS_3.set_data(
-                fftw_PS_mix_X.freqs,
-                fftw_PS_mix_X.process_dB(state.deque_mix_X))
+                lockin_pyqt.fftw_PS_mix_X.freqs,
+                lockin_pyqt.fftw_PS_mix_X.process_dB(state.deque_mix_X))
         
-    if window.legend_box_PS.chkbs[3].isChecked() and state.deque_mix_Y.is_full:
+    if (window.legend_box_PS.chkbs[3].isChecked() and
+        state.deque_mix_Y.is_full):
         window.BP_PS_4.set_data(
-                fftw_PS_mix_Y.freqs,
-                fftw_PS_mix_Y.process_dB(state.deque_mix_Y))
+                lockin_pyqt.fftw_PS_mix_Y.freqs,
+                lockin_pyqt.fftw_PS_mix_Y.process_dB(state.deque_mix_Y))
         
-    if window.legend_box_PS.chkbs[4].isChecked() and state.deque_R.is_full:
+    if (window.legend_box_PS.chkbs[4].isChecked() and
+        state.deque_R.is_full):
         window.BP_PS_5.set_data(
-                fftw_PS_R.freqs, 
-                fftw_PS_R.process_dB(state.deque_R))
+                lockin_pyqt.fftw_PS_R.freqs, 
+                lockin_pyqt.fftw_PS_R.process_dB(state.deque_R))
 
     
     # Logging to file
@@ -365,8 +370,8 @@ def lockin_DAQ_update():
             #file_logger.write("%i\t%.4f\t%.4f\t%.4f\n" % 
             #                  (time[i], ref_X[i], ref_Y[i], sig_I[i]))
     
-    # Re-enable pyqtgraph.GraphicsWindow() redraws and GUI events
-    for gw in window.gws_all:
+    # Re-enable pyqtgraph.PlotWidget() redraws and GUI events
+    for gw in window.all_charts:
         gw.setUpdatesEnabled(True)
     
     return True
@@ -428,16 +433,16 @@ if __name__ == '__main__':
                                    file_logger=file_logger)
 
     # --------------------------------------------------------------------------
-    #   Create power spectrum FFTW plans
+    #   Create power spectrum FFTW objects as members of lockin_pyqt
     # --------------------------------------------------------------------------
 
     p = {'len_data': lockin_pyqt.state.N_deque, 'fs': lockin.config.Fs,
          'nperseg': lockin.config.Fs}
-    fftw_PS_sig_I  = FFTW_WelchPowerSpectrum(**p)
-    fftw_PS_filt_I = FFTW_WelchPowerSpectrum(**p)
-    fftw_PS_mix_X  = FFTW_WelchPowerSpectrum(**p)
-    fftw_PS_mix_Y  = FFTW_WelchPowerSpectrum(**p)
-    fftw_PS_R      = FFTW_WelchPowerSpectrum(**p)
+    lockin_pyqt.fftw_PS_sig_I  = FFTW_WelchPowerSpectrum(**p)
+    lockin_pyqt.fftw_PS_filt_I = FFTW_WelchPowerSpectrum(**p)
+    lockin_pyqt.fftw_PS_mix_X  = FFTW_WelchPowerSpectrum(**p)
+    lockin_pyqt.fftw_PS_mix_Y  = FFTW_WelchPowerSpectrum(**p)
+    lockin_pyqt.fftw_PS_R      = FFTW_WelchPowerSpectrum(**p)
 
     # --------------------------------------------------------------------------
     #   Start threads
