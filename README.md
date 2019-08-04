@@ -3,6 +3,9 @@ A lock-in amplifier running on a SAMD21 (Arduino M0) or SAMD51 (Adafruit M4 Metr
 
 The Arduino microcontroller board generates the reference signal REF_X and subsequently acquires the input signal SIG_I. This data is sent over USB to a PC running the main graphical user interface in Python. The Python program shows the waveform graphs of the signals in real-time, performs the heterodyne mixing and filtering of the signals similar to a lock-in amplifier, and provides logging to disk.
 
+![Screenshot](screenshots/tab_1.PNG)
+See [here](screenshots/) for more screenshots.
+
 Current specs Arduino:
 - Support for SAMD21 or SAMD51 chipsets
 - True analog-out waveform generator (REF_X between 0 to 3.3 V)
@@ -15,6 +18,7 @@ Current specs Python:
 - Zero-phase distortion FIR filters
 - Automatic detection of the Arduino by scanning over all COM ports
 - OpenGL hardware-accelerated graphing
+- Tested under Windows 10 and Ubuntu 18.04.2 (Linux)
 
 ### Prerequisites
 Python 3.7\
