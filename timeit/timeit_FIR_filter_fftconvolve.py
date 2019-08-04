@@ -18,7 +18,7 @@ parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir) 
 from DvG_FFTW_ConvolveValid1D import FFTW_ConvolveValid1D
 
-TEST_CUDA = False
+TEST_CUDA = True
 if TEST_CUDA:
     from numba import cuda
     import cupy
