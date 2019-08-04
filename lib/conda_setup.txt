@@ -7,19 +7,10 @@
 *******************************************************
 
 Using Anaconda Python Distribution
-But don't install yet! First install Intel MKL
 
 *******************************************************
 **
-**  1: Install 'Intel Math Kernel Library'
-**
-*******************************************************
-
-Download and install, e.g.: w_mkl_2019.4.245.exe
-
-*******************************************************
-**
-**  2: Install Anaconda3
+**  1: Install Anaconda3
 **
 *******************************************************
 
@@ -27,40 +18,23 @@ Download and install, e.g.: Anaconda3-2019.07-Windows-x86_64
 
 *******************************************************
 **
-**  3) Create a new environment in conda called 'idp',
-**     standing for Intel Distribution for Python
+**  2) Create a new environment in conda called 'lia',
+**     standing for Lock-in amplifier
 **
 *******************************************************
 
-(((( Alternative environment 'lia', without Intel MKL: 
+In Anaconda Prompt:
 > conda create -n lia -c anaconda python=3.7 numpy scipy numba pyqt cython matplotlib ipython pyserial pathlib2 psutil pyqtgraph
 > conda activate lia
 > conda install spyder
+> conda install h5py
 > pip install pyfftw
-> pip install PyOpenGL-3.1.3b2-cp37-cp37m-win_amd64.whl
-> pip install PyOpenGL_accelerate-3.1.3b2-cp37-cp37m-win_amd64.whl
-
-> conda install cudatoolkit
-> pip install cupy-cuda101
-> pip install sigpy
-))))
-
-In Anaconda Prompt:
-> conda update -n base conda
-> conda config --add channels intel
-> conda config --add channels intel
-> conda create -n idp intelpython3_core python=3.6
-> activate idp
-
-> conda install cython matplotlib ipython spyder
-> conda install pyserial pathlib2 psutil pyqtgraph
-> pip install pyfftw    # Do not use 'conda install -forge pyfftw'. It will
-                        # exchange many packages to use forge instead of
-                        # intel as source base
  
+(
 Troubleshooting PyQt5 import fails:
 See folder /lib/Python3.6.8_AMD64_Qt5_dlls
 Copy python3.dll and python36.dll to %USERPROFILE%\Anaconda3\envs\idp\Scripts
+)
 
 Troubleshooting Spyder can't start kernel:
 spyder --reset
@@ -72,8 +46,8 @@ spyder --reset
 *******************************************************
 
 Install unofficial but more up-to-date OpenGL libraries:
-> pip install PyOpenGL-3.1.3b2-cp36-cp36m-win_amd64.whl
-> pip install PyOpenGL_accelerate-3.1.3b2-cp36-cp36m-win_amd64.whl
+> pip install PyOpenGL-3.1.3b2-cp37-cp37m-win_amd64.whl
+> pip install PyOpenGL_accelerate-3.1.3b2-cp37-cp37m-win_amd64.whl
 
 *******************************************************
 **
@@ -83,17 +57,17 @@ Install unofficial but more up-to-date OpenGL libraries:
 
 a) Install Visual C++ 2015 Build Tools: visualcppbuildtools_full.exe
 b) Install CUDA Toolkit 10.1
-c) conda install numba cudatoolkit
+c) > conda install cudatoolkit
 [DO NOT] conda install numba pyculib          (NOTE: DEPRECATED. Will downgrade to Python 3.6 and break pyqt5. Use CuPy instead)
-d) pip install cupy-cuda101
-e) pip install sigpy
+d) > pip install cupy-cuda101
+e) > pip install sigpy
 
+(
 Environmental variables Windows:
 NUMBAPRO_NVVM = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\nvvm\bin\nvvm64_33_0.dll
 NUMBAPRO_LIBDEVICE = C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v10.1\nvvm\libdevice
+)
 
-6) Install HDF5 for Python
-pip install h5py   (Use pip to get the latest 2.9.0. If you use 'conda install' it will install 2.8.0 because of the 'intel' channel)
 
 
 *******************************************************
@@ -105,29 +79,10 @@ pip install h5py   (Use pip to get the latest 2.9.0. If you use 'conda install' 
 *******************************************************
 
 Using Anaconda Python Distribution
-But don't install yet! First install Intel MKL
 
 *******************************************************
 **
-**  0: g++ compiler for C++, plus other useful stuff
-**
-*******************************************************
-
-$ sudo apt install build-essential
-
-*******************************************************
-**
-**  1: Install 'Intel Math Kernel Library'
-**
-*******************************************************
-
-Requirements: g++, see above
-Download and unzip, e.g.: l_mkl_2019.3.199.tgz
-$ sudo ./install.sh
-
-*******************************************************
-**
-**  2: Install Anaconda3
+**  1: Install Anaconda3
 **
 *******************************************************
 
@@ -135,38 +90,24 @@ $ bash Anaconda3-2019.07-Linux-x86_64
 
 *******************************************************
 **
-**  3) Create a new environment in conda called 'idp',
-**     standing for Intel Distribution for Python
+**  2) Create a new environment in conda called 'lia',
+**     standing for Lock-in amplifier
 **
 *******************************************************
 
-In Anaconda Prompt:
-$ conda config --add channels intel
-$ conda config --add channels intel
-$ conda create -n idp intelpython3_core python=3
-$ source activate idp
-
-$ conda install cython
-$ conda install matplotlib
-$ conda install ipython
-$ conda install spyder  # Will install PyQt5 correctly, prerequisite for pyqtgraph
-$ conda install pyserial pathlib2 psutil
-$ conda install pyqtgraph
-$ pip install pyfftw    # Do not use 'conda install -forge pyfftw'. It will
-                        # exchange many packages to use forge instead of
-  	          # intel as source base
-
+$ conda create -n lia -c anaconda python=3.7 numpy scipy numba pyqt cython matplotlib ipython pyserial pathlib2 psutil pyqtgraph
+$ source activate lia
+$ conda install spyder
+$ conda install h5py
+$ pip install pyfftw
 
 *******************************************************
 **
-**  4: PyOpenGL
+**  3: PyOpenGL
 **
 *******************************************************
 
-NOTE: pyqtgraph has issues when using PyOpenGL under
-Ubuntu
-
-$ pip install PyOpenGL PyOpenGL_accelerate
+$ pip install PyOpenGL  # PyOpenGL_accelerate fails to install. We don't need it.
 
 *******************************************************
 **
@@ -183,7 +124,7 @@ $ sudo gpasswd --add ${USER} dialout
 
 *******************************************************
 **
-**  5: CUDA acceleration
+**  4: CUDA acceleration
 **
 *******************************************************
 
@@ -250,8 +191,32 @@ $ ./bandwidthTest
 
 8)
 CUDA acceleration in numba Python
-$ conda install numba cudatoolkit
+$ conda install cudatoolkit
 [DO NOT] conda install numba pyculib          (NOTE: DEPRECATED. Will downgrade to Python 3.6 and break pyqt5. Use CuPy instead)
 $ pip install cupy-cuda101
 $ pip install sigpy
 
+
+
+
+
+
+
+
+*******************************************************
+**
+**  0: g++ compiler for C++, plus other useful stuff
+**
+*******************************************************
+
+$ sudo apt install build-essential
+
+*******************************************************
+**
+**  1: Install 'Intel Math Kernel Library'
+**
+*******************************************************
+
+Requirements: g++, see above
+Download and unzip, e.g.: l_mkl_2019.3.199.tgz
+$ sudo ./install.sh
