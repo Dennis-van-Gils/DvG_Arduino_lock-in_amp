@@ -116,15 +116,14 @@ SS_TABS = (
             "border-bottom-color: " + COLOR_TAB + ";"
             "border-top-left-radius: 4px;"
             "border-top-right-radius: 4px;"
-            "min-width: 39ex;"
+            "min-width: 119px;"
             "padding: 6px;} "
         "QTabBar::tab:hover {"
             "background: " + COLOR_HOVER + ";"
             "border: 2px solid " + COLOR_HOVER_BORDER + ";"
             "border-bottom-color: " + COLOR_HOVER + ";"
             "border-top-left-radius: 4px;"
-            "border-top-right-radius: 4px;"
-            "min-width: 42ex;"
+            "border-top-right-radius: 4px;"            
             "padding: 6px;} "
         "QTabWidget::tab-bar {"
             "left: 0px;}")
@@ -237,29 +236,29 @@ def apply_PlotItem_style(pi,
                          lbl_title ='',
                          lbl_bottom='',
                          lbl_left='',
-                         lbl_top='',
                          lbl_right=''):
+    # Note: We are not using 'title' but use label 'top' instead
     
     fg = pg.getConfigOption('foreground')
-    fg_hex = "#%02X%02X%02X" % (fg[0], fg[1], fg[2])
+    fg = "#%02X%02X%02X" % (fg[0], fg[1], fg[2])
 
-    p_title = {'color': fg_hex, 'size': '12pt'}
-    p_label = {'color': fg_hex, 'font-size': '11pt'}
-    pi.setTitle(lbl_title, **p_title)
+    p_title = {'color': fg, 'font-size': '12pt', 'font-family': 'Helvetica',
+               'font-weight': 'bold'}
+    p_label = {'color': fg, 'font-size': '12pt', 'font-family': 'Helvetica'}
     pi.setLabel('bottom', lbl_bottom, **p_label)
     pi.setLabel('left'  , lbl_left  , **p_label)
-    pi.setLabel('top'   , lbl_top   , **p_label)
+    pi.setLabel('top'   , lbl_title , **p_title)
     pi.setLabel('right' , lbl_right , **p_label)
     
     try:
         pi.getAxis("bottom").nudge -= 8
         pi.getAxis("left").nudge -= 4
+        pi.getAxis("top").nudge -= 6
     except:
         pass
     
     pi.showGrid(x=1, y=1)
     
-    #font = FONT_MONOSPACE
     font = QtGui.QFont()
     font.setPixelSize(16)
     pi.getAxis('bottom').tickFont = font
@@ -272,6 +271,7 @@ def apply_PlotItem_style(pi,
 
     pi.getAxis('bottom').setHeight(60)
     pi.getAxis('left')  .setWidth(90)
+    pi.getAxis('top')   .setHeight(40)
     pi.getAxis('right') .setWidth(16)
     
     pi.getAxis('top')  .setStyle(showValues=False) 
@@ -307,12 +307,6 @@ class MainWindow(QtWid.QWidget):
         self.setStyleSheet(SS_TEXTBOX_READ_ONLY + SS_GROUP + SS_HOVER + 
                            SS_TABS)
         
-        """ # Experimental
-        with open('darkorange.stylesheet', 'r') as file:
-            style = file.read()
-        self.setStyleSheet(style)
-        """
-        
         # Define styles for plotting curves
         self.PEN_01 = pg.mkPen(color=[255, 30 , 180], width=3)
         self.PEN_02 = pg.mkPen(color=[255, 255, 90 ], width=3)
@@ -324,18 +318,9 @@ class MainWindow(QtWid.QWidget):
         # Column width left of timeseries graphs
         LEFT_COLUMN_WIDTH = 134
         
-        # Textbox widths for fitting N 'x' characters using the current font
-        e = QtGui.QLineEdit()
-        ex8  = (8 + 8 * e.fontMetrics().width('x') + 
-                e.textMargins().left()     + e.textMargins().right() + 
-                e.contentsMargins().left() + e.contentsMargins().right())
-        ex10 = (8 + 10 * e.fontMetrics().width('x') + 
-                e.textMargins().left()     + e.textMargins().right() + 
-                e.contentsMargins().left() + e.contentsMargins().right())
-        ex12 = (8 + 12 * e.fontMetrics().width('x') + 
-                e.textMargins().left()     + e.textMargins().right() + 
-                e.contentsMargins().left() + e.contentsMargins().right())
-        del e
+        # Textbox widths for fitting N characters using the current font
+        ex8  = 8 + 8  * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
+        ex12 = 8 + 12 * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
 
         def Header(): pass # Spider IDE outline bookmark
         # -----------------------------------
@@ -566,8 +551,8 @@ class MainWindow(QtWid.QWidget):
                            "right" : CustomAxis(orientation="right")})
         self.pi_refsig = self.pw_refsig.getPlotItem()
         apply_PlotItem_style(self.pi_refsig, 'Readings',
-                                             'time [ms]',
-                                             'voltage [V]')
+                                             'time (ms)',
+                                             'voltage (V)')
         
         self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
                                  lockin.config.ISR_CLOCK * 1e3,
@@ -648,8 +633,8 @@ class MainWindow(QtWid.QWidget):
                            "right" : CustomAxis(orientation="right")})
         self.pi_XR = self.pw_XR.getPlotItem()
         apply_PlotItem_style(self.pi_XR, 'R',
-                                         'time [ms]',
-                                         'voltage [V]')
+                                         'time (ms)',
+                                         'voltage (V)')
         
         self.pw_YT = pg.PlotWidget(
                 axisItems={"bottom": CustomAxis(orientation="bottom"),
@@ -658,8 +643,8 @@ class MainWindow(QtWid.QWidget):
                            "right" : CustomAxis(orientation="right")})
         self.pi_YT = self.pw_YT.getPlotItem()
         apply_PlotItem_style(self.pi_YT, '\u0398',
-                                         'time [ms]',
-                                         'phase [deg]')
+                                         'time (ms)',
+                                         'phase (deg)')
 
         self.pi_XR.setXRange(-lockin.config.BUFFER_SIZE *
                              lockin.config.ISR_CLOCK * 1e3,
@@ -793,8 +778,8 @@ class MainWindow(QtWid.QWidget):
                            "right" : CustomAxis(orientation="right")})
         self.pi_filt_1 = self.pw_filt_1.getPlotItem()
         apply_PlotItem_style(self.pi_filt_1, 'Filter @ sig_I',
-                                             'time [ms]',
-                                             'voltage [V]')
+                                             'time (ms)',
+                                             'voltage (V)')
         
         self.pi_filt_1.setXRange(-lockin.config.BUFFER_SIZE *
                                     lockin.config.ISR_CLOCK * 1e3,
@@ -840,8 +825,8 @@ class MainWindow(QtWid.QWidget):
                            "right" : CustomAxis(orientation="right")})
         self.pi_mixer = self.pw_mixer.getPlotItem()
         apply_PlotItem_style(self.pi_mixer, 'Mixer',
-                                            'time [ms]',
-                                            'voltage [V]')
+                                            'time (ms)',
+                                            'voltage (V)')
         
         self.pi_mixer.setXRange(-lockin.config.BUFFER_SIZE *
                                 lockin.config.ISR_CLOCK * 1e3,
@@ -905,8 +890,8 @@ class MainWindow(QtWid.QWidget):
                            "right" : CustomAxis(orientation="right")})
         self.pi_PS = self.pw_PS.getPlotItem()
         apply_PlotItem_style(self.pi_PS, 'Power spectrum (Welch)',
-                                         'frequency [Hz]',
-                                         'power [dBV]')
+                                         'frequency (Hz)',
+                                         'power (dBV)')
         
         self.pi_PS.setAutoVisible(x=True, y=True)
         self.pi_PS.setXRange(0, self.lockin.config.F_Nyquist, padding=0.02)
@@ -1011,9 +996,9 @@ class MainWindow(QtWid.QWidget):
                            "top"   : CustomAxis(orientation="top"),
                            "right" : CustomAxis(orientation="right")})
         self.pi_filt_1_resp = self.pw_filt_1_resp.getPlotItem()
-        apply_PlotItem_style(self.pi_filt_1_resp, 'Filter response',
-                                                  'frequency [Hz]',
-                                                  'amplitude attenuation [dB]')
+        apply_PlotItem_style(self.pi_filt_1_resp, 'Filter response @ sig_I',
+                                                  'frequency (Hz)',
+                                                  'amplitude attenuation (dB)')
         
         self.pi_filt_1_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_1_resp.enableAutoRange('x', False)
@@ -1106,9 +1091,9 @@ class MainWindow(QtWid.QWidget):
                            "top"   : CustomAxis(orientation="top"),
                            "right" : CustomAxis(orientation="right")})
         self.pi_filt_2_resp = self.pw_filt_2_resp.getPlotItem()
-        apply_PlotItem_style(self.pi_filt_2_resp, 'Filter response',
-                                                  'frequency [Hz]',
-                                                  'amplitude attenuation [dB]')
+        apply_PlotItem_style(self.pi_filt_2_resp, 'Filter response @ mix_X/Y',
+                                                  'frequency (Hz)',
+                                                  'amplitude attenuation (dB)')
 
         self.pi_filt_2_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_2_resp.enableAutoRange('x', False)
@@ -1267,7 +1252,7 @@ class MainWindow(QtWid.QWidget):
         hbox.addLayout(vbox_sidebar, stretch=0)
         
         vbox.addItem(QtWid.QSpacerItem(0, 10))
-        vbox.addLayout(hbox)
+        vbox.addLayout(hbox, stretch=1)
         
         # List of all pyqtgraph PlotWidgets containing charts and plots
         self.all_charts = [self.pw_refsig,
@@ -1598,10 +1583,10 @@ class MainWindow(QtWid.QWidget):
     def process_qrbt_XR(self):        
         if self.qrbt_XR_X.isChecked():
             self.CH_LIA_XR.curve.setPen(self.PEN_01)
-            self.pi_XR.setTitle('X')
+            self.pi_XR.setLabel('top', 'X')
         else:
             self.CH_LIA_XR.curve.setPen(self.PEN_03)
-            self.pi_XR.setTitle('R')
+            self.pi_XR.setLabel('top', 'R')
             
         if self.lockin_pyqt.worker_DAQ.suspended:
             # The graphs are not being updated with the newly chosen timeseries
@@ -1628,12 +1613,12 @@ class MainWindow(QtWid.QWidget):
     def process_qrbt_YT(self):
         if self.qrbt_YT_Y.isChecked():
             self.CH_LIA_YT.curve.setPen(self.PEN_02)
-            self.pi_YT.setTitle('Y')
-            self.pi_YT.setLabel('left', text='voltage [V]')
+            self.pi_YT.setLabel('top', 'Y')
+            self.pi_YT.setLabel('left', text='voltage (V)')
         else:
             self.CH_LIA_YT.curve.setPen(self.PEN_03)
-            self.pi_YT.setTitle('%s' % chr(0x398))
-            self.pi_YT.setLabel('left', text='phase [deg]')
+            self.pi_YT.setLabel('top', '%s' % chr(0x398))
+            self.pi_YT.setLabel('left', text='phase (deg)')
             
         if self.lockin_pyqt.worker_DAQ.suspended:
             # The graphs are not being updated with the newly chosen timeseries
