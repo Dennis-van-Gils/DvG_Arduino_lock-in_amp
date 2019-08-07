@@ -26,7 +26,7 @@ Preferred distribution: Anaconda full
 - [PyQt5](https://www.riverbankcomputing.com/software/pyqt/intro) (comes with Anaconda)
 - [NumPy](http://www.numpy.org/) (comes with Anaconda)
 - [SciPy](http://www.scipy.org/) (comes with Anaconda)
-- [Numba](http://numba.pydata.org/)
+- [Numba](http://numba.pydata.org/) (comes with Anaconda)
 - [pyqtgraph](http://www.pyqtgraph.org/documentation/)
 - [pyserial](https://pythonhosted.org/pyserial/)
 - [PyOpenGL](http://pyopengl.sourceforge.net/)
@@ -35,7 +35,11 @@ Preferred distribution: Anaconda full
 In Anaconda Prompt:
 ```
 conda install -c anaconda pyserial pyqtgraph pathlib2 psutil pyopengl
+pip install pyfftw
 ```
+
+Precompiled firmware for an Adafruit M4 Feather Express is available at ![CURRENT.UF2](source_MCU_boards/pre-compiled_M4_feather/CURRENT.UF2).
+You can copy over this firmware to the M4 board by using the FEATHERBOOT mount drive.
 
 ### Pin-out
 ```
