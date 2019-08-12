@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "04-08-2019"
+__date__        = "12-08-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -1339,7 +1339,7 @@ class MainWindow(QtWid.QWidget):
             self.qlbl_DAQ_rate.setText("Buffers/s: %.1f" % 
                                        LIA_pyqt.obtained_DAQ_rate_Hz)
         
-        self.qlin_time.setText("%i" % LIA_pyqt.state.time[0])
+        self.qlin_time.setText("%.0f" % LIA_pyqt.state.time[0])  # NOTE: time[0] can be np.nan, so leave the format as a float!
         self.qlin_sig_I_max.setText("%.4f" % LIA_pyqt.state.sig_I_max)
         self.qlin_sig_I_min.setText("%.4f" % LIA_pyqt.state.sig_I_min)
         self.qlin_sig_I_avg.setText("%.4f" % LIA_pyqt.state.sig_I_avg)
@@ -1349,13 +1349,13 @@ class MainWindow(QtWid.QWidget):
         self.qlin_R_avg.setText("%.4f" % np.mean(LIA_pyqt.state.R))
         self.qlin_T_avg.setText("%.3f" % np.mean(LIA_pyqt.state.T))
         
-        if LIA_pyqt.firf_1_sig_I.deque_has_settled:
+        if LIA_pyqt.firf_1_sig_I.has_deque_settled:
             self.LED_filt_1_deque_settled.setChecked(True)
             self.LED_filt_1_deque_settled.setText("YES")
         else:
             self.LED_filt_1_deque_settled.setChecked(False)
             self.LED_filt_1_deque_settled.setText("NO")
-        if LIA_pyqt.firf_2_mix_X.deque_has_settled:
+        if LIA_pyqt.firf_2_mix_X.has_deque_settled:
             self.LED_filt_2_deque_settled.setChecked(True)
             self.LED_filt_2_deque_settled.setText("YES")
         else:
