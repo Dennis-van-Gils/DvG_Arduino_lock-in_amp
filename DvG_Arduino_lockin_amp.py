@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "04-08-2019"
+__date__        = "12-08-2019"
 __version__     = "1.0.0"
 
 import os
@@ -145,27 +145,25 @@ def lockin_DAQ_update():
     
     # Detect dropped samples / buffers
     lockin_pyqt.state.buffers_received += 1
-    """
+
     prev_last_deque_time = (state.deque_time[-1] if state.buffers_received > 1
                             else np.nan)
     dT = (state.time[0] - prev_last_deque_time) / 1e6 # Transform [usec] to [sec]
     if dT > (c.ISR_CLOCK)*1.10: # Allow a few percent clock jitter
         N_dropped_samples = int(round(dT / c.ISR_CLOCK) - 1)
-        print("Dropped samples: idx %i, %i" %
-              (state.buffers_received, N_dropped_samples))
+        dprint("Dropped samples: %i" % N_dropped_samples)
+        dprint("@ %s %s" % current_date_time_strings())
         
         # Replace dropped samples with np.nan samples.
         # As a result, the filter output will contain a continuous series of
         # np.nan values in the output for up to DvG_Buffered_FIR_Filter.
         # Buffered_FIR_Filter().T_settle_deque seconds long after the occurrence
         # of the last dropped sample.
-        state.deque_time.extend(prev_last_deque_time +
-                                np.arange(1, N_dropped_samples + 1) *
-                                c.ISR_CLOCK)
+        state.deque_time .extend(prev_last_deque_time + 
+                np.arange(1, N_dropped_samples + 1) * c.ISR_CLOCK * 1e6)
         state.deque_ref_X.extend(np.full(N_dropped_samples, np.nan))
         state.deque_ref_Y.extend(np.full(N_dropped_samples, np.nan))
         state.deque_sig_I.extend(np.full(N_dropped_samples, np.nan))
-    """
     
     
     # Stage 0
@@ -194,7 +192,7 @@ def lockin_DAQ_update():
     # Apply filter 1 to sig_I
     state.filt_I = lockin_pyqt.firf_1_sig_I.process(state.deque_sig_I)
     
-    if lockin_pyqt.firf_1_sig_I.deque_has_settled:
+    if lockin_pyqt.firf_1_sig_I.has_deque_settled:
         # Retrieve the block of original data from the past that aligns with
         # the current filter output
         valid_slice = slice(lockin_pyqt.firf_1_sig_I.win_idx_valid_start,
@@ -213,16 +211,21 @@ def lockin_DAQ_update():
         np.subtract(old_ref_Y, c.ref_V_offset, out=old_ref_Y)
         np.multiply(old_ref_X, state.filt_I, out=state.mix_X)
         np.multiply(old_ref_Y, state.filt_I, out=state.mix_Y)
+    else:
+        state.time_1 = np.full(c.BUFFER_SIZE, np.nan)
+        old_sig_I    = np.full(c.BUFFER_SIZE, np.nan)
+        state.mix_X  = np.full(c.BUFFER_SIZE, np.nan)
+        state.mix_Y  = np.full(c.BUFFER_SIZE, np.nan)
         
-        state.deque_time_1.extend(state.time_1)
-        state.deque_filt_I.extend(state.filt_I)
-        state.deque_mix_X .extend(state.mix_X)
-        state.deque_mix_Y .extend(state.mix_Y)
-        
-        window.CH_filt_1_in .add_new_readings(state.time_1, old_sig_I)
-        window.CH_filt_1_out.add_new_readings(state.time_1, state.filt_I)
-        window.CH_mix_X     .add_new_readings(state.time_1, state.mix_X)
-        window.CH_mix_Y     .add_new_readings(state.time_1, state.mix_Y)
+    state.deque_time_1.extend(state.time_1)
+    state.deque_filt_I.extend(state.filt_I)
+    state.deque_mix_X .extend(state.mix_X)
+    state.deque_mix_Y .extend(state.mix_Y)
+    
+    window.CH_filt_1_in .add_new_readings(state.time_1, old_sig_I)
+    window.CH_filt_1_out.add_new_readings(state.time_1, state.filt_I)
+    window.CH_mix_X     .add_new_readings(state.time_1, state.mix_X)
+    window.CH_mix_Y     .add_new_readings(state.time_1, state.mix_Y)
     
     
     # Stage 2
@@ -233,7 +236,7 @@ def lockin_DAQ_update():
     state.X = lockin_pyqt.firf_2_mix_X.process(state.deque_mix_X)
     state.Y = lockin_pyqt.firf_2_mix_Y.process(state.deque_mix_Y)
     
-    if lockin_pyqt.firf_2_mix_X.deque_has_settled:            
+    if lockin_pyqt.firf_2_mix_X.has_deque_settled:            
         # Retrieve the block of time data from the past that aligns with
         # the current filter output
         state.time_2 = state.deque_time_1[
@@ -252,21 +255,25 @@ def lockin_DAQ_update():
         np.arctan(state.T, out=state.T)
         np.multiply(state.T, 180/np.pi, out=state.T) # Transform [rad] to [deg]
         np.seterr(divide='warn')
+    else:
+        state.time_2 = np.full(c.BUFFER_SIZE, np.nan)
+        state.R      = np.full(c.BUFFER_SIZE, np.nan)
+        state.T      = np.full(c.BUFFER_SIZE, np.nan)
         
-        state.deque_time_2.extend(state.time_2)
-        state.deque_X.extend(state.X)
-        state.deque_Y.extend(state.Y)
-        state.deque_R.extend(state.R)
-        state.deque_T.extend(state.T)
-        
-        if window.qrbt_XR_X.isChecked():
-            window.CH_LIA_XR.add_new_readings(state.time_2, state.X)
-        else:
-            window.CH_LIA_XR.add_new_readings(state.time_2, state.R)
-        if window.qrbt_YT_Y.isChecked():
-            window.CH_LIA_YT.add_new_readings(state.time_2, state.Y)
-        else:
-            window.CH_LIA_YT.add_new_readings(state.time_2, state.T)
+    state.deque_time_2.extend(state.time_2)
+    state.deque_X.extend(state.X)
+    state.deque_Y.extend(state.Y)
+    state.deque_R.extend(state.R)
+    state.deque_T.extend(state.T)
+    
+    if window.qrbt_XR_X.isChecked():
+        window.CH_LIA_XR.add_new_readings(state.time_2, state.X)
+    else:
+        window.CH_LIA_XR.add_new_readings(state.time_2, state.R)
+    if window.qrbt_YT_Y.isChecked():
+        window.CH_LIA_YT.add_new_readings(state.time_2, state.Y)
+    else:
+        window.CH_LIA_YT.add_new_readings(state.time_2, state.T)
     
     
     # Check if memory address of underlying buffer is still unchanged
@@ -344,7 +351,7 @@ def lockin_DAQ_update():
         file_logger.close_log()
 
     if file_logger.is_recording:
-        if lockin_pyqt.firf_2_mix_X.deque_has_settled: # All lights green!
+        if lockin_pyqt.firf_2_mix_X.has_deque_settled: # All lights green!
             idx_offset = lockin_pyqt.firf_1_sig_I.win_idx_valid_start
             
             for i in range(c.BUFFER_SIZE):
