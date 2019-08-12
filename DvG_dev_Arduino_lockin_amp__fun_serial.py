@@ -6,7 +6,7 @@ connection.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "28-05-2019"
+__date__        = "12-08-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -291,20 +291,19 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             ref_Y
             sig_I
         """
-        empty = np.array([np.nan])
         c = self.config  # Shorthand alias
         
         ans_bytes = self.read_until_EOM()
         #dprint("EOM found with %i bytes and..." % len(ans_bytes))
         if not (ans_bytes[:c.N_BYTES_SOM] == c.SOM):
             dprint("'%s' I/O ERROR: No SOM found" % self.name)
-            return [False, empty, empty, empty, empty]
+            return [False, [np.nan], [np.nan], [np.nan], [np.nan]]
         
         #dprint("SOM okay")
         if not(len(ans_bytes) == c.N_BYTES_TRANSMIT_BUFFER):
             dprint("'%s' I/O ERROR: Expected %i bytes, received %i" %
                    (self.name, c.N_BYTES_TRANSMIT_BUFFER, len(ans_bytes)))
-            return [False, empty, empty, empty, empty]
+            return [False, [np.nan], [np.nan], [np.nan], [np.nan]]
 
         end_byte_time  = c.BUFFER_SIZE * struct.calcsize(c.binary_type_time)
         end_byte_ref_X = (end_byte_time + c.BUFFER_SIZE *
@@ -327,7 +326,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                             dtype=c.return_type_sig_I)
         except:
             dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
-            return [False, empty, empty, empty, empty]
+            return [False, [np.nan], [np.nan], [np.nan], [np.nan]]
 
         phi = 2 * np.pi * ref_X_phase / c.N_LUT
         

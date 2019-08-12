@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils"
-__date__        = "02-08-2019"
+__date__        = "12-08-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -40,8 +40,8 @@ class Buffered_FIR_Filter():
                 
         self.T_settle_filter = self.win_idx_valid_start / self.Fs # [s]
         self.T_settle_deque  = self.T_settle_filter * 2           # [s]
-        self.deque_was_settled = False
-        self.deque_has_settled = False
+        self.was_deque_settled = False
+        self.has_deque_settled = False
         
         # Friendly window description for direct printing as string
         if isinstance(self.window, str):
@@ -179,10 +179,10 @@ class Buffered_FIR_Filter():
         #print("%s: %i" % (self.display_name, len(deque_sig_in)))
         if (not deque_sig_in.is_full) or np.isnan(deque_sig_in).any():
             # Start-up. Deque still needs time to settle.
-            self.deque_has_settled = False
+            self.has_deque_settled = False
             valid_out = np.full(self.buffer_size, np.nan)
         else:
-            self.deque_has_settled = True
+            self.has_deque_settled = True
             """Select window out of the signal deque to feed into the
             convolution. By optimal design, this happens to be the full deque.
             Returns valid filtered signal output of current window.
@@ -208,12 +208,12 @@ class Buffered_FIR_Filter():
                                                           self.b)
             #print("%.1f" % ((Time.perf_counter() - tick)*1000))
         
-        if self.deque_has_settled and not(self.deque_was_settled):
+        if self.has_deque_settled and not(self.was_deque_settled):
             #print("%s: Deque has settled" % self.display_name)
-            self.deque_was_settled = True
-        elif not(self.deque_has_settled) and self.deque_was_settled:
+            self.was_deque_settled = True
+        elif not(self.has_deque_settled) and self.was_deque_settled:
             #print("%s: Deque has reset" % self.display_name)
-            self.deque_was_settled = False
+            self.was_deque_settled = False
         
         return valid_out
         

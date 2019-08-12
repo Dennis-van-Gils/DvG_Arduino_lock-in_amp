@@ -31,14 +31,14 @@ https://pypi.org/project/numpy_ringbuffer/
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "01-08-2019"
+__date__        = "12-08-2019"
 __version__     = "1.0.0"
 
 import numpy as np
 from collections import Sequence
 
 class RingBuffer(Sequence):
-    def __init__(self, capacity, dtype=float, allow_overwrite=True):
+    def __init__(self, capacity, dtype=np.float64, allow_overwrite=True):
         """
         Create a new ring buffer with the given capacity and element type
 
@@ -53,13 +53,20 @@ class RingBuffer(Sequence):
             If false, throw an IndexError when trying to append to an alread
             full buffer
         """
-        self._arr = np.empty(capacity, dtype)
+        if dtype == np.float64:
+            self._arr = np.full(capacity, np.nan, order='C')
+        else:
+            self._arr = np.empty(capacity, dtype, order='C')
+            
         self._left_index = 0
         self._right_index = 0
         self._capacity = capacity
         self._allow_overwrite = allow_overwrite
         
-        self._unwrap_buffer = np.empty(capacity, dtype, order='C')
+        if dtype == np.float64:
+            self._unwrap_buffer = np.full(capacity, np.nan, order='C')
+        else:
+            self._unwrap_buffer = np.empty(capacity, dtype, order='C')
         self._is_unwrap_buffer_dirty = False
 
     def _unwrap(self):
@@ -118,6 +125,8 @@ class RingBuffer(Sequence):
         return (len(self),) + self._arr.shape[1:]
 
     def clear(self):
+        if type(self._arr[0]) == np.float64:
+            self._arr[:] = np.nan
         self._left_index = 0
         self._right_index = 0
 
@@ -177,8 +186,11 @@ class RingBuffer(Sequence):
         if not isinstance(item, tuple):
             item_arr = np.asarray(item)
             if issubclass(item_arr.dtype.type, np.integer):
-                #print("  __int_subclass__")
-                item_arr = (item_arr + self._left_index) % self._capacity
+                if item_arr < 0:
+                    item_arr = (self._right_index + item_arr) % self._capacity
+                else:
+                    item_arr = (item_arr + self._left_index) % self._capacity
+                #print(item_arr)
                 return self._arr[item_arr]
 
         #print("  __something_else__")

@@ -1,0 +1,138 @@
+# packages in environment at C:\Users\Dennis_van_Gils\Anaconda3\envs\idp:
+#
+# Name                    Version                   Build  Channel
+alabaster                 0.7.12                   py37_0  
+asn1crypto                0.24.0                   py37_0  
+astroid                   2.2.5                    py37_0  
+babel                     2.7.0                      py_0  
+backcall                  0.1.0                    py37_0  
+blas                      1.0                         mkl  
+bleach                    3.1.0                    py37_0  
+ca-certificates           2019.6.16            hecc5488_0    conda-forge
+certifi                   2019.6.16                py37_1    conda-forge
+cffi                      1.11.5           py37h74b6da3_1  
+chardet                   3.0.4                 py37_1003  
+cloudpickle               1.2.1                      py_0  
+colorama                  0.4.1                    py37_0  
+cryptography              2.3.1            py37h74b6da3_0  
+cudatoolkit               10.0.130                      0  
+cupy-cuda101              5.4.0                    pypi_0    pypi
+cycler                    0.10.0                   py37_0  
+cython                    0.28.5           py37h6538335_0  
+decorator                 4.4.0                    py37_1  
+defusedxml                0.6.0                      py_0  
+docutils                  0.15.1                   py37_0  
+entrypoints               0.3                      py37_0  
+fastrlock                 0.4                      pypi_0    pypi
+fftw                      3.3.8           nompi_hbc43ac9_1106    conda-forge
+freetype                  2.9.1                ha9979f8_1  
+h5py                      2.9.0                    pypi_0    pypi
+icc_rt                    2019.4                intel_245    intel
+icu                       58.2                 ha66f8fd_1  
+idna                      2.8                      py37_0  
+imagesize                 1.1.0                    py37_0  
+intelpython               2019.4                        0    intel
+intelpython3_core         0.0.0.custom                  0    intel
+ipykernel                 5.1.1            py37h39e3cac_0  
+ipython                   7.4.0            py37h39e3cac_0  
+ipython_genutils          0.2.0                    py37_0  
+isort                     4.3.21                   py37_0  
+jedi                      0.13.3                   py37_0  
+jinja2                    2.10.1                   py37_0  
+jpeg                      9b                   hb83a4c4_2  
+jsonschema                2.6.0                    py37_0  
+jupyter_client            5.3.1                      py_0  
+jupyter_core              4.5.0                      py_0  
+keyring                   18.0.0                   py37_0  
+kiwisolver                1.0.1            py37h6538335_0  
+lazy-object-proxy         1.3.1            py37hfa6e2cd_2  
+libpng                    1.6.36                   vc14_2  [vc14]  intel
+libsodium                 1.0.16               h9d3ae62_0  
+llvmlite                  0.24.0           py37h6538335_0  
+markupsafe                1.0              py37hfa6e2cd_1  
+matplotlib                3.0.0            py37hd159220_0  
+mccabe                    0.6.1                    py37_1  
+mistune                   0.8.3            py37hfa6e2cd_1  
+mkl                       2018.0.3                intel_1    intel
+mkl_fft                   1.0.6            py37hdbbee80_0  
+mkl_random                1.0.1            py37h77b88f5_1  
+nbconvert                 5.5.0                      py_0  
+nbformat                  4.4.0                    py37_0  
+numba                     0.39.0           py37h830ac7b_0  
+numpy                     1.15.4           py37ha559c80_0  
+numpy-base                1.15.4           py37h8128ebf_0  
+numpydoc                  0.9.1                      py_0  
+openmp                    2018.0.3                intel_0    intel
+openssl                   1.0.2r                   vc14_2  [vc14]  intel
+packaging                 19.0                     py37_0  
+pandas                    0.23.4           py37h830ac7b_0  
+pandoc                    2.2.3.2                       0  
+pandocfilters             1.4.2                    py37_1  
+parso                     0.5.0                      py_0  
+pathlib2                  2.3.3                    py37_0  
+pickleshare               0.7.5                    py37_0  
+pip                       19.1.1                   py37_0  
+prompt_toolkit            2.0.9                    py37_0  
+psutil                    5.4.7            py37hfa6e2cd_0  
+pycodestyle               2.5.0                    py37_0  
+pycparser                 2.19                     py37_0  
+pyfftw                    0.11.1          py37h452e1ab_1001    conda-forge
+pyflakes                  2.1.1                    py37_0  
+pygments                  2.4.2                      py_0  
+pylint                    2.3.1                    py37_0  
+pyopengl                  3.1.3b2                  pypi_0    pypi
+pyopengl-accelerate       3.1.3b2                  pypi_0    pypi
+pyopenssl                 19.0.0                   py37_0  
+pyparsing                 2.4.0                      py_0  
+pyqt                      5.9.2            py37h6538335_2  
+pyqtgraph                 0.10.0           py37h28b3542_3  
+pyserial                  3.4                      py37_0  
+pysocks                   1.7.0                    py37_0  
+python                    3.7.0                hea74fb7_0  
+python-dateutil           2.8.0                    py37_0  
+pytz                      2019.1                     py_0  
+pywavelets                1.0.3                    pypi_0    pypi
+pywin32                   223              py37hfa6e2cd_1  
+pyyaml                    3.13             py37hfa6e2cd_0  
+pyzmq                     17.1.2           py37hfa6e2cd_0  
+qt                        5.9.6            vc14h62aca36_0  
+qtawesome                 0.5.7                    py37_1  
+qtconsole                 4.5.2                      py_0  
+qtpy                      1.8.0                      py_0  
+requests                  2.22.0                   py37_0  
+rope                      0.14.0                     py_0  
+scipy                     1.1.0            py37h4f6bf74_1  
+setuptools                41.0.1                   py37_0  
+sigpy                     0.1.7                    pypi_0    pypi
+sip                       4.19.8           py37h6538335_0  
+six                       1.12.0                   py37_0  
+snowballstemmer           1.9.0                      py_0  
+sphinx                    2.1.2                      py_0  
+sphinxcontrib-applehelp   1.0.1                      py_0  
+sphinxcontrib-devhelp     1.0.1                      py_0  
+sphinxcontrib-htmlhelp    1.0.2                      py_0  
+sphinxcontrib-jsmath      1.0.1                      py_0  
+sphinxcontrib-qthelp      1.0.2                      py_0  
+sphinxcontrib-serializinghtml 1.1.3                      py_0  
+spyder                    3.3.3                    py37_0  
+spyder-kernels            0.5.1                    py37_0  
+sqlite                    3.27.2                   vc14_6  [vc14]  intel
+tbb                       2019.6           vc14_intel_245  [vc14]  intel
+tcl                       8.6.4                   vc14_24  [vc14]  intel
+testpath                  0.4.2                    py37_0  
+tk                        8.6.4                   vc14_29  [vc14]  intel
+tornado                   5.1.1            py37hfa6e2cd_0  
+tqdm                      4.31.1                   pypi_0    pypi
+traitlets                 4.3.2                    py37_0  
+urllib3                   1.24.2                   py37_0  
+vc                        14.0                          2    intel
+vs2015_runtime            14.0.25420              intel_2    intel
+wcwidth                   0.1.7                    py37_0  
+webencodings              0.5.1                    py37_1  
+wheel                     0.33.4                   py37_0  
+win_inet_pton             1.1.0                    py37_0  
+wincertstore              0.2                      py37_0  
+wrapt                     1.10.11          py37hfa6e2cd_2  
+yaml                      0.1.7                hc54c509_2  
+zeromq                    4.2.5                he025d50_1  
+zlib                      1.2.11           vc14h21ff451_5  [vc14]  intel
