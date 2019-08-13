@@ -19,5 +19,6 @@ port_data.txt
 # *.hex
 *.map
 *.srec
+debug.log
 
 *.atsuo
