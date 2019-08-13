@@ -1,0 +1,4 @@
+sprintf("%f", ...) needs '-u _printf_float' in ARM/GNU Linker --> Misc --> Linker Flags
+
+'-lc -u _printf_float' for release
+'-u _printf_float' for debug
