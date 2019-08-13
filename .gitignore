@@ -1,10 +1,23 @@
-**/source_MCU_boards/.pio/
-**/source_MCU_boards/.pioenvs/
-**/source_MCU_boards/.piolibdeps/
-**/source_MCU_boards/.vscode/*
 **/__pycache__/
 .clang_complete
 .gcc-flags.json
-*.pyc
+*.py[co]
 log.txt
 port_data.txt
+
+### AtmelStudio ###
+
+**/.vs
+
+[Dd]ebug/
+[Rr]elease/
+
+*.o
+*.d
+*.eep
+*.elf
+# *.hex
+*.map
+*.srec
+
+*.atsuo
