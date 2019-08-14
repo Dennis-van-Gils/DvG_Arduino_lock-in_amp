@@ -1,0 +1,36 @@
+COMMAND mcu?
+
+	ASCII
+	
+	%s   FIRMWARE_VERSION
+	%s   str_model
+	%s   str_uid
+	
+COMMAND const?
+
+	ASCII
+	
+	%.6f SAMPLING_PERIOD_us
+	%u   BLOCK_SIZE
+	%u   N_BYTES_TX_BUFFER
+	%u   DAC_OUTPUT_BITS
+	%u   ADC_INPUT_BITS
+	%.3f A_REF
+	%u   MIN_N_LUT
+	%u   MAX_N_LUT
+
+COMMAND ref?
+
+	ASCII
+	
+	%.3f ref_V_offset
+	%.3f ref_V_ampl
+	%.3f ref_freq
+
+COMMAND lut?
+
+	BINARY
+	
+	uint8_t         waveform_type (ENUM)
+	uint16_t        N_LUT
+    uint16_t[N_LUT] LUT_wave

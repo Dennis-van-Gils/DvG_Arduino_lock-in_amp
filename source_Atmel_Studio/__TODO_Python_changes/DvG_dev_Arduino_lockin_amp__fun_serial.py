@@ -26,12 +26,14 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         N_BYTES_SOM = len(SOM)
         N_BYTES_EOM = len(EOM) 
         
-        # Data types to decode from binary stream
+        # Data types to decode from binary streams
+        binary_type_counter   = 'I'   # uint32_t
         binary_type_millis    = 'I'   # uint32_t
         binary_type_micros    = 'H'   # uint16_t
         binary_type_idx_phase = 'H'   # uint16_t
-        binary_type_N_LUT     = 'H'   # uint16_t
         binary_type_sig_I     = 'H'   # uint16_t
+        binary_type_N_LUT     = 'H'   # uint16_t
+        binary_type_LUT       = 'H'   # uint16_t
         
         # Return types
         #return_type_time  = np.int64   # Signed to allow for flexible arithmetic
@@ -56,7 +58,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
     
     def __init__(self, 
                  name="Lockin",
-                 baudrate=1e6,
+                 baudrate=1.2e6,
                  read_timeout=1,
                  write_timeout=1,
                  read_term_char='\n',
@@ -334,18 +336,19 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
             return [False, empty, empty, empty, empty]
         """
-        ans_bytes = ans_bytes[c.N_BYTES_SOM  : -c.N_BYTES_EOM]
-        bytes_millis    = ans_bytes[0:4]
-        bytes_micros    = ans_bytes[4:6]
-        bytes_idx_phase = ans_bytes[6:8]
-        bytes_N_LUT     = ans_bytes[8:10]
-        bytes_sig_I     = ans_bytes[10:]
+        ans_bytes = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM]
+        bytes_counter   = ans_bytes[0:4]
+        bytes_millis    = ans_bytes[4:8]
+        bytes_micros    = ans_bytes[8:10]
+        bytes_idx_phase = ans_bytes[10:12]
+        bytes_sig_I     = ans_bytes[12:]
         
         try:
-            millis    = struct.unpack('<' + c.binary_type_millis, bytes_millis)
-            micros    = struct.unpack('<' + c.binary_type_micros, bytes_micros)
+            counter   = struct.unpack('<' + c.binary_type_counter, bytes_counter)
+            millis    = struct.unpack('<' + c.binary_type_millis , bytes_millis)
+            micros    = struct.unpack('<' + c.binary_type_micros , bytes_micros)
             idx_phase = struct.unpack('<' + c.binary_type_idx_phase, bytes_idx_phase)
-            N_LUT     = struct.unpack('<' + c.binary_type_N_LUT, bytes_N_LUT)
+            
             sig_I = np.array(struct.unpack('<' +
                              c.binary_type_sig_I * c.BLOCK_SIZE, bytes_sig_I),
                              dtype=c.return_type_sig_I)
@@ -353,10 +356,10 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
             return [False, empty, empty, empty, empty]
         
+        counter   = counter[0]
         millis    = millis[0]
         micros    = micros[0]
         idx_phase = idx_phase[0]
-        N_LUT     = N_LUT[0]
         
         #dprint("%i %i" % (millis, micros))
         t0 = millis * 1000 + micros
@@ -365,7 +368,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         time = np.asarray(time, dtype=np.int64)
         
         idxs_phase = np.arange(idx_phase, idx_phase + c.BLOCK_SIZE)
-        phi = 2 * np.pi * idxs_phase / N_LUT
+        phi = 2 * np.pi * idxs_phase / c.N_LUT
         
         # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
         if 0:

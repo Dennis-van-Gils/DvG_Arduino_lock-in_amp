@@ -30,7 +30,7 @@ typedef enum waveform_type {Cosine,
                             Sawtooth,
                             Triangle,
                             ECG} waveform_type;
-enum waveform_type ref_type = Cosine;
+enum waveform_type ref_waveform = Cosine;
 double ref_freq;              // [Hz] Obtained frequency of reference signal
 double ref_V_offset = 1.65;   // [V]  Voltage offset of reference signal
 double ref_V_ampl   = 1.65;   // [V]  Voltage amplitude reference signal
@@ -98,39 +98,40 @@ const char EOM[] = {0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f};
 
 /* The serial transmit buffer will contain a single block of data:
  [SOM,                                              {size = 10 bytes}
+  (uint32_t) number of buffer being send            {size =  4 bytes}
   (uint32_t) millis timestamp at start of block     {size =  4 bytes}
   (uint16_t) micros part of timestamp               {size =  2 bytes}
   (uint16_t) phase index LUT_wave at start of block {size =  2 bytes}
-  (uint16_t) number of LUT samples for one period   {size =  2 bytes}
   BLOCK_SIZE x (uint16_t) ADC readings 'sig_I'      {size = BLOCK_SIZE * 2 bytes}
   EOM]                                              {size = 10 bytes}
 to be transmitted by DMAC
 */
-#define N_BYTES_SOM    (sizeof(SOM))
-#define N_BYTES_MILLIS (4)
-#define N_BYTES_MICROS (2)
-#define N_BYTES_PHASE  (2)
-#define N_BYTES_N_LUT  (2)
-#define N_BYTES_SIG_I  (BLOCK_SIZE * 2)
-#define N_BYTES_EOM    (sizeof(EOM))
+#define N_BYTES_SOM     (sizeof(SOM))
+#define N_BYTES_COUNTER (4)
+#define N_BYTES_MILLIS  (4)
+#define N_BYTES_MICROS  (2)
+#define N_BYTES_PHASE   (2)
+#define N_BYTES_SIG_I   (BLOCK_SIZE * 2)
+#define N_BYTES_EOM     (sizeof(EOM))
+
 #define N_BYTES_TX_BUFFER (N_BYTES_SOM + \
+                           N_BYTES_COUNTER + \
                            N_BYTES_MILLIS + \
                            N_BYTES_MICROS + \
                            N_BYTES_PHASE + \
-                           N_BYTES_N_LUT + \
                            N_BYTES_SIG_I + \
                            N_BYTES_EOM)
 
-volatile bool is_TX_buffer_starting_up = true;
+volatile uint32_t TX_buffer_counter = 0;
 volatile bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
 static uint8_t TX_buffer_A[N_BYTES_TX_BUFFER] = {};
 static uint8_t TX_buffer_B[N_BYTES_TX_BUFFER] = {};
 
-#define TX_BUFFER_OFFSET_MILLIS (N_BYTES_SOM)
-#define TX_BUFFER_OFFSET_MICROS (TX_BUFFER_OFFSET_MILLIS + N_BYTES_MILLIS)
-#define TX_BUFFER_OFFSET_PHASE  (TX_BUFFER_OFFSET_MICROS + N_BYTES_MICROS)
-#define TX_BUFFER_OFFSET_N_LUT  (TX_BUFFER_OFFSET_PHASE  + N_BYTES_PHASE)
-#define TX_BUFFER_OFFSET_SIG_I  (TX_BUFFER_OFFSET_N_LUT  + N_BYTES_N_LUT)
+#define TX_BUFFER_OFFSET_COUNTER (N_BYTES_SOM)
+#define TX_BUFFER_OFFSET_MILLIS  (TX_BUFFER_OFFSET_COUNTER + N_BYTES_COUNTER)
+#define TX_BUFFER_OFFSET_MICROS  (TX_BUFFER_OFFSET_MILLIS  + N_BYTES_MILLIS)
+#define TX_BUFFER_OFFSET_PHASE   (TX_BUFFER_OFFSET_MICROS  + N_BYTES_MICROS)
+#define TX_BUFFER_OFFSET_SIG_I   (TX_BUFFER_OFFSET_PHASE   + N_BYTES_PHASE)
 
 // Outgoing serial string
 #define MAXLEN_STR_BUFFER 64
@@ -349,9 +350,9 @@ void compute_LUT(uint16_t *LUT_array, double wanted_ref_freq) {
     int16_t fq_N_LUT = (int16_t) floor(N_LUT / 4.0); // Floor quarter N_LUT
     int16_t cq_N_LUT = (int16_t) ceil (N_LUT / 4.0); // Ceil  quarter N_LUT
 
-    if (ref_type != ECG) {
+    if (ref_waveform != ECG) {
         for (int16_t i = 0; i < N_LUT; i++) {
-            switch (ref_type) {
+            switch (ref_waveform) {
                 default:
                 case Cosine:
                     wave = cos(2*M_PI*(i + LUT_OFFSET_TRIG_OUT) / N_LUT);
@@ -427,22 +428,25 @@ void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
     get_systick_timestamp(&millis_copy, &micros_part);
     //t1 = SysTick->VAL;
     //dt = t2 - t1;
-
+    
     // Modulo takes more cycles when time increases.
     // Is max 164 clock cycles when (2^24 % N_LUT).
     idx_phase = (TIMER_0.time + N_LUT + LUT_OFFSET_TRIG_OUT +
                  SAMPLE_OFFSET_ADC_DAC) % N_LUT;
 
-    TX_buffer[TX_BUFFER_OFFSET_MILLIS    ] = millis_copy;
-    TX_buffer[TX_BUFFER_OFFSET_MILLIS + 1] = millis_copy >> 8;
-    TX_buffer[TX_BUFFER_OFFSET_MILLIS + 2] = millis_copy >> 16;
-    TX_buffer[TX_BUFFER_OFFSET_MILLIS + 3] = millis_copy >> 24;
-    TX_buffer[TX_BUFFER_OFFSET_MICROS    ] = micros_part;
-    TX_buffer[TX_BUFFER_OFFSET_MICROS + 1] = micros_part >> 8;
-    TX_buffer[TX_BUFFER_OFFSET_PHASE     ] = idx_phase;
-    TX_buffer[TX_BUFFER_OFFSET_PHASE  + 1] = idx_phase >> 8;
-    TX_buffer[TX_BUFFER_OFFSET_N_LUT     ] = N_LUT;
-    TX_buffer[TX_BUFFER_OFFSET_N_LUT  + 1] = N_LUT >> 8;
+    TX_buffer_counter++;
+    TX_buffer[TX_BUFFER_OFFSET_COUNTER    ] = TX_buffer_counter;
+    TX_buffer[TX_BUFFER_OFFSET_COUNTER + 1] = TX_buffer_counter >> 8;
+    TX_buffer[TX_BUFFER_OFFSET_COUNTER + 2] = TX_buffer_counter >> 16;
+    TX_buffer[TX_BUFFER_OFFSET_COUNTER + 3] = TX_buffer_counter >> 24;
+    TX_buffer[TX_BUFFER_OFFSET_MILLIS     ] = millis_copy;
+    TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 1] = millis_copy >> 8;
+    TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 2] = millis_copy >> 16;
+    TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 3] = millis_copy >> 24;
+    TX_buffer[TX_BUFFER_OFFSET_MICROS     ] = micros_part;
+    TX_buffer[TX_BUFFER_OFFSET_MICROS  + 1] = micros_part >> 8;
+    TX_buffer[TX_BUFFER_OFFSET_PHASE      ] = idx_phase;
+    TX_buffer[TX_BUFFER_OFFSET_PHASE   + 1] = idx_phase >> 8;
 }
 
 
@@ -481,8 +485,8 @@ static void cb_ADC_0_complete(const struct adc_dma_descriptor *const descr) {
 
     if (is_running) {
         if (using_TX_buffer_A) {
-            if (is_TX_buffer_starting_up) {
-                is_TX_buffer_starting_up = false;
+            if (TX_buffer_counter == 0) {
+                // Start-up routine. Discard the first read ADC samples.
             } else {
                 // Trigger DMA channel 1: Send out TX_buffer_A
                 _dma_enable_transaction(1, false);
@@ -536,14 +540,17 @@ void start_LIA(void) {
     dac_async_write(&DAC_0, 0, LUT_wave, N_LUT);
 
     // ADC
+    // Because the very first sample read by the ADC is invalid and should be
+    // discarded, we only read 2 samples into the ADC buffer (an even length
+    // is required). This buffer will be discarded and will not be sent out over
+    // serial. This is a start-up routine.
     adc_dma_deinit(&ADC_0);
     adc_dma_init(&ADC_0, ADC);
     adc_dma_read(&ADC_0, &(TX_buffer_A[TX_BUFFER_OFFSET_SIG_I]), 2); // Even length required, not odd
     adc_dma_enable_channel(&ADC_0, 0);
 
+    TX_buffer_counter = 0;
     using_TX_buffer_A = true;
-    is_TX_buffer_starting_up = true;
-    write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A);
 
     // Set TRIG_OUT to LOW
     gpio_set_pin_level(PIN_D0__TRIG_OUT, false);
@@ -767,7 +774,7 @@ int main(void) {
                         snprintf(str_buffer, MAXLEN_STR_BUFFER,
                                  "%u\t%u\t%.3f\t%.3f\t%.3f\n",
                                  N_LUT,
-                                 ref_type,
+                                 ref_waveform,
                                  ref_V_offset,
                                  ref_V_ampl,
                                  ref_freq);
@@ -833,23 +840,23 @@ int main(void) {
                         io_print(str_buffer);
 
                     } else if (strcmp(str_cmd, "cos") == 0) {
-                        ref_type = Cosine;
+                        ref_waveform = Cosine;
                         compute_LUT(LUT_wave, ref_freq);
 
                     } else if (strcmp(str_cmd, "sqr") == 0) {
-                        ref_type = Square;
+                        ref_waveform = Square;
                         compute_LUT(LUT_wave, ref_freq);
 
                     } else if (strcmp(str_cmd, "saw") == 0) {
-                        ref_type = Sawtooth;
+                        ref_waveform = Sawtooth;
                         compute_LUT(LUT_wave, ref_freq);
 
                     } else if (strcmp(str_cmd, "tri") == 0) {
-                        ref_type = Triangle;
+                        ref_waveform = Triangle;
                         compute_LUT(LUT_wave, ref_freq);
 
                     } else if (strcmp(str_cmd, "ecg") == 0) {
-                        ref_type = ECG;
+                        ref_waveform = ECG;
                         compute_LUT(LUT_wave, ref_freq);
                     }
                 }
