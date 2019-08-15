@@ -23,14 +23,31 @@ COMMAND ref?
 
 	ASCII
 	
+	%.3f ref_freq
 	%.3f ref_V_offset
 	%.3f ref_V_ampl
-	%.3f ref_freq
 
 COMMAND lut?
 
+	ASCII
+	
+	%u   N_LUT
+	%s   waveform_type
+	
 	BINARY
 	
-	uint8_t         waveform_type (ENUM)
-	uint16_t        N_LUT
     uint16_t[N_LUT] LUT_wave
+	
+COMMAND freq ##.##
+COMMAND offs ##.##
+COMMAND ampl ##.##
+
+	Replies with 'ref'
+
+COMMAND cos
+COMMAND sqr
+COMMAND saw
+COMMAND tri
+COMMAND ecg
+
+	Replies with 'lut?'

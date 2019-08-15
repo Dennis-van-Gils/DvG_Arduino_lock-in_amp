@@ -6,7 +6,7 @@ connection.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "12-08-2019"
+__date__        = "15-08-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -26,33 +26,59 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         N_BYTES_SOM = len(SOM)
         N_BYTES_EOM = len(EOM) 
         
-        # Data types to decode from binary stream
-        binary_type_time  = 'I'   # uint32_t
-        binary_type_ref_X = 'H'   # uint16_t
-        binary_type_sig_I = 'h'   # int16_t
+        # Data types to decode from binary streams
+        binary_type_counter   = 'I'   # uint32_t
+        binary_type_millis    = 'I'   # uint32_t
+        binary_type_micros    = 'H'   # uint16_t
+        binary_type_idx_phase = 'H'   # uint16_t
+        binary_type_sig_I     = 'H'   # uint16_t
+        binary_type_LUT       = 'H'   # uint16_t
         
         # Return types
-        return_type_time  = np.int64   # Signed to allow for flexible arithmetic
-        return_type_ref_X = np.float64
+        #return_type_time  = np.int64   # Signed to allow for flexible arithmetic
+        #return_type_ref_X = np.float64
+        #return_type_ref_Y = np.float64
         return_type_sig_I = np.float64
         
-        ISR_CLOCK               = 0    # [s]
-        Fs                      = 0    # [Hz]
-        F_Nyquist               = 0    # [Hz]
-        BUFFER_SIZE             = 0    # [number of samples per variable]
-        T_SPAN_BUFFER           = 0    # [s]
-        N_BYTES_TRANSMIT_BUFFER = 0    # [data bytes]
-        N_LUT                   = 0    # [number of samples over 360 degrees]
-        ANALOG_WRITE_RESOLUTION = 0    # [bits]
-        ANALOG_READ_RESOLUTION  = 0    # [bits]
-        A_REF                   = 0    # [V] Analog voltage reference of Arduino
-        ref_V_offset            = 0    # [V] Voltage offset of cosine reference signal
-        ref_V_ampl              = 0    # [V] Voltage amplitude of cosine reference signal
-        ref_freq                = 0    # [Hz] Frequency of cosine reference signal
+        # Microcontroller unit (mcu) info
+        mcu_firmware = ''   # Firmware version
+        mcu_model    = ''   # Chipset model
+        mcu_uid      = ''   # Unique identifier of the chip (serial number)
+        
+        # Lock-in amplifier CONSTANTS
+        SAMPLING_PERIOD   = 0   # [s]
+        BLOCK_SIZE        = 0   # [samples] send per TX_buffer
+        N_BYTES_TX_BUFFER = 0   # [data bytes]
+        DAC_OUTPUT_BITS   = 0   # [bits]
+        ADC_INPUT_BITS    = 0   # [bits]
+        A_REF             = 0   # [V] Analog voltage reference of the Arduino
+        MIN_N_LUT         = 0   # [samples] Minimum number allowed LUT samples
+        MAX_N_LUT         = 0   # [samples] Maximum number allowed LUT samples
+        
+        # Waveform look-up table (LUT) settings
+        N_LUT        = 0              # [samples] covering a full period
+        ref_waveform = 'Unknown'      # Name of current reference waveform
+        LUT_wave     = np.array([])   # Array of [uint16_t]
+        # LUT_wave will contain a copy of the LUT array of the current reference
+        # waveform as used on the Arduino side. This array will be used to
+        # reconstruct the ref_X and ref_Y signals, based on the phase index that
+        # is sent in the header of each TX_buffer. The unit of each element in
+        # the array is the bit-value that is sent out over the DAC of the
+        # Arduino. Hence, multiply by A_REF to get units of [V].
+        
+        # Derived settings
+        Fs        = 0         # [Hz] Sampling rate
+        F_Nyquist = 0         # [Hz] Nyquist frequency
+        T_SPAN_TX_BUFFER = 0  # [s]  Time interval spanned by a single TX_buffer
+        
+        # Reference signal settings
+        ref_freq     = 0      # [Hz] Frequency
+        ref_V_offset = 0      # [V]  Voltage offset
+        ref_V_ampl   = 0      # [V]  Voltage amplitude
     
     def __init__(self, 
                  name="Lockin",
-                 baudrate=1e6,
+                 baudrate=1.2e6,
                  read_timeout=1,
                  write_timeout=1,
                  read_term_char='\n',
@@ -174,61 +200,101 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("config?")
+        [success, ans_str] = self.safe_query("mcu?")
         if success:
             try:
                 ans_list = ans_str.split('\t')
-                self.config.ISR_CLOCK               = float(ans_list[0]) * 1e-6
-                self.config.BUFFER_SIZE             = int(ans_list[1])
-                self.config.N_BYTES_TRANSMIT_BUFFER = int(ans_list[2])
-                self.config.N_LUT                   = int(ans_list[3])
-                self.config.ANALOG_WRITE_RESOLUTION = int(ans_list[4])
-                self.config.ANALOG_READ_RESOLUTION  = int(ans_list[5] )
-                self.config.A_REF                   = float(ans_list[6])
-                self.config.ref_V_offset            = float(ans_list[7])
-                self.config.ref_V_ampl              = float(ans_list[8])
-                self.config.ref_freq                = float(ans_list[9])
-                
-                self.config.Fs = 1.0/self.config.ISR_CLOCK
-                self.config.F_Nyquist = self.config.Fs/2
-                self.config.T_SPAN_BUFFER = (self.config.BUFFER_SIZE *
-                                             self.config.ISR_CLOCK)
-                return True
+                self.config.mcu_firmware = ans_list[0]
+                self.config.mcu_model    = ans_list[1]
+                self.config.mcu_uid      = ans_list[2]
             except Exception as err:
                 raise(err)
                 return False
+        else: return False
+            
+        [success, ans_str] = self.safe_query("const?")
+        if success:
+            try:
+                ans_list = ans_str.split('\t')
+                # Round SAMPLING PERIOD to nanosecond resolution to
+                # prevent e.g. 1.0 being stored as 0.9999999999
+                self.config.SAMPLING_PERIOD   = (
+                        round(float(ans_list[0])*1e-6, 9))
+                self.config.BLOCK_SIZE        = int(ans_list[1])
+                self.config.N_BYTES_TX_BUFFER = int(ans_list[2])
+                self.config.DAC_OUTPUT_BITS   = int(ans_list[3])
+                self.config.ADC_INPUT_BITS    = int(ans_list[4] )
+                self.config.A_REF             = float(ans_list[5])
+                self.config.MIN_N_LUT         = int(ans_list[6])
+                self.config.MAX_N_LUT         = int(ans_list[7])
+            except Exception as err:
+                raise(err)
+                return False
+        else: return False
+            
+        self.config.Fs = round(1.0/self.config.SAMPLING_PERIOD, 6)
+        self.config.F_Nyquist = round(self.config.Fs/2, 6)
+        self.config.T_SPAN_TX_BUFFER = (self.config.BLOCK_SIZE *
+                                        self.config.SAMPLING_PERIOD)
         
-        return False
+        [success, ans_str] = self.safe_query("ref?")
+        if success:
+            if not self.parse_query_ref(ans_str): return False
+        else: return False
+        
+        return True
+    
+    def parse_query_ref(self, ans_str):
+        """
+        Returns:
+            success
+        """
+        try:
+            ans_list = ans_str.split('\t')
+            self.config.ref_freq     = float(ans_list[0])
+            self.config.ref_V_offset = float(ans_list[1])
+            self.config.ref_V_ampl   = float(ans_list[2])
+        except Exception as err:
+            raise(err)
+            return False
+        
+        return True
     
     def set_ref_freq(self, ref_freq):
         """
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("ref_freq %f" % ref_freq)
+        [success, ans_str] = self.safe_query("freq %f" % ref_freq)
         if success:
-            self.config.ref_freq = float(ans_str)        
-        return success
+            if not self.parse_query_ref(ans_str): return False
+        else: return False
+        
+        return True
     
     def set_ref_V_offset(self, ref_V_offset):
         """
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("ref_V_offset %f" % ref_V_offset)
+        [success, ans_str] = self.safe_query("offs %f" % ref_V_offset)
         if success:
-            self.config.ref_V_offset = float(ans_str)        
-        return success
+            if not self.parse_query_ref(ans_str): return False
+        else: return False
+        
+        return True
     
     def set_ref_V_ampl(self, ref_V_ampl):
         """
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("ref_V_ampl %f" % ref_V_ampl)
+        [success, ans_str] = self.safe_query("ampl %f" % ref_V_ampl)
         if success:
-            self.config.ref_V_ampl = float(ans_str)        
-        return success
+            if not self.parse_query_ref(ans_str): return False
+        else: return False
+        
+        return True
     
     def read_until_EOM(self, size=None):
         """Reads from the serial port until the EOM sentinel is found, the size
@@ -305,30 +371,39 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                    (self.name, c.N_BYTES_TRANSMIT_BUFFER, len(ans_bytes)))
             return [False, [np.nan], [np.nan], [np.nan], [np.nan]]
 
-        end_byte_time  = c.BUFFER_SIZE * struct.calcsize(c.binary_type_time)
-        end_byte_ref_X = (end_byte_time + c.BUFFER_SIZE *
-                          struct.calcsize(c.binary_type_ref_X))
-        end_byte_sig_I = (end_byte_ref_X + c.BUFFER_SIZE *
-                          struct.calcsize(c.binary_type_sig_I))
-        ans_bytes   = ans_bytes[c.N_BYTES_SOM  : -c.N_BYTES_EOM]
-        bytes_time  = ans_bytes[0              : end_byte_time]
-        bytes_ref_X = ans_bytes[end_byte_time  : end_byte_ref_X]
-        bytes_sig_I = ans_bytes[end_byte_ref_X : end_byte_sig_I]
+        ans_bytes = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM]
+        bytes_counter   = ans_bytes[0:4]
+        bytes_millis    = ans_bytes[4:8]
+        bytes_micros    = ans_bytes[8:10]
+        bytes_idx_phase = ans_bytes[10:12]
+        bytes_sig_I     = ans_bytes[12:]
+        
         try:
-            time        = np.array(struct.unpack('<' +
-                            c.binary_type_time * c.BUFFER_SIZE, bytes_time),
-                            dtype=c.return_type_time)
-            ref_X_phase = np.array(struct.unpack('<' + 
-                            c.binary_type_ref_X * c.BUFFER_SIZE, bytes_ref_X),
-                            dtype=c.return_type_ref_X)
-            sig_I       = np.array(struct.unpack('<' +
-                            c.binary_type_sig_I * c.BUFFER_SIZE, bytes_sig_I),
-                            dtype=c.return_type_sig_I)
+            counter   = struct.unpack('<' + c.binary_type_counter, bytes_counter)
+            millis    = struct.unpack('<' + c.binary_type_millis , bytes_millis)
+            micros    = struct.unpack('<' + c.binary_type_micros , bytes_micros)
+            idx_phase = struct.unpack('<' + c.binary_type_idx_phase, bytes_idx_phase)
+            
+            sig_I = np.array(struct.unpack('<' +
+                             c.binary_type_sig_I * c.BLOCK_SIZE, bytes_sig_I),
+                             dtype=c.return_type_sig_I)
         except:
             dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
-            return [False, [np.nan], [np.nan], [np.nan], [np.nan]]
-
-        phi = 2 * np.pi * ref_X_phase / c.N_LUT
+            return [False, empty, empty, empty, empty]
+        
+        counter   = counter[0]
+        millis    = millis[0]
+        micros    = micros[0]
+        idx_phase = idx_phase[0]
+        
+        #dprint("%i %i" % (millis, micros))
+        t0 = millis * 1000 + micros
+        time = np.arange(0, c.BLOCK_SIZE)
+        time = t0 + time * c.SAMPLING_PERIOD * 1e6
+        time = np.asarray(time, dtype=np.int64)
+        
+        idxs_phase = np.arange(idx_phase, idx_phase + c.BLOCK_SIZE)
+        phi = 2 * np.pi * idxs_phase / c.N_LUT
         
         # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
         if 0:
@@ -338,6 +413,6 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         ref_X = (c.ref_V_offset + c.ref_V_ampl * np.cos(phi)).clip(0,c.A_REF)
         ref_Y = (c.ref_V_offset + c.ref_V_ampl * np.sin(phi)).clip(0,c.A_REF)
         sig_I = sig_I / (2**c.ANALOG_READ_RESOLUTION - 1) * c.A_REF
-        sig_I = sig_I * 2  # Compensate for differential mode of Arduino
+        #sig_I = sig_I * 2  # Compensate for differential mode of Arduino
         
         return [True, time, ref_X, ref_Y, sig_I]
