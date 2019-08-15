@@ -103,21 +103,15 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             success
         """
         [success, __foo, __bar] = self.turn_off()
-        if not success:
-            return False
-        
-        if not self.get_config():
-            return False
+        if not success: return False
+        if not self.get_config(): return False
         
         if ref_freq != None:
-            if not self.set_ref_freq(ref_freq):
-                return False
+            if not self.set_ref_freq(ref_freq): return False
         if ref_V_offset != None:
-            if not self.set_ref_V_offset(ref_V_offset):
-                return False
+            if not self.set_ref_V_offset(ref_V_offset): return False
         if ref_V_ampl != None:
-            if not self.set_ref_V_ampl(ref_V_ampl):
-                return False
+            if not self.set_ref_V_ampl(ref_V_ampl): return False
         
         return True
     
@@ -260,6 +254,9 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         return True
     
+    def parse_query_LUT(self, ans_bytes):
+        pass
+    
     def set_ref_freq(self, ref_freq):
         """
         Returns:
@@ -389,7 +386,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                              dtype=c.return_type_sig_I)
         except:
             dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
-            return [False, empty, empty, empty, empty]
+            return [False, [np.nan], [np.nan], [np.nan], [np.nan]]
         
         counter   = counter[0]
         millis    = millis[0]
