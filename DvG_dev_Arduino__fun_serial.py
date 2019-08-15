@@ -48,8 +48,8 @@ Classes:
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "30-01-2019"
-__version__     = "1.0.1"
+__date__        = "15-08-2019"
+__version__     = "1.0.2"
 
 import sys
 import serial
@@ -240,7 +240,7 @@ class Arduino():
     #   auto_connect
     # --------------------------------------------------------------------------
 
-    def auto_connect(self, path_config, match_identity=None):
+    def auto_connect(self, path_config='', match_identity=None):
         """
         """
         # Try to open the config file containing the port to open. Do not panic
