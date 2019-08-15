@@ -24,13 +24,27 @@ volatile bool is_serial_txc = false; // Is serial data sent out?
 volatile bool is_serial_rxc = false; // Is serial data received?
 volatile uint32_t millis = 0;        // Updated by SysTick, once every 1 ms
 
+// Preprocessor trick to ensure enums and strings are in sync, so one can write
+// 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
+#define FOREACH_WAVEFORM(WAVEFORM) \
+        WAVEFORM(Cosine)    \
+        WAVEFORM(Square)    \
+        WAVEFORM(Sawtooth)  \
+        WAVEFORM(Triangle)  \
+        WAVEFORM(ECG)
+#define GENERATE_ENUM(ENUM) ENUM,
+#define GENERATE_STRING(STRING) #STRING,
+
+enum WAVEFORM_ENUM {
+    FOREACH_WAVEFORM(GENERATE_ENUM)
+};
+
+static const char *WAVEFORM_STRING[] = {
+    FOREACH_WAVEFORM(GENERATE_STRING)
+};
+
 // LIA output reference signal parameters
-typedef enum waveform_type {Cosine,
-                            Square,
-                            Sawtooth,
-                            Triangle,
-                            ECG} waveform_type;
-enum waveform_type ref_waveform = Cosine;
+enum WAVEFORM_ENUM ref_waveform = Cosine;
 double ref_freq;              // [Hz] Obtained frequency of reference signal
 double ref_V_offset = 1.65;   // [V]  Voltage offset of reference signal
 double ref_V_ampl   = 1.65;   // [V]  Voltage amplitude reference signal
@@ -408,6 +422,29 @@ void compute_LUT(uint16_t *LUT_array, double wanted_ref_freq) {
     }
 }
 
+void io_print_LUT() {
+    // Report N_LUT and the waveform type as ASCII
+    snprintf(str_buffer, MAXLEN_STR_BUFFER,
+             "%u\t%s\n",
+             N_LUT,
+             WAVEFORM_STRING[ref_waveform]);
+    io_print(str_buffer);
+    
+    // Report the full LUT as a binary stream
+    io_write_blocking((uint8_t *) LUT_wave, N_LUT * 2);
+    io_print("\n");
+}
+
+void io_print_ref() {
+    // Report reference signal settings
+    snprintf(str_buffer, MAXLEN_STR_BUFFER,
+             "%.3f\t%.3f\t%.3f\n",
+             ref_freq,
+             ref_V_offset,
+             ref_V_ampl);
+    io_print(str_buffer);
+}    
+
 void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
     /*
     Write timestamp and 'phase'-stamp of the first ADC sample of the buffer that
@@ -629,7 +666,6 @@ int main(void) {
     // Microcontroller unit (MCU) unique identifier (uid) number
     get_mcu_uid(mcu_uid);
 
-
     // USART
     usart_async_get_io_descriptor(&USART_0, &io);
     usart_async_register_callback(&USART_0, USART_ASYNC_TXC_CB  , cb_USART_txc);
@@ -771,16 +807,21 @@ int main(void) {
                     } else if (strcmp(str_cmd, "ref?") == 0 ||
                                strcmp(str_cmd, "?") == 0) {
                         // Report reference signal settings
-                        snprintf(str_buffer, MAXLEN_STR_BUFFER,
-                                 "%u\t%u\t%.3f\t%.3f\t%.3f\n",
-                                 N_LUT,
-                                 ref_waveform,
-                                 ref_V_offset,
-                                 ref_V_ampl,
-                                 ref_freq);
-                        io_print(str_buffer);
+                        io_print_ref();
+                        
+                    } else if (strcmp(str_cmd, "lut?") == 0) {
+                        // Report N_LUT and the waveform type as ASCII
+                        // And report the full LUT as a binary stream
+                        io_print_LUT();
 
                     } else if (strcmp(str_cmd, "lut_ascii?") == 0) {
+                        // Report N_LUT and the waveform type as ASCII
+                        snprintf(str_buffer, MAXLEN_STR_BUFFER,
+                                 "%u\t%s\n",
+                                 N_LUT,
+                                 WAVEFORM_STRING[ref_waveform]);
+                        io_print(str_buffer);
+                        
                         // Report the full LUT as ASCII, tab delimited
                         // Slow but handy for debugging
                         for (uint16_t i = 0; i < N_LUT - 1; i++) {
@@ -789,12 +830,6 @@ int main(void) {
                         }
                         sprintf(str_buffer, "%u\n", LUT_wave[N_LUT - 1]);
                         io_print(str_buffer);
-
-                    } else if (strcmp(str_cmd, "lut?") == 0) {
-                        // Report the full LUT as a binary stream
-                        io_write_blocking((uint8_t *) &N_LUT, 2);
-                        io_write_blocking((uint8_t *) LUT_wave, N_LUT * 2);
-                        io_print("\n");
 
                     } else if (strcmp(str_cmd, "time?") == 0) {
                         // Report time in microseconds
@@ -811,53 +846,52 @@ int main(void) {
 
                     } else if (strncmp(str_cmd, "freq", 4) == 0) {
                         // Set frequency of reference signal [Hz]
-                        // And reply with the obtained frequency [Hz]
+                        // And report the obtained reference signal settings
                         compute_LUT(LUT_wave, atof(&str_cmd[4]));
-                        snprintf(str_buffer, MAXLEN_STR_BUFFER,
-                                 "%.3f\n", ref_freq);
-                        io_print(str_buffer);
+                        io_print_ref();
 
                     } else if (strncmp(str_cmd, "offs", 4) == 0) {
                         // Set offset of reference signal [V]
-                        // And reply with the obtained offset [V]
+                        // And report the obtained reference signal settings
                         ref_V_offset = atof(&str_cmd[4]);
                         ref_V_offset = max(ref_V_offset, 0.0);
                         ref_V_offset = min(ref_V_offset, A_REF);
                         compute_LUT(LUT_wave, ref_freq);
-                        snprintf(str_buffer, MAXLEN_STR_BUFFER,
-                                 "%.3f\n", ref_V_offset);
-                        io_print(str_buffer);
+                        io_print_ref();
 
                     } else if (strncmp(str_cmd, "ampl", 4) == 0) {
                         // Set amplitude of reference signal [V]
-                        // And reply with the obtained amplitude [V]
+                        // And report the obtained reference signal settings
                         ref_V_ampl = atof(&str_cmd[4]);
                         ref_V_ampl = max(ref_V_ampl, 0.0);
                         ref_V_ampl = min(ref_V_ampl, A_REF);
                         compute_LUT(LUT_wave, ref_freq);
-                        snprintf(str_buffer, MAXLEN_STR_BUFFER,
-                                 "%.3f\n", ref_V_ampl);
-                        io_print(str_buffer);
+                        io_print_ref();
 
                     } else if (strcmp(str_cmd, "cos") == 0) {
                         ref_waveform = Cosine;
                         compute_LUT(LUT_wave, ref_freq);
+                        io_print_LUT();
 
                     } else if (strcmp(str_cmd, "sqr") == 0) {
                         ref_waveform = Square;
                         compute_LUT(LUT_wave, ref_freq);
+                        io_print_LUT();
 
                     } else if (strcmp(str_cmd, "saw") == 0) {
                         ref_waveform = Sawtooth;
                         compute_LUT(LUT_wave, ref_freq);
+                        io_print_LUT();
 
                     } else if (strcmp(str_cmd, "tri") == 0) {
                         ref_waveform = Triangle;
                         compute_LUT(LUT_wave, ref_freq);
+                        io_print_LUT();
 
                     } else if (strcmp(str_cmd, "ecg") == 0) {
                         ref_waveform = ECG;
                         compute_LUT(LUT_wave, ref_freq);
+                        io_print_LUT();
                     }
                 }
             }
