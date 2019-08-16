@@ -350,16 +350,33 @@ obtained frequency 'ref_freq'.
 // The ADC readings lag behind the DAC output by 1 sample
 #define SAMPLE_OFFSET_ADC_DAC 1
 
-void compute_LUT(uint16_t *LUT_array, double wanted_ref_freq) {
+void parse_freq(const char const *str_value) {
+    ref_freq = atof(str_value);
+    N_LUT = (uint16_t) round(SAMPLING_RATE_Hz / ref_freq);
+    N_LUT = max(N_LUT, MIN_N_LUT);
+    N_LUT = min(N_LUT, MAX_N_LUT);
+    ref_freq = SAMPLING_RATE_Hz / N_LUT;
+}
+
+void parse_offs(const char const *str_value) {
+    ref_V_offset = atof(str_value);
+    ref_V_offset = max(ref_V_offset, 0.0);
+    ref_V_offset = min(ref_V_offset, A_REF);
+}
+
+void parse_ampl(const char const *str_value) {
+    ref_V_ampl = atof(str_value);
+    ref_V_ampl = max(ref_V_ampl, 0.0);
+    ref_V_ampl = min(ref_V_ampl, A_REF);
+}
+
+void compute_LUT(uint16_t *LUT_array) {
     double offs = ref_V_offset / A_REF;    // Normalized
     double ampl = ref_V_ampl   / A_REF;    // Normalized
     double wave;
 
-    // Compute N_LUT and ref_freq that matches best to the wanted ref_freq
-    N_LUT = (uint16_t) round(SAMPLING_RATE_Hz / wanted_ref_freq);
-    N_LUT = max(N_LUT, MIN_N_LUT);
-    N_LUT = min(N_LUT, MAX_N_LUT);
-    ref_freq = SAMPLING_RATE_Hz / N_LUT;    // [Hz]
+    uint32_t tick = millis;
+    io_print("Computing LUT...");
 
     int16_t fq_N_LUT = (int16_t) floor(N_LUT / 4.0); // Floor quarter N_LUT
     int16_t cq_N_LUT = (int16_t) ceil (N_LUT / 4.0); // Ceil  quarter N_LUT
@@ -402,14 +419,8 @@ void compute_LUT(uint16_t *LUT_array, double wanted_ref_freq) {
         }
     } else {
         if (prev_ECG_N_LUT != N_LUT) {
-            uint32_t tick = millis;
-            io_print("Generating ECG...");
-
             generate_ECG(ecg_wave, N_LUT);
             prev_ECG_N_LUT = N_LUT;
-
-            sprintf(str_buffer, " done in %lu ms\n", millis - tick);
-            io_print(str_buffer);
         }
 
         for (uint16_t i = 0; i < N_LUT; i++) {
@@ -420,30 +431,10 @@ void compute_LUT(uint16_t *LUT_array, double wanted_ref_freq) {
             LUT_array[i] = (uint16_t) round(MAX_DAC_OUTPUT_BITVAL * wave);
         }
     }
-}
 
-void io_print_LUT() {
-    // Report N_LUT and the waveform type as ASCII
-    snprintf(str_buffer, MAXLEN_STR_BUFFER,
-             "%u\t%s\n",
-             N_LUT,
-             WAVEFORM_STRING[ref_waveform]);
+    sprintf(str_buffer, " done in %lu ms\n", millis - tick);
     io_print(str_buffer);
-    
-    // Report the full LUT as a binary stream
-    io_write_blocking((uint8_t *) LUT_wave, N_LUT * 2);
-    io_print("\n");
 }
-
-void io_print_ref() {
-    // Report reference signal settings
-    snprintf(str_buffer, MAXLEN_STR_BUFFER,
-             "%.3f\t%.3f\t%.3f\n",
-             ref_freq,
-             ref_V_offset,
-             ref_V_ampl);
-    io_print(str_buffer);
-}    
 
 void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
     /*
@@ -465,7 +456,7 @@ void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
     get_systick_timestamp(&millis_copy, &micros_part);
     //t1 = SysTick->VAL;
     //dt = t2 - t1;
-    
+
     // Modulo takes more cycles when time increases.
     // Is max 164 clock cycles when (2^24 % N_LUT).
     idx_phase = (TIMER_0.time + N_LUT + LUT_OFFSET_TRIG_OUT +
@@ -683,8 +674,8 @@ int main(void) {
     memcpy(&TX_buffer_B[N_BYTES_TX_BUFFER - 10], EOM, 10);
 
     // LUT
-    double wanted_startup_ref_freq = 500; // [Hz]
-    compute_LUT(LUT_wave, wanted_startup_ref_freq);
+    parse_freq("500.0");  // Wanted startup ref_freq [Hz]
+    compute_LUT(LUT_wave);
 
     // Will send out TX_buffer over SERCOM when triggered
     configure_DMA_1();
@@ -759,9 +750,13 @@ int main(void) {
 
                     str_cmd = scl_get_command(&scl_1);
 
+
+
                     if (strcmp(str_cmd, "id?") == 0) {
                         // Report identity string
                         io_print("Arduino lock-in amp\n");
+
+
 
                     } else if (strcmp(str_cmd, "mcu?") == 0) {
                         // Report microcontroller model, serial and firmware
@@ -790,6 +785,8 @@ int main(void) {
                                  FIRMWARE_VERSION, str_model, str_uid);
                         io_print(str_buffer);
 
+
+
                     } else if (strcmp(str_cmd, "const?") == 0) {
                         // Report constants
                         snprintf(str_buffer, MAXLEN_STR_BUFFER,
@@ -804,26 +801,37 @@ int main(void) {
                                  MAX_N_LUT);
                         io_print(str_buffer);
 
+
+
                     } else if (strcmp(str_cmd, "ref?") == 0 ||
                                strcmp(str_cmd, "?") == 0) {
                         // Report reference signal settings
-                        io_print_ref();
-                        
+                        sprintf(str_buffer, "%.3f\t%.3f\t%.3f\n",
+                                ref_freq, ref_V_offset, ref_V_ampl);
+                        io_print(str_buffer);
+
+
+
                     } else if (strcmp(str_cmd, "lut?") == 0) {
-                        // Report N_LUT and the waveform type as ASCII
-                        // And report the full LUT as a binary stream
-                        io_print_LUT();
+                        // Report N_LUT and the waveform type as ASCII.
+                        // And report the full LUT as a binary stream.
+                        sprintf(str_buffer, "%u\t%s\n",
+                                N_LUT, WAVEFORM_STRING[ref_waveform]);
+                        io_print(str_buffer);
+
+                        io_write_blocking((uint8_t *) LUT_wave, N_LUT * 2);
+                        io_print("\n");
+
+
 
                     } else if (strcmp(str_cmd, "lut_ascii?") == 0) {
-                        // Report N_LUT and the waveform type as ASCII
-                        snprintf(str_buffer, MAXLEN_STR_BUFFER,
-                                 "%u\t%s\n",
-                                 N_LUT,
-                                 WAVEFORM_STRING[ref_waveform]);
+                        // Report N_LUT and the waveform type as ASCII.
+                        // Report the full LUT as ASCII, tab delimited.
+                        // Slow but handy for debugging.
+                        sprintf(str_buffer, "%u\t%s\n",
+                                N_LUT, WAVEFORM_STRING[ref_waveform]);
                         io_print(str_buffer);
-                        
-                        // Report the full LUT as ASCII, tab delimited
-                        // Slow but handy for debugging
+
                         for (uint16_t i = 0; i < N_LUT - 1; i++) {
                             sprintf(str_buffer, "%u\t", LUT_wave[i]);
                             io_print(str_buffer);
@@ -831,67 +839,134 @@ int main(void) {
                         sprintf(str_buffer, "%u\n", LUT_wave[N_LUT - 1]);
                         io_print(str_buffer);
 
+
+
                     } else if (strcmp(str_cmd, "time?") == 0) {
                         // Report time in microseconds
                         io_print_timestamp();
+
+
 
                     } else if (strcmp(str_cmd, "off") == 0) {
                         // Lock-in amp is already off and we reply with an
                         // acknowledgment
                         io_print("already_off\n");
 
+
+
                     } else if (strcmp(str_cmd, "on") == 0) {
                         // Start lock-in amp
                         start_LIA();
 
+
+
                     } else if (strncmp(str_cmd, "freq", 4) == 0) {
-                        // Set frequency of reference signal [Hz]
-                        // And report the obtained reference signal settings
-                        compute_LUT(LUT_wave, atof(&str_cmd[4]));
-                        io_print_ref();
+                        // Set frequency of the reference signal [Hz].
+                        // Automatically recomputes the LUT and replies back the
+                        // effective setting. Convenience function to be called
+                        // from a serial monitor.
+                        parse_freq(&str_cmd[4]);
+                        compute_LUT(LUT_wave);
+                        sprintf(str_buffer, "%.3f\n", ref_freq);
+                        io_print(str_buffer);
+
+                    } else if (strncmp(str_cmd, "_freq", 5) == 0) {
+                        // Set frequency of the reference signal [Hz].
+                        // You still have to call 'compute_LUT(LUT_wave)' for it
+                        // to become effective.
+                        parse_freq(&str_cmd[5]);
+
+
 
                     } else if (strncmp(str_cmd, "offs", 4) == 0) {
-                        // Set offset of reference signal [V]
-                        // And report the obtained reference signal settings
-                        ref_V_offset = atof(&str_cmd[4]);
-                        ref_V_offset = max(ref_V_offset, 0.0);
-                        ref_V_offset = min(ref_V_offset, A_REF);
-                        compute_LUT(LUT_wave, ref_freq);
-                        io_print_ref();
+                        // Set offset of the reference signal [V].
+                        // Automatically recomputes the LUT and replies back the
+                        // effective setting. Convenience function to be called
+                        // from a serial monitor.
+                        parse_offs(&str_cmd[4]);
+                        compute_LUT(LUT_wave);
+                        sprintf(str_buffer, "%.3f\n", ref_V_offset);
+                        io_print(str_buffer);
+
+                    } else if (strncmp(str_cmd, "_offs", 5) == 0) {
+                        // Set offset of the reference signal [V].
+                        // You still have to call 'compute_LUT(LUT_wave)' for it
+                        // to become effective.
+                        parse_offs(&str_cmd[5]);
+
+
 
                     } else if (strncmp(str_cmd, "ampl", 4) == 0) {
-                        // Set amplitude of reference signal [V]
-                        // And report the obtained reference signal settings
-                        ref_V_ampl = atof(&str_cmd[4]);
-                        ref_V_ampl = max(ref_V_ampl, 0.0);
-                        ref_V_ampl = min(ref_V_ampl, A_REF);
-                        compute_LUT(LUT_wave, ref_freq);
-                        io_print_ref();
+                        // Set amplitude of the reference signal [V].
+                        // Automatically recomputes the LUT and replies back the
+                        // effective setting. Convenience function to be called
+                        // from a serial monitor.
+                        parse_ampl(&str_cmd[4]);
+                        compute_LUT(LUT_wave);
+                        sprintf(str_buffer, "%.3f\n", ref_V_ampl);
+                        io_print(str_buffer);
 
+                    } else if (strncmp(str_cmd, "_ampl", 5) == 0) {
+                        // Set amplitude of the reference signal [V].
+                        // You still have to call 'compute_LUT(LUT_wave)' for it
+                        // to become effective.
+                        parse_ampl(&str_cmd[5]);
+
+
+
+                    } else if (strcmp(str_cmd, "compute_LUT") == 0 ||
+                               strcmp(str_cmd, "c") == 0) {
+                        compute_LUT(LUT_wave);
+
+
+
+                    } else if (strncmp(str_cmd, "_wave", 5) == 0) {
+                        // Set the waveform type of the reference signal.
+                        // You still have to call 'compute_LUT(LUT_wave)' for it
+                        // to become effective.
+                        ref_waveform = atoi(&str_cmd[5]);
+
+
+
+                    /* Set the waveform type of the reference signal.
+                       Automatically recomputes the LUT and replies back the
+                       effective setting. Convenience functions to be called
+                       from a serial monitor.
+                    */
                     } else if (strcmp(str_cmd, "cos") == 0) {
                         ref_waveform = Cosine;
-                        compute_LUT(LUT_wave, ref_freq);
-                        //io_print_LUT();
+                        compute_LUT(LUT_wave);
+                        sprintf(str_buffer, "%s\n",
+                                WAVEFORM_STRING[ref_waveform]);
+                        io_print(str_buffer);
 
                     } else if (strcmp(str_cmd, "sqr") == 0) {
                         ref_waveform = Square;
-                        compute_LUT(LUT_wave, ref_freq);
-                        //io_print_LUT();
+                        compute_LUT(LUT_wave);
+                        sprintf(str_buffer, "%s\n",
+                                WAVEFORM_STRING[ref_waveform]);
+                        io_print(str_buffer);
 
                     } else if (strcmp(str_cmd, "saw") == 0) {
                         ref_waveform = Sawtooth;
-                        compute_LUT(LUT_wave, ref_freq);
-                        //io_print_LUT();
+                        compute_LUT(LUT_wave);
+                        sprintf(str_buffer, "%s\n",
+                                WAVEFORM_STRING[ref_waveform]);
+                        io_print(str_buffer);
 
                     } else if (strcmp(str_cmd, "tri") == 0) {
                         ref_waveform = Triangle;
-                        compute_LUT(LUT_wave, ref_freq);
-                        //io_print_LUT();
+                        compute_LUT(LUT_wave);
+                        sprintf(str_buffer, "%s\n",
+                                WAVEFORM_STRING[ref_waveform]);
+                        io_print(str_buffer);
 
                     } else if (strcmp(str_cmd, "ecg") == 0) {
                         ref_waveform = ECG;
-                        compute_LUT(LUT_wave, ref_freq);
-                        //io_print_LUT();
+                        compute_LUT(LUT_wave);
+                        sprintf(str_buffer, "%s\n",
+                                WAVEFORM_STRING[ref_waveform]);
+                        io_print(str_buffer);
                     }
                 }
             }
