@@ -31,7 +31,8 @@ volatile uint32_t millis = 0;        // Updated by SysTick, once every 1 ms
         WAVEFORM(Square)    \
         WAVEFORM(Sawtooth)  \
         WAVEFORM(Triangle)  \
-        WAVEFORM(ECG)
+        WAVEFORM(ECG)       \
+        WAVEFORM(END_WAVEFORM_ENUM)
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
@@ -54,6 +55,7 @@ double ref_V_ampl   = 1.65;   // [V]  Voltage amplitude reference signal
 #define MAX_N_LUT 1000     // Max. allowed number of samples for one full period
 uint16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
 uint16_t N_LUT;            // Current number of samples for one full period
+bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 
 // For fun: ECG 'heartbeat' reference wave
 float ecg_wave[MAX_N_LUT] = {0.};
@@ -432,6 +434,8 @@ void compute_LUT(uint16_t *LUT_array) {
         }
     }
 
+    is_LUT_dirty = false;
+
     sprintf(str_buffer, " done in %lu ms\n", millis - tick);
     io_print(str_buffer);
 }
@@ -673,6 +677,14 @@ int main(void) {
     memcpy(&TX_buffer_A[N_BYTES_TX_BUFFER - 10], EOM, 10);
     memcpy(&TX_buffer_B[N_BYTES_TX_BUFFER - 10], EOM, 10);
 
+    // Millis and micros timer
+    //SysTick_Config(SystemCoreClock / 1000);
+    SysTick->LOAD = (uint32_t) (SystemCoreClock / 1000 - 1UL);
+    SysTick->VAL  = 0UL;
+    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |
+    SysTick_CTRL_TICKINT_Msk   |
+    SysTick_CTRL_ENABLE_Msk;
+
     // LUT
     parse_freq("500.0");  // Wanted startup ref_freq [Hz]
     compute_LUT(LUT_wave);
@@ -683,14 +695,6 @@ int main(void) {
 
     // Init DAC and ADC
     init_LIA();
-
-    // Millis and micros timer
-    //SysTick_Config(SystemCoreClock / 1000);
-    SysTick->LOAD = (uint32_t) (SystemCoreClock / 1000 - 1UL);
-    SysTick->VAL  = 0UL;
-    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |
-                    SysTick_CTRL_TICKINT_Msk   |
-                    SysTick_CTRL_ENABLE_Msk;
 
     char *str_cmd;  // Incoming serial command string
     bool toggle = false;
@@ -815,8 +819,10 @@ int main(void) {
                     } else if (strcmp(str_cmd, "lut?") == 0) {
                         // Report N_LUT and the waveform type as ASCII.
                         // And report the full LUT as a binary stream.
-                        sprintf(str_buffer, "%u\t%s\n",
-                                N_LUT, WAVEFORM_STRING[ref_waveform]);
+                        sprintf(str_buffer, "%u\t%s\t%i\n",
+                                N_LUT,
+                                WAVEFORM_STRING[ref_waveform],
+                                is_LUT_dirty);
                         io_print(str_buffer);
 
                         io_write_blocking((uint8_t *) LUT_wave, N_LUT * 2);
@@ -828,8 +834,10 @@ int main(void) {
                         // Report N_LUT and the waveform type as ASCII.
                         // Report the full LUT as ASCII, tab delimited.
                         // Slow but handy for debugging.
-                        sprintf(str_buffer, "%u\t%s\n",
-                                N_LUT, WAVEFORM_STRING[ref_waveform]);
+                        sprintf(str_buffer, "%u\t%s\t%i\n",
+                                N_LUT,
+                                WAVEFORM_STRING[ref_waveform],
+                                is_LUT_dirty);
                         io_print(str_buffer);
 
                         for (uint16_t i = 0; i < N_LUT - 1; i++) {
@@ -864,7 +872,7 @@ int main(void) {
                         // Set frequency of the reference signal [Hz].
                         // Automatically recomputes the LUT and replies back the
                         // effective setting. Convenience function to be called
-                        // from a serial monitor.
+                        // from a serial terminal.
                         parse_freq(&str_cmd[4]);
                         compute_LUT(LUT_wave);
                         sprintf(str_buffer, "%.3f\n", ref_freq);
@@ -875,6 +883,7 @@ int main(void) {
                         // You still have to call 'compute_LUT(LUT_wave)' for it
                         // to become effective.
                         parse_freq(&str_cmd[5]);
+                        is_LUT_dirty = true;
 
 
 
@@ -882,7 +891,7 @@ int main(void) {
                         // Set offset of the reference signal [V].
                         // Automatically recomputes the LUT and replies back the
                         // effective setting. Convenience function to be called
-                        // from a serial monitor.
+                        // from a serial terminal.
                         parse_offs(&str_cmd[4]);
                         compute_LUT(LUT_wave);
                         sprintf(str_buffer, "%.3f\n", ref_V_offset);
@@ -893,6 +902,7 @@ int main(void) {
                         // You still have to call 'compute_LUT(LUT_wave)' for it
                         // to become effective.
                         parse_offs(&str_cmd[5]);
+                        is_LUT_dirty = true;
 
 
 
@@ -900,7 +910,7 @@ int main(void) {
                         // Set amplitude of the reference signal [V].
                         // Automatically recomputes the LUT and replies back the
                         // effective setting. Convenience function to be called
-                        // from a serial monitor.
+                        // from a serial terminal.
                         parse_ampl(&str_cmd[4]);
                         compute_LUT(LUT_wave);
                         sprintf(str_buffer, "%.3f\n", ref_V_ampl);
@@ -911,6 +921,7 @@ int main(void) {
                         // You still have to call 'compute_LUT(LUT_wave)' for it
                         // to become effective.
                         parse_ampl(&str_cmd[5]);
+                        is_LUT_dirty = true;
 
 
 
@@ -925,13 +936,16 @@ int main(void) {
                         // You still have to call 'compute_LUT(LUT_wave)' for it
                         // to become effective.
                         ref_waveform = atoi(&str_cmd[5]);
+                        ref_waveform = max(ref_waveform, 0);
+                        ref_waveform = min(ref_waveform, END_WAVEFORM_ENUM - 1);
+                        is_LUT_dirty = true;
 
 
 
                     /* Set the waveform type of the reference signal.
                        Automatically recomputes the LUT and replies back the
                        effective setting. Convenience functions to be called
-                       from a serial monitor.
+                       from a serial terminal.
                     */
                     } else if (strcmp(str_cmd, "cos") == 0) {
                         ref_waveform = Cosine;
