@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Module to communicate with an Arduino lock-in amp device over a serial
+"""Module to communicate with an Arduino lock-in amplifier device over a serial
 connection.
 """
 __author__      = "Dennis van Gils"
@@ -57,7 +57,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         MAX_N_LUT         = 0   # [samples] Maximum allowed number LUT samples
         
         # Waveform look-up table (LUT) settings
-        N_LUT        = 0              # [samples] covering a full period
+        N_LUT = 0           # [samples] Number of samples covering a full period
         ref_waveform = 'Unknown'      # Name of the reference signal waveform
         LUT_wave     = np.array([])   # Array of [uint16_t]
         # LUT_wave will contain a copy of the LUT array of the current reference
@@ -100,6 +100,13 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
 
     def begin(self, ref_freq=None, ref_V_offset=None, ref_V_ampl=None):
         """
+        Prepare the lock-in amp for operation. The start-up state is off.
+        If the optional parameters ref_freq, ref_V_offset or ref_V_ampl are
+        not passed, the pre-existing values known to the Arduino will be used
+        instead, i.e. it will pick up where it left.
+        
+        TODO: add parameter ref_waveform_type
+        
         Returns:
             success
         """
