@@ -277,6 +277,10 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             success
         """
         
+        # TODO: First update the LUT on the Arduino side (?)
+        [success, ans_str] = self.safe_query("c")
+        print(ans_str)
+        
         # The query "lut?" will first return an ASCII encoded line, terminated
         # by a newline character, and it will then send a binary stream
         # terminated with another newline character.
