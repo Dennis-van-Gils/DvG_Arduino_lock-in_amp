@@ -871,27 +871,27 @@ int main(void) {
                     } else if (strcmp(str_cmd, "cos") == 0) {
                         ref_waveform = Cosine;
                         compute_LUT(LUT_wave, ref_freq);
-                        io_print_LUT();
+                        //io_print_LUT();
 
                     } else if (strcmp(str_cmd, "sqr") == 0) {
                         ref_waveform = Square;
                         compute_LUT(LUT_wave, ref_freq);
-                        io_print_LUT();
+                        //io_print_LUT();
 
                     } else if (strcmp(str_cmd, "saw") == 0) {
                         ref_waveform = Sawtooth;
                         compute_LUT(LUT_wave, ref_freq);
-                        io_print_LUT();
+                        //io_print_LUT();
 
                     } else if (strcmp(str_cmd, "tri") == 0) {
                         ref_waveform = Triangle;
                         compute_LUT(LUT_wave, ref_freq);
-                        io_print_LUT();
+                        //io_print_LUT();
 
                     } else if (strcmp(str_cmd, "ecg") == 0) {
                         ref_waveform = ECG;
                         compute_LUT(LUT_wave, ref_freq);
-                        io_print_LUT();
+                        //io_print_LUT();
                     }
                 }
             }

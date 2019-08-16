@@ -14,9 +14,17 @@ import struct
 
 import serial
 import numpy as np
+from enum import Enum
 
 import DvG_dev_Arduino__fun_serial as Arduino_functions
 from DvG_debug_functions import dprint, print_fancy_traceback as pft
+ 
+class Waveform(Enum):
+    Cosine   = 0
+    Square   = 1
+    Sawtooth = 2
+    Triangle = 3
+    ECG      = 4
 
 class Arduino_lockin_amp(Arduino_functions.Arduino):
     class Config():
@@ -32,7 +40,6 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         binary_type_micros    = 'H'   # [uint16_t] TX_buffer header
         binary_type_idx_phase = 'H'   # [uint16_t] TX_buffer header
         binary_type_sig_I     = 'H'   # [uint16_t] TX_buffer body
-        binary_type_LUT_wave  = 'H'   # [uint16_t] LUT_wave
         
         # Return types
         return_type_time  = np.float64   # Ensure signed to allow for flexible arithmetic
@@ -47,19 +54,19 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         # Lock-in amplifier CONSTANTS
         SAMPLING_PERIOD   = 0   # [s]
-        BLOCK_SIZE        = 0   # [samples] Number of samples send per TX_buffer
+        BLOCK_SIZE        = 0   # Number of samples send per TX_buffer
         N_BYTES_TX_BUFFER = 0   # [data bytes] Expected number of bytes for each
                                 # correctly received TX_buffer from the Arduino
         DAC_OUTPUT_BITS   = 0   # [bits]
         ADC_INPUT_BITS    = 0   # [bits]
         A_REF             = 0   # [V] Analog voltage reference of the Arduino
-        MIN_N_LUT         = 0   # [samples] Minimum allowed number LUT samples
-        MAX_N_LUT         = 0   # [samples] Maximum allowed number LUT samples
+        MIN_N_LUT         = 0   # Minimum allowed number of LUT samples
+        MAX_N_LUT         = 0   # Maximum allowed number of LUT samples
         
         # Waveform look-up table (LUT) settings
-        N_LUT = 0           # [samples] Number of samples covering a full period
-        ref_waveform = 'Unknown'      # Name of the reference signal waveform
-        LUT_wave     = np.array([])   # Array of [uint16_t]
+        N_LUT = 0                   # Number of samples covering a full period
+        ref_waveform = 'Unknown'    # Name of the reference signal waveform
+        LUT_wave     = np.array([], dtype=np.uint16)
         # LUT_wave will contain a copy of the LUT array of the current reference
         # signal waveform as used on the Arduino side. This array will be used
         # to reconstruct the ref_X and ref_Y signals, based on the phase index
@@ -244,6 +251,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             if not self.parse_query_ref(ans_str): return False
         else: return False
         
+        if not self.get_LUT(): return False
+        
         return True
     
     def parse_query_ref(self, ans_str):
@@ -262,9 +271,53 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         return True
     
-    def parse_query_LUT(self, ans_bytes):
-        pass
-    
+    def get_LUT(self):
+        """
+        Returns:
+            success
+        """
+        
+        # The query "lut?" will first return an ASCII encoded line, terminated
+        # by a newline character, and it will then send a binary stream
+        # terminated with another newline character.
+        # Hence, the upcoming safe_query will only return the first ASCII line
+        # with the binary stream still left in the serial buffer.
+        [success, ans_str] = self.safe_query("lut?")
+        if success:
+            try:
+                ans_list = ans_str.split('\t')
+                self.config.N_LUT        = int(ans_list[0])
+                self.config.ref_waveform = ans_list[1]
+            except Exception as err:
+                raise(err)
+                return False
+        else: return False
+        
+        # Read the binary stream still left in the serial buffer
+        try:
+            ans_bytes = self.ser.read(size=self.config.N_LUT * 2 + 1)
+        except:
+            dprint("'%s' I/O ERROR: Can't read bytes LUT" % self.name)
+            self.ser.flushInput()
+            return False
+        
+        if ans_bytes == 0:
+            dprint("'%s' I/O ERROR: Timed out reading LUT" % self.name)
+            self.ser.flushInput()
+            return False
+        
+        try:
+            LUT_wave = np.array(
+                    struct.unpack('<' + 'H'*self.config.N_LUT, ans_bytes[:-1]),
+                    dtype=np.uint16)
+        except:
+            dprint("'%s' I/O ERROR: Can't unpack bytes LUT" % self.name)
+            self.ser.flushInput()
+            return False
+        
+        self.config.LUT_wave = LUT_wave
+        return True
+        
     def set_ref_freq(self, ref_freq):
         """
         Returns:
@@ -274,6 +327,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         if success:
             if not self.parse_query_ref(ans_str): return False
         else: return False
+        
+        if not self.get_LUT(): return False
         
         return True
     
@@ -287,6 +342,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             if not self.parse_query_ref(ans_str): return False
         else: return False
         
+        if not self.get_LUT(): return False
+        
         return True
     
     def set_ref_V_ampl(self, ref_V_ampl):
@@ -299,7 +356,12 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             if not self.parse_query_ref(ans_str): return False
         else: return False
         
+        if not self.get_LUT(): return False
+        
         return True
+    
+    def set_ref_waveform(self, idx_waveform: Waveform):
+        print(idx_waveform)
     
     def read_until_EOM(self, size=None):
         """Reads from the serial port until the EOM sentinel is found, the size
@@ -384,10 +446,11 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         bytes_sig_I     = ans_bytes[12:]    # Body
         
         try:
-            counter   = struct.unpack('<' + c.binary_type_counter, bytes_counter)
-            millis    = struct.unpack('<' + c.binary_type_millis , bytes_millis)
-            micros    = struct.unpack('<' + c.binary_type_micros , bytes_micros)
-            idx_phase = struct.unpack('<' + c.binary_type_idx_phase, bytes_idx_phase)
+            counter = struct.unpack('<' + c.binary_type_counter, bytes_counter)
+            millis  = struct.unpack('<' + c.binary_type_millis , bytes_millis)
+            micros  = struct.unpack('<' + c.binary_type_micros , bytes_micros)
+            idx_phase = struct.unpack('<' + c.binary_type_idx_phase,
+                                      bytes_idx_phase)
             
             sig_I = np.array(struct.unpack('<' +
                              c.binary_type_sig_I * c.BLOCK_SIZE, bytes_sig_I),
