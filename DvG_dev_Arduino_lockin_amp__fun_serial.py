@@ -27,15 +27,15 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         N_BYTES_EOM = len(EOM) 
         
         # Data types to decode from binary streams
-        binary_type_counter   = 'I'   # uint32_t
-        binary_type_millis    = 'I'   # uint32_t
-        binary_type_micros    = 'H'   # uint16_t
-        binary_type_idx_phase = 'H'   # uint16_t
-        binary_type_sig_I     = 'H'   # uint16_t
-        binary_type_LUT       = 'H'   # uint16_t
+        binary_type_counter   = 'I'   # [uint32_t] TX_buffer header
+        binary_type_millis    = 'I'   # [uint32_t] TX_buffer header
+        binary_type_micros    = 'H'   # [uint16_t] TX_buffer header
+        binary_type_idx_phase = 'H'   # [uint16_t] TX_buffer header
+        binary_type_sig_I     = 'H'   # [uint16_t] TX_buffer body
+        binary_type_LUT_wave  = 'H'   # [uint16_t] LUT_wave
         
         # Return types
-        #return_type_time  = np.int64   # Signed to allow for flexible arithmetic
+        return_type_time  = np.float64   # Ensure signed to allow for flexible arithmetic
         #return_type_ref_X = np.float64
         #return_type_ref_Y = np.float64
         return_type_sig_I = np.float64
@@ -47,23 +47,24 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         # Lock-in amplifier CONSTANTS
         SAMPLING_PERIOD   = 0   # [s]
-        BLOCK_SIZE        = 0   # [samples] send per TX_buffer
-        N_BYTES_TX_BUFFER = 0   # [data bytes]
+        BLOCK_SIZE        = 0   # [samples] Number of samples send per TX_buffer
+        N_BYTES_TX_BUFFER = 0   # [data bytes] Expected number of bytes for each
+                                # correctly received TX_buffer from the Arduino
         DAC_OUTPUT_BITS   = 0   # [bits]
         ADC_INPUT_BITS    = 0   # [bits]
         A_REF             = 0   # [V] Analog voltage reference of the Arduino
-        MIN_N_LUT         = 0   # [samples] Minimum number allowed LUT samples
-        MAX_N_LUT         = 0   # [samples] Maximum number allowed LUT samples
+        MIN_N_LUT         = 0   # [samples] Minimum allowed number LUT samples
+        MAX_N_LUT         = 0   # [samples] Maximum allowed number LUT samples
         
         # Waveform look-up table (LUT) settings
         N_LUT        = 0              # [samples] covering a full period
-        ref_waveform = 'Unknown'      # Name of current reference waveform
+        ref_waveform = 'Unknown'      # Name of the reference signal waveform
         LUT_wave     = np.array([])   # Array of [uint16_t]
         # LUT_wave will contain a copy of the LUT array of the current reference
-        # waveform as used on the Arduino side. This array will be used to
-        # reconstruct the ref_X and ref_Y signals, based on the phase index that
-        # is sent in the header of each TX_buffer. The unit of each element in
-        # the array is the bit-value that is sent out over the DAC of the
+        # signal waveform as used on the Arduino side. This array will be used
+        # to reconstruct the ref_X and ref_Y signals, based on the phase index
+        # that is sent in the header of each TX_buffer. The unit of each element
+        # in the array is the bit-value that is sent out over the DAC of the
         # Arduino. Hence, multiply by A_REF to get units of [V].
         
         # Derived settings
@@ -363,17 +364,17 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             return [False, [np.nan], [np.nan], [np.nan], [np.nan]]
         
         #dprint("SOM okay")
-        if not(len(ans_bytes) == c.N_BYTES_TRANSMIT_BUFFER):
-            dprint("'%s' I/O ERROR: Expected %i bytes, received %i" %
-                   (self.name, c.N_BYTES_TRANSMIT_BUFFER, len(ans_bytes)))
+        if not(len(ans_bytes) == c.N_BYTES_TX_BUFFER):
+            dprint("'%s' I/O ERROR: Expected %i bytes but received %i" %
+                   (self.name, c.N_BYTES_TX_BUFFER, len(ans_bytes)))
             return [False, [np.nan], [np.nan], [np.nan], [np.nan]]
 
-        ans_bytes = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM]
-        bytes_counter   = ans_bytes[0:4]
-        bytes_millis    = ans_bytes[4:8]
-        bytes_micros    = ans_bytes[8:10]
-        bytes_idx_phase = ans_bytes[10:12]
-        bytes_sig_I     = ans_bytes[12:]
+        ans_bytes = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM] # Remove sentinels
+        bytes_counter   = ans_bytes[0:4]    # Header
+        bytes_millis    = ans_bytes[4:8]    # Header
+        bytes_micros    = ans_bytes[8:10]   # Header
+        bytes_idx_phase = ans_bytes[10:12]  # Header
+        bytes_sig_I     = ans_bytes[12:]    # Body
         
         try:
             counter   = struct.unpack('<' + c.binary_type_counter, bytes_counter)
@@ -397,7 +398,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         t0 = millis * 1000 + micros
         time = np.arange(0, c.BLOCK_SIZE)
         time = t0 + time * c.SAMPLING_PERIOD * 1e6
-        time = np.asarray(time, dtype=np.int64)
+        time = np.asarray(time, dtype=c.return_type_time)
         
         idxs_phase = np.arange(idx_phase, idx_phase + c.BLOCK_SIZE)
         phi = 2 * np.pi * idxs_phase / c.N_LUT
