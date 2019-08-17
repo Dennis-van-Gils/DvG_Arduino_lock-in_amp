@@ -810,19 +810,17 @@ int main(void) {
                     } else if (strcmp(str_cmd, "ref?") == 0 ||
                                strcmp(str_cmd, "?") == 0) {
                         // Report reference signal settings
-                        sprintf(str_buffer, "%.3f\t%.3f\t%.3f\n",
-                                ref_freq, ref_V_offset, ref_V_ampl);
+                        sprintf(str_buffer, "%.3f\t%.3f\t%.3f\t%s\t%i\n",
+                                ref_freq, ref_V_offset, ref_V_ampl,
+                                WAVEFORM_STRING[ref_waveform], N_LUT);
                         io_print(str_buffer);
 
 
 
                     } else if (strcmp(str_cmd, "lut?") == 0) {
-                        // Report N_LUT and the waveform type as ASCII.
-                        // And report the full LUT as a binary stream.
-                        sprintf(str_buffer, "%u\t%s\t%i\n",
-                                N_LUT,
-                                WAVEFORM_STRING[ref_waveform],
-                                is_LUT_dirty);
+                        // Report N_LUT as ASCII and report the full LUT as a
+                        // binary stream.
+                        sprintf(str_buffer, "%u\t%i\n", N_LUT, is_LUT_dirty);
                         io_print(str_buffer);
 
                         io_write_blocking((uint8_t *) LUT_wave, N_LUT * 2);
@@ -831,13 +829,9 @@ int main(void) {
 
 
                     } else if (strcmp(str_cmd, "lut_ascii?") == 0) {
-                        // Report N_LUT and the waveform type as ASCII.
-                        // Report the full LUT as ASCII, tab delimited.
+                        // Report N_LUT as ASCII and report the full LUT as ASCII, tab delimited.
                         // Slow but handy for debugging.
-                        sprintf(str_buffer, "%u\t%s\t%i\n",
-                                N_LUT,
-                                WAVEFORM_STRING[ref_waveform],
-                                is_LUT_dirty);
+                        sprintf(str_buffer, "%u\t%i\n", N_LUT, is_LUT_dirty);
                         io_print(str_buffer);
 
                         for (uint16_t i = 0; i < N_LUT - 1; i++) {

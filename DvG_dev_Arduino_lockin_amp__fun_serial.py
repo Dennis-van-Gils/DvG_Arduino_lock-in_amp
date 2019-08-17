@@ -20,6 +20,7 @@ import DvG_dev_Arduino__fun_serial as Arduino_functions
 from DvG_debug_functions import dprint, print_fancy_traceback as pft
  
 class Waveform(Enum):
+    Unknown  = -1
     Cosine   = 0
     Square   = 1
     Sawtooth = 2
@@ -63,26 +64,26 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         MIN_N_LUT         = 0   # Minimum allowed number of LUT samples
         MAX_N_LUT         = 0   # Maximum allowed number of LUT samples
         
+        # Derived settings
+        Fs        = 0         # [Hz] Sampling rate
+        F_Nyquist = 0         # [Hz] Nyquist frequency
+        T_SPAN_TX_BUFFER = 0  # [s]  Time interval spanned by a single TX_buffer
+        
         # Waveform look-up table (LUT) settings
-        N_LUT = 0                   # Number of samples covering a full period
-        ref_waveform = 'Unknown'    # Name of the reference signal waveform
-        LUT_wave     = np.array([], dtype=np.uint16)
+        N_LUT = 0             # Number of samples covering a full period
+        LUT_wave = np.array([], dtype=np.uint16)
         # LUT_wave will contain a copy of the LUT array of the current reference
         # signal waveform as used on the Arduino side. This array will be used
         # to reconstruct the ref_X and ref_Y signals, based on the phase index
         # that is sent in the header of each TX_buffer. The unit of each element
         # in the array is the bit-value that is sent out over the DAC of the
         # Arduino. Hence, multiply by A_REF to get units of [V].
-        
-        # Derived settings
-        Fs        = 0         # [Hz] Sampling rate
-        F_Nyquist = 0         # [Hz] Nyquist frequency
-        T_SPAN_TX_BUFFER = 0  # [s]  Time interval spanned by a single TX_buffer
-        
+                
         # Reference signal settings
         ref_freq     = 0      # [Hz] Frequency
         ref_V_offset = 0      # [V]  Voltage offset
         ref_V_ampl   = 0      # [V]  Voltage amplitude
+        ref_waveform = Waveform.Unknown # Waveform enum
     
     def __init__(self, 
                  name="Lockin",
@@ -187,50 +188,37 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                                        ref_waveform)):
             print("\nRequesting set reference signal")
 
-        if ref_waveform != None:
-            print("  waveform         : %-10s" % ref_waveform)
-            if not self.write("_wave %i" % ref_waveform): return False        
         if ref_freq != None:
             print("  freq             : %-10.3f [Hz]" % ref_freq)
-            if not self.write("_freq %f" % ref_freq): return False
+            if not self.write("_freq %f" % ref_freq)          : return False
         if ref_V_offset != None:
             print("  offset           : %-10.3f [V]" % ref_V_offset)
-            if not self.write("_offs %f" % ref_V_offset): return False
+            if not self.write("_offs %f" % ref_V_offset)      : return False
         if ref_V_ampl != None:
             print("  ampl             : %-10.3f [V]" % ref_V_ampl)
-            if not self.write("_ampl %f" % ref_V_ampl): return False
+            if not self.write("_ampl %f" % ref_V_ampl)        : return False
+        if ref_waveform != None:
+            print("  waveform         : %-10s" % ref_waveform.name)
+            if not self.write("_wave %i" % ref_waveform.value): return False        
         
-        # We must explicitly (re)compute the LUT
         if not self.compute_LUT(): return False
-
-        print("\nRetrieving 'lut?'")
-        if not self.query_LUT(): return False
-        print("  N_LUT            : %-10s" % c.N_LUT)
-        print("  waveform         : %-10s"        % c.ref_waveform)
-        
-        print("\nRetrieving 'ref?'")
-        [success, ans_str] = self.safe_query("ref?")
-        if success:
-            if not self.parse_query_ref(ans_str): return False
-        else: return False
-        print("  freq             : %-10.3f [Hz]" % c.ref_freq)
-        print("  offset           : %-10.3f [V]"  % c.ref_V_offset)
-        print("  ampl             : %-10.3f [V]"  % c.ref_V_ampl)
+        if not self.query_LUT()  : return False
+        if not self.query_ref()  : return False
         
         print("\n--- All systems GO! ---\n")        
         return True
     
     def safe_query(self, msg_str, timeout_warning_style=1):
+        """
+        Returns:
+            [success, ans_str]
+        """
         was_paused = self.lockin_paused
-        
-        if not was_paused:
-            self.turn_off()
+        if not was_paused: self.turn_off()
         
         [success, ans_str] = self.query(msg_str, timeout_warning_style)
             
-        if success and not was_paused:
-            self.turn_on()
-            
+        if success and not was_paused: self.turn_on()
         return [success, ans_str]
         
     def turn_on(self):
@@ -294,22 +282,6 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
     
         return [success, was_off, ans_bytes]
     
-    def parse_query_ref(self, ans_str):
-        """
-        Returns:
-            success
-        """
-        try:
-            ans_list = ans_str.split('\t')
-            self.config.ref_freq     = float(ans_list[0])
-            self.config.ref_V_offset = float(ans_list[1])
-            self.config.ref_V_ampl   = float(ans_list[2])
-        except Exception as err:
-            raise(err)
-            return False
-        
-        return True
-    
     def compute_LUT(self):
         """ Send command 'compute_LUT' to the Arduino lock-in amp to make the
         planned ref_freq, ref_V_offset, ref_V_ampl and ref_waveform become
@@ -319,14 +291,11 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             success
         """
 
-        # 
-        #[success, ans_str] = self.safe_query("c")
-        #print(ans_str)
-        print("\nComputing LUT at Arduino... ", end='')
+        print("\nComputing LUT on Arduino... ", end='')
         [success, ans_str] = self.safe_query("compute_LUT")
         if success:
-            # The first reply from the Arduino is the message "Computing LUT.."
-            # which we will ignore.
+            # The first reply from the Arduino is the message
+            # "Computing LUT..\n" which we will ignore.
             pass
         else: return False
         
@@ -341,7 +310,6 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             self.ser.timeout = timeout_backup
             raise(err)
             return False
-        
         self.ser.timeout = timeout_backup
         
         if (len(ans_bytes) == 0):
@@ -349,8 +317,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             pft("'%s' I/O ERROR: Timed out computing LUT" % self.name)
             return False
         
-        print(ans_bytes.decode().strip())
-        
+        print(ans_bytes.decode().strip()) # "done in ### ms"
         return True
     
     def query_LUT(self):
@@ -362,14 +329,13 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         # The query "lut?" will first return an ASCII encoded line, terminated
         # by a newline character, and it will then send a binary stream
         # terminated with another newline character.
-        # Hence, the upcoming safe_query will only return the first ASCII line
-        # with the binary stream still left in the serial buffer.
+        # Hence, the upcoming query will only return the first ASCII line with
+        # the binary stream still left in the serial buffer.
         [success, ans_str] = self.safe_query("lut?")
         if success:
             try:
                 ans_list = ans_str.split('\t')
-                self.config.N_LUT        = int(ans_list[0])
-                self.config.ref_waveform = ans_list[1]
+                self.config.N_LUT = int(ans_list[0])
             except Exception as err:
                 raise(err)
                 return False
@@ -400,19 +366,48 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         self.config.LUT_wave = LUT_wave
         return True
+    
+    def query_ref(self):
+        """
+        Returns:
+            success
+        """
+        print("\nRetrieving 'ref?'")
+        [success, ans_str] = self.safe_query("ref?")
+        if success:
+            try:
+                ans_list = ans_str.split('\t')
+                self.config.ref_freq     = float(ans_list[0])
+                self.config.ref_V_offset = float(ans_list[1])
+                self.config.ref_V_ampl   = float(ans_list[2])
+                self.config.ref_waveform = Waveform[ans_list[3]]
+                self.config.N_LUT        = int(ans_list[4])
+            except Exception as err:
+                raise(err)
+                return False
+        else: return False
+        
+        print("  freq             : %-10.3f [Hz]" % self.config.ref_freq)
+        print("  offset           : %-10.3f [V]"  % self.config.ref_V_offset)
+        print("  ampl             : %-10.3f [V]"  % self.config.ref_V_ampl)
+        print("  waveform         : %-10s"        % self.config.ref_waveform.name)
+        print("  N_LUT            : %-10i"        % self.config.N_LUT)
+        return True
         
     def set_ref_freq(self, ref_freq):
         """
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("freq %f" % ref_freq)
-        if success:
-            if not self.parse_query_ref(ans_str): return False
-        else: return False
+        was_paused = self.lockin_paused
+        if not was_paused: self.turn_off()
+            
+        if not self.write("_freq %f" % ref_freq): return False
+        if not self.compute_LUT(): return False
+        if not self.query_LUT()  : return False
+        if not self.query_ref()  : return False
         
-        if not self.get_LUT(): return False
-        
+        if not was_paused: self.turn_on()        
         return True
     
     def set_ref_V_offset(self, ref_V_offset):
@@ -420,13 +415,15 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("offs %f" % ref_V_offset)
-        if success:
-            if not self.parse_query_ref(ans_str): return False
-        else: return False
+        was_paused = self.lockin_paused
+        if not was_paused: self.turn_off()
+            
+        if not self.write("_offs %f" % ref_V_offset): return False
+        if not self.compute_LUT(): return False
+        if not self.query_LUT()  : return False
+        if not self.query_ref()  : return False
         
-        if not self.get_LUT(): return False
-        
+        if not was_paused: self.turn_on()        
         return True
     
     def set_ref_V_ampl(self, ref_V_ampl):
@@ -434,17 +431,32 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("ampl %f" % ref_V_ampl)
-        if success:
-            if not self.parse_query_ref(ans_str): return False
-        else: return False
+        was_paused = self.lockin_paused
+        if not was_paused: self.turn_off()
+            
+        if not self.write("_ampl %f" % ref_V_ampl): return False
+        if not self.compute_LUT(): return False
+        if not self.query_LUT()  : return False
+        if not self.query_ref()  : return False
         
-        if not self.get_LUT(): return False
-        
+        if not was_paused: self.turn_on()        
         return True
     
-    def set_ref_waveform(self, idx_waveform: Waveform):
-        print(idx_waveform)
+    def set_ref_waveform(self, ref_waveform: Waveform):
+        """
+        Returns:
+            success
+        """
+        was_paused = self.lockin_paused
+        if not was_paused: self.turn_off()
+            
+        if not self.write("_wave %f" % ref_waveform.value): return False
+        if not self.compute_LUT(): return False
+        if not self.query_LUT()  : return False
+        if not self.query_ref()  : return False
+        
+        if not was_paused: self.turn_on()        
+        return True
     
     def read_until_EOM(self, size=None):
         """Reads from the serial port until the EOM sentinel is found, the size
