@@ -575,7 +575,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         ref_X = (c.ref_V_offset + c.ref_V_ampl * np.cos(phi)).clip(0,c.A_REF)
         ref_Y = (c.ref_V_offset + c.ref_V_ampl * np.sin(phi)).clip(0,c.A_REF)
-        sig_I = sig_I / (2**c.ANALOG_READ_RESOLUTION - 1) * c.A_REF
+        sig_I = sig_I / (2**c.ADC_INPUT_BITS - 1) * c.A_REF
         #sig_I = sig_I * 2  # Compensate for differential mode of Arduino
         
         return [True, time, ref_X, ref_Y, sig_I]

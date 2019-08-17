@@ -20,7 +20,7 @@ fn = "log.txt"
 with open(fn, 'r') as file :
   filedata = file.read()
 filedata = filedata.replace("draw", "")
-filedata = filedata.replace("samples received: 500", "")
+filedata = filedata.replace("samples received: 2500", "")
 
 with open(fn, 'w') as file:
   file.write(filedata)

@@ -17,18 +17,22 @@ import matplotlib.pyplot as plt
 from collections import deque
 
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
+from DvG_dev_Arduino_lockin_amp__fun_serial import Waveform
 
 fn_log = "log.txt"
-fDrawPlot = False
+fDrawPlot = True
 
 if __name__ == "__main__":
     p = psutil.Process(os.getpid())
     p.nice(psutil.HIGH_PRIORITY_CLASS)
 
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1e6)
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1.2e6)
     if not lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
         sys.exit(0)
-    lockin.begin(ref_freq=100, ref_V_offset=1.5, ref_V_ampl=0.5)
+    lockin.begin(ref_freq=100,
+                 ref_V_offset=1.5,
+                 ref_V_ampl=0.5, 
+                 ref_waveform=Waveform.Cosine)
     
     if fDrawPlot:
         plt.ion()
@@ -42,7 +46,7 @@ if __name__ == "__main__":
     N_SETS = 3;
     N_REPS = 41;
     
-    N_deque = lockin.config.BUFFER_SIZE * N_REPS;
+    N_deque = lockin.config.BLOCK_SIZE * N_REPS;
     deque_time  = deque(maxlen=N_deque)
     deque_ref_X = deque(maxlen=N_deque)
     deque_sig_I = deque(maxlen=N_deque)
@@ -50,8 +54,8 @@ if __name__ == "__main__":
     
     lockin.turn_on()
     for i_set in range(N_SETS): 
-        #if i_set == 1: lockin.set_ref_freq(20)
-        #if i_set == 2: lockin.set_ref_V_ampl(0.6)
+        if i_set == 1: lockin.set_ref_waveform(Waveform.Triangle)
+        if i_set == 2: lockin.set_ref_waveform(Waveform.Cosine)
         
         deque_time.clear()
         deque_ref_X.clear()
@@ -75,7 +79,7 @@ if __name__ == "__main__":
                 print("%3d: %d" % (i_rep, N_samples))
                 f_log.write("samples received: %i\n" % N_samples)
                 for i in range(N_samples):
-                    f_log.write("%i\t%.3f\t%.3f\n" % (time[i], ref_X[i], sig_I[i]))
+                    f_log.write("%i\t%.4f\t%.3f\n" % (time[i], ref_X[i], sig_I[i]))
                 
                 deque_time.extend(time)
                 deque_ref_X.extend(ref_X)
@@ -97,6 +101,8 @@ if __name__ == "__main__":
         print(str_info1 + "    " + str_info2)
         
         if fDrawPlot:
+            #lockin.turn_off()
+            
             ax.cla()
             ax.plot(np_time/1e3, deque_ref_X, 'x-k')
             ax.plot(np_time/1e3, deque_sig_I, 'x-r')
@@ -107,6 +113,8 @@ if __name__ == "__main__":
                         
             fig.canvas.draw()
             plt.pause(0.1)
+            
+            #lockin.turn_on()
     
     # Finish test
     lockin.turn_off()
