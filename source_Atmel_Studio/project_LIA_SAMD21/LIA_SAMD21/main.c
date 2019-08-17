@@ -378,7 +378,7 @@ void compute_LUT(uint16_t *LUT_array) {
     double wave;
 
     uint32_t tick = millis;
-    io_print("Computing LUT...");
+    io_print("Computing LUT...\n");
 
     int16_t fq_N_LUT = (int16_t) floor(N_LUT / 4.0); // Floor quarter N_LUT
     int16_t cq_N_LUT = (int16_t) ceil (N_LUT / 4.0); // Ceil  quarter N_LUT

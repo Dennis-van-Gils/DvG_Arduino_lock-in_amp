@@ -105,29 +105,119 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         self.config = self.Config()
         self.lockin_paused = True
 
-    def begin(self, ref_freq=None, ref_V_offset=None, ref_V_ampl=None):
-        """
-        Prepare the lock-in amp for operation. The start-up state is off.
-        If the optional parameters ref_freq, ref_V_offset or ref_V_ampl are
-        not passed, the pre-existing values known to the Arduino will be used
-        instead, i.e. it will pick up where it left.
-        
-        TODO: add parameter ref_waveform_type
+    def begin(self, ref_freq=None, ref_V_offset=None, ref_V_ampl=None,
+              ref_waveform=None):
+        """ Prepare the lock-in amp for operation. The start-up state is off.
+        If the optional parameters ref_freq, ref_V_offset, ref_V_ampl or
+        ref_waveform are not passed, the pre-existing values known to the
+        Arduino will be used instead, i.e. it will pick up where it left.
         
         Returns:
             success
         """
         [success, __foo, __bar] = self.turn_off()
         if not success: return False
-        if not self.get_config(): return False
         
+        # Shorthand alias
+        c = self.config
+        
+        print("Retrieving 'mcu?'")
+        [success, ans_str] = self.safe_query("mcu?")
+        if success:
+            try:
+                ans_list = ans_str.split('\t')
+                c.mcu_firmware = ans_list[0]
+                c.mcu_model    = ans_list[1]
+                c.mcu_uid      = ans_list[2]
+            except Exception as err:
+                raise(err)
+                return False
+        else: return False
+        print("  firmware: %s" % c.mcu_firmware)
+        print("  model   : %s" % c.mcu_model)
+        print("  uid     : %s" % c.mcu_uid)
+        
+        print("\nRetrieving 'const?'")
+        [success, ans_str] = self.safe_query("const?")
+        if success:
+            try:
+                ans_list = ans_str.split('\t')
+                # Round SAMPLING PERIOD to nanosecond resolution to
+                # prevent e.g. 1.0 being stored as 0.9999999999
+                c.SAMPLING_PERIOD   = (round(float(ans_list[0])*1e-6, 9))
+                c.BLOCK_SIZE        = int(ans_list[1])
+                c.N_BYTES_TX_BUFFER = int(ans_list[2])
+                c.DAC_OUTPUT_BITS   = int(ans_list[3])
+                c.ADC_INPUT_BITS    = int(ans_list[4] )
+                c.A_REF             = float(ans_list[5])
+                c.MIN_N_LUT         = int(ans_list[6])
+                c.MAX_N_LUT         = int(ans_list[7])
+            except Exception as err:
+                raise(err)
+                return False
+        else: return False
+        print("  SAMPLING_PERIOD  : %-10.3f [us]"    % (c.SAMPLING_PERIOD*1e6))
+        print("  BLOCK_SIZE       : %-10i [samples]" % c.BLOCK_SIZE)
+        print("  N_BYTES_TX_BUFFER: %-10i [bytes]"   % c.N_BYTES_TX_BUFFER)
+        print("  DAC_OUTPUT_BITS  : %-10i [bit]"     % c.DAC_OUTPUT_BITS)
+        print("  ADC_INPUT_BITS   : %-10i [bit]"     % c.ADC_INPUT_BITS)
+        print("  A_REF            : %-10.3f [V]"     % c.A_REF)
+        print("  MIN_N_LUT        : %-10i [samples]" % c.MIN_N_LUT)
+        print("  MAX_N_LUT        : %-10i [samples]" % c.MAX_N_LUT)
+        
+        c.Fs = round(1.0/c.SAMPLING_PERIOD, 6)
+        c.F_Nyquist = round(c.Fs/2, 6)
+        c.T_SPAN_TX_BUFFER = (c.BLOCK_SIZE * c.SAMPLING_PERIOD)
+        
+        print("  T_SPAN_TX_BUFFER : %-10.6f [s]"   % c.T_SPAN_TX_BUFFER)
+        print("  Fs               : %-10.6f [kHz]" % (c.Fs/1e3))
+        print("  F_Nyquist        : %-10.6f [kHz]" % (c.F_Nyquist/1e3))
+        
+        """The following commands '_freq', '_offs', '_ampl' and '_wave' that
+        will be sent to the Arduino will not update the LUT automatically, nor
+        will there be any reply back from the Arduino when correctly received.
+        Instead, we send the wished-for settings for the reference signal all
+        bunched up in a row, and only then will we compute the LUT
+        corresponding to these settings. This prevents a lot of overhead by
+        not having to wait for the LUT computation every time a single setting
+        gets changed, as would be the case when using the methods
+        'set_ref_{freq/V_offs/V_ampl/waveform}'.
+        """
+        if any(x is not None for x in (ref_freq, ref_V_offset, ref_V_ampl,
+                                       ref_waveform)):
+            print("\nRequesting set reference signal")
+
+        if ref_waveform != None:
+            print("  waveform         : %-10s" % ref_waveform)
+            if not self.write("_wave %i" % ref_waveform): return False        
         if ref_freq != None:
-            if not self.set_ref_freq(ref_freq): return False
+            print("  freq             : %-10.3f [Hz]" % ref_freq)
+            if not self.write("_freq %f" % ref_freq): return False
         if ref_V_offset != None:
-            if not self.set_ref_V_offset(ref_V_offset): return False
+            print("  offset           : %-10.3f [V]" % ref_V_offset)
+            if not self.write("_offs %f" % ref_V_offset): return False
         if ref_V_ampl != None:
-            if not self.set_ref_V_ampl(ref_V_ampl): return False
+            print("  ampl             : %-10.3f [V]" % ref_V_ampl)
+            if not self.write("_ampl %f" % ref_V_ampl): return False
         
+        # We must explicitly (re)compute the LUT
+        if not self.compute_LUT(): return False
+
+        print("\nRetrieving 'lut?'")
+        if not self.query_LUT(): return False
+        print("  N_LUT            : %-10s" % c.N_LUT)
+        print("  waveform         : %-10s"        % c.ref_waveform)
+        
+        print("\nRetrieving 'ref?'")
+        [success, ans_str] = self.safe_query("ref?")
+        if success:
+            if not self.parse_query_ref(ans_str): return False
+        else: return False
+        print("  freq             : %-10.3f [Hz]" % c.ref_freq)
+        print("  offset           : %-10.3f [V]"  % c.ref_V_offset)
+        print("  ampl             : %-10.3f [V]"  % c.ref_V_ampl)
+        
+        print("\n--- All systems GO! ---\n")        
         return True
     
     def safe_query(self, msg_str, timeout_warning_style=1):
@@ -204,57 +294,6 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
     
         return [success, was_off, ans_bytes]
     
-    def get_config(self):
-        """
-        Returns:
-            success
-        """
-        [success, ans_str] = self.safe_query("mcu?")
-        if success:
-            try:
-                ans_list = ans_str.split('\t')
-                self.config.mcu_firmware = ans_list[0]
-                self.config.mcu_model    = ans_list[1]
-                self.config.mcu_uid      = ans_list[2]
-            except Exception as err:
-                raise(err)
-                return False
-        else: return False
-            
-        [success, ans_str] = self.safe_query("const?")
-        if success:
-            try:
-                ans_list = ans_str.split('\t')
-                # Round SAMPLING PERIOD to nanosecond resolution to
-                # prevent e.g. 1.0 being stored as 0.9999999999
-                self.config.SAMPLING_PERIOD   = (
-                        round(float(ans_list[0])*1e-6, 9))
-                self.config.BLOCK_SIZE        = int(ans_list[1])
-                self.config.N_BYTES_TX_BUFFER = int(ans_list[2])
-                self.config.DAC_OUTPUT_BITS   = int(ans_list[3])
-                self.config.ADC_INPUT_BITS    = int(ans_list[4] )
-                self.config.A_REF             = float(ans_list[5])
-                self.config.MIN_N_LUT         = int(ans_list[6])
-                self.config.MAX_N_LUT         = int(ans_list[7])
-            except Exception as err:
-                raise(err)
-                return False
-        else: return False
-            
-        self.config.Fs = round(1.0/self.config.SAMPLING_PERIOD, 6)
-        self.config.F_Nyquist = round(self.config.Fs/2, 6)
-        self.config.T_SPAN_TX_BUFFER = (self.config.BLOCK_SIZE *
-                                        self.config.SAMPLING_PERIOD)
-        
-        [success, ans_str] = self.safe_query("ref?")
-        if success:
-            if not self.parse_query_ref(ans_str): return False
-        else: return False
-        
-        if not self.get_LUT(): return False
-        
-        return True
-    
     def parse_query_ref(self, ans_str):
         """
         Returns:
@@ -271,15 +310,54 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         return True
     
-    def get_LUT(self):
+    def compute_LUT(self):
+        """ Send command 'compute_LUT' to the Arduino lock-in amp to make the
+        planned ref_freq, ref_V_offset, ref_V_ampl and ref_waveform become
+        effective when the lock-in amp is turned on.
+        
+        Returns:
+            success
+        """
+
+        # 
+        #[success, ans_str] = self.safe_query("c")
+        #print(ans_str)
+        print("\nComputing LUT at Arduino... ", end='')
+        [success, ans_str] = self.safe_query("compute_LUT")
+        if success:
+            # The first reply from the Arduino is the message "Computing LUT.."
+            # which we will ignore.
+            pass
+        else: return False
+        
+        # The second reply of the Arduino will be received when it has finished
+        # computing the LUT. This can take a long time, so we enlarge the
+        # serial timeout for this operation.
+        timeout_backup = self.ser.timeout
+        self.ser.timeout = 120
+        try:
+            ans_bytes = self.ser.read_until(b'\n')
+        except Exception as err:
+            self.ser.timeout = timeout_backup
+            raise(err)
+            return False
+        
+        self.ser.timeout = timeout_backup
+        
+        if (len(ans_bytes) == 0):
+            # Received 0 bytes, probably due to a timeout.
+            pft("'%s' I/O ERROR: Timed out computing LUT" % self.name)
+            return False
+        
+        print(ans_bytes.decode().strip())
+        
+        return True
+    
+    def query_LUT(self):
         """
         Returns:
             success
         """
-        
-        # TODO: First update the LUT on the Arduino side (?)
-        [success, ans_str] = self.safe_query("c")
-        print(ans_str)
         
         # The query "lut?" will first return an ASCII encoded line, terminated
         # by a newline character, and it will then send a binary stream
@@ -301,12 +379,13 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         try:
             ans_bytes = self.ser.read(size=self.config.N_LUT * 2 + 1)
         except:
-            dprint("'%s' I/O ERROR: Can't read bytes LUT" % self.name)
+            pft("'%s' I/O ERROR: Can't read bytes LUT" % self.name)
             self.ser.flushInput()
             return False
         
-        if ans_bytes == 0:
-            dprint("'%s' I/O ERROR: Timed out reading LUT" % self.name)
+        if (len(ans_bytes) == 0):
+            # Received 0 bytes, probably due to a timeout.
+            pft("'%s' I/O ERROR: Timed out reading LUT" % self.name)
             self.ser.flushInput()
             return False
         
@@ -315,7 +394,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                     struct.unpack('<' + 'H'*self.config.N_LUT, ans_bytes[:-1]),
                     dtype=np.uint16)
         except:
-            dprint("'%s' I/O ERROR: Can't unpack bytes LUT" % self.name)
+            pft("'%s' I/O ERROR: Can't unpack bytes LUT" % self.name)
             self.ser.flushInput()
             return False
         
