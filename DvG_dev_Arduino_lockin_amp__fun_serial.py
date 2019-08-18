@@ -291,7 +291,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             success
         """
 
-        print("\nComputing LUT on Arduino... ", end='')
+        print("\nComputing waveform on Arduino... ", end='')
         [success, ans_str] = self.safe_query("compute_LUT")
         if success:
             # The first reply from the Arduino is the message
@@ -578,7 +578,18 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                               np.int(np.ceil(c.BLOCK_SIZE/c.N_LUT)))
         ref_X = np.asarray(ref_X_tiled[:c.BLOCK_SIZE],
                            dtype=c.return_type_ref_XY, order='C')
-        ref_Y = np.roll(ref_X, np.int(np.floor(np.ceil(c.N_LUT/4))))        
+        
+        
+        #ref_Y = np.roll(ref_X, np.int(np.floor(np.ceil(c.N_LUT/4))))        
+        
+        #idxs_phase = np.arange(idx_phase, idx_phase + c.BLOCK_SIZE)
+        #phi = 2 * np.pi * idxs_phase / c.N_LUT
+        #ref_Y = (c.ref_V_offset + c.ref_V_ampl * np.sin(phi)).clip(0,c.A_REF)
+        
+        #ref_Y = np.interp()
+        
         sig_I = sig_I * c.A_REF / (2**c.ADC_INPUT_BITS - 1)
+        
+        # TODO: ref_Y needs to be interpolated probably!!!
         
         return [True, time, ref_X, ref_Y, sig_I]
