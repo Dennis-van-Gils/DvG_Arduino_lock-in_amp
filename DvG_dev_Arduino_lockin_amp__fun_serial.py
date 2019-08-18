@@ -43,10 +43,9 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         binary_type_sig_I     = 'H'   # [uint16_t] TX_buffer body
         
         # Return types
-        return_type_time  = np.float64   # Ensure signed to allow for flexible arithmetic
-        #return_type_ref_X = np.float64
-        #return_type_ref_Y = np.float64
-        return_type_sig_I = np.float64
+        return_type_time   = np.float64   # Ensure signed to allow for flexible arithmetic
+        return_type_ref_XY = np.float64
+        return_type_sig_I  = np.float64
         
         # Microcontroller unit (mcu) info
         mcu_firmware = ''   # Firmware version
@@ -77,7 +76,8 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         # to reconstruct the ref_X and ref_Y signals, based on the phase index
         # that is sent in the header of each TX_buffer. The unit of each element
         # in the array is the bit-value that is sent out over the DAC of the
-        # Arduino. Hence, multiply by A_REF to get units of [V].
+        # Arduino. Hence, multiply by A_REF/(2**ADC_INPUT_BITS - 1) to get
+        # units of [V].
                 
         # Reference signal settings
         ref_freq     = 0      # [Hz] Frequency
@@ -563,19 +563,22 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         t0 = millis * 1000 + micros
         time = np.arange(0, c.BLOCK_SIZE)
         time = t0 + time * c.SAMPLING_PERIOD * 1e6
-        time = np.asarray(time, dtype=c.return_type_time)
-        
-        idxs_phase = np.arange(idx_phase, idx_phase + c.BLOCK_SIZE)
-        phi = 2 * np.pi * idxs_phase / c.N_LUT
+        time = np.asarray(time, dtype=c.return_type_time, order='C')
         
         # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
+        """
         if 0:
             phase_delay_deg = 50
             phi = np.unwrap(phi + phase_delay_deg / 180 * np.pi)
+        """
         
-        ref_X = (c.ref_V_offset + c.ref_V_ampl * np.cos(phi)).clip(0,c.A_REF)
-        ref_Y = (c.ref_V_offset + c.ref_V_ampl * np.sin(phi)).clip(0,c.A_REF)
-        sig_I = sig_I / (2**c.ADC_INPUT_BITS - 1) * c.A_REF
-        #sig_I = sig_I * 2  # Compensate for differential mode of Arduino
+        LUT_ref_X = np.roll(c.LUT_wave, -idx_phase)
+        ref_X_period = (LUT_ref_X * c.A_REF / (2**c.DAC_OUTPUT_BITS - 1))
+        ref_X_tiled = np.tile(ref_X_period,
+                              np.int(np.ceil(c.BLOCK_SIZE/c.N_LUT)))
+        ref_X = np.asarray(ref_X_tiled[:c.BLOCK_SIZE],
+                           dtype=c.return_type_ref_XY, order='C')
+        ref_Y = np.roll(ref_X, np.int(np.floor(np.ceil(c.N_LUT/4))))        
+        sig_I = sig_I * c.A_REF / (2**c.ADC_INPUT_BITS - 1)
         
         return [True, time, ref_X, ref_Y, sig_I]
