@@ -27,6 +27,7 @@ from DvG_FFTW_WelchPowerSpectrum import FFTW_WelchPowerSpectrum
 import DvG_Arduino_lockin_amp__GUI            as lockin_GUI
 import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Arduino_lockin_amp__pyqt_lib   as lockin_pyqt_lib
+from DvG_dev_Arduino_lockin_amp__fun_serial import Waveform
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
@@ -140,8 +141,8 @@ def lockin_DAQ_update():
     # HACK: hard-coded calibration correction on the ADC
     # TODO: make a self-calibration procedure and store correction results
     # on non-volatile memory of the microprocessor.
-    dev_sig_I = state.sig_I * 0.0054 + 0.0020;
-    state.sig_I -= dev_sig_I
+    #dev_sig_I = state.sig_I * 0.0054 + 0.0020;
+    #state.sig_I -= dev_sig_I
     
     # Detect dropped samples / buffers
     lockin_pyqt.state.buffers_received += 1
@@ -149,7 +150,7 @@ def lockin_DAQ_update():
     prev_last_deque_time = (state.deque_time[-1] if state.buffers_received > 1
                             else np.nan)
     dT = (state.time[0] - prev_last_deque_time) / 1e6 # Transform [usec] to [sec]
-    if dT > (c.ISR_CLOCK)*1.10: # Allow a few percent clock jitter
+    if dT > (c.SAMPLING_PERIOD*1e6)*1.10: # Allow a few percent clock jitter
         N_dropped_samples = int(round(dT / c.ISR_CLOCK) - 1)
         dprint("Dropped samples: %i" % N_dropped_samples)
         dprint("@ %s %s" % current_date_time_strings())
@@ -212,10 +213,10 @@ def lockin_DAQ_update():
         np.multiply(old_ref_X, state.filt_I, out=state.mix_X)
         np.multiply(old_ref_Y, state.filt_I, out=state.mix_Y)
     else:
-        state.time_1 = np.full(c.BUFFER_SIZE, np.nan)
-        old_sig_I    = np.full(c.BUFFER_SIZE, np.nan)
-        state.mix_X  = np.full(c.BUFFER_SIZE, np.nan)
-        state.mix_Y  = np.full(c.BUFFER_SIZE, np.nan)
+        state.time_1 = np.full(c.BLOCK_SIZE, np.nan)
+        old_sig_I    = np.full(c.BLOCK_SIZE, np.nan)
+        state.mix_X  = np.full(c.BLOCK_SIZE, np.nan)
+        state.mix_Y  = np.full(c.BLOCK_SIZE, np.nan)
         
     state.deque_time_1.extend(state.time_1)
     state.deque_filt_I.extend(state.filt_I)
@@ -256,9 +257,9 @@ def lockin_DAQ_update():
         np.multiply(state.T, 180/np.pi, out=state.T) # Transform [rad] to [deg]
         np.seterr(divide='warn')
     else:
-        state.time_2 = np.full(c.BUFFER_SIZE, np.nan)
-        state.R      = np.full(c.BUFFER_SIZE, np.nan)
-        state.T      = np.full(c.BUFFER_SIZE, np.nan)
+        state.time_2 = np.full(c.BLOCK_SIZE, np.nan)
+        state.R      = np.full(c.BLOCK_SIZE, np.nan)
+        state.T      = np.full(c.BLOCK_SIZE, np.nan)
         
     state.deque_time_2.extend(state.time_2)
     state.deque_X.extend(state.X)
@@ -354,7 +355,7 @@ def lockin_DAQ_update():
         if lockin_pyqt.firf_2_mix_X.has_deque_settled: # All lights green!
             idx_offset = lockin_pyqt.firf_1_sig_I.win_idx_valid_start
             
-            for i in range(c.BUFFER_SIZE):
+            for i in range(c.BLOCK_SIZE):
                 data = (("%i\t" +
                          "%.5f\t" * 9 +
                          "%.4f\n") % (
@@ -402,14 +403,15 @@ if __name__ == '__main__':
     # --------------------------------------------------------------------------
 
     # Connect to Arduino
-    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1e6, read_timeout=4)
+    lockin = lockin_functions.Arduino_lockin_amp(baudrate=1.2e6, read_timeout=4)
     if not lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
         print("\nCheck connection and try resetting the Arduino.")
         print("Exiting...\n")
         sys.exit(0)
         
-    lockin.begin()
-    #lockin.begin(ref_freq=110, ref_V_offset=1.7, ref_V_ampl=1.414)
+    #lockin.begin()
+    lockin.begin(ref_freq=200, ref_V_offset=1.65, ref_V_ampl=1.0, #1.414,
+                 ref_waveform=Waveform.Cosine)
     
     # Create workers and threads
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
@@ -417,7 +419,7 @@ if __name__ == '__main__':
                             DAQ_function_to_run_each_update=lockin_DAQ_update,
                             DAQ_critical_not_alive_count=3,
                             calc_DAQ_rate_every_N_iter=10,
-                            N_buffers_in_deque=41,
+                            N_buffers_in_deque=21,
                             DEBUG_worker_DAQ=False,
                             DEBUG_worker_send=False,
                             use_CUDA=USE_CUDA)
