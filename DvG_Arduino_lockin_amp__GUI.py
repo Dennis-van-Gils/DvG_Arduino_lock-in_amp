@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "12-08-2019"
+__date__        = "19-08-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -334,9 +334,7 @@ class MainWindow(QtWid.QWidget):
         # Left box
         self.qlbl_update_counter = QtWid.QLabel("0")
         self.qlbl_sample_rate = QtWid.QLabel("Sample rate: %.2f Hz" %
-                                             (1/lockin.config.ISR_CLOCK))
-        #self.qlbl_buffer_size = QtWid.QLabel("BUFFER SIZE  : %i" %
-        #                                     lockin.config.BUFFER_SIZE)
+                                             lockin.config.Fs)
         self.qlbl_CPU_syst = QtWid.QLabel("CPU system : nan%")
         self.qlbl_CPU_proc = QtWid.QLabel("CPU process: nan%")
         self.qlbl_DAQ_rate = QtWid.QLabel("Buffers/s: nan")
@@ -558,23 +556,23 @@ class MainWindow(QtWid.QWidget):
                                              'time (ms)',
                                              'voltage (V)')
         
-        self.pi_refsig.setXRange(-lockin.config.BUFFER_SIZE * 
-                                 lockin.config.ISR_CLOCK * 1e3,
+        self.pi_refsig.setXRange(-lockin.config.BLOCK_SIZE * 
+                                 lockin.config.SAMPLING_PERIOD * 1e3,
                                  0, padding=0.01)
         self.pi_refsig.setYRange(-3.3, 3.3, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
-        self.pi_refsig.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
-                                      lockin.config.ISR_CLOCK * 1e3,
+        self.pi_refsig.setLimits(xMin=-(lockin.config.BLOCK_SIZE + 1) * 
+                                      lockin.config.SAMPLING_PERIOD * 1e3,
                                  xMax=0,
                                  yMin=-3.4,
                                  yMax=3.4)
 
-        self.CH_ref_X = ChartHistory(lockin.config.BUFFER_SIZE,
+        self.CH_ref_X = ChartHistory(lockin.config.BLOCK_SIZE,
                                      self.pi_refsig.plot(pen=self.PEN_01))
-        self.CH_ref_Y = ChartHistory(lockin.config.BUFFER_SIZE,
+        self.CH_ref_Y = ChartHistory(lockin.config.BLOCK_SIZE,
                                      self.pi_refsig.plot(pen=self.PEN_02))
-        self.CH_sig_I = ChartHistory(lockin.config.BUFFER_SIZE,
+        self.CH_sig_I = ChartHistory(lockin.config.BLOCK_SIZE,
                                      self.pi_refsig.plot(pen=self.PEN_03))
         self.CH_ref_X.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_ref_Y.x_axis_divisor = 1000     # From [us] to [ms]
@@ -650,31 +648,31 @@ class MainWindow(QtWid.QWidget):
                                          'time (ms)',
                                          'phase (deg)')
 
-        self.pi_XR.setXRange(-lockin.config.BUFFER_SIZE *
-                             lockin.config.ISR_CLOCK * 1e3,
+        self.pi_XR.setXRange(-lockin.config.BLOCK_SIZE *
+                             lockin.config.SAMPLING_PERIOD * 1e3,
                              0, padding=0.01)
         self.pi_XR.setYRange(0, 5, padding=0.05)
         self.pi_XR.setAutoVisible(x=True, y=True)
         self.pi_XR.setClipToView(True)
         self.pi_XR.request_autorange_y = False
-        self.pi_XR.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
-                             lockin.config.ISR_CLOCK * 1e3,
+        self.pi_XR.setLimits(xMin=-(lockin.config.BLOCK_SIZE + 1) * 
+                             lockin.config.SAMPLING_PERIOD * 1e3,
                              xMax=0)
         
-        self.pi_YT.setXRange(-lockin.config.BUFFER_SIZE *
-                             lockin.config.ISR_CLOCK * 1e3,
+        self.pi_YT.setXRange(-lockin.config.BLOCK_SIZE *
+                             lockin.config.SAMPLING_PERIOD * 1e3,
                              0, padding=0.01)
         self.pi_YT.setYRange(-90, 90, padding=0.1)
         self.pi_YT.setAutoVisible(x=True, y=True)
         self.pi_YT.setClipToView(True)
         self.pi_YT.request_autorange_y = False
-        self.pi_YT.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) * 
-                             lockin.config.ISR_CLOCK * 1e3,
+        self.pi_YT.setLimits(xMin=-(lockin.config.BLOCK_SIZE + 1) * 
+                             lockin.config.SAMPLING_PERIOD * 1e3,
                              xMax=0)
         
-        self.CH_LIA_XR = ChartHistory(lockin.config.BUFFER_SIZE,
+        self.CH_LIA_XR = ChartHistory(lockin.config.BLOCK_SIZE,
                                       self.pi_XR.plot(pen=self.PEN_03))
-        self.CH_LIA_YT = ChartHistory(lockin.config.BUFFER_SIZE,
+        self.CH_LIA_YT = ChartHistory(lockin.config.BLOCK_SIZE,
                                       self.pi_YT.plot(pen=self.PEN_03))
         self.CH_LIA_XR.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_LIA_YT.x_axis_divisor = 1000     # From [us] to [ms]
@@ -785,21 +783,21 @@ class MainWindow(QtWid.QWidget):
                                              'time (ms)',
                                              'voltage (V)')
         
-        self.pi_filt_1.setXRange(-lockin.config.BUFFER_SIZE *
-                                    lockin.config.ISR_CLOCK * 1e3,
+        self.pi_filt_1.setXRange(-lockin.config.BLOCK_SIZE *
+                                    lockin.config.SAMPLING_PERIOD * 1e3,
                                     0, padding=0.01)
         self.pi_filt_1.setYRange(-5, 5, padding=0.05)
         self.pi_filt_1.setAutoVisible(x=True, y=True)
         self.pi_filt_1.setClipToView(True)
-        self.pi_filt_1.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) *
-                                      lockin.config.ISR_CLOCK * 1e3,
+        self.pi_filt_1.setLimits(xMin=-(lockin.config.BLOCK_SIZE + 1) *
+                                      lockin.config.SAMPLING_PERIOD * 1e3,
                                  xMax=0,
                                  yMin=-5.25,
                                  yMax=5.25)
         
-        self.CH_filt_1_in  = ChartHistory(lockin.config.BUFFER_SIZE,
+        self.CH_filt_1_in  = ChartHistory(lockin.config.BLOCK_SIZE,
                                           self.pi_filt_1.plot(pen=self.PEN_03))
-        self.CH_filt_1_out = ChartHistory(lockin.config.BUFFER_SIZE,
+        self.CH_filt_1_out = ChartHistory(lockin.config.BLOCK_SIZE,
                                           self.pi_filt_1.plot(pen=self.PEN_04))
         self.CH_filt_1_in.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_filt_1_out.x_axis_divisor = 1000    # From [us] to [ms]
@@ -832,21 +830,21 @@ class MainWindow(QtWid.QWidget):
                                             'time (ms)',
                                             'voltage (V)')
         
-        self.pi_mixer.setXRange(-lockin.config.BUFFER_SIZE *
-                                lockin.config.ISR_CLOCK * 1e3,
+        self.pi_mixer.setXRange(-lockin.config.BLOCK_SIZE *
+                                lockin.config.SAMPLING_PERIOD * 1e3,
                                  0, padding=0.01)
         self.pi_mixer.setYRange(-5, 5, padding=0.05)
         self.pi_mixer.setAutoVisible(x=True, y=True)
         self.pi_mixer.setClipToView(True)
-        self.pi_mixer.setLimits(xMin=-(lockin.config.BUFFER_SIZE + 1) *
-                                     lockin.config.ISR_CLOCK * 1e3,
+        self.pi_mixer.setLimits(xMin=-(lockin.config.BLOCK_SIZE + 1) *
+                                     lockin.config.SAMPLING_PERIOD * 1e3,
                                 xMax=0,
                                 yMin=-5.25,
                                 yMax=5.25)
         
-        self.CH_mix_X = ChartHistory(lockin.config.BUFFER_SIZE,
+        self.CH_mix_X = ChartHistory(lockin.config.BLOCK_SIZE,
                                      self.pi_mixer.plot(pen=self.PEN_01))
-        self.CH_mix_Y = ChartHistory(lockin.config.BUFFER_SIZE,
+        self.CH_mix_Y = ChartHistory(lockin.config.BLOCK_SIZE,
                                      self.pi_mixer.plot(pen=self.PEN_02))
         self.CH_mix_X.x_axis_divisor = 1000     # From [us] to [ms]
         self.CH_mix_Y.x_axis_divisor = 1000     # From [us] to [ms]
@@ -1451,11 +1449,11 @@ class MainWindow(QtWid.QWidget):
     def update_newly_set_ref_freq(self):
         self.qlin_read_ref_freq.setText("%.2f" % self.lockin.config.ref_freq)
 
-        """
+        #"""
         # TODO: the extra distance 'roll_off_width' to stay away from
         # f_cutoff should be calculated based on the roll-off width of the
         # filter, instead of hard-coded
-        roll_off_width = 2; # [Hz]
+        roll_off_width = 5; # [Hz]
         f_cutoff = 2*self.lockin.config.ref_freq - roll_off_width
         if f_cutoff > self.lockin.config.F_Nyquist - roll_off_width:
             print("WARNING: Filter @ mix_X/Y can't reach desired cut-off freq.")
@@ -1466,7 +1464,7 @@ class MainWindow(QtWid.QWidget):
         self.filt_2_design_GUI.update_filter_design()
         self.update_plot_filt_2_resp()
         self.plot_zoom_ROI_filt_2()
-        """
+        #"""
         
         self.lockin_pyqt.state.reset()
         self.clear_chart_histories_stage_1_and_2()
@@ -1570,8 +1568,8 @@ class MainWindow(QtWid.QWidget):
                       self.pi_YT]
         for pi in plot_items:
             pi.enableAutoRange('x', False)
-            pi.setXRange(-self.lockin.config.BUFFER_SIZE *
-                         self.lockin.config.ISR_CLOCK * 1e3, 0,
+            pi.setXRange(-self.lockin.config.BLOCK_SIZE *
+                         self.lockin.config.SAMPLING_PERIOD * 1e3, 0,
                          padding=0.01)
 
     @QtCore.pyqtSlot()
