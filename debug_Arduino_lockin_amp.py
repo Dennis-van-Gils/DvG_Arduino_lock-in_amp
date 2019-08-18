@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Dennis_van_Gils
-29-03-2019
+18-08-2019
 """
 
 import os
@@ -21,6 +21,7 @@ from DvG_dev_Arduino_lockin_amp__fun_serial import Waveform
 
 fn_log = "log.txt"
 fDrawPlot = True
+fVerbose = False
 
 if __name__ == "__main__":
     p = psutil.Process(os.getpid())
@@ -29,10 +30,13 @@ if __name__ == "__main__":
     lockin = lockin_functions.Arduino_lockin_amp(baudrate=1.2e6)
     if not lockin.auto_connect(Path("port_data.txt"), "Arduino lock-in amp"):
         sys.exit(0)
-    lockin.begin(ref_freq=100,
-                 ref_V_offset=1.5,
-                 ref_V_ampl=0.5, 
-                 ref_waveform=Waveform.Cosine)
+
+    lockin.begin(#ref_freq=2173,
+                 ref_freq=2500,
+                 #ref_freq=2500,
+                 ref_V_offset=1.65,
+                 ref_V_ampl=1.65, 
+                 ref_waveform=Waveform(0))
     
     if fDrawPlot:
         plt.ion()
@@ -49,16 +53,18 @@ if __name__ == "__main__":
     N_deque = lockin.config.BLOCK_SIZE * N_REPS;
     deque_time  = deque(maxlen=N_deque)
     deque_ref_X = deque(maxlen=N_deque)
+    deque_ref_Y = deque(maxlen=N_deque)
     deque_sig_I = deque(maxlen=N_deque)
     samples_received = np.array([], dtype=int)
     
     lockin.turn_on()
     for i_set in range(N_SETS): 
-        if i_set == 1: lockin.set_ref_waveform(Waveform.Triangle)
-        if i_set == 2: lockin.set_ref_waveform(Waveform.Cosine)
+        if i_set == 1: lockin.set_ref_freq(200)
+        if i_set == 2: lockin.set_ref_waveform(Waveform.Triangle)
         
         deque_time.clear()
         deque_ref_X.clear()
+        deque_ref_Y.clear()
         deque_sig_I.clear()
     
         tick = 0;
@@ -76,40 +82,45 @@ if __name__ == "__main__":
                     tick = Time.perf_counter()
                     
                 N_samples = len(time)
-                print("%3d: %d" % (i_rep, N_samples))
+                if fVerbose: print("%3d: %d" % (i_rep, N_samples))
+                
                 f_log.write("samples received: %i\n" % N_samples)
                 for i in range(N_samples):
-                    f_log.write("%i\t%.4f\t%.3f\n" % (time[i], ref_X[i], sig_I[i]))
+                    f_log.write("%i\t%.4f\t%.4f\t%.3f\n" %
+                                (time[i], ref_X[i], ref_Y[i], sig_I[i]))
                 
                 deque_time.extend(time)
                 deque_ref_X.extend(ref_X)
+                deque_ref_Y.extend(ref_Y)
                 deque_sig_I.extend(sig_I)
                 samples_received = np.append(samples_received, N_samples)
         
         f_log.write("draw\n")
         
-        np_time = np.array(deque_time)
-        np_time = np_time - np_time[0]
-        dt = np.diff(np_time)
-        
-        Fs = 1/np.mean(dt)*1e6
-        str_info1 = ("Fs = %.2f Hz    dt_min = %d us    dt_max = %d us" % 
-                    (Fs, np.min(dt), np.max(dt)))
-        str_info2 = ("N_buf = %d     %.2f buf/s" % 
-                    (buffers_received,
-                     buffers_received/(Time.perf_counter() - tick)))
-        print(str_info1 + "    " + str_info2)
+        if fVerbose or fDrawPlot: 
+            np_time = np.array(deque_time)
+            np_time = np_time - np_time[0]        
+            dt = np.diff(np_time)
+            
+            Fs = 1/np.mean(dt)*1e6
+            str_info1 = ("Fs = %.2f Hz    dt_min = %d us    dt_max = %d us" % 
+                        (Fs, np.min(dt), np.max(dt)))
+            str_info2 = ("N_buf = %d     %.2f buf/s" % 
+                        (buffers_received,
+                         buffers_received/(Time.perf_counter() - tick)))
+            print(str_info1 + "    " + str_info2)
         
         if fDrawPlot:
             #lockin.turn_off()
             
             ax.cla()
-            ax.plot(np_time/1e3, deque_ref_X, 'x-k')
-            ax.plot(np_time/1e3, deque_sig_I, 'x-r')
+            ax.plot(np_time/1e3, deque_ref_X, '.-k')
+            ax.plot(np_time/1e3, deque_ref_Y, '.-y')
+            ax.plot(np_time/1e3, deque_sig_I, '.-r')
             ax.set(xlabel='time (ms)', ylabel='y',
                    title=(str_info1 + '\n' + str_info2))
             ax.grid()            
-            ax.set(xlim=(0, 80))
+            ax.set(xlim=(0, 18.8))
                         
             fig.canvas.draw()
             plt.pause(0.1)
@@ -128,7 +139,40 @@ if __name__ == "__main__":
         if fDrawPlot:
             plt.pause(0.5)
         else:
-            Time.sleep(0.1)
+            break
             
-        if msvcrt.kbhit() and msvcrt.getch().decode() == chr(27):
-            sys.exit(0)
+        if msvcrt.kbhit(): # and msvcrt.getch().decode() == chr(27):
+            break
+
+            
+            
+            
+            
+    with open(fn_log, 'r') as file :
+        filedata = file.read()
+    filedata = filedata.replace("draw", "")
+    filedata = filedata.replace("samples received: 2500", "")
+
+    with open(fn_log, 'w') as file:
+        file.write(filedata)
+
+    a = np.loadtxt(fn_log)
+    time  = np.array(a[:, 0])
+    ref_X = np.array(a[:, 1])
+    sig_I = np.array(a[:, 2])
+    time = time - time[0]
+
+    time_diff = np.diff(time)
+    print("\ntime_diff:")
+    print("  median = %i usec" % np.median(time_diff))
+    print("  mean   = %i usec" % np.mean(time_diff))
+    print("  min = %i usec" % np.min(time_diff))
+    print("  max = %i usec" % np.max(time_diff))
+
+    time_ = time[:-1]
+    time_gaps = time_[time_diff > 500]
+    time_gap_durations = time_diff[time_diff > 500]
+    print("\nnumber of gaps > 500 usec: %i" % len(time_gaps))
+    for i in range(len(time_gaps)):
+        print("  gap %i @ t = %.3f msec for %.3f msec" %
+              (i+1, time_gaps[i]/1e3, time_gap_durations[i]/1e3))

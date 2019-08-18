@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Dennis van Gils
-29-03-2019
+19-08-2019
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
+import msvcrt
 
 plt.ion()
 fig = plt.figure()
@@ -28,7 +29,8 @@ with open(fn, 'w') as file:
 a = np.loadtxt(fn)
 time  = np.array(a[:, 0])
 ref_X = np.array(a[:, 1])
-sig_I = np.array(a[:, 2])
+ref_Y = np.array(a[:, 2])
+sig_I = np.array(a[:, 3])
 time = time - time[0]
 
 time_diff = np.diff(time)
@@ -46,8 +48,9 @@ for i in range(len(time_gaps)):
     print("  gap %i @ t = %.3f msec for %.3f msec" %
           (i+1, time_gaps[i]/1e3, time_gap_durations[i]/1e3))
 
-plt.plot(time/1e3, ref_X, 'x-r')
-plt.plot(time/1e3, sig_I, 'x-b')
+plt.plot(time/1e3, ref_X, '.-k')
+plt.plot(time/1e3, ref_Y, '.-y')
+plt.plot(time/1e3, sig_I, '.-r')
 plt.grid()
 plt.xlabel("time (ms)")
 plt.ylabel("voltage (V)")
@@ -55,3 +58,6 @@ plt.title(fn)
 
 while (1):
     plt.pause(0.5)
+            
+    if msvcrt.kbhit(): # and msvcrt.getch().decode() == chr(27):
+        break
