@@ -388,11 +388,14 @@ void compute_LUT(uint16_t *LUT_array) {
             switch (ref_waveform) {
                 default:
                 case Cosine:
+                    // The maximum is always guaranteed to be 1.0
+                    // The minimum is /not/ always guaranteed to be 0.0
                     wave = cos(2*M_PI*(i + LUT_OFFSET_TRIG_OUT) / N_LUT);
                     wave = offs + ampl * wave;
                     break;
 
                 case Square:
+                    // Extrema are always 0.0 and 1.0
                     wave = ((i + LUT_OFFSET_TRIG_OUT + fq_N_LUT) % N_LUT) /
                            (N_LUT - 1.0);
                     wave = 1.0 - round(wave);
@@ -400,14 +403,19 @@ void compute_LUT(uint16_t *LUT_array) {
                     break;
 
                 case Sawtooth:
+                    // Extrema are always 0.0 and 1.0
                     wave = ((i + LUT_OFFSET_TRIG_OUT + N_LUT - cq_N_LUT) % N_LUT) /
                            (N_LUT - 1.0);
                     wave = (offs - ampl) + 2 * ampl * wave;
                     break;
 
                 case Triangle:
+                    // This elaborate algorithm will ensure the extrema will
+                    // always be 0.0 and 1.0, especially when N_LUT is odd.
+                    // This comes at the expense of a slightly variable slope
+                    // for two sample points in the wave whenever N_LUT is odd.
                     wave = (((i + LUT_OFFSET_TRIG_OUT) * 2) % N_LUT) /
-                           (N_LUT - 1.0);
+                           (float) (N_LUT - N_LUT % 2);
                     if ((i + LUT_OFFSET_TRIG_OUT) % N_LUT < (N_LUT / 2.0 )) {
                         wave = 1.0 - wave;
                     }
@@ -463,8 +471,7 @@ void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
 
     // Modulo takes more cycles when time increases.
     // Is max 164 clock cycles when (2^24 % N_LUT).
-    idx_phase = (TIMER_0.time + N_LUT + LUT_OFFSET_TRIG_OUT +
-                 SAMPLE_OFFSET_ADC_DAC) % N_LUT;
+    idx_phase = (TIMER_0.time + N_LUT + SAMPLE_OFFSET_ADC_DAC) % N_LUT;
 
     TX_buffer_counter++;
     TX_buffer[TX_BUFFER_OFFSET_COUNTER    ] = TX_buffer_counter;
