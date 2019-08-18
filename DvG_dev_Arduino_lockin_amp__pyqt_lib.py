@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__        = "30-07-2019"
+__date__        = "19-08-2019"
 __version__     = "1.0.0"
 
 import numpy as np
@@ -204,7 +204,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                 self.alt_process_jobs_function,
                 DEBUG=DEBUG_worker_send)
         
-        self.state = self.State(dev.config.BUFFER_SIZE, N_buffers_in_deque)
+        self.state = self.State(dev.config.BLOCK_SIZE, N_buffers_in_deque)
         self.use_CUDA = use_CUDA
         
         # Create FIR filter: Band-stop on sig_I
@@ -217,10 +217,12 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                              149.5, 150.5]
             firwin_window = ("chebwin", 50)
         else:
-            firwin_cutoff = [  1.0,
+            firwin_cutoff = [15.0,]
+            """firwin_cutoff = [  1.0,
                               49.0,  51.0,
                               99.0, 101.0,
                              149.0, 151.0]
+            """
             firwin_window = "blackmanharris"
         self.firf_1_sig_I = Buffered_FIR_Filter(self.state.buffer_size,
                                                 self.state.N_buffers_in_deque,
@@ -235,7 +237,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         # TODO: the extra distance 'roll_off_width' to stay away from
         # f_cutoff should be calculated based on the roll-off width of the
         # filter, instead of hard-coded
-        roll_off_width = 2; # [Hz]
+        roll_off_width = 5; # [Hz]
         firwin_cutoff = 2*dev.config.ref_freq - roll_off_width
         firwin_window = "blackmanharris"
         self.firf_2_mix_X = Buffered_FIR_Filter(self.state.buffer_size,
