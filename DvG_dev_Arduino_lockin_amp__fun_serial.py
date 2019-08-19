@@ -572,21 +572,24 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             phi = np.unwrap(phi + phase_delay_deg / 180 * np.pi)
         """
         
+        
         LUT_ref_X = np.roll(c.LUT_wave, -idx_phase)
         ref_X_period = (LUT_ref_X * c.A_REF / (2**c.DAC_OUTPUT_BITS - 1))
         ref_X_tiled = np.tile(ref_X_period,
                               np.int(np.ceil(c.BLOCK_SIZE/c.N_LUT)))
         ref_X = np.asarray(ref_X_tiled[:c.BLOCK_SIZE],
                            dtype=c.return_type_ref_XY, order='C')
+    
         
         
-        ref_Y = np.roll(ref_X, np.int(np.floor(np.ceil(c.N_LUT/4))))        
+        #ref_Y = np.roll(ref_X, np.int(np.floor(np.ceil(c.N_LUT/4))))        
+        LUT_OFFSET_TRIG_OUT = 1
+        idxs_phase = (np.arange(idx_phase, idx_phase + c.BLOCK_SIZE) +
+                      LUT_OFFSET_TRIG_OUT)
+        phi = 2 * np.pi * idxs_phase / c.N_LUT
+        ref_Y = (c.ref_V_offset + c.ref_V_ampl * np.sin(phi)).clip(0, c.A_REF)
         
-        #idxs_phase = np.arange(idx_phase, idx_phase + c.BLOCK_SIZE)
-        #phi = 2 * np.pi * idxs_phase / c.N_LUT
-        #ref_Y = (c.ref_V_offset + c.ref_V_ampl * np.sin(phi)).clip(0,c.A_REF)
-        
-        #ref_Y = np.interp()
+        #ref_X = (c.ref_V_offset + c.ref_V_ampl * np.cos(phi)).clip(0, c.A_REF)
         
         sig_I = sig_I * c.A_REF / (2**c.ADC_INPUT_BITS - 1)
         

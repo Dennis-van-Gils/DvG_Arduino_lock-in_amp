@@ -141,8 +141,8 @@ def lockin_DAQ_update():
     # HACK: hard-coded calibration correction on the ADC
     # TODO: make a self-calibration procedure and store correction results
     # on non-volatile memory of the microprocessor.
-    #dev_sig_I = state.sig_I * 0.0054 + 0.0020;
-    #state.sig_I -= dev_sig_I
+    #dev_sig_I = state.sig_I * 0.0054 + 0.0020
+    #state.sig_I += 0.01
     
     # Detect dropped samples / buffers
     lockin_pyqt.state.buffers_received += 1
@@ -410,7 +410,7 @@ if __name__ == '__main__':
         sys.exit(0)
         
     #lockin.begin()
-    lockin.begin(ref_freq=200, ref_V_offset=1.65, ref_V_ampl=1.0, #1.414,
+    lockin.begin(ref_freq=200, ref_V_offset=1.65, ref_V_ampl=1.414,
                  ref_waveform=Waveform.Cosine)
     
     # Create workers and threads
@@ -419,7 +419,7 @@ if __name__ == '__main__':
                             DAQ_function_to_run_each_update=lockin_DAQ_update,
                             DAQ_critical_not_alive_count=3,
                             calc_DAQ_rate_every_N_iter=10,
-                            N_buffers_in_deque=21,
+                            N_buffers_in_deque=41,
                             DEBUG_worker_DAQ=False,
                             DEBUG_worker_send=False,
                             use_CUDA=USE_CUDA)

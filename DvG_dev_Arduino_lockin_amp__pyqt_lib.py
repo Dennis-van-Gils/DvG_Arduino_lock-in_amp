@@ -217,7 +217,7 @@ class Arduino_lockin_amp_pyqt(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
                              149.5, 150.5]
             firwin_window = ("chebwin", 50)
         else:
-            firwin_cutoff = [15.0,]
+            firwin_cutoff = [5.0,]
             """firwin_cutoff = [  1.0,
                               49.0,  51.0,
                               99.0, 101.0,
