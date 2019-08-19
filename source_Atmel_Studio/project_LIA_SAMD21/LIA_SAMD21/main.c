@@ -73,7 +73,8 @@ uint16_t prev_ECG_N_LUT = 0;
 
 // The number of samples to acquire by the ADC and to subsequently send out
 // over serial as a single block of data
-#define BLOCK_SIZE 2500     // 2500 [# samples], where 1 sample takes up 16 bits
+//#define BLOCK_SIZE 2500     // 2500 [# samples], where 1 sample takes up 16 bits
+#define BLOCK_SIZE 500     // 2500 [# samples], where 1 sample takes up 16 bits
 
 /*------------------------------------------------------------------------------
     TIMER_0
@@ -364,6 +365,8 @@ void parse_offs(const char const *str_value) {
     ref_V_offset = atof(str_value);
     ref_V_offset = max(ref_V_offset, 0.0);
     ref_V_offset = min(ref_V_offset, A_REF);
+    ref_V_offset = round(ref_V_offset / A_REF * MAX_DAC_OUTPUT_BITVAL) *
+                   A_REF / MAX_DAC_OUTPUT_BITVAL;
 }
 
 void parse_ampl(const char const *str_value) {
@@ -817,7 +820,7 @@ int main(void) {
                     } else if (strcmp(str_cmd, "ref?") == 0 ||
                                strcmp(str_cmd, "?") == 0) {
                         // Report reference signal settings
-                        sprintf(str_buffer, "%.3f\t%.3f\t%.3f\t%s\t%i\n",
+                        sprintf(str_buffer, "%.4f\t%.4f\t%.4f\t%s\t%i\n",
                                 ref_freq, ref_V_offset, ref_V_ampl,
                                 WAVEFORM_STRING[ref_waveform], N_LUT);
                         io_print(str_buffer);
