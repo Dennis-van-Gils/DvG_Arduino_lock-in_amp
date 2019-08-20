@@ -14,7 +14,6 @@ TODO: implement https://github.com/mpflaga/Arduino-MemoryFree
 #include <stdlib.h>
 #include <hpl_tcc_config.h>
 #include "DvG_serial_command_listener.h"
-#include "DvG_ECG_simulation.h"
 
 #define FIRMWARE_VERSION "LIA v0.1.0"
 #define VARIANT_MCK (48000000ul)     // Master clock frequency
@@ -31,7 +30,6 @@ volatile uint32_t millis = 0;        // Updated by SysTick, once every 1 ms
         WAVEFORM(Square)    \
         WAVEFORM(Sawtooth)  \
         WAVEFORM(Triangle)  \
-        WAVEFORM(ECG)       \
         WAVEFORM(END_WAVEFORM_ENUM)
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -46,9 +44,9 @@ static const char *WAVEFORM_STRING[] = {
 
 // LIA output reference signal parameters
 enum WAVEFORM_ENUM ref_waveform = Cosine;
-double ref_freq;              // [Hz] Obtained frequency of reference signal
-double ref_V_offset = 1.65;   // [V]  Voltage offset of reference signal
-double ref_V_ampl   = 1.65;   // [V]  Voltage amplitude reference signal
+double ref_freq;    // [Hz] Obtained frequency of reference signal
+double ref_offs;    // [V]  Obtained voltage offset of reference signal
+double ref_ampl;    // [V]  Voltage amplitude reference signal
 
 // Look-up table (LUT) for fast DAC
 #define MIN_N_LUT 20       // Min. allowed number of samples for one full period
@@ -56,10 +54,6 @@ double ref_V_ampl   = 1.65;   // [V]  Voltage amplitude reference signal
 uint16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
 uint16_t N_LUT;            // Current number of samples for one full period
 bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
-
-// For fun: ECG 'heartbeat' reference wave
-float ecg_wave[MAX_N_LUT] = {0.};
-uint16_t prev_ECG_N_LUT = 0;
 
 // Analog port
 #define A_REF 3.300        // [V] Analog voltage reference Arduino
@@ -348,10 +342,10 @@ obtained frequency 'ref_freq'.
 // Align the trigger out signal with the 0-phase position of the waveform being
 // output by the DAC. The trigger out signal is controlled by function
 // 'cb_DAC_0_conversion_done'
-#define LUT_OFFSET_TRIG_OUT 1
+#define LUT_OFFSET_TRIG_OUT 1       // Must be >= 0
 
 // The ADC readings lag behind the DAC output by 1 sample
-#define SAMPLE_OFFSET_ADC_DAC 1
+#define SAMPLE_OFFSET_ADC_DAC 1     // Must be >= 0
 
 void parse_freq(const char const *str_value) {
     ref_freq = atof(str_value);
@@ -362,22 +356,22 @@ void parse_freq(const char const *str_value) {
 }
 
 void parse_offs(const char const *str_value) {
-    ref_V_offset = atof(str_value);
-    ref_V_offset = max(ref_V_offset, 0.0);
-    ref_V_offset = min(ref_V_offset, A_REF);
-    ref_V_offset = round(ref_V_offset / A_REF * MAX_DAC_OUTPUT_BITVAL) *
-                   A_REF / MAX_DAC_OUTPUT_BITVAL;
+    ref_offs = atof(str_value);
+    ref_offs = max(ref_offs, 0.0);
+    ref_offs = min(ref_offs, A_REF);
+    ref_offs = round(ref_offs / A_REF * MAX_DAC_OUTPUT_BITVAL) *
+                     A_REF / MAX_DAC_OUTPUT_BITVAL;
 }
 
 void parse_ampl(const char const *str_value) {
-    ref_V_ampl = atof(str_value);
-    ref_V_ampl = max(ref_V_ampl, 0.0);
-    ref_V_ampl = min(ref_V_ampl, A_REF);
+    ref_ampl = atof(str_value);
+    ref_ampl = max(ref_ampl, 0.0);
+    ref_ampl = min(ref_ampl, A_REF);
 }
 
 void compute_LUT(uint16_t *LUT_array) {
-    double offs = ref_V_offset / A_REF;    // Normalized
-    double ampl = ref_V_ampl   / A_REF;    // Normalized
+    double norm_offs = ref_offs / A_REF;    // Normalized
+    double norm_ampl = ref_ampl / A_REF;    // Normalized
     double wave;
 
     uint32_t tick = millis;
@@ -386,65 +380,50 @@ void compute_LUT(uint16_t *LUT_array) {
     int16_t fq_N_LUT = (int16_t) floor(N_LUT / 4.0); // Floor quarter N_LUT
     int16_t cq_N_LUT = (int16_t) ceil (N_LUT / 4.0); // Ceil  quarter N_LUT
 
-    if (ref_waveform != ECG) {
-        for (int16_t i = 0; i < N_LUT; i++) {
-            switch (ref_waveform) {
-                default:
-                case Cosine:
-                    // The maximum is always guaranteed to be 1.0
-                    // The minimum is /not/ always guaranteed to be 0.0
-                    wave = cos(2*M_PI*(i + LUT_OFFSET_TRIG_OUT) / N_LUT);
-                    wave = offs + ampl * wave;
-                    break;
+    for (int16_t i = 0; i < N_LUT; i++) {
+        switch (ref_waveform) {
+            default:
+            case Cosine:
+                // The maximum is always guaranteed to be 1.0
+                // The minimum is /not/ always guaranteed to be 0.0
+                wave = cos(M_TWOPI*(i + LUT_OFFSET_TRIG_OUT) / N_LUT);
+                wave = norm_offs + norm_ampl * wave;
+                break;
 
-                case Square:
-                    // Extrema are always 0.0 and 1.0
-                    wave = ((i + LUT_OFFSET_TRIG_OUT + fq_N_LUT) % N_LUT) /
-                           (N_LUT - 1.0);
-                    wave = 1.0 - round(wave);
-                    wave = (offs - ampl) + 2 * ampl * wave;
-                    break;
+            case Square:
+                // Extrema are always 0.0 and 1.0
+                wave = ((i + LUT_OFFSET_TRIG_OUT + fq_N_LUT) % N_LUT) /
+                        (N_LUT - 1.0);
+                wave = 1.0 - round(wave);
+                wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
+                break;
 
-                case Sawtooth:
-                    // Extrema are always 0.0 and 1.0
-                    wave = ((i + LUT_OFFSET_TRIG_OUT + N_LUT - cq_N_LUT) % N_LUT) /
-                           (N_LUT - 1.0);
-                    wave = (offs - ampl) + 2 * ampl * wave;
-                    break;
+            case Sawtooth:
+                // Extrema are always 0.0 and 1.0
+                wave = ((i + LUT_OFFSET_TRIG_OUT + N_LUT - cq_N_LUT) % N_LUT) /
+                        (N_LUT - 1.0);
+                wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
+                break;
 
-                case Triangle:
-                    // This elaborate algorithm will ensure the extrema will
-                    // always be 0.0 and 1.0, especially when N_LUT is odd.
-                    // This comes at the expense of a slightly variable slope
-                    // for two sample points in the wave whenever N_LUT is odd.
-                    wave = (((i + LUT_OFFSET_TRIG_OUT) * 2) % N_LUT) /
-                           (float) (N_LUT - N_LUT % 2);
-                    if ((i + LUT_OFFSET_TRIG_OUT) % N_LUT < (N_LUT / 2.0 )) {
-                        wave = 1.0 - wave;
-                    }
-                    wave = (offs - ampl) + 2 * ampl * wave;
-                    break;
-            }
-
-            wave = max(wave, 0.0);
-            wave = min(wave, 1.0);
-            LUT_array[i] = (uint16_t) round(MAX_DAC_OUTPUT_BITVAL * wave);
-        }
-    } else {
-        if (prev_ECG_N_LUT != N_LUT) {
-            generate_ECG(ecg_wave, N_LUT);
-            prev_ECG_N_LUT = N_LUT;
+            case Triangle:
+                // This elaborate algorithm will ensure the extrema will
+                // always be 0.0 and 1.0, especially when N_LUT is odd.
+                // This comes at the expense of a slightly variable slope
+                // for two sample points in the wave whenever N_LUT is odd.
+                wave = (((i + LUT_OFFSET_TRIG_OUT) * 2) % N_LUT) /
+                        (float) (N_LUT - N_LUT % 2);
+                if ((i + LUT_OFFSET_TRIG_OUT) % N_LUT < (N_LUT / 2.0 )) {
+                    wave = 1.0 - wave;
+                }
+                wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
+                break;
         }
 
-        for (uint16_t i = 0; i < N_LUT; i++) {
-            wave = (offs - ampl) +
-                   2 * ampl * ecg_wave[(i + LUT_OFFSET_TRIG_OUT) % N_LUT];
-            wave = max(wave, 0.0);
-            wave = min(wave, 1.0);
-            LUT_array[i] = (uint16_t) round(MAX_DAC_OUTPUT_BITVAL * wave);
-        }
+        wave = max(wave, 0.0);
+        wave = min(wave, 1.0);
+        LUT_array[i] = (uint16_t) round(MAX_DAC_OUTPUT_BITVAL * wave);
     }
-
+    
     is_LUT_dirty = false;
 
     sprintf(str_buffer, " done in %lu ms\n", millis - tick);
@@ -474,7 +453,8 @@ void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
 
     // Modulo takes more cycles when time increases.
     // Is max 164 clock cycles when (2^24 % N_LUT).
-    idx_phase = (TIMER_0.time + N_LUT + SAMPLE_OFFSET_ADC_DAC) % N_LUT;
+    idx_phase = (TIMER_0.time + N_LUT + SAMPLE_OFFSET_ADC_DAC +
+                 LUT_OFFSET_TRIG_OUT) % N_LUT;
 
     TX_buffer_counter++;
     TX_buffer[TX_BUFFER_OFFSET_COUNTER    ] = TX_buffer_counter;
@@ -696,7 +676,9 @@ int main(void) {
     SysTick_CTRL_ENABLE_Msk;
 
     // LUT
-    parse_freq("500.0");  // Wanted startup ref_freq [Hz]
+    parse_freq("500.0");  // [Hz] Wanted startup frequency
+    parse_offs("1.65");   // [V]  Wanted startup offset
+    parse_ampl("1.4142"); // [V]  Wanted startup amplitude
     compute_LUT(LUT_wave);
 
     // Will send out TX_buffer over SERCOM when triggered
@@ -821,7 +803,7 @@ int main(void) {
                                strcmp(str_cmd, "?") == 0) {
                         // Report reference signal settings
                         sprintf(str_buffer, "%.4f\t%.4f\t%.4f\t%s\t%i\n",
-                                ref_freq, ref_V_offset, ref_V_ampl,
+                                ref_freq, ref_offs, ref_ampl,
                                 WAVEFORM_STRING[ref_waveform], N_LUT);
                         io_print(str_buffer);
 
@@ -829,26 +811,39 @@ int main(void) {
 
                     } else if (strcmp(str_cmd, "lut?") == 0) {
                         // Report N_LUT as ASCII and report the full LUT as a
-                        // binary stream.
+                        // binary stream. The reported LUT will start at phase
+                        // = 0 deg.
                         sprintf(str_buffer, "%u\t%i\n", N_LUT, is_LUT_dirty);
                         io_print(str_buffer);
 
-                        io_write_blocking((uint8_t *) LUT_wave, N_LUT * 2);
+                        io_write_blocking((uint8_t *)
+                                          &LUT_wave[N_LUT - LUT_OFFSET_TRIG_OUT],
+                                          LUT_OFFSET_TRIG_OUT * 2);
+                        io_write_blocking((uint8_t *) LUT_wave,
+                                          (N_LUT - LUT_OFFSET_TRIG_OUT) * 2);
                         io_print("\n");
 
 
 
                     } else if (strcmp(str_cmd, "lut_ascii?") == 0) {
-                        // Report N_LUT as ASCII and report the full LUT as ASCII, tab delimited.
-                        // Slow but handy for debugging.
+                        // Report N_LUT as ASCII and report the full LUT as
+                        // ASCII, tab delimited. The reported LUT will start at
+                        // phase = 0 deg. Convenience function handy for debugging.
+                        uint16_t i;
+                        
                         sprintf(str_buffer, "%u\t%i\n", N_LUT, is_LUT_dirty);
                         io_print(str_buffer);
 
-                        for (uint16_t i = 0; i < N_LUT - 1; i++) {
+                        for (i = N_LUT - LUT_OFFSET_TRIG_OUT; i < N_LUT; i++) {
                             sprintf(str_buffer, "%u\t", LUT_wave[i]);
                             io_print(str_buffer);
                         }
-                        sprintf(str_buffer, "%u\n", LUT_wave[N_LUT - 1]);
+                        for (i = 0; i < N_LUT - LUT_OFFSET_TRIG_OUT - 1; i++) {
+                            sprintf(str_buffer, "%u\t", LUT_wave[i]);
+                            io_print(str_buffer);
+                        }
+                        sprintf(str_buffer, "%u\n",
+                                LUT_wave[N_LUT - LUT_OFFSET_TRIG_OUT - 1]);
                         io_print(str_buffer);
 
 
@@ -879,7 +874,7 @@ int main(void) {
                         // from a serial terminal.
                         parse_freq(&str_cmd[4]);
                         compute_LUT(LUT_wave);
-                        sprintf(str_buffer, "%.3f\n", ref_freq);
+                        sprintf(str_buffer, "%.4f\n", ref_freq);
                         io_print(str_buffer);
 
                     } else if (strncmp(str_cmd, "_freq", 5) == 0) {
@@ -898,7 +893,7 @@ int main(void) {
                         // from a serial terminal.
                         parse_offs(&str_cmd[4]);
                         compute_LUT(LUT_wave);
-                        sprintf(str_buffer, "%.3f\n", ref_V_offset);
+                        sprintf(str_buffer, "%.4f\n", ref_offs);
                         io_print(str_buffer);
 
                     } else if (strncmp(str_cmd, "_offs", 5) == 0) {
@@ -917,7 +912,7 @@ int main(void) {
                         // from a serial terminal.
                         parse_ampl(&str_cmd[4]);
                         compute_LUT(LUT_wave);
-                        sprintf(str_buffer, "%.3f\n", ref_V_ampl);
+                        sprintf(str_buffer, "%.4f\n", ref_ampl);
                         io_print(str_buffer);
 
                     } else if (strncmp(str_cmd, "_ampl", 5) == 0) {
@@ -974,13 +969,6 @@ int main(void) {
 
                     } else if (strcmp(str_cmd, "tri") == 0) {
                         ref_waveform = Triangle;
-                        compute_LUT(LUT_wave);
-                        sprintf(str_buffer, "%s\n",
-                                WAVEFORM_STRING[ref_waveform]);
-                        io_print(str_buffer);
-
-                    } else if (strcmp(str_cmd, "ecg") == 0) {
-                        ref_waveform = ECG;
                         compute_LUT(LUT_wave);
                         sprintf(str_buffer, "%s\n",
                                 WAVEFORM_STRING[ref_waveform]);
