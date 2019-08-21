@@ -37,8 +37,7 @@ class Waveform(Enum):
     Unknown  = -1
     Cosine   = 0
     Square   = 1
-    Sawtooth = 2
-    Triangle = 3
+    Triangle = 2
 
 class Arduino_lockin_amp(Arduino_functions.Arduino):
     class Config():
@@ -604,10 +603,6 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             lut_Y = round_C_style(((1.50 * c.N_LUT - idxs_phase) % c.N_LUT) /
                                   (c.N_LUT - 1))
             
-        elif c.ref_waveform == Waveform.Sawtooth:
-            lut_X = 1 - idxs_phase / (c.N_LUT - 1)
-            lut_Y = 1 - ((idxs_phase - c.N_LUT / 4) % c.N_LUT) / (c.N_LUT - 1)
-
         elif c.ref_waveform == Waveform.Triangle:
             lut_X = 2 * np.abs(idxs_phase / c.N_LUT - 0.5)
             lut_Y = 2 * np.abs(((idxs_phase - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 0.5)

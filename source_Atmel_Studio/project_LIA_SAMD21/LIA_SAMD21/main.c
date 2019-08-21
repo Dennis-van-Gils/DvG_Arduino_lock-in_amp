@@ -28,7 +28,6 @@ volatile uint32_t millis = 0;        // Updated by SysTick, once every 1 ms
 #define FOREACH_WAVEFORM(WAVEFORM) \
         WAVEFORM(Cosine)    \
         WAVEFORM(Square)    \
-        WAVEFORM(Sawtooth)  \
         WAVEFORM(Triangle)  \
         WAVEFORM(END_WAVEFORM_ENUM)
 #define GENERATE_ENUM(ENUM) ENUM,
@@ -69,7 +68,7 @@ bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 // over serial as a single block of data
 //#define BLOCK_SIZE 2500     // 2500 [# samples], where 1 sample takes up 16 bits
 //#define BLOCK_SIZE 500     // 2500 [# samples], where 1 sample takes up 16 bits
-#define BLOCK_SIZE 1000      // 2500 [# samples], where 1 sample takes up 16 bits
+#define BLOCK_SIZE 2000      // 2500 [# samples], where 1 sample takes up 16 bits
 
 /*------------------------------------------------------------------------------
     TIMER_0
@@ -396,12 +395,6 @@ void compute_LUT(uint16_t *LUT_array) {
             case Square:
                 // Extrema guaranteed  [ 0, 1]
                 wave = round(fmod(1.75 * N_LUT - j, N_LUT) / (N_LUT - 1));
-                break;
-
-            case Sawtooth:
-                // Extrema guaranteed  [ 0, 1]
-                //wave = (N_LUT - 1 - j) / (N_LUT - 1);
-                wave = 1 - j / (N_LUT - 1);
                 break;
 
             case Triangle:
@@ -965,13 +958,6 @@ int main(void) {
 
                     } else if (strcmp(str_cmd, "sqr") == 0) {
                         ref_waveform = Square;
-                        compute_LUT(LUT_wave);
-                        sprintf(str_buffer, "%s\n",
-                                WAVEFORM_STRING[ref_waveform]);
-                        io_print(str_buffer);
-
-                    } else if (strcmp(str_cmd, "saw") == 0) {
-                        ref_waveform = Sawtooth;
                         compute_LUT(LUT_wave);
                         sprintf(str_buffer, "%s\n",
                                 WAVEFORM_STRING[ref_waveform]);

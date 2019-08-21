@@ -29,7 +29,7 @@
 //<o> Length of one timer tick in uS <0-16777216>
 // <id> timer_tick
 #ifndef CONF_TCC0_TIMER_TICK
-#define CONF_TCC0_TIMER_TICK 100
+#define CONF_TCC0_TIMER_TICK 50
 #endif
 
 // </h>
