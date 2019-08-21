@@ -410,8 +410,8 @@ if __name__ == '__main__':
         sys.exit(0)
         
     #lockin.begin()
-    lockin.begin(ref_freq=200, ref_V_offset=1.65, ref_V_ampl=1.414,
-                 ref_waveform=Waveform.Cosine)
+    lockin.begin(ref_freq=250, ref_V_offset=1.65, ref_V_ampl=1.414,
+                 ref_waveform=Waveform.Square)
     
     # Create workers and threads
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
@@ -419,7 +419,7 @@ if __name__ == '__main__':
                             DAQ_function_to_run_each_update=lockin_DAQ_update,
                             DAQ_critical_not_alive_count=3,
                             calc_DAQ_rate_every_N_iter=10,
-                            N_buffers_in_deque=41,
+                            N_buffers_in_deque=21,
                             DEBUG_worker_DAQ=False,
                             DEBUG_worker_send=False,
                             use_CUDA=USE_CUDA)

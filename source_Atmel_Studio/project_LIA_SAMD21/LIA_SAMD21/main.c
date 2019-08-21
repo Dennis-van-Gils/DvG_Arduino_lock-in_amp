@@ -68,7 +68,8 @@ bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 // The number of samples to acquire by the ADC and to subsequently send out
 // over serial as a single block of data
 //#define BLOCK_SIZE 2500     // 2500 [# samples], where 1 sample takes up 16 bits
-#define BLOCK_SIZE 500     // 2500 [# samples], where 1 sample takes up 16 bits
+//#define BLOCK_SIZE 500     // 2500 [# samples], where 1 sample takes up 16 bits
+#define BLOCK_SIZE 1000      // 2500 [# samples], where 1 sample takes up 16 bits
 
 /*------------------------------------------------------------------------------
     TIMER_0
@@ -359,8 +360,6 @@ void parse_offs(const char const *str_value) {
     ref_offs = atof(str_value);
     ref_offs = max(ref_offs, 0.0);
     ref_offs = min(ref_offs, A_REF);
-    ref_offs = round(ref_offs / A_REF * MAX_DAC_OUTPUT_BITVAL) *
-                     A_REF / MAX_DAC_OUTPUT_BITVAL;
 }
 
 void parse_ampl(const char const *str_value) {
@@ -374,60 +373,57 @@ void compute_LUT(uint16_t *LUT_array) {
     double norm_ampl = ref_ampl / A_REF;    // Normalized
     double wave;
 
+    /*
     uint32_t tick = millis;
     io_print("Computing LUT...\n");
+    */
 
-    int16_t fq_N_LUT = (int16_t) floor(N_LUT / 4.0); // Floor quarter N_LUT
-    int16_t cq_N_LUT = (int16_t) ceil (N_LUT / 4.0); // Ceil  quarter N_LUT
-
-    for (int16_t i = 0; i < N_LUT; i++) {
+    // Generate normalized waveform periods in the range [0, 1].
+    // The LUT array is rolled around by LUT_OFFSET_TRIG_OUT.
+    for (int16_t i = LUT_OFFSET_TRIG_OUT;
+                 i < N_LUT + LUT_OFFSET_TRIG_OUT;
+                 i++) {
+        float j = i % N_LUT;
+        
         switch (ref_waveform) {
             default:
             case Cosine:
-                // The maximum is always guaranteed to be 1.0
-                // The minimum is /not/ always guaranteed to be 0.0
-                wave = cos(M_TWOPI*(i + LUT_OFFSET_TRIG_OUT) / N_LUT);
-                wave = norm_offs + norm_ampl * wave;
+                // N_LUT even: extrema [ 0, 1]
+                // N_LUT odd : extrema [>0, 1]
+                wave = .5 * (1 + cos(M_TWOPI * j / N_LUT));
                 break;
 
             case Square:
-                // Extrema are always 0.0 and 1.0
-                wave = ((i + LUT_OFFSET_TRIG_OUT + fq_N_LUT) % N_LUT) /
-                        (N_LUT - 1.0);
-                wave = 1.0 - round(wave);
-                wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
+                // Extrema guaranteed  [ 0, 1]
+                wave = round(fmod(1.75 * N_LUT - j, N_LUT) / (N_LUT - 1));
                 break;
 
             case Sawtooth:
-                // Extrema are always 0.0 and 1.0
-                wave = ((i + LUT_OFFSET_TRIG_OUT + N_LUT - cq_N_LUT) % N_LUT) /
-                        (N_LUT - 1.0);
-                wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
+                // Extrema guaranteed  [ 0, 1]
+                //wave = (N_LUT - 1 - j) / (N_LUT - 1);
+                wave = 1 - j / (N_LUT - 1);
                 break;
 
             case Triangle:
-                // This elaborate algorithm will ensure the extrema will
-                // always be 0.0 and 1.0, especially when N_LUT is odd.
-                // This comes at the expense of a slightly variable slope
-                // for two sample points in the wave whenever N_LUT is odd.
-                wave = (((i + LUT_OFFSET_TRIG_OUT) * 2) % N_LUT) /
-                        (float) (N_LUT - N_LUT % 2);
-                if ((i + LUT_OFFSET_TRIG_OUT) % N_LUT < (N_LUT / 2.0 )) {
-                    wave = 1.0 - wave;
-                }
-                wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
+                // N_LUT even: extrema [ 0, 1]
+                // N_LUT odd : extrema [>0, 1]
+                wave = 2 * fabs(j / N_LUT - .5);
                 break;
         }
-
+        
+        wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
         wave = max(wave, 0.0);
         wave = min(wave, 1.0);
-        LUT_array[i] = (uint16_t) round(MAX_DAC_OUTPUT_BITVAL * wave);
+        LUT_array[i - LUT_OFFSET_TRIG_OUT] =
+            (uint16_t) round(MAX_DAC_OUTPUT_BITVAL * wave);
     }
     
     is_LUT_dirty = false;
 
+    /*
     sprintf(str_buffer, " done in %lu ms\n", millis - tick);
     io_print(str_buffer);
+    */
 }
 
 void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
@@ -677,8 +673,8 @@ int main(void) {
 
     // LUT
     parse_freq("500.0");  // [Hz] Wanted startup frequency
-    parse_offs("1.65");   // [V]  Wanted startup offset
-    parse_ampl("1.4142"); // [V]  Wanted startup amplitude
+    parse_offs("2.0");    // [V]  Wanted startup offset
+    parse_ampl("1.0");    // [V]  Wanted startup amplitude
     compute_LUT(LUT_wave);
 
     // Will send out TX_buffer over SERCOM when triggered
@@ -710,6 +706,15 @@ int main(void) {
                     // -------------------
                     //  Running
                     // -------------------
+                    /* Any command received while running will switch the
+                    lock-in amp off. The command string will not be checked in
+                    advance, because this causes a lot of overhead, during which
+                    time the Arduino's serial-out buffer could potentially flood
+                    the serial-in buffer at the PC side. This will happen when
+                    the PC is not reading (and depleting) the in-buffer as fast
+                    as possible because it is now waiting for the 'off' reply to
+                    occur.
+                    */
 
                     is_running = false;
 
@@ -727,13 +732,18 @@ int main(void) {
                     DMAC->CHID.reg = DMAC_CHID_ID(2);   // SERCOM TX_buffer_B
                     DMAC->CHCTRLA.reg = 0;
                     CRITICAL_SECTION_LEAVE();
-
+                    
+                    // Flush out any binary buffer data scheduled for sending,
+                    // potentially flooding the receiving buffer at the PC side
+                    // if 'is_running' was not switched to false fast enough.
+                    while (!usart_async_is_tx_empty(&USART_0));
+                     
                     // Confirm at the PC side that the lock-in amp is off and is
                     // no longer sending binary data. The 'off' message might
                     // still be preceded with some left-over binary data when
                     // being read at the PC side.
                     //io_write(io, (uint8_t *) "\noff\n", 5);  // non-blocking
-                    io_print("\noff\n");
+                    io_print("\noff\n"); // blocking
 
                     // Flush out and ignore the command
                     scl_get_command(&scl_1);
@@ -802,7 +812,7 @@ int main(void) {
                     } else if (strcmp(str_cmd, "ref?") == 0 ||
                                strcmp(str_cmd, "?") == 0) {
                         // Report reference signal settings
-                        sprintf(str_buffer, "%.4f\t%.4f\t%.4f\t%s\t%i\n",
+                        sprintf(str_buffer, "%.3f\t%.3f\t%.3f\t%s\t%i\n",
                                 ref_freq, ref_offs, ref_ampl,
                                 WAVEFORM_STRING[ref_waveform], N_LUT);
                         io_print(str_buffer);
@@ -874,7 +884,7 @@ int main(void) {
                         // from a serial terminal.
                         parse_freq(&str_cmd[4]);
                         compute_LUT(LUT_wave);
-                        sprintf(str_buffer, "%.4f\n", ref_freq);
+                        sprintf(str_buffer, "%.3f\n", ref_freq);
                         io_print(str_buffer);
 
                     } else if (strncmp(str_cmd, "_freq", 5) == 0) {
@@ -893,7 +903,7 @@ int main(void) {
                         // from a serial terminal.
                         parse_offs(&str_cmd[4]);
                         compute_LUT(LUT_wave);
-                        sprintf(str_buffer, "%.4f\n", ref_offs);
+                        sprintf(str_buffer, "%.3f\n", ref_offs);
                         io_print(str_buffer);
 
                     } else if (strncmp(str_cmd, "_offs", 5) == 0) {
@@ -912,7 +922,7 @@ int main(void) {
                         // from a serial terminal.
                         parse_ampl(&str_cmd[4]);
                         compute_LUT(LUT_wave);
-                        sprintf(str_buffer, "%.4f\n", ref_ampl);
+                        sprintf(str_buffer, "%.3f\n", ref_ampl);
                         io_print(str_buffer);
 
                     } else if (strncmp(str_cmd, "_ampl", 5) == 0) {
@@ -927,7 +937,7 @@ int main(void) {
                     } else if (strcmp(str_cmd, "compute_LUT") == 0 ||
                                strcmp(str_cmd, "c") == 0) {
                         compute_LUT(LUT_wave);
-
+                        
 
 
                     } else if (strncmp(str_cmd, "_wave", 5) == 0) {

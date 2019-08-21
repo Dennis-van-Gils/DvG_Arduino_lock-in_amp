@@ -6,7 +6,7 @@ connection.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "15-08-2019"
+__date__        = "21-08-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -18,6 +18,20 @@ from enum import Enum
 
 import DvG_dev_Arduino__fun_serial as Arduino_functions
 from DvG_debug_functions import dprint, print_fancy_traceback as pft
+
+def round_C_style(values: np.ndarray):
+    sign_backup = np.sign(values)
+    values = np.abs(values)
+    
+    values_trunc = np.trunc(values)
+    values_frac  = values % 1
+    
+    frac_rounded = np.zeros_like(values)
+    frac_rounded[values_frac >= 0.5] = 1
+    
+    values_rounded = sign_backup * (values_trunc + frac_rounded)
+    
+    return (values_rounded)
  
 class Waveform(Enum):
     Unknown  = -1
@@ -290,6 +304,9 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             success
         """
 
+        return self.write("c");
+
+        """
         print("\nComputing waveform on Arduino... ", end='')
         [success, ans_str] = self.safe_query("compute_LUT")
         if success:
@@ -318,6 +335,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         print(ans_bytes.decode().strip()) # "done in ### ms"
         return True
+        """
     
     def query_LUT(self):
         """
@@ -386,9 +404,9 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
                 return False
         else: return False
         
-        print("  freq             : %-10.4f [Hz]" % self.config.ref_freq)
-        print("  offset           : %-10.4f [V]"  % self.config.ref_V_offset)
-        print("  ampl             : %-10.4f [V]"  % self.config.ref_V_ampl)
+        print("  freq             : %-10.3f [Hz]" % self.config.ref_freq)
+        print("  offset           : %-10.3f [V]"  % self.config.ref_V_offset)
+        print("  ampl             : %-10.3f [V]"  % self.config.ref_V_ampl)
         print("  waveform         : %-10s"        % self.config.ref_waveform.name)
         print("  N_LUT            : %-10i"        % self.config.N_LUT)
         return True
@@ -577,65 +595,38 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         sig_I = sig_I * c.A_REF / (2**c.ADC_INPUT_BITS - 1)
         
         if c.ref_waveform == Waveform.Cosine:
-            """
-            LUT_ref_X = np.roll(c.LUT_wave, -idx_phase)
-            ref_X_period = (LUT_ref_X * c.A_REF / (2**c.DAC_OUTPUT_BITS - 1))
-            ref_X_tiled = np.tile(ref_X_period,
-                                  np.int(np.ceil(c.BLOCK_SIZE/c.N_LUT)))
-            ref_X = np.asarray(ref_X_tiled[:c.BLOCK_SIZE],
-                               dtype=c.return_type_ref_XY, order='C')        
-            """
-            ref_X_period = c.ref_V_offset + c.ref_V_ampl * np.cos(phi)
-            ref_Y_period = c.ref_V_offset + c.ref_V_ampl * np.sin(phi)
+            lut_X = 0.5 * (1 + np.cos(phi))
+            lut_Y = 0.5 * (1 + np.sin(phi))
         
         elif c.ref_waveform == Waveform.Square:
-            wave_X = (((idxs_phase + np.floor(c.N_LUT / 4)) % c.N_LUT) /
-                      (c.N_LUT - 1.0))
-            wave_X = np.round(1.0 - wave_X)
-            ref_X_period = ((c.ref_V_offset - c.ref_V_ampl) + 
-                            2 * c.ref_V_ampl * wave_X)
+            lut_X = round_C_style(((1.75 * c.N_LUT - idxs_phase) % c.N_LUT) /
+                                  (c.N_LUT - 1))
+            lut_Y = round_C_style(((1.50 * c.N_LUT - idxs_phase) % c.N_LUT) /
+                                  (c.N_LUT - 1))
             
-            wave_Y = idxs_phase / (c.N_LUT - 1.0)
-            wave_Y = np.round(1.0 - wave_Y)
-            ref_Y_period = ((c.ref_V_offset - c.ref_V_ampl) + 
-                            2 * c.ref_V_ampl * wave_Y)
-
         elif c.ref_waveform == Waveform.Sawtooth:
-            wave_X = (((idxs_phase - np.ceil(c.N_LUT / 4)) % c.N_LUT) /
-                      (c.N_LUT - 1.0))
-            ref_X_period = ((c.ref_V_offset - c.ref_V_ampl) + 
-                            2 * c.ref_V_ampl * wave_X)
-            
-            wave_Y = (((idxs_phase - np.ceil(c.N_LUT / 2)) % c.N_LUT) /
-                      (c.N_LUT - 1.0))
-            ref_Y_period = ((c.ref_V_offset - c.ref_V_ampl) + 
-                            2 * c.ref_V_ampl * wave_Y)
+            lut_X = 1 - idxs_phase / (c.N_LUT - 1)
+            lut_Y = 1 - ((idxs_phase - c.N_LUT / 4) % c.N_LUT) / (c.N_LUT - 1)
 
         elif c.ref_waveform == Waveform.Triangle:
-            wave_X = ((idxs_phase * 2) % c.N_LUT) / (c.N_LUT - c.N_LUT % 2)
-            for i in range(c.N_LUT):
-                if (idxs_phase[i] % c.N_LUT < (c.N_LUT / 2.0 )):
-                    wave_X[i] = 1.0 - wave_X[i];            
-            ref_X_period = ((c.ref_V_offset - c.ref_V_ampl) +
-                            2 * c.ref_V_ampl * wave_X)
-            
-            wave_Y = (((idxs_phase - np.ceil(c.N_LUT / 4)) * 2) % c.N_LUT) / (c.N_LUT - c.N_LUT % 2)
-            for i in range(c.N_LUT):
-                if ((idxs_phase[i] - np.ceil(c.N_LUT / 4)) % c.N_LUT < (c.N_LUT / 2.0 )):
-                    wave_Y[i] = 1.0 - wave_Y[i];            
-            ref_Y_period = ((c.ref_V_offset - c.ref_V_ampl) +
-                            2 * c.ref_V_ampl * wave_Y)
+            lut_X = 2 * np.abs(idxs_phase / c.N_LUT - 0.5)
+            lut_Y = 2 * np.abs(((idxs_phase - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 0.5)
             
         elif c.ref_waveform == Waveform.Unknown:
-            ref_X_period = np.full(np.nan, c.N_LUT)
-            ref_Y_period = np.full(np.nan, c.N_LUT)
+            lut_X = np.full(np.nan, c.N_LUT)
+            lut_Y = np.full(np.nan, c.N_LUT)
 
-        ref_X_tiled = np.tile(ref_X_period.clip(0, c.A_REF),
-                              np.int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
-        ref_Y_tiled = np.tile(ref_Y_period.clip(0, c.A_REF),
-                              np.int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
+        lut_X = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_X
+        lut_Y = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_Y
+        lut_X.clip(0, c.A_REF)
+        lut_Y.clip(0, c.A_REF)
+        
+        ref_X_tiled = np.tile(lut_X, np.int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
+        ref_Y_tiled = np.tile(lut_Y, np.int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
+        
         ref_X = np.asarray(ref_X_tiled[:c.BLOCK_SIZE],
                            dtype=c.return_type_ref_XY, order='C')
+        
         ref_Y = np.asarray(ref_Y_tiled[:c.BLOCK_SIZE],
                            dtype=c.return_type_ref_XY, order='C')        
             
