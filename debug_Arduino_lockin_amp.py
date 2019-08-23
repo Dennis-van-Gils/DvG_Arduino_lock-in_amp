@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Dennis_van_Gils
-18-08-2019
+23-08-2019
 """
 
 import os
@@ -20,7 +20,7 @@ import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 from DvG_dev_Arduino_lockin_amp__fun_serial import Waveform
 
 fn_log = "log.txt"
-fDrawPlot = True
+fDrawPlot = False
 fVerbose = False
 
 if __name__ == "__main__":
@@ -151,7 +151,8 @@ if __name__ == "__main__":
     with open(fn_log, 'r') as file :
         filedata = file.read()
     filedata = filedata.replace("draw", "")
-    filedata = filedata.replace("samples received: 2500", "")
+    filedata = filedata.replace("samples received: %i" %
+                                lockin.config.BLOCK_SIZE, "")
 
     with open(fn_log, 'w') as file:
         file.write(filedata)
