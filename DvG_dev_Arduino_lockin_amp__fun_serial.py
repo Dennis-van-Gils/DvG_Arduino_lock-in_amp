@@ -654,8 +654,11 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         elif c.ref_waveform == Waveform.Square:
             lut_X = round_C_style(((1.75 * c.N_LUT - idxs_phase) % c.N_LUT) /
                                   (c.N_LUT - 1))
-            lut_Y = round_C_style(((1.50 * c.N_LUT - idxs_phase) % c.N_LUT) /
-                                  (c.N_LUT - 1))
+            #lut_Y = round_C_style(((1.50 * c.N_LUT - idxs_phase) % c.N_LUT) /
+            #                      (c.N_LUT - 1))
+            lut_Y = np.interp(np.arange(c.N_LUT) + c.N_LUT/4,
+                              np.arange(c.N_LUT * 2), 
+                              np.tile(lut_X, 2))
             
         elif c.ref_waveform == Waveform.Triangle:
             lut_X = 2 * np.abs(idxs_phase / c.N_LUT - 0.5)
