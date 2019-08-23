@@ -411,7 +411,7 @@ if __name__ == '__main__':
         
     #lockin.begin()
     lockin.begin(ref_freq=250, ref_V_offset=2.0, ref_V_ampl=1.0,
-                 ref_waveform=Waveform.Square)
+                 ref_waveform=Waveform.Cosine)
     
     # Create workers and threads
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
