@@ -812,26 +812,26 @@ int main(void) {
 
 
 
-                    } else if (strcmp(str_cmd, "lut?") == 0) {
-                        // Report N_LUT as ASCII and report the full LUT as a
-                        // binary stream. The reported LUT will start at phase
-                        // = 0 deg.
-                        sprintf(str_buffer, "%u\t%i\n", N_LUT, is_LUT_dirty);
-                        io_print(str_buffer);
-
+                    } else if (strcmp(str_cmd, "lut?") == 0 ||
+                               strcmp(str_cmd, "l?") == 0) {
+                        // Report the LUT as a binary stream.
+                        // The reported LUT will start at phase = 0 deg.
+                        io_write_blocking((uint8_t *) &N_LUT, 2);
+                        io_write_blocking((uint8_t *) &is_LUT_dirty, 1);
                         io_write_blocking((uint8_t *)
                                           &LUT_wave[N_LUT - LUT_OFFSET_TRIG_OUT],
                                           LUT_OFFSET_TRIG_OUT * 2);
                         io_write_blocking((uint8_t *) LUT_wave,
                                           (N_LUT - LUT_OFFSET_TRIG_OUT) * 2);
-                        io_print("\n");
 
 
 
-                    } else if (strcmp(str_cmd, "lut_ascii?") == 0) {
-                        // Report N_LUT as ASCII and report the full LUT as
-                        // ASCII, tab delimited. The reported LUT will start at
-                        // phase = 0 deg. Convenience function handy for debugging.
+                    } else if (strcmp(str_cmd, "lut_ascii?") == 0 ||
+                               strcmp(str_cmd, "la?") == 0) {
+                        // Report the LUT as tab-delimited ASCII.
+                        // The reported LUT will start at phase = 0 deg.
+                        // Convenience function handy for debugging from a
+                        // serial console.
                         uint16_t i;
                         
                         sprintf(str_buffer, "%u\t%i\n", N_LUT, is_LUT_dirty);
@@ -873,8 +873,7 @@ int main(void) {
                     } else if (strncmp(str_cmd, "freq", 4) == 0) {
                         // Set frequency of the reference signal [Hz].
                         // Automatically recomputes the LUT and replies back the
-                        // effective setting. Convenience function to be called
-                        // from a serial terminal.
+                        // effective setting.
                         parse_freq(&str_cmd[4]);
                         compute_LUT(LUT_wave);
                         sprintf(str_buffer, "%.3f\n", ref_freq);
@@ -886,14 +885,15 @@ int main(void) {
                         // to become effective.
                         parse_freq(&str_cmd[5]);
                         is_LUT_dirty = true;
+                        sprintf(str_buffer, "%.3f\n", ref_freq);
+                        io_print(str_buffer);
 
 
 
                     } else if (strncmp(str_cmd, "offs", 4) == 0) {
                         // Set offset of the reference signal [V].
                         // Automatically recomputes the LUT and replies back the
-                        // effective setting. Convenience function to be called
-                        // from a serial terminal.
+                        // effective setting.
                         parse_offs(&str_cmd[4]);
                         compute_LUT(LUT_wave);
                         sprintf(str_buffer, "%.3f\n", ref_offs);
@@ -905,14 +905,15 @@ int main(void) {
                         // to become effective.
                         parse_offs(&str_cmd[5]);
                         is_LUT_dirty = true;
+                        sprintf(str_buffer, "%.3f\n", ref_offs);
+                        io_print(str_buffer);
 
 
 
                     } else if (strncmp(str_cmd, "ampl", 4) == 0) {
                         // Set amplitude of the reference signal [V].
                         // Automatically recomputes the LUT and replies back the
-                        // effective setting. Convenience function to be called
-                        // from a serial terminal.
+                        // effective setting.
                         parse_ampl(&str_cmd[4]);
                         compute_LUT(LUT_wave);
                         sprintf(str_buffer, "%.3f\n", ref_ampl);
@@ -924,14 +925,21 @@ int main(void) {
                         // to become effective.
                         parse_ampl(&str_cmd[5]);
                         is_LUT_dirty = true;
+                        sprintf(str_buffer, "%.3f\n", ref_ampl);
+                        io_print(str_buffer);
 
 
 
-                    } else if (strcmp(str_cmd, "compute_LUT") == 0 ||
-                               strcmp(str_cmd, "c") == 0) {
+                    } else if (strncmp(str_cmd, "wave", 4) == 0) {
+                        // Set the waveform type of the reference signal.
+                        // Automatically recomputes the LUT and replies back the
+                        // effective setting.
+                        ref_waveform = atoi(&str_cmd[4]);
+                        ref_waveform = max(ref_waveform, 0);
+                        ref_waveform = min(ref_waveform, END_WAVEFORM_ENUM - 1);
                         compute_LUT(LUT_wave);
-                        
-
+                        sprintf(str_buffer, "%s\n", WAVEFORM_STRING[ref_waveform]);
+                        io_print(str_buffer);
 
                     } else if (strncmp(str_cmd, "_wave", 5) == 0) {
                         // Set the waveform type of the reference signal.
@@ -941,6 +949,17 @@ int main(void) {
                         ref_waveform = max(ref_waveform, 0);
                         ref_waveform = min(ref_waveform, END_WAVEFORM_ENUM - 1);
                         is_LUT_dirty = true;
+                        sprintf(str_buffer, "%s\n", WAVEFORM_STRING[ref_waveform]);
+                        io_print(str_buffer);
+
+
+
+                    } else if (strcmp(str_cmd, "compute_lut") == 0 ||
+                               strcmp(str_cmd, "c") == 0) {
+                        // (Re)compute the LUT based on the following settings:
+                        // ref_freq, ref_offs, ref_ampl, ref_waveform.
+                        compute_LUT(LUT_wave);
+                        io_print("!\n");    // Reply with OK '!'
 
 
 

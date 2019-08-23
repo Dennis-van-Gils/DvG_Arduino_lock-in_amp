@@ -5,7 +5,7 @@
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "19-08-2019"
+__date__        = "23-08-2019"
 __version__     = "1.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -428,9 +428,9 @@ class MainWindow(QtWid.QWidget):
         p1 = {'maximumWidth': ex8, 'minimumWidth': ex8}
         p2 = {**p1, 'readOnly': True}
         self.qlin_set_ref_freq = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p1))
+                QtWid.QLineEdit("%.3f" % lockin.config.ref_freq, **p1))
         self.qlin_read_ref_freq = (
-                QtWid.QLineEdit("%.2f" % lockin.config.ref_freq, **p2))
+                QtWid.QLineEdit("%.3f" % lockin.config.ref_freq, **p2))
         self.qlin_set_ref_V_offset = (
                 QtWid.QLineEdit("%.3f" % lockin.config.ref_V_offset, **p1))
         self.qlin_read_ref_V_offset = (
@@ -1411,7 +1411,7 @@ class MainWindow(QtWid.QWidget):
         # Clip between 0 and half the Nyquist frequency
         ref_freq = np.clip(ref_freq, 0, self.lockin.config.F_Nyquist/2)
         
-        self.qlin_set_ref_freq.setText("%.2f" % ref_freq)
+        self.qlin_set_ref_freq.setText("%.3f" % ref_freq)
         if ref_freq != self.lockin.config.ref_freq:
             self.lockin_pyqt.set_ref_freq(ref_freq)
     
@@ -1447,7 +1447,7 @@ class MainWindow(QtWid.QWidget):
     
     @QtCore.pyqtSlot()
     def update_newly_set_ref_freq(self):
-        self.qlin_read_ref_freq.setText("%.2f" % self.lockin.config.ref_freq)
+        self.qlin_read_ref_freq.setText("%.3f" % self.lockin.config.ref_freq)
 
         #"""
         # TODO: the extra distance 'roll_off_width' to stay away from

@@ -6,7 +6,7 @@ connection.
 __author__      = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__         = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__        = "21-08-2019"
+__date__        = "23-08-2019"
 __version__     = "1.0.0"
 
 import sys
@@ -82,6 +82,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         # Waveform look-up table (LUT) settings
         N_LUT = 0             # Number of samples covering a full period
+        is_LUT_dirty = False  # Is there a pending change on the LUT?
         LUT_wave = np.array([], dtype=np.uint16)
         # LUT_wave will contain a copy of the LUT array of the current reference
         # signal waveform as used on the Arduino side. This array will be used
@@ -135,7 +136,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         c = self.config
         
         print("Retrieving 'mcu?'")
-        [success, ans_str] = self.safe_query("mcu?")
+        [success, ans_str] = self.query("mcu?")
         if success:
             try:
                 ans_list = ans_str.split('\t')
@@ -151,7 +152,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         print("  uid     : %s" % c.mcu_uid)
         
         print("\nRetrieving 'const?'")
-        [success, ans_str] = self.safe_query("const?")
+        [success, ans_str] = self.query("const?")
         if success:
             try:
                 ans_list = ans_str.split('\t')
@@ -187,31 +188,33 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         print("  F_Nyquist        : %-10.6f [kHz]" % (c.F_Nyquist/1e3))
         
         """The following commands '_freq', '_offs', '_ampl' and '_wave' that
-        will be sent to the Arduino will not update the LUT automatically, nor
-        will there be any reply back from the Arduino when correctly received.
-        Instead, we send the wished-for settings for the reference signal all
-        bunched up in a row, and only then will we compute the LUT
-        corresponding to these settings. This prevents a lot of overhead by
-        not having to wait for the LUT computation every time a single setting
-        gets changed, as would be the case when using the methods
-        'set_ref_{freq/V_offs/V_ampl/waveform}'.
+        will be sent to the Arduino will not update the LUT automatically.
+        We send the wished-for settings for the reference signal all bunched up
+        in a row, and only then will we compute the LUT corresponding to these
+        settings. This prevents a lot of overhead by not having to wait for the
+        LUT computation every time a single setting gets changed, as would be
+        the case when using the methods 'set_ref_{freq/V_offs/V_ampl/waveform}'.
         """
         if any(x is not None for x in (ref_freq, ref_V_offset, ref_V_ampl,
                                        ref_waveform)):
-            print("\nRequesting set reference signal")
+            print("\nRequesting settings 'ref_X'")
 
         if ref_freq != None:
             print("  freq             : %-10.3f [Hz]" % ref_freq)
-            if not self.write("_freq %f" % ref_freq)          : return False
+            [success, ans_str] = self.query("_freq %f" % ref_freq)
+            if not success: return False
         if ref_V_offset != None:
             print("  offset           : %-10.3f [V]" % ref_V_offset)
-            if not self.write("_offs %f" % ref_V_offset)      : return False
+            [success, ans_str] = self.query("_offs %f" % ref_V_offset)
+            if not success: return False
         if ref_V_ampl != None:
             print("  ampl             : %-10.3f [V]" % ref_V_ampl)
-            if not self.write("_ampl %f" % ref_V_ampl)        : return False
+            [success, ans_str] = self.query("_ampl %f" % ref_V_ampl)
+            if not success: return False
         if ref_waveform != None:
             print("  waveform         : %-10s" % ref_waveform.name)
-            if not self.write("_wave %i" % ref_waveform.value): return False        
+            [success, ans_str] = self.query("_wave %i" % ref_waveform.value)
+            if not success: return False
         
         if not self.compute_LUT(): return False
         if not self.query_LUT()  : return False
@@ -295,71 +298,63 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         return [success, was_off, ans_bytes]
     
     def compute_LUT(self):
-        """ Send command 'compute_LUT' to the Arduino lock-in amp to make the
-        planned ref_freq, ref_V_offset, ref_V_ampl and ref_waveform become
-        effective when the lock-in amp is turned on.
+        """Send command 'compute_lut' to the Arduino lock-in amp to (re)compute
+        the look-up table (LUT) used for the analog output of the reference
+        signal 'ref_X'. Any pending changes at the Arduino side to ref_freq,
+        ref_V_offset, ref_V_ampl and ref_waveform will become effective.
+        
+        Returns:
+            success
+        """        
+        [success, ans_str] = self.safe_query("c")
+        return success
+    
+    def query_LUT(self):
+        """Send command "lut?" to the Arduino lock-in amp to retrieve the look-
+        up table (LUT) that is used for the output reference signal 'ref_X'.
+        
+        This method will update members:
+            self.config.N_LUT
+            self.config.is_LUT_dirty
+            self.config.LUT_wave
         
         Returns:
             success
         """
-
-        return self.write("c");
-
-        """
-        print("\nComputing waveform on Arduino... ", end='')
-        [success, ans_str] = self.safe_query("compute_LUT")
-        if success:
-            # The first reply from the Arduino is the message
-            # "Computing LUT..\n" which we will ignore.
-            pass
-        else: return False
+        was_paused = self.lockin_paused
+        if not was_paused: self.turn_off()
         
-        # The second reply of the Arduino will be received when it has finished
-        # computing the LUT. This can take a long time, so we enlarge the
-        # serial timeout for this operation.
-        timeout_backup = self.ser.timeout
-        self.ser.timeout = 120
+        if not self.write("l?"): return False
+        
+        # First read 'N_LUT' and 'is_LUT_dirty' from the binary stream
         try:
-            ans_bytes = self.ser.read_until(b'\n')
-        except Exception as err:
-            self.ser.timeout = timeout_backup
-            raise(err)
+            ans_bytes = self.ser.read(size=3)
+        except:
+            pft("'%s' I/O ERROR: Can't read bytes LUT" % self.name)
+            self.ser.flushInput()
             return False
-        self.ser.timeout = timeout_backup
         
         if (len(ans_bytes) == 0):
             # Received 0 bytes, probably due to a timeout.
-            pft("'%s' I/O ERROR: Timed out computing LUT" % self.name)
+            pft("'%s' I/O ERROR: Timed out reading LUT" % self.name)
+            self.ser.flushInput()
             return False
         
-        print(ans_bytes.decode().strip()) # "done in ### ms"
-        return True
-        """
-    
-    def query_LUT(self):
-        """
-        Returns:
-            success
-        """
-        
-        # The query "lut?" will first return an ASCII encoded line, terminated
-        # by a newline character, and it will then send a binary stream
-        # terminated with another newline character.
-        # Hence, the upcoming query will only return the first ASCII line with
-        # the binary stream still left in the serial buffer.
-        [success, ans_str] = self.safe_query("lut?")
-        if success:
-            try:
-                ans_list = ans_str.split('\t')
-                self.config.N_LUT = int(ans_list[0])
-            except Exception as err:
-                raise(err)
-                return False
-        else: return False
-        
-        # Read the binary stream still left in the serial buffer
         try:
-            ans_bytes = self.ser.read(size=self.config.N_LUT * 2 + 1)
+            N_LUT = struct.unpack('<H', ans_bytes[0:2])
+            is_LUT_dirty = struct.unpack('<?', ans_bytes[2:])
+        except:
+            pft("'%s' I/O ERROR: Can't unpack bytes LUT" % self.name)
+            self.ser.flushInput()
+            return False
+        
+        self.config.N_LUT = np.int(N_LUT[0])
+        self.config.is_LUT_dirty = np.bool(is_LUT_dirty[0])
+        
+        # Now read the remaining LUT array from the binary stream still left in
+        # the serial buffer
+        try:
+            ans_bytes = self.ser.read(size=self.config.N_LUT * 2)
         except:
             pft("'%s' I/O ERROR: Can't read bytes LUT" % self.name)
             self.ser.flushInput()
@@ -373,7 +368,7 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         
         try:
             LUT_wave = np.array(
-                    struct.unpack('<' + 'H'*self.config.N_LUT, ans_bytes[:-1]),
+                    struct.unpack('<' + 'H'*self.config.N_LUT, ans_bytes),
                     dtype=np.uint16)
         except:
             pft("'%s' I/O ERROR: Can't unpack bytes LUT" % self.name)
@@ -381,15 +376,26 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
             return False
         
         self.config.LUT_wave = LUT_wave
+        
+        if not was_paused: self.turn_on()
         return True
     
     def query_ref(self):
-        """
+        """Send command "ref?" to the Arduino lock-in amp to retrieve the
+        output reference signal 'ref_X' settings.
+        
+        This method will update members:
+            self.config.ref_freq
+            self.config.ref_V_offset
+            self.config.ref_V_ampl
+            self.config.ref_waveform
+            self.config.N_LUT
+            
         Returns:
             success
         """
-        print("\nRetrieving 'ref?'")
-        [success, ans_str] = self.safe_query("ref?")
+        print("\nRetrieving settings 'ref_X'")
+        [success, ans_str] = self.safe_query("?")
         if success:
             try:
                 ans_list = ans_str.split('\t')
@@ -411,67 +417,115 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
         return True
         
     def set_ref_freq(self, ref_freq):
-        """
+        """Set the frequency [Hz] for the output reference signal 'ref_X'
+        at the Arduino lock-in amp. The actual obtained frequency might differ.
+        The Arduino will automatically compute the new LUT.
+        
+        This method will update members:
+            self.config.ref_freq
+            self.config.ref_V_offset
+            self.config.ref_V_ampl
+            self.config.ref_waveform
+            self.config.N_LUT
+            self.config.is_LUT_dirty
+            self.config.LUT_wave
+        
         Returns:
             success
-        """
+        """        
         was_paused = self.lockin_paused
         if not was_paused: self.turn_off()
-            
-        if not self.write("_freq %f" % ref_freq): return False
-        if not self.compute_LUT(): return False
-        if not self.query_LUT()  : return False
-        if not self.query_ref()  : return False
         
-        if not was_paused: self.turn_on()        
+        [success, ans_str] = self.query("freq %f" % ref_freq)
+        if not success         : return False
+        if not self.query_ref(): return False
+        if not self.query_LUT(): return False
+        
+        if not was_paused: self.turn_on()
         return True
     
     def set_ref_V_offset(self, ref_V_offset):
-        """
+        """Set the voltage offset [V] for the output reference signal 'ref_X'
+        at the Arduino lock-in amp.
+        The Arduino will automatically compute the new LUT.
+        
+        This method will update members:
+            self.config.ref_freq
+            self.config.ref_V_offset
+            self.config.ref_V_ampl
+            self.config.ref_waveform
+            self.config.N_LUT
+            self.config.is_LUT_dirty
+            self.config.LUT_wave
+        
         Returns:
             success
         """
         was_paused = self.lockin_paused
         if not was_paused: self.turn_off()
-            
-        if not self.write("_offs %f" % ref_V_offset): return False
-        if not self.compute_LUT(): return False
-        if not self.query_LUT()  : return False
-        if not self.query_ref()  : return False
         
-        if not was_paused: self.turn_on()        
+        [success, ans_str] = self.query("offs %f" % ref_V_offset)
+        if not success         : return False
+        if not self.query_ref(): return False
+        if not self.query_LUT(): return False
+        
+        if not was_paused: self.turn_on()
         return True
     
     def set_ref_V_ampl(self, ref_V_ampl):
-        """
+        """Set the voltage amplitude [V] for the output reference signal 'ref_X'
+        at the Arduino lock-in amp.
+        The Arduino will automatically compute the new LUT.
+        
+        This method will update members:
+            self.config.ref_freq
+            self.config.ref_V_offset
+            self.config.ref_V_ampl
+            self.config.ref_waveform
+            self.config.N_LUT
+            self.config.is_LUT_dirty
+            self.config.LUT_wave
+        
         Returns:
             success
         """
         was_paused = self.lockin_paused
         if not was_paused: self.turn_off()
-            
-        if not self.write("_ampl %f" % ref_V_ampl): return False
-        if not self.compute_LUT(): return False
-        if not self.query_LUT()  : return False
-        if not self.query_ref()  : return False
         
-        if not was_paused: self.turn_on()        
+        [success, ans_str] = self.query("ampl %f" % ref_V_ampl)
+        if not success         : return False
+        if not self.query_ref(): return False
+        if not self.query_LUT(): return False
+        
+        if not was_paused: self.turn_on()
         return True
     
     def set_ref_waveform(self, ref_waveform: Waveform):
-        """
+        """Set the waveform type for the output reference signal 'ref_X'
+        at the Arduino lock-in amp.
+        The Arduino will automatically compute the new LUT.
+        
+        This method will update members:
+            self.config.ref_freq
+            self.config.ref_V_offset
+            self.config.ref_V_ampl
+            self.config.ref_waveform
+            self.config.N_LUT
+            self.config.is_LUT_dirty
+            self.config.LUT_wave
+        
         Returns:
             success
         """
         was_paused = self.lockin_paused
         if not was_paused: self.turn_off()
-            
-        if not self.write("_wave %f" % ref_waveform.value): return False
-        if not self.compute_LUT(): return False
-        if not self.query_LUT()  : return False
-        if not self.query_ref()  : return False
         
-        if not was_paused: self.turn_on()        
+        [success, ans_str] = self.query("wave %f" % ref_waveform.value)
+        if not success         : return False
+        if not self.query_ref(): return False
+        if not self.query_LUT(): return False
+        
+        if not was_paused: self.turn_on()
         return True
     
     def read_until_EOM(self, size=None):
