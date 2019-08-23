@@ -322,6 +322,7 @@ class MainWindow(QtWid.QWidget):
         
         # Textbox widths for fitting N characters using the current font
         ex8  = 8 + 8  * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
+        ex10 = 8 + 10 * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
         ex12 = 8 + 12 * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
 
         def Header(): pass # Spider IDE outline bookmark
@@ -425,27 +426,21 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
         
         # QGROUP: Reference signal
-        p1 = {'maximumWidth': ex8, 'minimumWidth': ex8}
-        p2 = {**p1, 'readOnly': True}
-        self.qlin_set_ref_freq = (
-                QtWid.QLineEdit("%.3f" % lockin.config.ref_freq, **p1))
-        self.qlin_read_ref_freq = (
+        p1 = {'maximumWidth': ex8 , 'minimumWidth': ex8}
+        p2 = {'maximumWidth': ex10, 'minimumWidth': ex10}
+        self.qlin_ref_freq = (
                 QtWid.QLineEdit("%.3f" % lockin.config.ref_freq, **p2))
-        self.qlin_set_ref_V_offset = (
+        self.qlin_ref_V_offset = (
                 QtWid.QLineEdit("%.3f" % lockin.config.ref_V_offset, **p1))
-        self.qlin_read_ref_V_offset = (
-                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_offset, **p2))
-        self.qlin_set_ref_V_ampl = (
+        self.qlin_ref_V_ampl = (
                 QtWid.QLineEdit("%.3f" % lockin.config.ref_V_ampl, **p1))
-        self.qlin_read_ref_V_ampl = (
-                QtWid.QLineEdit("%.3f" % lockin.config.ref_V_ampl, **p2))
 
-        self.qlin_set_ref_freq.editingFinished.connect(
-                self.process_qlin_set_ref_freq)
-        self.qlin_set_ref_V_offset.editingFinished.connect(
-                self.process_qlin_set_ref_V_offset)
-        self.qlin_set_ref_V_ampl.editingFinished.connect(
-                self.process_qlin_set_ref_V_ampl)
+        self.qlin_ref_freq.editingFinished.connect(
+                self.process_qlin_ref_freq)
+        self.qlin_ref_V_offset.editingFinished.connect(
+                self.process_qlin_ref_V_offset)
+        self.qlin_ref_V_ampl.editingFinished.connect(
+                self.process_qlin_ref_V_ampl)
         
         p  = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
         p2 = {'alignment': QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter}
@@ -454,20 +449,15 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(QtWid.QLabel("ref_X*: cosine wave", **p2)
                                                    , i, 0, 1, 4); i+=1
         grid.addItem(QtWid.QSpacerItem(0, 4)       , i, 0); i+=1
-        grid.addWidget(QtWid.QLabel("Set")         , i, 1)
-        grid.addWidget(QtWid.QLabel("Read")        , i, 2); i+=1
         grid.addWidget(QtWid.QLabel("freq:", **p)  , i, 0)
-        grid.addWidget(self.qlin_set_ref_freq      , i, 1)
-        grid.addWidget(self.qlin_read_ref_freq     , i, 2)
-        grid.addWidget(QtWid.QLabel("Hz")          , i, 3); i+=1
+        grid.addWidget(self.qlin_ref_freq          , i, 1)
+        grid.addWidget(QtWid.QLabel("Hz")          , i, 2); i+=1
         grid.addWidget(QtWid.QLabel("offset:", **p), i, 0)
-        grid.addWidget(self.qlin_set_ref_V_offset  , i, 1)
-        grid.addWidget(self.qlin_read_ref_V_offset , i, 2)
-        grid.addWidget(QtWid.QLabel("V")           , i, 3); i+=1
+        grid.addWidget(self.qlin_ref_V_offset      , i, 1)
+        grid.addWidget(QtWid.QLabel("V")           , i, 2); i+=1
         grid.addWidget(QtWid.QLabel("ampl:", **p)  , i, 0)
-        grid.addWidget(self.qlin_set_ref_V_ampl    , i, 1)
-        grid.addWidget(self.qlin_read_ref_V_ampl   , i, 2)
-        grid.addWidget(QtWid.QLabel("V")           , i, 3)
+        grid.addWidget(self.qlin_ref_V_ampl        , i, 1)
+        grid.addWidget(QtWid.QLabel("V")           , i, 2)
         
         qgrp_refsig = QtWid.QGroupBox("Reference signal")
         qgrp_refsig.setLayout(grid)
@@ -480,9 +470,9 @@ class MainWindow(QtWid.QWidget):
                                     lockin.config.A_REF,
                                     font=FONT_MONOSPACE), 0, 0)
         grid.addWidget(QtWid.QLabel("Input: sig_I\n"
-                                    "  [-%.1f, %.1f] V\n"
-                                    "  pin A1(+), A2(-)" %
-                                    (lockin.config.A_REF, lockin.config.A_REF),
+                                    "  [ 0.0, %.1f] V\n"
+                                    "  pin A1 wrt GND" %
+                                    lockin.config.A_REF,
                                     font=FONT_MONOSPACE), 1, 0)
         
         qgrp_connections = QtWid.QGroupBox("Analog connections")
@@ -559,13 +549,13 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setXRange(-lockin.config.BLOCK_SIZE * 
                                  lockin.config.SAMPLING_PERIOD * 1e3,
                                  0, padding=0.01)
-        self.pi_refsig.setYRange(-3.3, 3.3, padding=0.05)
+        self.pi_refsig.setYRange(0.0, 3.3, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
         self.pi_refsig.setLimits(xMin=-(lockin.config.BLOCK_SIZE + 1) * 
                                       lockin.config.SAMPLING_PERIOD * 1e3,
                                  xMax=0,
-                                 yMin=-3.4,
+                                 yMin=-0.1,
                                  yMax=3.4)
 
         self.CH_ref_X = ChartHistory(lockin.config.BLOCK_SIZE,
@@ -1402,52 +1392,52 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_record.setText(text_str)
     
     @QtCore.pyqtSlot()
-    def process_qlin_set_ref_freq(self):
+    def process_qlin_ref_freq(self):
         try:
-            ref_freq = float(self.qlin_set_ref_freq.text())
+            ref_freq = float(self.qlin_ref_freq.text())
         except ValueError:
             ref_freq = self.lockin.config.ref_freq
         
         # Clip between 0 and half the Nyquist frequency
         ref_freq = np.clip(ref_freq, 0, self.lockin.config.F_Nyquist/2)
         
-        self.qlin_set_ref_freq.setText("%.3f" % ref_freq)
+        self.qlin_ref_freq.setText("%.3f" % ref_freq)
         if ref_freq != self.lockin.config.ref_freq:
             self.lockin_pyqt.set_ref_freq(ref_freq)
     
     @QtCore.pyqtSlot()
-    def process_qlin_set_ref_V_offset(self):
+    def process_qlin_ref_V_offset(self):
         try:
-            ref_V_offset = float(self.qlin_set_ref_V_offset.text())
+            ref_V_offset = float(self.qlin_ref_V_offset.text())
         except ValueError:
             ref_V_offset = self.lockin.config.ref_V_offset
         
         # Clip between 0 and the analog voltage reference
         ref_V_offset = np.clip(ref_V_offset, 0, self.lockin.config.A_REF)
         
-        self.qlin_set_ref_V_offset.setText("%.3f" % ref_V_offset)
+        self.qlin_ref_V_offset.setText("%.3f" % ref_V_offset)
         if ref_V_offset != self.lockin.config.ref_V_offset:
             self.lockin_pyqt.set_ref_V_offset(ref_V_offset)            
             QtWid.QApplication.processEvents()
             
     @QtCore.pyqtSlot()
-    def process_qlin_set_ref_V_ampl(self):
+    def process_qlin_ref_V_ampl(self):
         try:
-            ref_V_ampl = float(self.qlin_set_ref_V_ampl.text())
+            ref_V_ampl = float(self.qlin_ref_V_ampl.text())
         except ValueError:
             ref_V_ampl = self.lockin.config.ref_V_ampl
         
         # Clip between 0 and the analog voltage reference
         ref_V_ampl = np.clip(ref_V_ampl, 0, self.lockin.config.A_REF)
         
-        self.qlin_set_ref_V_ampl.setText("%.3f" % ref_V_ampl)
+        self.qlin_ref_V_ampl.setText("%.3f" % ref_V_ampl)
         if ref_V_ampl != self.lockin.config.ref_V_ampl:
             self.lockin_pyqt.set_ref_V_ampl(ref_V_ampl)
             QtWid.QApplication.processEvents()
     
     @QtCore.pyqtSlot()
     def update_newly_set_ref_freq(self):
-        self.qlin_read_ref_freq.setText("%.3f" % self.lockin.config.ref_freq)
+        self.qlin_ref_freq.setText("%.3f" % self.lockin.config.ref_freq)
 
         #"""
         # TODO: the extra distance 'roll_off_width' to stay away from
@@ -1471,16 +1461,14 @@ class MainWindow(QtWid.QWidget):
     
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_offset(self):
-        self.qlin_read_ref_V_offset.setText("%.3f" %
-                                            self.lockin.config.ref_V_offset)
+        self.qlin_ref_V_offset.setText("%.3f" % self.lockin.config.ref_V_offset)
         
         self.lockin_pyqt.state.reset()
         self.clear_chart_histories_stage_1_and_2()
         
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_ampl(self):
-        self.qlin_read_ref_V_ampl.setText("%.3f" %
-                                          self.lockin.config.ref_V_ampl)
+        self.qlin_ref_V_ampl.setText("%.3f" % self.lockin.config.ref_V_ampl)
         
         self.lockin_pyqt.state.reset()
         self.clear_chart_histories_stage_1_and_2()
@@ -1541,7 +1529,7 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbt_fullrange_xy(self):
         self.process_qpbt_autorange_x()
-        self.pi_refsig.setYRange(-3.3, 3.3, padding=0.05)
+        self.pi_refsig.setYRange(0.0, 3.3, padding=0.05)
         self.pi_filt_1.setYRange(-3.3, 3.3, padding=0.05)
         self.pi_mixer.setYRange (-5, 5, padding=0.05)
         
