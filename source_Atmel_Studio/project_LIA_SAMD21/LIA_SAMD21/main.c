@@ -665,7 +665,7 @@ int main(void) {
     SysTick_CTRL_ENABLE_Msk;
 
     // LUT
-    parse_freq("500.0");  // [Hz] Wanted startup frequency
+    parse_freq("250.0");  // [Hz] Wanted startup frequency
     parse_offs("2.0");    // [V]  Wanted startup offset
     parse_ampl("1.0");    // [V]  Wanted startup amplitude
     compute_LUT(LUT_wave);
