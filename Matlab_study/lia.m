@@ -27,7 +27,7 @@ g = 1;            % Pre-amplification factor
 Fs = 5e3;            % sample rate [Hz]
 t = 0:1/Fs:2;     % time [s]
 
-V_I  = g * A_sig * cos(2*pi*f_sig*t + phi);
+V_I  = 0 + g * A_sig * cos(2*pi*f_sig*t + phi);
 V_RX =     A_ref * cos(2*pi*f_ref*t);
 V_RY =     A_ref * sin(2*pi*f_ref*t);
 
