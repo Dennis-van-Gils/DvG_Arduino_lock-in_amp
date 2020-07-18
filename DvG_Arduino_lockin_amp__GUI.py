@@ -261,10 +261,10 @@ def apply_PlotItem_style(pi,
     
     font = QtGui.QFont()
     font.setPixelSize(16)
-    pi.getAxis('bottom').tickFont = font
-    pi.getAxis('left')  .tickFont = font
-    pi.getAxis('top')   .tickFont = font
-    pi.getAxis('right') .tickFont = font
+    pi.getAxis('bottom').setTickFont(font)
+    pi.getAxis('left')  .setTickFont(font)
+    pi.getAxis('top')   .setTickFont(font)
+    pi.getAxis('right') .setTickFont(font)
     
     pi.getAxis("bottom").setStyle(tickTextOffset=10)
     pi.getAxis("left")  .setStyle(tickTextOffset=10)
