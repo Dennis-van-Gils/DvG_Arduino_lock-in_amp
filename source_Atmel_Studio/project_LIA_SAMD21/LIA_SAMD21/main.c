@@ -15,7 +15,7 @@ TODO: implement https://github.com/mpflaga/Arduino-MemoryFree
 #include <hpl_tcc_config.h>
 #include "DvG_serial_command_listener.h"
 
-#define FIRMWARE_VERSION "LIA v0.1.0"
+#define FIRMWARE_VERSION "ALIA v0.2.0"
 #define VARIANT_MCK (48000000ul)     // Master clock frequency
 
 volatile bool is_running = false;    // Is the lock-in amplifier running?
@@ -383,7 +383,7 @@ void compute_LUT(uint16_t *LUT_array) {
                  i < N_LUT + LUT_OFFSET_TRIG_OUT;
                  i++) {
         float j = i % N_LUT;
-        
+
         switch (ref_waveform) {
             default:
             case Cosine:
@@ -403,14 +403,14 @@ void compute_LUT(uint16_t *LUT_array) {
                 wave = 2 * fabs(j / N_LUT - .5);
                 break;
         }
-        
+
         wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
         wave = max(wave, 0.0);
         wave = min(wave, 1.0);
         LUT_array[i - LUT_OFFSET_TRIG_OUT] =
             (uint16_t) round(MAX_DAC_OUTPUT_BITVAL * wave);
     }
-    
+
     is_LUT_dirty = false;
 
     /*
@@ -725,12 +725,12 @@ int main(void) {
                     DMAC->CHID.reg = DMAC_CHID_ID(2);   // SERCOM TX_buffer_B
                     DMAC->CHCTRLA.reg = 0;
                     CRITICAL_SECTION_LEAVE();
-                    
+
                     // Flush out any binary buffer data scheduled for sending,
                     // potentially flooding the receiving buffer at the PC side
                     // if 'is_running' was not switched to false fast enough.
                     while (!usart_async_is_tx_empty(&USART_0));
-                     
+
                     // Confirm at the PC side that the lock-in amp is off and is
                     // no longer sending binary data. The 'off' message might
                     // still be preceded with some left-over binary data when
@@ -753,7 +753,7 @@ int main(void) {
 
                     if (strcmp(str_cmd, "id?") == 0) {
                         // Report identity string
-                        io_print("Arduino lock-in amp\n");
+                        io_print("Arduino, ALIA\n");
 
 
 
@@ -833,7 +833,7 @@ int main(void) {
                         // Convenience function handy for debugging from a
                         // serial console.
                         uint16_t i;
-                        
+
                         sprintf(str_buffer, "%u\t%i\n", N_LUT, is_LUT_dirty);
                         io_print(str_buffer);
 
