@@ -118,7 +118,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         read_timeout=1,
         write_timeout=1,
     ):
-        super(Alia, self).__init__(
+        super().__init__(
             name=name,
             long_name=long_name,
             connect_to_specific_ID=connect_to_specific_ID,
