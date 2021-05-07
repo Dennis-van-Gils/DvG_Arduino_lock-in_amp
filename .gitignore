@@ -22,3 +22,4 @@ port_data.txt
 debug.log
 
 *.atsuo
+.vscode/launch.json
