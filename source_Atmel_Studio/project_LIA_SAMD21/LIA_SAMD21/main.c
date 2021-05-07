@@ -753,7 +753,7 @@ int main(void) {
 
                     if (strcmp(str_cmd, "id?") == 0) {
                         // Report identity string
-                        io_print("Arduino, ALIA\n");
+                        io_print("Arduino, Alia\n");
 
 
 
