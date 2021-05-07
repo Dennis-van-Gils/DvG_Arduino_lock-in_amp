@@ -26,9 +26,8 @@ from DvG_debug_functions import dprint  # , print_fancy_traceback as pft
 from DvG_FFTW_WelchPowerSpectrum import FFTW_WelchPowerSpectrum
 
 from Alia_protocol_serial import Alia, Waveform
-
-import DvG_Arduino_lockin_amp__GUI as lockin_GUI
-import DvG_dev_Arduino_lockin_amp__pyqt_lib as lockin_pyqt_lib
+from Alia_qdev import Alia_qdev
+from Alia_gui import MainWindow
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
@@ -71,8 +70,8 @@ def current_date_time_strings():
 def stop_running():
     app.processEvents()
     if alia.is_alive:
-        lockin_pyqt.turn_off_immediately()
-    lockin_pyqt.close_all_threads()
+        alia_qdev.turn_off_immediately()
+    alia_qdev.close_all_threads()
     file_logger.close_log()
 
 
@@ -120,7 +119,7 @@ def lockin_DAQ_update():
     """
     # Shorthands
     c: Alia.Config = alia.config
-    state: lockin_pyqt_lib.Arduino_lockin_amp_pyqt.State = lockin_pyqt.state
+    state: Alia_qdev.State = alia_qdev.state
 
     # Prevent throwings errors if just paused
     if alia.lockin_paused:
@@ -162,7 +161,7 @@ def lockin_DAQ_update():
     # state.sig_I += 0.01
 
     # Detect dropped samples / buffers
-    lockin_pyqt.state.buffers_received += 1
+    alia_qdev.state.buffers_received += 1
 
     prev_last_deque_time = (
         state.deque_time[-1] if state.buffers_received > 1 else np.nan
@@ -211,15 +210,15 @@ def lockin_DAQ_update():
     # -------
 
     # Apply filter 1 to sig_I
-    state.filt_I = lockin_pyqt.firf_1_sig_I.process(state.deque_sig_I)
+    state.filt_I = alia_qdev.firf_1_sig_I.process(state.deque_sig_I)
 
     # fmt: off
-    if lockin_pyqt.firf_1_sig_I.has_deque_settled:
+    if alia_qdev.firf_1_sig_I.has_deque_settled:
         # Retrieve the block of original data from the past that aligns with
         # the current filter output
         valid_slice = slice(
-            lockin_pyqt.firf_1_sig_I.win_idx_valid_start,
-            lockin_pyqt.firf_1_sig_I.win_idx_valid_end,
+            alia_qdev.firf_1_sig_I.win_idx_valid_start,
+            alia_qdev.firf_1_sig_I.win_idx_valid_end,
         )
 
         state.time_1 = state.deque_time [valid_slice]
@@ -256,16 +255,16 @@ def lockin_DAQ_update():
     # -------
 
     # Apply filter 2 to the mixer output
-    state.X = lockin_pyqt.firf_2_mix_X.process(state.deque_mix_X)
-    state.Y = lockin_pyqt.firf_2_mix_Y.process(state.deque_mix_Y)
+    state.X = alia_qdev.firf_2_mix_X.process(state.deque_mix_X)
+    state.Y = alia_qdev.firf_2_mix_Y.process(state.deque_mix_Y)
 
-    if lockin_pyqt.firf_2_mix_X.has_deque_settled:
+    if alia_qdev.firf_2_mix_X.has_deque_settled:
         # Retrieve the block of time data from the past that aligns with
         # the current filter output
         # fmt: off
         state.time_2 = state.deque_time_1[
-            lockin_pyqt.firf_1_sig_I.win_idx_valid_start :
-            lockin_pyqt.firf_1_sig_I.win_idx_valid_end
+            alia_qdev.firf_1_sig_I.win_idx_valid_start :
+            alia_qdev.firf_1_sig_I.win_idx_valid_end
         ]
         # fmt: on
 
@@ -319,32 +318,32 @@ def lockin_DAQ_update():
 
     if window.legend_box_PS.chkbs[0].isChecked() and state.deque_sig_I.is_full:
         window.BP_PS_1.set_data(
-            lockin_pyqt.fftw_PS_sig_I.freqs,
-            lockin_pyqt.fftw_PS_sig_I.process_dB(state.deque_sig_I),
+            alia_qdev.fftw_PS_sig_I.freqs,
+            alia_qdev.fftw_PS_sig_I.process_dB(state.deque_sig_I),
         )
 
     if window.legend_box_PS.chkbs[1].isChecked() and state.deque_filt_I.is_full:
         window.BP_PS_2.set_data(
-            lockin_pyqt.fftw_PS_filt_I.freqs,
-            lockin_pyqt.fftw_PS_filt_I.process_dB(state.deque_filt_I),
+            alia_qdev.fftw_PS_filt_I.freqs,
+            alia_qdev.fftw_PS_filt_I.process_dB(state.deque_filt_I),
         )
 
     if window.legend_box_PS.chkbs[2].isChecked() and state.deque_mix_X.is_full:
         window.BP_PS_3.set_data(
-            lockin_pyqt.fftw_PS_mix_X.freqs,
-            lockin_pyqt.fftw_PS_mix_X.process_dB(state.deque_mix_X),
+            alia_qdev.fftw_PS_mix_X.freqs,
+            alia_qdev.fftw_PS_mix_X.process_dB(state.deque_mix_X),
         )
 
     if window.legend_box_PS.chkbs[3].isChecked() and state.deque_mix_Y.is_full:
         window.BP_PS_4.set_data(
-            lockin_pyqt.fftw_PS_mix_Y.freqs,
-            lockin_pyqt.fftw_PS_mix_Y.process_dB(state.deque_mix_Y),
+            alia_qdev.fftw_PS_mix_Y.freqs,
+            alia_qdev.fftw_PS_mix_Y.process_dB(state.deque_mix_Y),
         )
 
     if window.legend_box_PS.chkbs[4].isChecked() and state.deque_R.is_full:
         window.BP_PS_5.set_data(
-            lockin_pyqt.fftw_PS_R.freqs,
-            lockin_pyqt.fftw_PS_R.process_dB(state.deque_R),
+            alia_qdev.fftw_PS_R.freqs,
+            alia_qdev.fftw_PS_R.process_dB(state.deque_R),
         )
 
     # Logging to file
@@ -379,8 +378,8 @@ def lockin_DAQ_update():
         file_logger.close_log()
 
     if file_logger.is_recording:
-        if lockin_pyqt.firf_2_mix_X.has_deque_settled:  # All lights green!
-            idx_offset = lockin_pyqt.firf_1_sig_I.win_idx_valid_start
+        if alia_qdev.firf_2_mix_X.has_deque_settled:  # All lights green!
+            idx_offset = alia_qdev.firf_1_sig_I.win_idx_valid_start
 
             for i in range(c.BLOCK_SIZE):
                 data = ("%i\t" + "%.5f\t" * 9 + "%.4f\n") % (
@@ -448,7 +447,7 @@ if __name__ == "__main__":
     )
 
     # Create workers and threads
-    lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
+    alia_qdev = Alia_qdev(
         dev=alia,
         DAQ_function_to_run_each_update=lockin_DAQ_update,
         DAQ_critical_not_alive_count=3,
@@ -458,7 +457,7 @@ if __name__ == "__main__":
         DEBUG_worker_send=False,
         use_CUDA=USE_CUDA,
     )
-    lockin_pyqt.signal_connection_lost.connect(notify_connection_lost)
+    alia_qdev.signal_connection_lost.connect(notify_connection_lost)
 
     # Manage logging to disk
     file_logger = FileLogger()
@@ -472,35 +471,35 @@ if __name__ == "__main__":
     app = QtWid.QApplication(sys.argv)
     app.aboutToQuit.connect(about_to_quit)
 
-    window = lockin_GUI.MainWindow(
-        lockin=alia,
-        lockin_pyqt=lockin_pyqt,
+    window = MainWindow(
+        alia=alia,
+        alia_qdev=alia_qdev,
         file_logger=file_logger,
     )
 
     # --------------------------------------------------------------------------
-    #   Create power spectrum FFTW objects as members of lockin_pyqt
+    #   Create power spectrum FFTW objects as members of alia_qdev
     # --------------------------------------------------------------------------
 
     p = {
-        "len_data": lockin_pyqt.state.N_deque,
+        "len_data": alia_qdev.state.N_deque,
         "fs": alia.config.Fs,
         "nperseg": alia.config.Fs,
     }
     # fmt: off
-    lockin_pyqt.fftw_PS_sig_I  = FFTW_WelchPowerSpectrum(**p)
-    lockin_pyqt.fftw_PS_filt_I = FFTW_WelchPowerSpectrum(**p)
-    lockin_pyqt.fftw_PS_mix_X  = FFTW_WelchPowerSpectrum(**p)
-    lockin_pyqt.fftw_PS_mix_Y  = FFTW_WelchPowerSpectrum(**p)
-    lockin_pyqt.fftw_PS_R      = FFTW_WelchPowerSpectrum(**p)
+    alia_qdev.fftw_PS_sig_I  = FFTW_WelchPowerSpectrum(**p)
+    alia_qdev.fftw_PS_filt_I = FFTW_WelchPowerSpectrum(**p)
+    alia_qdev.fftw_PS_mix_X  = FFTW_WelchPowerSpectrum(**p)
+    alia_qdev.fftw_PS_mix_Y  = FFTW_WelchPowerSpectrum(**p)
+    alia_qdev.fftw_PS_R      = FFTW_WelchPowerSpectrum(**p)
     # fmt: on
 
     # --------------------------------------------------------------------------
     #   Start threads
     # --------------------------------------------------------------------------
 
-    lockin_pyqt.start_thread_worker_DAQ(QtCore.QThread.TimeCriticalPriority)
-    lockin_pyqt.start_thread_worker_send()
+    alia_qdev.start_thread_worker_DAQ(QtCore.QThread.TimeCriticalPriority)
+    alia_qdev.start_thread_worker_send()
 
     # --------------------------------------------------------------------------
     #   Start the main GUI event loop

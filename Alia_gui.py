@@ -23,7 +23,7 @@ from DvG_pyqt_FileLogger import FileLogger
 from DvG_debug_functions import dprint
 
 from Alia_protocol_serial import Alia
-import DvG_dev_Arduino_lockin_amp__pyqt_lib as lockin_pyqt_lib
+from Alia_qdev import Alia_qdev
 from DvG_Buffered_FIR_Filter__GUI import Filter_design_GUI
 
 # Monkey-patch errors in pyqtgraph v0.10
@@ -303,7 +303,7 @@ class MainWindow(QtWid.QWidget):
     def __init__(
         self,
         alia: Alia,
-        lockin_pyqt: lockin_pyqt_lib.Arduino_lockin_amp_pyqt,
+        alia_qdev: Alia_qdev,
         file_logger: FileLogger,
         parent=None,
         **kwargs
@@ -311,7 +311,7 @@ class MainWindow(QtWid.QWidget):
         super().__init__(parent, **kwargs)
 
         self.alia = alia
-        self.lockin_pyqt = lockin_pyqt
+        self.alia_qdev = alia_qdev
         self.file_logger = file_logger
 
         self.proc = psutil.Process(os.getpid())
@@ -1227,9 +1227,7 @@ class MainWindow(QtWid.QWidget):
         qgrp_zoom.setLayout(grid)
 
         # QGROUP: Filter design
-        self.filt_1_design_GUI = Filter_design_GUI(
-            self.lockin_pyqt.firf_1_sig_I
-        )
+        self.filt_1_design_GUI = Filter_design_GUI(self.alia_qdev.firf_1_sig_I)
         self.filt_1_design_GUI.signal_filter_design_updated.connect(
             self.update_plot_filt_1_resp
         )
@@ -1345,7 +1343,7 @@ class MainWindow(QtWid.QWidget):
 
         # QGROUP: Filter design
         self.filt_2_design_GUI = Filter_design_GUI(
-            [self.lockin_pyqt.firf_2_mix_X, self.lockin_pyqt.firf_2_mix_Y]
+            [self.alia_qdev.firf_2_mix_X, self.alia_qdev.firf_2_mix_Y]
         )
         self.filt_2_design_GUI.signal_filter_design_updated.connect(
             self.update_plot_filt_2_resp
@@ -1413,6 +1411,7 @@ class MainWindow(QtWid.QWidget):
             self.process_qchk_boost_fps_graphing
         )
 
+        # fmt: off
         grid = QtWid.QGridLayout(spacing=4)
         grid.addWidget(self.qchk_boost_fps_graphing, 0, 0)
         grid.addWidget(
@@ -1421,18 +1420,15 @@ class MainWindow(QtWid.QWidget):
                 "second for graphing at the expense<br>"
                 "of a higher CPU load and possibly<br>"
                 "dropped samples."
-            ),
-            1,
-            0,
+            ), 1, 0,
         )
         grid.addWidget(
             QtWid.QLabel(
                 "Uncheck whenever you encounter<br>"
                 "reccuring dropped samples."
-            ),
-            2,
-            0,
+            ), 2, 0,
         )
+        # fmt: on
 
         qgrp = QtWid.QGroupBox("Python program")
         qgrp.setLayout(grid)
@@ -1495,22 +1491,17 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
 
-        self.lockin_pyqt.signal_DAQ_updated.connect(self.update_GUI)
-
-        self.lockin_pyqt.signal_DAQ_suspended.connect(self.update_GUI)
-
-        self.lockin_pyqt.signal_ref_freq_is_set.connect(
+        self.alia_qdev.signal_DAQ_updated.connect(self.update_GUI)
+        self.alia_qdev.signal_DAQ_suspended.connect(self.update_GUI)
+        self.alia_qdev.signal_ref_freq_is_set.connect(
             self.update_newly_set_ref_freq
         )
-
-        self.lockin_pyqt.signal_ref_V_offset_is_set.connect(
+        self.alia_qdev.signal_ref_V_offset_is_set.connect(
             self.update_newly_set_ref_V_offset
         )
-
-        self.lockin_pyqt.signal_ref_V_ampl_is_set.connect(
+        self.alia_qdev.signal_ref_V_ampl_is_set.connect(
             self.update_newly_set_ref_V_ampl
         )
-
         self.file_logger.signal_set_recording_text.connect(
             self.set_text_qpbt_record
         )
@@ -1547,35 +1538,35 @@ class MainWindow(QtWid.QWidget):
         # disabling screen repaints and GUI events.
         self.setUpdatesEnabled(False)
 
-        LIA_pyqt = self.lockin_pyqt
-        self.qlbl_update_counter.setText("%i" % LIA_pyqt.DAQ_update_counter)
+        alia_qdev = self.alia_qdev
+        self.qlbl_update_counter.setText("%i" % alia_qdev.DAQ_update_counter)
 
-        if LIA_pyqt.worker_DAQ.suspended:
+        if alia_qdev.worker_DAQ.suspended:
             self.qlbl_DAQ_rate.setText("Buffers/s: paused")
         else:
             self.qlbl_DAQ_rate.setText(
-                "Buffers/s: %.1f" % LIA_pyqt.obtained_DAQ_rate_Hz
+                "Buffers/s: %.1f" % alia_qdev.obtained_DAQ_rate_Hz
             )
 
         self.qlin_time.setText(
-            "%.0f" % LIA_pyqt.state.time[0]
+            "%.0f" % alia_qdev.state.time[0]
         )  # NOTE: time[0] can be np.nan, so leave the format as a float!
-        self.qlin_sig_I_max.setText("%.4f" % LIA_pyqt.state.sig_I_max)
-        self.qlin_sig_I_min.setText("%.4f" % LIA_pyqt.state.sig_I_min)
-        self.qlin_sig_I_avg.setText("%.4f" % LIA_pyqt.state.sig_I_avg)
-        self.qlin_sig_I_std.setText("%.4f" % LIA_pyqt.state.sig_I_std)
-        self.qlin_X_avg.setText("%.4f" % np.mean(LIA_pyqt.state.X))
-        self.qlin_Y_avg.setText("%.4f" % np.mean(LIA_pyqt.state.Y))
-        self.qlin_R_avg.setText("%.4f" % np.mean(LIA_pyqt.state.R))
-        self.qlin_T_avg.setText("%.3f" % np.mean(LIA_pyqt.state.T))
+        self.qlin_sig_I_max.setText("%.4f" % alia_qdev.state.sig_I_max)
+        self.qlin_sig_I_min.setText("%.4f" % alia_qdev.state.sig_I_min)
+        self.qlin_sig_I_avg.setText("%.4f" % alia_qdev.state.sig_I_avg)
+        self.qlin_sig_I_std.setText("%.4f" % alia_qdev.state.sig_I_std)
+        self.qlin_X_avg.setText("%.4f" % np.mean(alia_qdev.state.X))
+        self.qlin_Y_avg.setText("%.4f" % np.mean(alia_qdev.state.Y))
+        self.qlin_R_avg.setText("%.4f" % np.mean(alia_qdev.state.R))
+        self.qlin_T_avg.setText("%.3f" % np.mean(alia_qdev.state.T))
 
-        if LIA_pyqt.firf_1_sig_I.has_deque_settled:
+        if alia_qdev.firf_1_sig_I.has_deque_settled:
             self.LED_filt_1_deque_settled.setChecked(True)
             self.LED_filt_1_deque_settled.setText("YES")
         else:
             self.LED_filt_1_deque_settled.setChecked(False)
             self.LED_filt_1_deque_settled.setText("NO")
-        if LIA_pyqt.firf_2_mix_X.has_deque_settled:
+        if alia_qdev.firf_2_mix_X.has_deque_settled:
             self.LED_filt_2_deque_settled.setChecked(True)
             self.LED_filt_2_deque_settled.setText("YES")
         else:
@@ -1603,13 +1594,13 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbt_ENA_lockin(self):
         if self.qpbt_ENA_lockin.isChecked():
-            self.lockin_pyqt.turn_on()
+            self.alia_qdev.turn_on()
             self.qpbt_ENA_lockin.setText("Lock-in ON")
 
-            self.lockin_pyqt.state.reset()
+            self.alia_qdev.state.reset()
             self.clear_chart_histories_stage_1_and_2()
         else:
-            self.lockin_pyqt.turn_off()
+            self.alia_qdev.turn_off()
             self.qpbt_ENA_lockin.setText("Lock-in OFF")
 
     @QtCore.pyqtSlot()
@@ -1635,7 +1626,7 @@ class MainWindow(QtWid.QWidget):
 
         self.qlin_ref_freq.setText("%.3f" % ref_freq)
         if ref_freq != self.alia.config.ref_freq:
-            self.lockin_pyqt.set_ref_freq(ref_freq)
+            self.alia_qdev.set_ref_freq(ref_freq)
 
     @QtCore.pyqtSlot()
     def process_qlin_ref_V_offset(self):
@@ -1649,7 +1640,7 @@ class MainWindow(QtWid.QWidget):
 
         self.qlin_ref_V_offset.setText("%.3f" % ref_V_offset)
         if ref_V_offset != self.alia.config.ref_V_offset:
-            self.lockin_pyqt.set_ref_V_offset(ref_V_offset)
+            self.alia_qdev.set_ref_V_offset(ref_V_offset)
             QtWid.QApplication.processEvents()
 
     @QtCore.pyqtSlot()
@@ -1664,7 +1655,7 @@ class MainWindow(QtWid.QWidget):
 
         self.qlin_ref_V_ampl.setText("%.3f" % ref_V_ampl)
         if ref_V_ampl != self.alia.config.ref_V_ampl:
-            self.lockin_pyqt.set_ref_V_ampl(ref_V_ampl)
+            self.alia_qdev.set_ref_V_ampl(ref_V_ampl)
             QtWid.QApplication.processEvents()
 
     @QtCore.pyqtSlot()
@@ -1682,28 +1673,28 @@ class MainWindow(QtWid.QWidget):
             print("WARNING: Filter @ mix_X/Y can't reach desired cut-off freq.")
             f_cutoff = self.alia.config.F_Nyquist - roll_off_width
 
-        self.lockin_pyqt.firf_2_mix_X.compute_firwin(cutoff=f_cutoff)
-        self.lockin_pyqt.firf_2_mix_Y.compute_firwin(cutoff=f_cutoff)
+        self.alia_qdev.firf_2_mix_X.compute_firwin(cutoff=f_cutoff)
+        self.alia_qdev.firf_2_mix_Y.compute_firwin(cutoff=f_cutoff)
         self.filt_2_design_GUI.update_filter_design()
         self.update_plot_filt_2_resp()
         self.plot_zoom_ROI_filt_2()
         # """
 
-        self.lockin_pyqt.state.reset()
+        self.alia_qdev.state.reset()
         self.clear_chart_histories_stage_1_and_2()
 
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_offset(self):
         self.qlin_ref_V_offset.setText("%.3f" % self.alia.config.ref_V_offset)
 
-        self.lockin_pyqt.state.reset()
+        self.alia_qdev.state.reset()
         self.clear_chart_histories_stage_1_and_2()
 
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_ampl(self):
         self.qlin_ref_V_ampl.setText("%.3f" % self.alia.config.ref_V_ampl)
 
-        self.lockin_pyqt.state.reset()
+        self.alia_qdev.state.reset()
         self.clear_chart_histories_stage_1_and_2()
 
     @QtCore.pyqtSlot()
@@ -1724,8 +1715,8 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_chkbs_legend_box_PS(self):
         if self.alia.lockin_paused:
-            L = self.lockin_pyqt
-            state = self.lockin_pyqt.state
+            L = self.alia_qdev
+            state = self.alia_qdev.state
 
             if (
                 self.legend_box_PS.chkbs[0].isChecked()
@@ -1831,22 +1822,22 @@ class MainWindow(QtWid.QWidget):
             self.CH_LIA_XR.curve.setPen(self.PEN_03)
             self.pi_XR.setLabel("top", "R")
 
-        if self.lockin_pyqt.worker_DAQ.suspended:
+        if self.alia_qdev.worker_DAQ.suspended:
             # The graphs are not being updated with the newly chosen timeseries
             # automatically because the lock-in is not running. It is safe
-            # however to make a copy of the lockin_pyqt.state timeseries,
+            # however to make a copy of the alia_qdev.state timeseries,
             # because the GUI can't interfere with the DAQ thread now that it is
             # in suspended mode. Hence, we copy new data into the chart.
-            if np.sum(self.lockin_pyqt.state.time_2) == 0:
+            if np.sum(self.alia_qdev.state.time_2) == 0:
                 return
 
             if self.qrbt_XR_X.isChecked():
                 self.CH_LIA_XR.add_new_readings(
-                    self.lockin_pyqt.state.time_2, self.lockin_pyqt.state.X
+                    self.alia_qdev.state.time_2, self.alia_qdev.state.X
                 )
             else:
                 self.CH_LIA_XR.add_new_readings(
-                    self.lockin_pyqt.state.time_2, self.lockin_pyqt.state.R
+                    self.alia_qdev.state.time_2, self.alia_qdev.state.R
                 )
             self.CH_LIA_XR.update_curve()
             self.autorange_y_XR()
@@ -1865,22 +1856,22 @@ class MainWindow(QtWid.QWidget):
             self.pi_YT.setLabel("top", "%s" % chr(0x398))
             self.pi_YT.setLabel("left", text="phase (deg)")
 
-        if self.lockin_pyqt.worker_DAQ.suspended:
+        if self.alia_qdev.worker_DAQ.suspended:
             # The graphs are not being updated with the newly chosen timeseries
             # automatically because the lock-in is not running. It is safe
-            # however to make a copy of the lockin_pyqt.state timeseries,
+            # however to make a copy of the alia_qdev.state timeseries,
             # because the GUI can't interfere with the DAQ thread now that it is
             # in suspended mode. Hence, we copy new data into the chart.
-            if np.sum(self.lockin_pyqt.state.time_2) == 0:
+            if np.sum(self.alia_qdev.state.time_2) == 0:
                 return
 
             if self.qrbt_YT_Y.isChecked():
                 self.CH_LIA_YT.add_new_readings(
-                    self.lockin_pyqt.state.time_2, self.lockin_pyqt.state.Y
+                    self.alia_qdev.state.time_2, self.alia_qdev.state.Y
                 )
             else:
                 self.CH_LIA_YT.add_new_readings(
-                    self.lockin_pyqt.state.time_2, self.lockin_pyqt.state.T
+                    self.alia_qdev.state.time_2, self.alia_qdev.state.T
                 )
             self.CH_LIA_YT.update_curve()
             self.autorange_y_YT()
@@ -1974,7 +1965,7 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def update_plot_filt_1_resp(self):
-        firf = self.lockin_pyqt.firf_1_sig_I
+        firf = self.alia_qdev.firf_1_sig_I
         if isinstance(self.curve_filt_1_resp, pg.PlotCurveItem):
             self.curve_filt_1_resp.setFillLevel(np.min(firf.resp_ampl_dB))
         self.curve_filt_1_resp.setData(firf.resp_freq_Hz, firf.resp_ampl_dB)
@@ -1983,7 +1974,7 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def update_plot_filt_2_resp(self):
-        firf = self.lockin_pyqt.firf_2_mix_X
+        firf = self.alia_qdev.firf_2_mix_X
         if isinstance(self.curve_filt_2_resp, pg.PlotCurveItem):
             self.curve_filt_2_resp.setFillLevel(np.min(firf.resp_ampl_dB))
         self.curve_filt_2_resp.setData(firf.resp_freq_Hz, firf.resp_ampl_dB)
@@ -2002,7 +1993,7 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def plot_zoom_ROI_filt_1(self):
-        firf = self.lockin_pyqt.firf_1_sig_I
+        firf = self.alia_qdev.firf_1_sig_I
         self.pi_filt_1_resp.setXRange(
             firf.resp_freq_Hz__ROI_start,
             firf.resp_freq_Hz__ROI_end,
@@ -2013,7 +2004,7 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def plot_zoom_ROI_filt_2(self):
-        firf = self.lockin_pyqt.firf_2_mix_X
+        firf = self.alia_qdev.firf_2_mix_X
         self.pi_filt_2_resp.setXRange(
             firf.resp_freq_Hz__ROI_start,
             firf.resp_freq_Hz__ROI_end,
