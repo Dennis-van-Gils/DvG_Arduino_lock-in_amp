@@ -16,8 +16,8 @@ import serial
 import numpy as np
 from enum import Enum
 
-import DvG_dev_Arduino__fun_serial as Arduino_functions
-from DvG_debug_functions import dprint, print_fancy_traceback as pft
+from dvg_devices import Arduino_protocol_serial
+from dvg_debug_functions import dprint, print_fancy_traceback as pft
 
 
 def round_C_style(values: np.ndarray):
@@ -44,7 +44,7 @@ class Waveform(Enum):
     # fmt: on
 
 
-class Arduino_lockin_amp(Arduino_functions.Arduino):
+class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
     class Config:
         # Serial communication sentinels: start and end of message
         SOM = b"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80"
@@ -107,22 +107,24 @@ class Arduino_lockin_amp(Arduino_functions.Arduino):
 
     def __init__(
         self,
-        name="Lockin",
+        name="ALIA",
+        long_name="Arduino lock-in amplifier",
+        connect_to_specific_ID="ALIA",
         baudrate=1.2e6,
         read_timeout=1,
         write_timeout=1,
-        read_term_char="\n",
-        write_term_char="\n",
     ):
-        super(Arduino_lockin_amp, self).__init__()
+        super(Arduino_lockin_amp, self).__init__(
+            name=name,
+            long_name=long_name,
+            connect_to_specific_ID=connect_to_specific_ID,
+        )
 
-        self.name = name
-        self.baudrate = baudrate
-        self.read_timeout = read_timeout
-        self.write_timeout = write_timeout
-        self.read_term_char = read_term_char
-        self.write_term_char = write_term_char
-
+        self.serial_settings = {
+            "baudrate": baudrate,
+            "timeout": read_timeout,
+            "write_timeout": write_timeout,
+        }
         self.read_until_left_over_bytes = bytearray()
 
         self.config = self.Config()
