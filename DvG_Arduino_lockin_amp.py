@@ -10,7 +10,6 @@ __version__ = "2.0.0"
 
 import os
 import sys
-from pathlib2 import Path
 
 # import time as Time
 
@@ -125,7 +124,7 @@ def lockin_DAQ_update():
     if alia.lockin_paused:
         return False
 
-    if not (window.boost_fps_graphing):
+    if not window.boost_fps_graphing:
         # Prevent possible concurrent pyqtgraph.PlotWidget() redraws and GUI
         # events when doing heavy calculations to unburden the CPU and prevent
         # dropped buffers. Dropped graphing frames are prefereable to dropped
@@ -134,15 +133,15 @@ def lockin_DAQ_update():
             gw.setUpdatesEnabled(False)
 
     # Listen for data buffers send by the lock-in
-    [
+    (
         success,
         state.time,
         state.ref_X,
         state.ref_Y,
         state.sig_I,
-    ] = alia.listen_to_lockin_amp()
+    ) = alia.listen_to_lockin_amp()
 
-    if not (success):
+    if not success:
         dprint("@ %s %s" % current_date_time_strings())
         return False
 
@@ -297,6 +296,7 @@ def lockin_DAQ_update():
         window.CH_LIA_XR.add_new_readings(state.time_2, state.X)
     else:
         window.CH_LIA_XR.add_new_readings(state.time_2, state.R)
+
     if window.qrbt_YT_Y.isChecked():
         window.CH_LIA_YT.add_new_readings(state.time_2, state.Y)
     else:
@@ -431,7 +431,7 @@ if __name__ == "__main__":
 
     # Connect to Arduino
     alia = Alia(read_timeout=4)
-    alia.auto_connect("port_data.txt")
+    alia.auto_connect()
 
     if not alia.is_alive:
         print("\nCheck connection and try resetting the Arduino.")
