@@ -44,7 +44,11 @@ class Waveform(Enum):
     # fmt: on
 
 
-class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
+class Alia(Arduino_protocol_serial.Arduino):
+    """This class manages the serial protocol for an Arduino lock-in amplifier,
+    aka `Alia`.
+    """
+
     class Config:
         # Serial communication sentinels: start and end of message
         SOM = b"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80"
@@ -107,14 +111,14 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
 
     def __init__(
         self,
-        name="ALIA",
+        name="Alia",
         long_name="Arduino lock-in amplifier",
-        connect_to_specific_ID="ALIA",
+        connect_to_specific_ID="Alia",
         baudrate=1.2e6,
         read_timeout=1,
         write_timeout=1,
     ):
-        super(Arduino_lockin_amp, self).__init__(
+        super(Alia, self).__init__(
             name=name,
             long_name=long_name,
             connect_to_specific_ID=connect_to_specific_ID,
@@ -145,7 +149,7 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
         Returns:
             success
         """
-        [success, __foo, __bar] = self.turn_off()
+        success, __foo, __bar = self.turn_off()
         if not success:
             return False
 
@@ -153,17 +157,13 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
         c = self.config
 
         print("Retrieving 'mcu?'")
-        [success, ans_str] = self.query("mcu?")
+        success, ans_str = self.query("mcu?")
         if success:
             try:
-                # fmt: off
-                ans_list = ans_str.split("\t")
-                c.mcu_firmware = ans_list[0]
-                c.mcu_model    = ans_list[1]
-                c.mcu_uid      = ans_list[2]
-                # fmt: on
+                c.mcu_firmware, c.mcu_model, c.mcu_uid = ans_str.split("\t")
+
             except Exception as err:
-                raise (err)
+                pft(err)
                 return False
         else:
             return False
@@ -172,7 +172,7 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
         print("  uid     : %s" % c.mcu_uid)
 
         print("\nRetrieving 'const?'")
-        [success, ans_str] = self.query("const?")
+        success, ans_str = self.query("const?")
         if success:
             try:
                 ans_list = ans_str.split("\t")
@@ -189,7 +189,7 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
                 c.MAX_N_LUT         = int(ans_list[7])
                 # fmt: on
             except Exception as err:
-                raise (err)
+                pft(err)
                 return False
         else:
             return False
@@ -228,30 +228,33 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
 
         if ref_freq != None:
             print("  freq             : %-10.3f [Hz]" % ref_freq)
-            [success, ans_str] = self.query("_freq %f" % ref_freq)
-            if not success:
-                return False
-        if ref_V_offset != None:
-            print("  offset           : %-10.3f [V]" % ref_V_offset)
-            [success, ans_str] = self.query("_offs %f" % ref_V_offset)
-            if not success:
-                return False
-        if ref_V_ampl != None:
-            print("  ampl             : %-10.3f [V]" % ref_V_ampl)
-            [success, ans_str] = self.query("_ampl %f" % ref_V_ampl)
-            if not success:
-                return False
-        if ref_waveform != None:
-            print("  waveform         : %-10s" % ref_waveform.name)
-            [success, ans_str] = self.query("_wave %i" % ref_waveform.value)
+            success, ans_str = self.query("_freq %f" % ref_freq)
             if not success:
                 return False
 
-        if not self.compute_LUT():
-            return False
-        if not self.query_LUT():
-            return False
-        if not self.query_ref():
+        if ref_V_offset != None:
+            print("  offset           : %-10.3f [V]" % ref_V_offset)
+            success, ans_str = self.query("_offs %f" % ref_V_offset)
+            if not success:
+                return False
+
+        if ref_V_ampl != None:
+            print("  ampl             : %-10.3f [V]" % ref_V_ampl)
+            success, ans_str = self.query("_ampl %f" % ref_V_ampl)
+            if not success:
+                return False
+
+        if ref_waveform != None:
+            print("  waveform         : %-10s" % ref_waveform.name)
+            success, ans_str = self.query("_wave %i" % ref_waveform.value)
+            if not success:
+                return False
+
+        if (
+            not self.compute_LUT()
+            or not self.query_LUT()
+            or not self.query_ref()
+        ):
             return False
 
         print("\n--- All systems GO! ---\n")
@@ -266,11 +269,11 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
         if not was_paused:
             self.turn_off()
 
-        [success, ans_str] = self.query(msg_str, timeout_warning_style)
+        success, ans_str = self.query(msg_str, timeout_warning_style)
 
         if success and not was_paused:
             self.turn_on()
-        return [success, ans_str]
+        return success, ans_str
 
     def turn_on(self):
         """
@@ -344,7 +347,7 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
         Returns:
             success
         """
-        [success, ans_str] = self.safe_query("c")
+        success, ans_str = self.safe_query("c")
         return success
 
     def query_LUT(self):
@@ -388,8 +391,8 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
             self.ser.flushInput()
             return False
 
-        self.config.N_LUT = np.int(N_LUT[0])
-        self.config.is_LUT_dirty = np.bool(is_LUT_dirty[0])
+        self.config.N_LUT = int(N_LUT[0])
+        self.config.is_LUT_dirty = bool(is_LUT_dirty[0])
 
         # Now read the remaining LUT array from the binary stream still left in
         # the serial buffer
@@ -437,7 +440,7 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
             success
         """
         print("\nRetrieving settings 'ref_X'")
-        [success, ans_str] = self.safe_query("?")
+        success, ans_str = self.safe_query("?")
         if success:
             try:
                 ans_list = ans_str.split("\t")
@@ -450,7 +453,7 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
                 self.config.N_LUT        = int(ans_list[4])
                 # fmt: on
             except Exception as err:
-                raise (err)
+                pft(err)
                 return False
         else:
             return False
@@ -485,12 +488,8 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
         if not was_paused:
             self.turn_off()
 
-        [success, ans_str] = self.query("freq %f" % ref_freq)
-        if not success:
-            return False
-        if not self.query_ref():
-            return False
-        if not self.query_LUT():
+        success, ans_str = self.query("freq %f" % ref_freq)
+        if not success or not self.query_ref() or not self.query_LUT():
             return False
 
         if not was_paused:
@@ -518,12 +517,8 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
         if not was_paused:
             self.turn_off()
 
-        [success, ans_str] = self.query("offs %f" % ref_V_offset)
-        if not success:
-            return False
-        if not self.query_ref():
-            return False
-        if not self.query_LUT():
+        success, ans_str = self.query("offs %f" % ref_V_offset)
+        if not success or not self.query_ref() or not self.query_LUT():
             return False
 
         if not was_paused:
@@ -551,12 +546,8 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
         if not was_paused:
             self.turn_off()
 
-        [success, ans_str] = self.query("ampl %f" % ref_V_ampl)
-        if not success:
-            return False
-        if not self.query_ref():
-            return False
-        if not self.query_LUT():
+        success, ans_str = self.query("ampl %f" % ref_V_ampl)
+        if not success or not self.query_ref() or not self.query_LUT():
             return False
 
         if not was_paused:
@@ -584,7 +575,7 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
         if not was_paused:
             self.turn_off()
 
-        [success, ans_str] = self.query("wave %f" % ref_waveform.value)
+        success, ans_str = self.query("wave %f" % ref_waveform.value)
         if not success or not self.query_ref() or not self.query_LUT():
             return False
 
@@ -661,17 +652,17 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
 
         ans_bytes = self.read_until_EOM()
         # dprint("EOM found with %i bytes and..." % len(ans_bytes))
-        if not (ans_bytes[: c.N_BYTES_SOM] == c.SOM):
+        if not ans_bytes[: c.N_BYTES_SOM] == c.SOM:
             dprint("'%s' I/O ERROR: No SOM found" % self.name)
-            return [False, [np.nan], [np.nan], [np.nan], [np.nan]]
+            return False, [np.nan], [np.nan], [np.nan], [np.nan]
 
         # dprint("SOM okay")
-        if not (len(ans_bytes) == c.N_BYTES_TX_BUFFER):
+        if not len(ans_bytes) == c.N_BYTES_TX_BUFFER:
             dprint(
                 "'%s' I/O ERROR: Expected %i bytes but received %i"
                 % (self.name, c.N_BYTES_TX_BUFFER, len(ans_bytes))
             )
-            return [False, [np.nan], [np.nan], [np.nan], [np.nan]]
+            return False, [np.nan], [np.nan], [np.nan], [np.nan]
 
         # fmt: off
         ans_bytes = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM] # Remove sentinels
@@ -698,7 +689,7 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
             )
         except:
             dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
-            return [False, [np.nan], [np.nan], [np.nan], [np.nan]]
+            return False, [np.nan], [np.nan], [np.nan], [np.nan]
 
         # fmt: off
         counter   = counter[0]
@@ -756,8 +747,8 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
         lut_X.clip(0, c.A_REF)
         lut_Y.clip(0, c.A_REF)
 
-        ref_X_tiled = np.tile(lut_X, np.int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
-        ref_Y_tiled = np.tile(lut_Y, np.int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
+        ref_X_tiled = np.tile(lut_X, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
+        ref_Y_tiled = np.tile(lut_Y, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
 
         ref_X = np.asarray(
             ref_X_tiled[: c.BLOCK_SIZE], dtype=c.return_type_ref_XY, order="C"
@@ -767,4 +758,47 @@ class Arduino_lockin_amp(Arduino_protocol_serial.Arduino):
             ref_Y_tiled[: c.BLOCK_SIZE], dtype=c.return_type_ref_XY, order="C"
         )
 
-        return [True, time, ref_X, ref_Y, sig_I]
+        return True, time, ref_X, ref_Y, sig_I
+
+
+# ------------------------------------------------------------------------------
+#   Main: Will show a demo when run from the terminal
+# ------------------------------------------------------------------------------
+
+if __name__ == "__main__":
+    alia = Alia()
+    alia.auto_connect("port_data.txt")
+
+    if not alia.is_alive:
+        sys.exit(0)
+
+    alia.begin(
+        ref_freq=220,
+        ref_V_offset=2,
+        ref_V_ampl=1,
+        ref_waveform=Waveform.Cosine,
+    )
+
+    alia.turn_on()
+
+    reply = alia.listen_to_lockin_amp()
+    print("success: %s" % reply[0])
+    print("time   : %s" % reply[1])
+    print("ref_X  : %s" % reply[2])
+    print("ref_Y  : %s" % reply[3])
+    print("sig_I  : %s" % reply[4])
+
+    alia.set_ref_freq(330)
+    alia.set_ref_V_offset(1.5)
+    alia.set_ref_V_ampl(0.5)
+    alia.set_ref_waveform(Waveform.Square)
+
+    reply = alia.listen_to_lockin_amp()
+    print("\nsuccess: %s" % reply[0])
+    print("time   : %s" % reply[1])
+    print("ref_X  : %s" % reply[2])
+    print("ref_Y  : %s" % reply[3])
+    print("sig_I  : %s" % reply[4])
+
+    alia.turn_off()
+    alia.close()
