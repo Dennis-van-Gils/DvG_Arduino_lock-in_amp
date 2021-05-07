@@ -5,8 +5,8 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "12-08-2019"
-__version__ = "1.0.0"
+__date__ = "07-05-2021"
+__version__ = "2.0.0"
 
 import os
 import sys
@@ -25,10 +25,10 @@ from DvG_pyqt_FileLogger import FileLogger
 from DvG_debug_functions import dprint  # , print_fancy_traceback as pft
 from DvG_FFTW_WelchPowerSpectrum import FFTW_WelchPowerSpectrum
 
+from Alia_protocol_serial import Alia, Waveform
+
 import DvG_Arduino_lockin_amp__GUI as lockin_GUI
-import DvG_dev_Arduino_lockin_amp__fun_serial as lockin_functions
 import DvG_dev_Arduino_lockin_amp__pyqt_lib as lockin_pyqt_lib
-from DvG_dev_Arduino_lockin_amp__fun_serial import Waveform
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
@@ -70,7 +70,7 @@ def current_date_time_strings():
 
 def stop_running():
     app.processEvents()
-    if lockin.is_alive:
+    if alia.is_alive:
         lockin_pyqt.turn_off_immediately()
     lockin_pyqt.close_all_threads()
     file_logger.close_log()
@@ -87,7 +87,7 @@ def notify_connection_lost():
     str_msg = "%s %s\nLost connection to Arduino on port %s.\n" % (
         str_cur_date,
         str_cur_time,
-        lockin.ser.portstr,
+        alia.ser.portstr,
     )
     print("\nCRITICAL ERROR @ %s" % str_msg)
     reply = QtWid.QMessageBox.warning(
@@ -102,7 +102,7 @@ def notify_connection_lost():
 def about_to_quit():
     print("\nAbout to quit")
     stop_running()
-    lockin.close()
+    alia.close()
 
 
 # ------------------------------------------------------------------------------
@@ -119,11 +119,11 @@ def lockin_DAQ_update():
     the worker_DAQ thread negatively, resulting in lost buffers.
     """
     # Shorthands
-    c: lockin_functions.Arduino_lockin_amp.Config = lockin.config
+    c: Alia.Config = alia.config
     state: lockin_pyqt_lib.Arduino_lockin_amp_pyqt.State = lockin_pyqt.state
 
     # Prevent throwings errors if just paused
-    if lockin.lockin_paused:
+    if alia.lockin_paused:
         return False
 
     if not (window.boost_fps_graphing):
@@ -141,7 +141,7 @@ def lockin_DAQ_update():
         state.ref_X,
         state.ref_Y,
         state.sig_I,
-    ] = lockin.listen_to_lockin_amp()
+    ] = alia.listen_to_lockin_amp()
 
     if not (success):
         dprint("@ %s %s" % current_date_time_strings())
@@ -431,16 +431,16 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
 
     # Connect to Arduino
-    lockin = lockin_functions.Arduino_lockin_amp(read_timeout=4)
-    lockin.auto_connect("port_data.txt")
+    alia = Alia(read_timeout=4)
+    alia.auto_connect("port_data.txt")
 
-    if not lockin.is_alive:
+    if not alia.is_alive:
         print("\nCheck connection and try resetting the Arduino.")
         print("Exiting...\n")
         sys.exit(0)
 
-    # lockin.begin()
-    lockin.begin(
+    # alia.begin()
+    alia.begin(
         ref_freq=250,
         ref_V_offset=2.0,
         ref_V_ampl=1.0,
@@ -449,7 +449,7 @@ if __name__ == "__main__":
 
     # Create workers and threads
     lockin_pyqt = lockin_pyqt_lib.Arduino_lockin_amp_pyqt(
-        dev=lockin,
+        dev=alia,
         DAQ_function_to_run_each_update=lockin_DAQ_update,
         DAQ_critical_not_alive_count=3,
         calc_DAQ_rate_every_N_iter=10,
@@ -473,7 +473,7 @@ if __name__ == "__main__":
     app.aboutToQuit.connect(about_to_quit)
 
     window = lockin_GUI.MainWindow(
-        lockin=lockin,
+        lockin=alia,
         lockin_pyqt=lockin_pyqt,
         file_logger=file_logger,
     )
@@ -484,8 +484,8 @@ if __name__ == "__main__":
 
     p = {
         "len_data": lockin_pyqt.state.N_deque,
-        "fs": lockin.config.Fs,
-        "nperseg": lockin.config.Fs,
+        "fs": alia.config.Fs,
+        "nperseg": alia.config.Fs,
     }
     # fmt: off
     lockin_pyqt.fftw_PS_sig_I  = FFTW_WelchPowerSpectrum(**p)
