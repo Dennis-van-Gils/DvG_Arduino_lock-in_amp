@@ -14,7 +14,10 @@ from PyQt5 import QtCore, QtWidgets as QtWid
 import time as Time
 
 from Alia_protocol_serial import Alia
-import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
+
+# import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
+from dvg_qdeviceio import QDeviceIO
+
 from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
 from DvG_RingBuffer import RingBuffer
 
@@ -23,7 +26,7 @@ from DvG_RingBuffer import RingBuffer
 # ------------------------------------------------------------------------------
 
 
-class Alia_qdev(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
+class Alia_qdev(QDeviceIO):
     """Manages multithreaded communication and periodical data acquisition for
     an Arduino(-like) lock-in amplifier device.
 
@@ -44,7 +47,7 @@ class Alia_qdev(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         dev:
             Reference to a 'DvG_dev_Arduino__fun_serial.Arduino' instance.
 
-        (*) DAQ_update_interval_ms
+        (*) DAQ_interval_ms
         (*) DAQ_function_to_run_each_update
         (*) DAQ_critical_not_alive_count
         (*) DAQ_timer_type
@@ -63,7 +66,7 @@ class Alia_qdev(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
 
     Main data attributes:
         (*) DAQ_update_counter
-        (*) obtained_DAQ_update_interval_ms
+        (*) obtained_DAQ_interval_ms
         (*) obtained_DAQ_rate_Hz
 
     Signals:
@@ -185,7 +188,7 @@ class Alia_qdev(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
     def __init__(
         self,
         dev: Alia,
-        DAQ_update_interval_ms=1000,
+        DAQ_interval_ms=1000,
         DAQ_function_to_run_each_update=None,
         DAQ_critical_not_alive_count=3,
         DAQ_timer_type=QtCore.Qt.PreciseTimer,
@@ -197,12 +200,12 @@ class Alia_qdev(Dev_Base_pyqt_lib.Dev_Base_pyqt, QtCore.QObject):
         use_CUDA=False,
         parent=None,
     ):
-        super(Alia_qdev, self).__init__(parent=parent)
+        super().__init__(parent=parent)
 
         self.attach_device(dev)
 
         self.create_worker_DAQ(
-            DAQ_update_interval_ms,
+            DAQ_interval_ms,
             DAQ_function_to_run_each_update,
             DAQ_critical_not_alive_count,
             DAQ_timer_type,
