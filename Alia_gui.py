@@ -1492,7 +1492,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
 
         self.alia_qdev.signal_DAQ_updated.connect(self.update_GUI)
-        self.alia_qdev.signal_DAQ_suspended.connect(self.update_GUI)
+        self.alia_qdev.signal_DAQ_paused.connect(self.update_GUI)
         self.alia_qdev.signal_ref_freq_is_set.connect(
             self.update_newly_set_ref_freq
         )
@@ -1539,9 +1539,9 @@ class MainWindow(QtWid.QWidget):
         self.setUpdatesEnabled(False)
 
         alia_qdev = self.alia_qdev
-        self.qlbl_update_counter.setText("%i" % alia_qdev.DAQ_update_counter)
+        self.qlbl_update_counter.setText("%i" % alia_qdev.update_counter_DAQ)
 
-        if alia_qdev.worker_DAQ.suspended:
+        if alia_qdev.worker_DAQ._paused:
             self.qlbl_DAQ_rate.setText("Buffers/s: paused")
         else:
             self.qlbl_DAQ_rate.setText(
@@ -1822,12 +1822,12 @@ class MainWindow(QtWid.QWidget):
             self.CH_LIA_XR.curve.setPen(self.PEN_03)
             self.pi_XR.setLabel("top", "R")
 
-        if self.alia_qdev.worker_DAQ.suspended:
+        if self.alia_qdev.worker_DAQ._paused:
             # The graphs are not being updated with the newly chosen timeseries
             # automatically because the lock-in is not running. It is safe
             # however to make a copy of the alia_qdev.state timeseries,
             # because the GUI can't interfere with the DAQ thread now that it is
-            # in suspended mode. Hence, we copy new data into the chart.
+            # in paused mode. Hence, we copy new data into the chart.
             if np.sum(self.alia_qdev.state.time_2) == 0:
                 return
 
@@ -1856,12 +1856,12 @@ class MainWindow(QtWid.QWidget):
             self.pi_YT.setLabel("top", "%s" % chr(0x398))
             self.pi_YT.setLabel("left", text="phase (deg)")
 
-        if self.alia_qdev.worker_DAQ.suspended:
+        if self.alia_qdev.worker_DAQ._paused:
             # The graphs are not being updated with the newly chosen timeseries
             # automatically because the lock-in is not running. It is safe
             # however to make a copy of the alia_qdev.state timeseries,
             # because the GUI can't interfere with the DAQ thread now that it is
-            # in suspended mode. Hence, we copy new data into the chart.
+            # in paused mode. Hence, we copy new data into the chart.
             if np.sum(self.alia_qdev.state.time_2) == 0:
                 return
 

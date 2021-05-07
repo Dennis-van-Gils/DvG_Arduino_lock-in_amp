@@ -71,7 +71,7 @@ def stop_running():
     app.processEvents()
     if alia.is_alive:
         alia_qdev.turn_off_immediately()
-    alia_qdev.close_all_threads()
+    alia_qdev.quit()
     file_logger.close_log()
 
 
@@ -449,13 +449,11 @@ if __name__ == "__main__":
     # Create workers and threads
     alia_qdev = Alia_qdev(
         dev=alia,
-        DAQ_function_to_run_each_update=lockin_DAQ_update,
-        DAQ_critical_not_alive_count=3,
-        calc_DAQ_rate_every_N_iter=10,
+        DAQ_function=lockin_DAQ_update,
+        critical_not_alive_count=3,
         N_buffers_in_deque=21,
-        DEBUG_worker_DAQ=False,
-        DEBUG_worker_send=False,
         use_CUDA=USE_CUDA,
+        debug=False,
     )
     alia_qdev.signal_connection_lost.connect(notify_connection_lost)
 
@@ -498,8 +496,7 @@ if __name__ == "__main__":
     #   Start threads
     # --------------------------------------------------------------------------
 
-    alia_qdev.start_thread_worker_DAQ(QtCore.QThread.TimeCriticalPriority)
-    alia_qdev.start_thread_worker_send()
+    alia_qdev.start(DAQ_priority=QtCore.QThread.TimeCriticalPriority)
 
     # --------------------------------------------------------------------------
     #   Start the main GUI event loop

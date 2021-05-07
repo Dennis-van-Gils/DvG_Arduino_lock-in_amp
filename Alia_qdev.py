@@ -14,9 +14,7 @@ from PyQt5 import QtCore, QtWidgets as QtWid
 import time as Time
 
 from Alia_protocol_serial import Alia
-
-# import DvG_dev_Base__pyqt_lib as Dev_Base_pyqt_lib
-from dvg_qdeviceio import QDeviceIO
+from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 
 from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
 from DvG_RingBuffer import RingBuffer
@@ -31,47 +29,31 @@ class Alia_qdev(QDeviceIO):
     an Arduino(-like) lock-in amplifier device.
 
     All device I/O operations will be offloaded to 'workers', each running in
-    a newly created thread instead of in the main/GUI thread.
+    a newly created thread.
 
-        - Worker_DAQ:
-            Periodically acquires data from the device.
-
-        - Worker_send:
-            Maintains a thread-safe queue where desired device I/O operations
-            can be put onto, and sends the queued operations first in first out
-            (FIFO) to the device.
-
-    (*): See 'DvG_dev_Base__pyqt_lib.py' for details.
+    (*): See 'dvg_qdeviceio.QDeviceIO()' for details.
 
     Args:
-        dev:
-            Reference to a 'DvG_dev_Arduino__fun_serial.Arduino' instance.
+        (*) dev:
+            Reference to an 'Alia_serial_protocol.Alia()' instance.
 
-        (*) DAQ_interval_ms
-        (*) DAQ_function_to_run_each_update
-        (*) DAQ_critical_not_alive_count
-        (*) DAQ_timer_type
+        (*) DAQ_function
+        (*) critical_not_alive_count
 
-    Main methods:
-        (*) start_thread_worker_DAQ(...)
-        (*) start_thread_worker_send(...)
-        (*) close_all_threads()
+        N_buffers_in_deque:
 
-        queued_write(...):
-            Write a message to the Arduino via the worker_send queue.
+        use_CUDA:
 
-    Inner-class instances:
-        (*) worker_DAQ
-        (*) worker_send
-
-    Main data attributes:
-        (*) DAQ_update_counter
-        (*) obtained_DAQ_interval_ms
-        (*) obtained_DAQ_rate_Hz
+        (*) debug:
+            Show debug info in terminal? Warning: Slow! Do not leave on
+            unintentionally.
 
     Signals:
         (*) signal_DAQ_updated()
         (*) signal_connection_lost()
+        signal_ref_freq_is_set
+        signal_ref_V_offset_is_set
+        signal_ref_V_ampl_is_set
     """
 
     # fmt: off
@@ -188,35 +170,25 @@ class Alia_qdev(QDeviceIO):
     def __init__(
         self,
         dev: Alia,
-        DAQ_interval_ms=1000,
-        DAQ_function_to_run_each_update=None,
-        DAQ_critical_not_alive_count=3,
-        DAQ_timer_type=QtCore.Qt.PreciseTimer,
-        DAQ_trigger_by=Dev_Base_pyqt_lib.DAQ_trigger.CONTINUOUS,
-        calc_DAQ_rate_every_N_iter=25,
-        N_buffers_in_deque=41,
-        DEBUG_worker_DAQ=False,
-        DEBUG_worker_send=False,
+        DAQ_function=None,
+        critical_not_alive_count=3,
+        N_buffers_in_deque=21,
         use_CUDA=False,
-        parent=None,
+        debug=False,
+        **kwargs,
     ):
-        super().__init__(parent=parent)
-
-        self.attach_device(dev)
+        super().__init__(dev, **kwargs)  # Pass kwargs onto QtCore.QObject()
 
         self.create_worker_DAQ(
-            DAQ_interval_ms,
-            DAQ_function_to_run_each_update,
-            DAQ_critical_not_alive_count,
-            DAQ_timer_type,
-            DAQ_trigger_by,
-            calc_DAQ_rate_every_N_iter=calc_DAQ_rate_every_N_iter,
-            DEBUG=DEBUG_worker_DAQ,
+            DAQ_trigger=DAQ_TRIGGER.CONTINUOUS,
+            DAQ_function=DAQ_function,
+            critical_not_alive_count=critical_not_alive_count,
+            debug=debug,
         )
 
-        self.create_worker_send(
-            alt_process_jobs_function=self.alt_process_jobs_function,
-            DEBUG=DEBUG_worker_send,
+        self.create_worker_jobs(
+            jobs_function=self.jobs_function,
+            debug=debug,
         )
 
         self.state = self.State(dev.config.BLOCK_SIZE, N_buffers_in_deque)
@@ -281,7 +253,7 @@ class Alia_qdev(QDeviceIO):
         )
 
     def turn_on(self):
-        self.worker_send.queued_instruction("turn_on")
+        self.send("turn_on")
 
     def turn_on_immediately(self):
         """
@@ -291,7 +263,7 @@ class Alia_qdev(QDeviceIO):
         locker = QtCore.QMutexLocker(self.dev.mutex)
 
         if self.dev.turn_on():
-            self.worker_DAQ.schedule_suspend(False)
+            self.unpause_DAQ()
             QtWid.QApplication.processEvents()
             return True
 
@@ -299,22 +271,22 @@ class Alia_qdev(QDeviceIO):
         return False
 
     def turn_off(self):
-        self.worker_send.queued_instruction("turn_off")
+        self.send("turn_off")
 
     def turn_off_immediately(self):
         """
         Returns:
             success
         """
-        self.worker_DAQ.schedule_suspend()
+        self.pause_DAQ()
 
         tick = Time.time()
         TIMEOUT = 2  # [s]
-        while not self.worker_DAQ.suspended:
+        while not self.worker_DAQ._paused:
             QtWid.QApplication.processEvents()
             if Time.time() - tick > TIMEOUT:
                 print(
-                    "Wait for worker_DAQ to reach suspended state timed out. "
+                    "Wait for worker_DAQ to reach paused state timed out. "
                     "Brute forcing turn off."
                 )
                 break
@@ -325,19 +297,19 @@ class Alia_qdev(QDeviceIO):
         return success
 
     def set_ref_freq(self, ref_freq):
-        self.worker_send.queued_instruction("set_ref_freq", ref_freq)
+        self.send("set_ref_freq", ref_freq)
 
     def set_ref_V_offset(self, ref_V_offset):
-        self.worker_send.queued_instruction("set_ref_V_offset", ref_V_offset)
+        self.send("set_ref_V_offset", ref_V_offset)
 
     def set_ref_V_ampl(self, ref_V_ampl):
-        self.worker_send.queued_instruction("set_ref_V_ampl", ref_V_ampl)
+        self.send("set_ref_V_ampl", ref_V_ampl)
 
     # -------------------------------------------------------------------------
-    #   alt_process_jobs_function
+    #   jobs_function
     # -------------------------------------------------------------------------
 
-    def alt_process_jobs_function(self, func, args):
+    def jobs_function(self, func, args):
         if func[:8] == "set_ref_":
             set_value = args[0]
 
@@ -354,8 +326,8 @@ class Alia_qdev(QDeviceIO):
                 was_paused = self.dev.lockin_paused
 
                 if not was_paused:
-                    self.worker_DAQ.schedule_suspend()
-                    while not self.worker_DAQ.suspended:
+                    self.pause_DAQ()
+                    while not self.worker_DAQ._paused:
                         QtWid.QApplication.processEvents()
 
                 if func == "set_ref_freq":
@@ -369,17 +341,17 @@ class Alia_qdev(QDeviceIO):
                     self.signal_ref_V_ampl_is_set.emit()
 
                 if not was_paused:
-                    self.worker_DAQ.schedule_suspend(False)
+                    self.unpause_DAQ()
                     QtWid.QApplication.processEvents()
 
         elif func == "turn_on":
             self.state.reset()
             if self.dev.turn_on():
-                self.worker_DAQ.schedule_suspend(False)
+                self.unpause_DAQ()
 
         elif func == "turn_off":
-            self.worker_DAQ.schedule_suspend()
-            while not self.worker_DAQ.suspended:
+            self.pause_DAQ()
+            while not self.worker_DAQ._paused:
                 QtWid.QApplication.processEvents()
             self.dev.turn_off()
 

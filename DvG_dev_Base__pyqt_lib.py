@@ -3,6 +3,16 @@
 """PyQt5 module to provide the base framework for multithreaded communication
 and periodical data acquisition for an I/O device.
 
+
+
+
+!!!!!!!!!!!!!   SCHEDULED FOR REMOVAL.   !!!!!!!!!!!!!
+!!!!!!!!!!!!!   IS PHASED OUT NOW        !!!!!!!!!!!!!
+!!!!!!!!!!!!!   BUT KEPT FOR REFERENCE.  !!!!!!!!!!!!!
+
+
+
+
 MAIN CONTENTS:
 --------------
 
