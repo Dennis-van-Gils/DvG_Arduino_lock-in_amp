@@ -32,6 +32,16 @@ Preferred distribution: Anaconda full
 - [PyOpenGL](http://pyopengl.sourceforge.net/)
 - [pyFFTW](https://pypi.org/project/pyFFTW/)
 
+In Anaconda Prompt:
+```
+conda update -n base -c defaults conda
+conda create -n lia -c defaults --force -y python=3.9.4
+conda activate lia
+conda install -c defaults --strict-channel-priority -y --file environment.yml
+conda install -c conda-forge --no-channel-priority -y fftw=3.3.9 pyfftw=0.12
+pip install -r requirements.txt --no-deps
+```
+
 Precompiled firmware for an Adafruit M4 Feather Express is available at ![CURRENT.UF2](source_MCU_boards/pre-compiled_M4_feather/CURRENT.UF2).
 You can copy over this firmware to the M4 board by using the FEATHERBOOT mount drive.
 
@@ -42,4 +52,4 @@ A1: differential analog in, SIG_I+
 A2: differential analog in, SIG_I-
 ```
 
-###### Dennis van Gils, 04-08-2019
+###### Dennis van Gils, 08-05-2021
