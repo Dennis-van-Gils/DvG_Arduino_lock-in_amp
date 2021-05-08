@@ -1,6 +1,7 @@
-> conda create --name lia python=3.9 pyserial pyqtgraph pyopengl pyqt ipython pathlib2 psutil scipy numba
+> conda create --name lia python=3.9.4
 > conda activate lia
-> conda install -c conda-forge pyfftw
+> conda install -c defaults --override-channels pyserial==3.5 pyqtgraph==0.11 pyopengl==3.1.1a1 pyqt==5.9.2 ipython==7.22 pathlib2 psutil scipy==1.6.2 numba==0.53.1 numpy==1.20.1 mkl==2021.2.0
+> conda install -c conda-forge --override-channels fftw==3.3.9 pyfftw==0.12
 
 
 # packages in environment at C:\Users\vangi\anaconda3\envs\lia:
@@ -12,6 +13,9 @@ ca-certificates           2020.12.5            h5b45459_0    conda-forge
 certifi                   2020.12.5        py39hcbf5309_1    conda-forge
 colorama                  0.4.4              pyhd3eb1b0_0  
 decorator                 5.0.6              pyhd3eb1b0_0  
+dvg-debug-functions       2.1.1                    pypi_0    pypi
+dvg-devices               0.2.6                    pypi_0    pypi
+dvg-qdeviceio             0.3.0                    pypi_0    pypi
 fftw                      3.3.9           nompi_hd3ad3c4_101    conda-forge
 icc_rt                    2019.0.0             h0cc432a_1  
 icu                       58.2                 ha925a31_3  
