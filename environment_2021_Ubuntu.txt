@@ -1,15 +1,10 @@
-> conda create --name lia python=3.9.4
-> conda activate lia
-> conda install -c defaults --override-channels pyserial==3.5 pyqtgraph==0.11 pyopengl==3.1.1a1 pyqt==5.9.2 ipython==7.22 pathlib2 psutil scipy==1.6.2 numba==0.53.1 numpy==1.20.1 mkl==2021.2.0
-> conda install -c conda-forge fftw==3.3.9 pyfftw==0.12
-
-
 # packages in environment at /home/areno/anaconda3/envs/lia:
 #
 # Name                    Version                   Build  Channel
+_libgcc_mutex             0.1                        main  
 backcall                  0.2.0              pyhd3eb1b0_0  
 blas                      1.0                         mkl  
-ca-certificates           2020.12.5            ha878542_0    conda-forge
+ca-certificates           2021.4.13            h06a4308_1  
 certifi                   2020.12.5        py39hf3d152e_1    conda-forge
 dbus                      1.13.18              hb2f20db_0  
 decorator                 5.0.6              pyhd3eb1b0_0  
@@ -25,18 +20,17 @@ gst-plugins-base          1.14.0               h8213a91_2
 gstreamer                 1.14.0               h28cd5cc_2  
 icu                       58.2                 he6710b0_3  
 intel-openmp              2021.2.0           h06a4308_610  
-intelpython               2021.1.1                      1    intel
 ipython                   7.22.0           py39hb070fc8_0  
 ipython_genutils          0.2.0              pyhd3eb1b0_1  
 jedi                      0.17.2           py39h06a4308_1  
 jpeg                      9b                   h024ee3a_2  
 ld_impl_linux-64          2.33.1               h53a641e_7  
-libffi                    3.3                          13    intel
-libgcc-ng                 9.3.0              hdf63c60_101    intel
+libffi                    3.3                  he6710b0_2  
+libgcc-ng                 9.1.0                hdf63c60_0  
 libgfortran-ng            7.3.0                hdf63c60_0  
 libllvm10                 10.0.1               hbcb73fb_5  
 libpng                    1.6.37               hbc83047_0  
-libstdcxx-ng              9.3.0              hdf63c60_101    intel
+libstdcxx-ng              9.1.0                hdf63c60_0  
 libuuid                   1.0.3                h1bed415_2  
 libxcb                    1.14                 h7b6447c_0  
 libxml2                   2.9.10               hb55368b_3  
@@ -49,7 +43,7 @@ ncurses                   6.2                  he6710b0_1
 numba                     0.53.1           py39ha9443f7_0  
 numpy                     1.20.1           py39h93e21f0_0  
 numpy-base                1.20.1           py39h7d8b39e_0  
-openssl                   1.1.1k               h7f98852_0    conda-forge
+openssl                   1.1.1k               h27cfd23_0  
 parso                     0.7.0                      py_0  
 pathlib2                  2.3.5            py39h06a4308_2  
 pcre                      8.44                 he6710b0_0  
@@ -59,7 +53,7 @@ pip                       21.0.1           py39h06a4308_0
 prompt-toolkit            3.0.17             pyh06a4308_0  
 psutil                    5.8.0            py39h27cfd23_1  
 ptyprocess                0.7.0              pyhd3eb1b0_2  
-pyfftw                    0.12.0           py39h51d1ae8_2    conda-forge
+pyfftw                    0.12.0           py39h6807881_2    conda-forge
 pygments                  2.8.1              pyhd3eb1b0_0  
 pyopengl                  3.1.1a1          py39h06a4308_0  
 pyqt                      5.9.2            py39h2531618_6  
@@ -74,10 +68,11 @@ setuptools                52.0.0           py39h06a4308_0
 sip                       4.19.13          py39h2531618_0  
 six                       1.15.0           py39h06a4308_0  
 sqlite                    3.35.4               hdfb4753_0  
-tk                        8.6.10               h8e2d9d6_2    intel
+tbb                       2020.3               hfd86e86_0  
+tk                        8.6.10               hbc83047_0  
 traitlets                 5.0.5              pyhd3eb1b0_0  
 tzdata                    2020f                h52ac0ba_0  
 wcwidth                   0.2.5                      py_0  
 wheel                     0.36.2             pyhd3eb1b0_0  
-xz                        5.2.5                h85f8e93_2    intel
-zlib                      1.2.11.1             h047b5d8_3    intel
+xz                        5.2.5                h7b6447c_0  
+zlib                      1.2.11               h7b6447c_3  
