@@ -1,7 +1,7 @@
 > conda create --name lia python=3.9.4
 > conda activate lia
 > conda install -c defaults --override-channels pyserial==3.5 pyqtgraph==0.11 pyopengl==3.1.1a1 pyqt==5.9.2 ipython==7.22 pathlib2 psutil scipy==1.6.2 numba==0.53.1 numpy==1.20.1 mkl==2021.2.0
-> conda install -c conda-forge --override-channels fftw==3.3.9 pyfftw==0.12
+> conda install -c conda-forge fftw==3.3.9 pyfftw==0.12
 
 
 # packages in environment at C:\Users\vangi\anaconda3\envs\lia:
