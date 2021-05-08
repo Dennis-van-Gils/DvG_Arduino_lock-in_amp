@@ -1,0 +1,19 @@
+name: lia
+channels:
+  - defaults
+dependencies:
+  - defaults::python=3.9.4
+  - defaults::ipython=7.22.*
+  - defaults::pyserial=3.5.*
+  - defaults::pyqt=5.9.2
+  - defaults::pyqtgraph=0.11.0
+  - defaults::pyopengl=3.1.1a1
+  - defaults::scipy=1.6.2
+  - defaults::numba=0.53.1
+  - defaults::numpy=1.20.1
+  - defaults::mkl=2021.2.0
+  - defaults::psutil
+  - defaults::pathlib2
+  - defaults::pip
+  - conda-forge::fftw=3.3.9
+  - conda-forge::pyfftw=0.12
