@@ -4,7 +4,7 @@
 backcall                  0.2.0              pyhd3eb1b0_0  
 blas                      1.0                         mkl  
 ca-certificates           2021.4.13            haa95532_1  
-certifi                   2020.12.5        py39haa95532_0  
+certifi                   2020.12.5        py39hcbf5309_1    conda-forge
 colorama                  0.4.4              pyhd3eb1b0_0  
 decorator                 5.0.6              pyhd3eb1b0_0  
 dvg-debug-functions       2.1.1                    pypi_0    pypi
@@ -27,7 +27,7 @@ mkl_random                1.2.1            py39hf11a4ad_2
 numba                     0.53.1           py39hf11a4ad_0  
 numpy                     1.20.1           py39h34a8a5c_0  
 numpy-base                1.20.1           py39haf7ebc8_0  
-openssl                   1.1.1k               h2bbff1b_0  
+openssl                   1.1.1k               h8ffe710_0    conda-forge
 parso                     0.7.0                      py_0  
 pathlib2                  2.3.5            py39haa95532_2  
 pickleshare               0.7.5           pyhd3eb1b0_1003  
