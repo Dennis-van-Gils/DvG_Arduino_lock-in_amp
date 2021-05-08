@@ -32,12 +32,6 @@ Preferred distribution: Anaconda full
 - [PyOpenGL](http://pyopengl.sourceforge.net/)
 - [pyFFTW](https://pypi.org/project/pyFFTW/)
 
-In Anaconda Prompt:
-```
-conda install -c anaconda pyserial pyqtgraph pathlib2 psutil pyopengl
-pip install pyfftw
-```
-
 Precompiled firmware for an Adafruit M4 Feather Express is available at ![CURRENT.UF2](source_MCU_boards/pre-compiled_M4_feather/CURRENT.UF2).
 You can copy over this firmware to the M4 board by using the FEATHERBOOT mount drive.
 
