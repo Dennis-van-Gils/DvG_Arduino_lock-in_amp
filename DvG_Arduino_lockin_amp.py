@@ -29,7 +29,7 @@ from Alia_qdev import Alia_qdev
 from Alia_gui import MainWindow
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
-DEBUG = False
+DEBUG = True
 
 # Enable GPU-accelerated computations on an NVIDIA videocard with CUDA support?
 # Will handle fftconvolve (FIR filters).
@@ -453,7 +453,7 @@ if __name__ == "__main__":
         critical_not_alive_count=3,
         N_buffers_in_deque=21,
         use_CUDA=USE_CUDA,
-        debug=False,
+        debug=DEBUG,
     )
     alia_qdev.signal_connection_lost.connect(notify_connection_lost)
 
@@ -470,9 +470,7 @@ if __name__ == "__main__":
     app.aboutToQuit.connect(about_to_quit)
 
     window = MainWindow(
-        alia=alia,
-        alia_qdev=alia_qdev,
-        file_logger=file_logger,
+        alia=alia, alia_qdev=alia_qdev, file_logger=file_logger,
     )
 
     # --------------------------------------------------------------------------
