@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+"""Arduino lock-in amplifier
+Minimal running example for trouble-shooting library
 """
-Dennis_van_Gils
-09-05-2021
-"""
+__author__ = "Dennis van Gils"
+__authoremail__ = "vangils.dennis@gmail.com"
+__url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
+__date__ = "09-05-2021"
+__version__ = "2.0.0"
 
 import os
 import sys
 import msvcrt
 import psutil
 import time as Time
-from pathlib2 import Path
 
 import numpy as np
 import matplotlib.pyplot as plt
