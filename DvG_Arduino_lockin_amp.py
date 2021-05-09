@@ -29,7 +29,7 @@ from Alia_qdev import Alia_qdev
 from Alia_gui import MainWindow
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
-DEBUG = True
+DEBUG = False
 
 # Enable GPU-accelerated computations on an NVIDIA videocard with CUDA support?
 # Will handle fftconvolve (FIR filters).
