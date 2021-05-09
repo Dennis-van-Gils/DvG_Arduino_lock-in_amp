@@ -43,10 +43,6 @@ np.fft = pyfftw.interfaces.numpy_fft  # Monkey patch fftpack
 pyfftw.interfaces.cache.enable()      # Turn on cache for optimum performance
 """
 
-# TODO: Handle Arduino timer roll-over at t = 4294967295 us correctly. Current
-# Python code will think there are dropped samples at timer roll-over.
-# Happens every 71.2 minutes.
-# https://arduino.stackexchange.com/questions/12587/how-can-i-handle-the-millis-rollover
 
 # ------------------------------------------------------------------------------
 #   Update GUI routines
