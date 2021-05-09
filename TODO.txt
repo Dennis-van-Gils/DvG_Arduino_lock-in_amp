@@ -2,13 +2,9 @@ TODO:
 
 * Timer roll-over
 
-Handle Arduino timer roll-over at t = 4294967295 us correctly. Current Python
-code will think there are dropped samples at timer roll-over. Happens every
-71.2 minutes.
-https://arduino.stackexchange.com/questions/12587/how-can-i-handle-the-millis-rollover
+  Handle Arduino timer roll-over at t = 4294967295 us correctly. Current Python
+  code will think there are dropped samples at timer roll-over. Happens every
+  71.2 minutes.
+  https://arduino.stackexchange.com/questions/12587/how-can-i-handle-the-millis-rollover
 
-* Investigate why setting `debug = True` causes lock up when unpausing DAQ.
-
-I expect it has to do with setting or reading the worker_DAQ._paused flag from
-out of another thread. Perhaps change to make use of pyqtSignal
-'signal_DAQ_paused'.
+* Merge improved local `dvg_qdeviceio` into PyPi and Github distros

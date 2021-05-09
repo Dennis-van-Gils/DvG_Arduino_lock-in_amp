@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "07-05-2021"
+__date__ = "09-05-2021"
 __version__ = "2.0.0"
 
 import os
@@ -64,8 +64,7 @@ def current_date_time_strings():
 
 def stop_running():
     app.processEvents()
-    if alia.is_alive:
-        alia_qdev.turn_off_immediately()
+    alia_qdev.turn_off()
     alia_qdev.quit()
     file_logger.close_log()
 
@@ -167,7 +166,7 @@ def lockin_DAQ_update():
     if (
         dT > (c.SAMPLING_PERIOD * 1e6) * 1.10
     ):  # Allow a few percent clock jitter
-        N_dropped_samples = int(round(dT / c.ISR_CLOCK) - 1)
+        N_dropped_samples = int(round(dT / c.SAMPLING_PERIOD) - 1)
         dprint("Dropped samples: %i" % N_dropped_samples)
         dprint("@ %s %s" % current_date_time_strings())
 
@@ -178,7 +177,7 @@ def lockin_DAQ_update():
         # of the last dropped sample.
         state.deque_time.extend(
             prev_last_deque_time
-            + np.arange(1, N_dropped_samples + 1) * c.ISR_CLOCK * 1e6
+            + np.arange(1, N_dropped_samples + 1) * c.SAMPLING_PERIOD * 1e6
         )
         state.deque_ref_X.extend(np.full(N_dropped_samples, np.nan))
         state.deque_ref_Y.extend(np.full(N_dropped_samples, np.nan))

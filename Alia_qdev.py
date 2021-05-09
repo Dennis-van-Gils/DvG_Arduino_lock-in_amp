@@ -6,12 +6,11 @@ acquisition for an Arduino based lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "07-05-2021"
+__date__ = "09-05-2021"
 __version__ = "2.0.0"
 
 import numpy as np
-from PyQt5 import QtCore, QtWidgets as QtWid
-import time as Time
+from PyQt5 import QtCore
 
 from Alia_protocol_serial import Alia
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
@@ -54,12 +53,16 @@ class Alia_qdev(QDeviceIO):
         signal_ref_freq_is_set
         signal_ref_V_offset_is_set
         signal_ref_V_ampl_is_set
+        request_worker_DAQ_pause
+        request_worker_DAQ_unpause
     """
 
     # fmt: off
     signal_ref_freq_is_set     = QtCore.pyqtSignal()
     signal_ref_V_offset_is_set = QtCore.pyqtSignal()
     signal_ref_V_ampl_is_set   = QtCore.pyqtSignal()
+    request_worker_DAQ_pause   = QtCore.pyqtSignal()
+    request_worker_DAQ_unpause = QtCore.pyqtSignal()
     # fmt: on
 
     class State:
@@ -186,9 +189,11 @@ class Alia_qdev(QDeviceIO):
             debug=debug,
         )
 
+        self.request_worker_DAQ_pause.connect(self.worker_DAQ.pause)
+        self.request_worker_DAQ_unpause.connect(self.worker_DAQ.unpause)
+
         self.create_worker_jobs(
-            jobs_function=self.jobs_function,
-            debug=debug,
+            jobs_function=self.jobs_function, debug=debug,
         )
 
         self.state = self.State(dev.config.BLOCK_SIZE, N_buffers_in_deque)
@@ -255,46 +260,8 @@ class Alia_qdev(QDeviceIO):
     def turn_on(self):
         self.send("turn_on")
 
-    def turn_on_immediately(self):
-        """
-        Returns:
-            success
-        """
-        locker = QtCore.QMutexLocker(self.dev.mutex)
-
-        if self.dev.turn_on():
-            self.unpause_DAQ()
-            QtWid.QApplication.processEvents()
-            return True
-
-        locker.unlock()
-        return False
-
     def turn_off(self):
         self.send("turn_off")
-
-    def turn_off_immediately(self):
-        """
-        Returns:
-            success
-        """
-        self.pause_DAQ()
-
-        tick = Time.time()
-        TIMEOUT = 2  # [s]
-        while not self.worker_DAQ._paused:
-            QtWid.QApplication.processEvents()
-            if Time.time() - tick > TIMEOUT:
-                print(
-                    "Wait for worker_DAQ to reach paused state timed out. "
-                    "Brute forcing turn off."
-                )
-                break
-
-        locker = QtCore.QMutexLocker(self.dev.mutex)
-        success, __foo, __bar = self.dev.turn_off()
-        locker.unlock()
-        return success
 
     def set_ref_freq(self, ref_freq):
         self.send("set_ref_freq", ref_freq)
@@ -326,9 +293,7 @@ class Alia_qdev(QDeviceIO):
                 was_paused = self.dev.lockin_paused
 
                 if not was_paused:
-                    self.pause_DAQ()
-                    while not self.worker_DAQ._paused:
-                        QtWid.QApplication.processEvents()
+                    self.request_worker_DAQ_pause.emit()
 
                 if func == "set_ref_freq":
                     self.dev.set_ref_freq(set_value)
@@ -341,18 +306,15 @@ class Alia_qdev(QDeviceIO):
                     self.signal_ref_V_ampl_is_set.emit()
 
                 if not was_paused:
-                    self.unpause_DAQ()
-                    QtWid.QApplication.processEvents()
+                    self.request_worker_DAQ_unpause.emit()
 
         elif func == "turn_on":
             self.state.reset()
             if self.dev.turn_on():
-                self.unpause_DAQ()
+                self.request_worker_DAQ_unpause.emit()
 
         elif func == "turn_off":
-            self.pause_DAQ()
-            while not self.worker_DAQ._paused:
-                QtWid.QApplication.processEvents()
+            self.request_worker_DAQ_pause.emit()
             self.dev.turn_off()
 
         else:

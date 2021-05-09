@@ -214,13 +214,14 @@ class MainWindow(QtWid.QWidget):
 
 
 class Alia_qdev(QDeviceIO):
+    request_worker_DAQ_pause = QtCore.pyqtSignal()
+    request_worker_DAQ_unpause = QtCore.pyqtSignal()
+
     def __init__(
         self,
         dev: Alia,
         DAQ_function=None,
         critical_not_alive_count=3,
-        N_buffers_in_deque=21,
-        use_CUDA=False,
         debug=False,
         **kwargs,
     ):
@@ -237,36 +238,22 @@ class Alia_qdev(QDeviceIO):
             jobs_function=self.jobs_function, debug=debug,
         )
 
+        self.request_worker_DAQ_pause.connect(self.worker_DAQ.pause)
+        self.request_worker_DAQ_unpause.connect(self.worker_DAQ.unpause)
+
     def turn_on(self):
         self.send("turn_on")
 
     def turn_off(self):
         self.send("turn_off")
 
-    def turn_off_immediately(self):
-        """
-        Returns:
-            success
-        """
-        self.pause_DAQ()
-
-        while not self.worker_DAQ._paused:
-            QtWid.QApplication.processEvents()
-
-        locker = QtCore.QMutexLocker(self.dev.mutex)
-        success, __foo, __bar = self.dev.turn_off()
-        locker.unlock()
-        return success
-
     def jobs_function(self, func, args):
         if func == "turn_on":
             if self.dev.turn_on():
-                self.unpause_DAQ()
+                self.request_worker_DAQ_unpause.emit()
 
         elif func == "turn_off":
-            self.pause_DAQ()
-            while not self.worker_DAQ._paused:
-                QtWid.QApplication.processEvents()
+            self.request_worker_DAQ_pause.emit()
             self.dev.turn_off()
 
         else:
@@ -283,8 +270,7 @@ class Alia_qdev(QDeviceIO):
 def about_to_quit():
     print("\nAbout to quit")
     app.processEvents()
-    if alia.is_alive:
-        alia_qdev.turn_off_immediately()
+    alia_qdev.turn_off()
     alia_qdev.quit()
     alia.close()
 
@@ -307,7 +293,7 @@ def lockin_DAQ_update():
         window.gw_refsig.setUpdatesEnabled(False)
 
     tick = Time.perf_counter()
-    success, time, ref_X, ref_Y, sig_I = alia.listen_to_lockin_amp()
+    success, time, ref_X, __ref_Y, sig_I = alia.listen_to_lockin_amp()
     # dprint("%i" % ((Time.perf_counter() - tick) * 1e3))
 
     if not (success):
@@ -336,7 +322,9 @@ def update_GUI():
 
     window.qlbl_update_counter.setText("%i" % alia_qdev.update_counter_DAQ)
 
-    if not alia.lockin_paused:
+    if alia_qdev.worker_DAQ._paused:  # pylint: disable=protected-access
+        window.qlbl_DAQ_rate.setText("Buffers/s: paused")
+    else:
         window.qlbl_DAQ_rate.setText(
             "Buffers/s: %.1f" % alia_qdev.obtained_DAQ_rate_Hz
         )
@@ -369,8 +357,7 @@ if __name__ == "__main__":
         dev=alia,
         DAQ_function=lockin_DAQ_update,
         critical_not_alive_count=np.nan,
-        N_buffers_in_deque=21,
-        debug=False,
+        debug=True,
     )
     alia_qdev.signal_DAQ_updated.connect(update_GUI)
 
