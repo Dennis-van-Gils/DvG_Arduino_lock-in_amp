@@ -20,7 +20,7 @@ from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_BufferedPlot import BufferedPlot
 from DvG_pyqt_controls import Legend_box
 from DvG_pyqt_FileLogger import FileLogger
-from DvG_debug_functions import dprint
+from dvg_debug_functions import dprint
 
 from Alia_protocol_serial import Alia
 from Alia_qdev import Alia_qdev

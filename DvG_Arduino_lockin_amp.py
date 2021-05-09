@@ -21,7 +21,7 @@ from PyQt5.QtCore import QDateTime
 import numpy as np
 
 from DvG_pyqt_FileLogger import FileLogger
-from DvG_debug_functions import dprint  # , print_fancy_traceback as pft
+from dvg_debug_functions import dprint  # , print_fancy_traceback as pft
 from DvG_FFTW_WelchPowerSpectrum import FFTW_WelchPowerSpectrum
 
 from Alia_protocol_serial import Alia, Waveform
