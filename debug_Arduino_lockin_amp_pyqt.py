@@ -214,9 +214,6 @@ class MainWindow(QtWid.QWidget):
 
 
 class Alia_qdev(QDeviceIO):
-    request_worker_DAQ_pause = QtCore.pyqtSignal()
-    request_worker_DAQ_unpause = QtCore.pyqtSignal()
-
     def __init__(
         self,
         dev: Alia,
@@ -238,9 +235,6 @@ class Alia_qdev(QDeviceIO):
             jobs_function=self.jobs_function, debug=debug,
         )
 
-        self.request_worker_DAQ_pause.connect(self.worker_DAQ.pause)
-        self.request_worker_DAQ_unpause.connect(self.worker_DAQ.unpause)
-
     def turn_on(self):
         self.send("turn_on")
 
@@ -250,10 +244,10 @@ class Alia_qdev(QDeviceIO):
     def jobs_function(self, func, args):
         if func == "turn_on":
             if self.dev.turn_on():
-                self.request_worker_DAQ_unpause.emit()
+                self.unpause_DAQ()
 
         elif func == "turn_off":
-            self.request_worker_DAQ_pause.emit()
+            self.pause_DAQ()
             self.dev.turn_off()
 
         else:

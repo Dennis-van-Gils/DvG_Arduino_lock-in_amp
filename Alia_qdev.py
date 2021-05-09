@@ -53,16 +53,12 @@ class Alia_qdev(QDeviceIO):
         signal_ref_freq_is_set
         signal_ref_V_offset_is_set
         signal_ref_V_ampl_is_set
-        request_worker_DAQ_pause
-        request_worker_DAQ_unpause
     """
 
     # fmt: off
     signal_ref_freq_is_set     = QtCore.pyqtSignal()
     signal_ref_V_offset_is_set = QtCore.pyqtSignal()
     signal_ref_V_ampl_is_set   = QtCore.pyqtSignal()
-    request_worker_DAQ_pause   = QtCore.pyqtSignal()
-    request_worker_DAQ_unpause = QtCore.pyqtSignal()
     # fmt: on
 
     class State:
@@ -189,9 +185,6 @@ class Alia_qdev(QDeviceIO):
             debug=debug,
         )
 
-        self.request_worker_DAQ_pause.connect(self.worker_DAQ.pause)
-        self.request_worker_DAQ_unpause.connect(self.worker_DAQ.unpause)
-
         self.create_worker_jobs(
             jobs_function=self.jobs_function, debug=debug,
         )
@@ -293,7 +286,7 @@ class Alia_qdev(QDeviceIO):
                 was_paused = self.dev.lockin_paused
 
                 if not was_paused:
-                    self.request_worker_DAQ_pause.emit()
+                    self.pause_DAQ()
 
                 if func == "set_ref_freq":
                     self.dev.set_ref_freq(set_value)
@@ -306,15 +299,15 @@ class Alia_qdev(QDeviceIO):
                     self.signal_ref_V_ampl_is_set.emit()
 
                 if not was_paused:
-                    self.request_worker_DAQ_unpause.emit()
+                    self.unpause_DAQ()
 
         elif func == "turn_on":
             self.state.reset()
             if self.dev.turn_on():
-                self.request_worker_DAQ_unpause.emit()
+                self.unpause_DAQ()
 
         elif func == "turn_off":
-            self.request_worker_DAQ_pause.emit()
+            self.pause_DAQ()
             self.dev.turn_off()
 
         else:
