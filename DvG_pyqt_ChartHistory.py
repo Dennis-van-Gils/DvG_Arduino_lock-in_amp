@@ -42,23 +42,24 @@ Class:
             y_axis_divisor:
                 Same functionality as x_axis_divisor
 """
-__author__      = "Dennis van Gils"
+__author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__         = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
-__date__        = "30-07-2019"
-__version__     = "2.0.0"
+__url__ = "https://github.com/Dennis-van-Gils/DvG_PyQt_misc"
+__date__ = "30-07-2019"
+__version__ = "2.0.0"
 
 import numpy as np
 from PyQt5 import QtCore
 import pyqtgraph as pg
-from DvG_RingBuffer import RingBuffer
+from dvg_ringbuffer import RingBuffer
+
 
 class ChartHistory(object):
-    def __init__(self,
-                 chart_history_length,
-                 plot_data_item: pg.PlotDataItem=None):
+    def __init__(
+        self, chart_history_length, plot_data_item: pg.PlotDataItem = None
+    ):
         self.chart_history_length = chart_history_length
-        self.curve = plot_data_item   # Instance of [pyqtgraph.PlotDataItem]
+        self.curve = plot_data_item  # Instance of [pyqtgraph.PlotDataItem]
         self.mutex = QtCore.QMutex()  # For the case of multithreaded access
 
         # If the x-data is time, you can use this divisor value to transform
@@ -76,15 +77,15 @@ class ChartHistory(object):
             self.curve.clipToView = True
 
             # Default to no downsampling
-            self.curve.setDownsampling(ds=1, auto=False, method='mean')
+            self.curve.setDownsampling(ds=1, auto=False, method="mean")
 
     def apply_downsampling(self, do_apply=True, ds=4):
         if do_apply:
             # Speed up plotting, needed for keeping the GUI responsive when
             # using large datasets
-            self.curve.setDownsampling(ds=ds, auto=False, method='mean')
+            self.curve.setDownsampling(ds=ds, auto=False, method="mean")
         else:
-            self.curve.setDownsampling(ds=1, auto=False, method='mean')
+            self.curve.setDownsampling(ds=1, auto=False, method="mean")
 
     def add_new_reading(self, x, y):
         locker = QtCore.QMutexLocker(self.mutex)
@@ -109,20 +110,22 @@ class ChartHistory(object):
         locker = QtCore.QMutexLocker(self.mutex)
         self._x_snapshot = np.copy(self._x)
         self._y_snapshot = np.copy(self._y)
-        #print("numel x: %d, numel y: %d" %
+        # print("numel x: %d, numel y: %d" %
         #      (self._x_snapshot.size, self._y_snapshot.size))
         locker.unlock()
 
         # Now update the data behind the curve and redraw the curve. Slow
         if self.curve is not None:
-            if ((len(self._x_snapshot) == 0) or
-                (np.alltrue(np.isnan(self._y_snapshot)))):
+            if (len(self._x_snapshot) == 0) or (
+                np.alltrue(np.isnan(self._y_snapshot))
+            ):
                 self.curve.setData([0], [0])
             else:
-                self.curve.setData((self._x_snapshot - self._x_snapshot[-1])
-                                   / float(self.x_axis_divisor),
-                                   self._y_snapshot
-                                   / float(self.y_axis_divisor))
+                self.curve.setData(
+                    (self._x_snapshot - self._x_snapshot[-1])
+                    / float(self.x_axis_divisor),
+                    self._y_snapshot / float(self.y_axis_divisor),
+                )
 
     def clear(self):
         locker = QtCore.QMutexLocker(self.mutex)

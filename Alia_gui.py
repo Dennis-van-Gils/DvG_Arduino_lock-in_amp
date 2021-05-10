@@ -26,7 +26,7 @@ from Alia_protocol_serial import Alia
 from Alia_qdev import Alia_qdev
 from DvG_Buffered_FIR_Filter__GUI import Filter_design_GUI
 
-# Monkey-patch errors in pyqtgraph v0.10
+# Monkey-patch errors in pyqtgraph v0.10 and v0.11
 import pyqtgraph.exporters
 import DvG_monkeypatch_pyqtgraph as pgmp
 
@@ -49,7 +49,7 @@ if TRY_USING_OPENGL:
 
         pg.setConfigOptions(useOpenGL=True)
         pg.setConfigOptions(enableExperimental=True)
-        pg.setConfigOptions(antialias=False)
+        pg.setConfigOptions(antialias=True)
         print("OpenGL hardware acceleration enabled.")
         USING_OPENGL = True
     except:

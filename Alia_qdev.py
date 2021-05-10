@@ -16,7 +16,7 @@ from Alia_protocol_serial import Alia
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 
 from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
-from DvG_RingBuffer import RingBuffer
+from dvg_ringbuffer import RingBuffer
 
 # ------------------------------------------------------------------------------
 #   Alia_qdev
