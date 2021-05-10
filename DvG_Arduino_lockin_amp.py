@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "09-05-2021"
+__date__ = "10-05-2021"
 __version__ = "2.0.0"
 
 import os
@@ -196,9 +196,9 @@ def lockin_DAQ_update():
     state.deque_ref_Y.extend(state.ref_Y)
     state.deque_sig_I.extend(state.sig_I)
 
-    window.CH_ref_X.add_new_readings(state.time, state.ref_X)
-    window.CH_ref_Y.add_new_readings(state.time, state.ref_Y)
-    window.CH_sig_I.add_new_readings(state.time, state.sig_I)
+    window.hcc_ref_X.extendData(state.time, state.ref_X)
+    window.hcc_ref_Y.extendData(state.time, state.ref_Y)
+    window.hcc_sig_I.extendData(state.time, state.sig_I)
 
     # Stage 1
     # -------
@@ -239,10 +239,10 @@ def lockin_DAQ_update():
     state.deque_mix_X .extend(state.mix_X)
     state.deque_mix_Y .extend(state.mix_Y)
 
-    window.CH_filt_1_in .add_new_readings(state.time_1, old_sig_I)
-    window.CH_filt_1_out.add_new_readings(state.time_1, state.filt_I)
-    window.CH_mix_X     .add_new_readings(state.time_1, state.mix_X)
-    window.CH_mix_Y     .add_new_readings(state.time_1, state.mix_Y)
+    window.hcc_filt_1_in .extendData(state.time_1, old_sig_I)
+    window.hcc_filt_1_out.extendData(state.time_1, state.filt_I)
+    window.hcc_mix_X     .extendData(state.time_1, state.mix_X)
+    window.hcc_mix_Y     .extendData(state.time_1, state.mix_Y)
     # fmt: on
 
     # Stage 2
@@ -288,14 +288,14 @@ def lockin_DAQ_update():
     state.deque_T.extend(state.T)
 
     if window.qrbt_XR_X.isChecked():
-        window.CH_LIA_XR.add_new_readings(state.time_2, state.X)
+        window.hcc_LIA_XR.extendData(state.time_2, state.X)
     else:
-        window.CH_LIA_XR.add_new_readings(state.time_2, state.R)
+        window.hcc_LIA_XR.extendData(state.time_2, state.R)
 
     if window.qrbt_YT_Y.isChecked():
-        window.CH_LIA_YT.add_new_readings(state.time_2, state.Y)
+        window.hcc_LIA_YT.extendData(state.time_2, state.Y)
     else:
-        window.CH_LIA_YT.add_new_readings(state.time_2, state.T)
+        window.hcc_LIA_YT.extendData(state.time_2, state.T)
 
     # Check if memory address of underlying buffer is still unchanged
     """
@@ -312,31 +312,31 @@ def lockin_DAQ_update():
     # -------------
 
     if window.legend_box_PS.chkbs[0].isChecked() and state.deque_sig_I.is_full:
-        window.BP_PS_1.set_data(
+        window.pc_PS_1.setData(
             alia_qdev.fftw_PS_sig_I.freqs,
             alia_qdev.fftw_PS_sig_I.process_dB(state.deque_sig_I),
         )
 
     if window.legend_box_PS.chkbs[1].isChecked() and state.deque_filt_I.is_full:
-        window.BP_PS_2.set_data(
+        window.pc_PS_2.setData(
             alia_qdev.fftw_PS_filt_I.freqs,
             alia_qdev.fftw_PS_filt_I.process_dB(state.deque_filt_I),
         )
 
     if window.legend_box_PS.chkbs[2].isChecked() and state.deque_mix_X.is_full:
-        window.BP_PS_3.set_data(
+        window.pc_PS_3.setData(
             alia_qdev.fftw_PS_mix_X.freqs,
             alia_qdev.fftw_PS_mix_X.process_dB(state.deque_mix_X),
         )
 
     if window.legend_box_PS.chkbs[3].isChecked() and state.deque_mix_Y.is_full:
-        window.BP_PS_4.set_data(
+        window.pc_PS_4.setData(
             alia_qdev.fftw_PS_mix_Y.freqs,
             alia_qdev.fftw_PS_mix_Y.process_dB(state.deque_mix_Y),
         )
 
     if window.legend_box_PS.chkbs[4].isChecked() and state.deque_R.is_full:
-        window.BP_PS_5.set_data(
+        window.pc_PS_5.setData(
             alia_qdev.fftw_PS_R.freqs,
             alia_qdev.fftw_PS_R.process_dB(state.deque_R),
         )

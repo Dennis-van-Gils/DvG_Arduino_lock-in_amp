@@ -6,7 +6,7 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "09-05-2021"
+__date__ = "10-05-2021"
 __version__ = "2.0.0"
 
 import sys
@@ -19,11 +19,11 @@ import numpy as np
 
 import time as Time
 
-from DvG_pyqt_ChartHistory import ChartHistory
 from DvG_pyqt_controls import create_Toggle_button
 
 from Alia_protocol_serial import Alia
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
+from dvg_pyqtgraph_threadsafe import HistoryChartCurve
 from dvg_debug_functions import dprint
 
 # Monkey-patch errors in pyqtgraph v0.10
@@ -147,15 +147,15 @@ class MainWindow(QtWid.QWidget):
 
         PEN_01 = pg.mkPen(color=[255, 0, 0], width=3)
         PEN_03 = pg.mkPen(color=[0, 255, 255], width=3)
-        self.CH_ref_X = ChartHistory(
+        self.hcc_ref_X = HistoryChartCurve(
             alia.config.BLOCK_SIZE, self.pi_refsig.plot(pen=PEN_01)
         )
-        self.CH_sig_I = ChartHistory(
+        self.hcc_sig_I = HistoryChartCurve(
             alia.config.BLOCK_SIZE, self.pi_refsig.plot(pen=PEN_03)
         )
-        self.CH_ref_X.x_axis_divisor = 1000  # From [us] to [ms]
-        self.CH_sig_I.x_axis_divisor = 1000  # From [us] to [ms]
-        self.CHs_refsig = [self.CH_ref_X, self.CH_sig_I]
+        self.hcc_ref_X.x_axis_divisor = 1000  # From [us] to [ms]
+        self.hcc_sig_I.x_axis_divisor = 1000  # From [us] to [ms]
+        self.hccs__refsig = (self.hcc_ref_X, self.hcc_sig_I)
 
         hbox_refsig = QtWid.QHBoxLayout()
         hbox_refsig.addWidget(self.gw_refsig, stretch=1)
@@ -178,7 +178,8 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def update_chart_refsig(self):
-        [CH.update_curve() for CH in self.CHs_refsig]
+        for hcc in self.hccs__refsig:
+            hcc.update()
 
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
@@ -300,8 +301,8 @@ def lockin_DAQ_update():
         # data buffers.
         window.gw_refsig.setUpdatesEnabled(False)
 
-    window.CH_ref_X.add_new_readings(time, ref_X)
-    window.CH_sig_I.add_new_readings(time, sig_I)
+    window.hcc_ref_X.extendData(time, ref_X)
+    window.hcc_sig_I.extendData(time, sig_I)
 
     # Re-enable pyqtgraph.GraphicsWindow() redraws and GUI events
     window.gw_refsig.setUpdatesEnabled(True)

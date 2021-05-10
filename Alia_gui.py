@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "07-05-2021"
+__date__ = "10-05-2021"
 __version__ = "2.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -16,10 +16,9 @@ import numpy as np
 import psutil
 import os
 
-from DvG_pyqt_ChartHistory import ChartHistory
-from DvG_pyqt_BufferedPlot import BufferedPlot
 from DvG_pyqt_controls import Legend_box
 from DvG_pyqt_FileLogger import FileLogger
+from dvg_pyqtgraph_threadsafe import HistoryChartCurve, PlotCurve
 from dvg_debug_functions import dprint
 
 from Alia_protocol_serial import Alia
@@ -619,19 +618,19 @@ class MainWindow(QtWid.QWidget):
             yMax=3.4,
         )
 
-        self.CH_ref_X = ChartHistory(
+        self.hcc_ref_X = HistoryChartCurve(
             alia.config.BLOCK_SIZE, self.pi_refsig.plot(pen=self.PEN_01)
         )
-        self.CH_ref_Y = ChartHistory(
+        self.hcc_ref_Y = HistoryChartCurve(
             alia.config.BLOCK_SIZE, self.pi_refsig.plot(pen=self.PEN_02)
         )
-        self.CH_sig_I = ChartHistory(
+        self.hcc_sig_I = HistoryChartCurve(
             alia.config.BLOCK_SIZE, self.pi_refsig.plot(pen=self.PEN_03)
         )
-        self.CH_ref_X.x_axis_divisor = 1000  # From [us] to [ms]
-        self.CH_ref_Y.x_axis_divisor = 1000  # From [us] to [ms]
-        self.CH_sig_I.x_axis_divisor = 1000  # From [us] to [ms]
-        self.CHs_refsig = [self.CH_ref_X, self.CH_ref_Y, self.CH_sig_I]
+        self.hcc_ref_X.x_axis_divisor = 1000  # From [us] to [ms]
+        self.hcc_ref_Y.x_axis_divisor = 1000  # From [us] to [ms]
+        self.hcc_sig_I.x_axis_divisor = 1000  # From [us] to [ms]
+        self.hccs__refsig = (self.hcc_ref_X, self.hcc_ref_Y, self.hcc_sig_I)
 
         # QGROUP: Readings
         self.legend_box_refsig = Legend_box(
@@ -639,12 +638,8 @@ class MainWindow(QtWid.QWidget):
             pen=[self.PEN_01, self.PEN_02, self.PEN_03],
             checked=[False, False, True],
         )
-        (
-            [
-                chkb.clicked.connect(self.process_chkbs_legend_box_refsig)
-                for chkb in self.legend_box_refsig.chkbs
-            ]
-        )
+        for chkb in self.legend_box_refsig.chkbs:
+            chkb.clicked.connect(self.process_chkbs_legend_box_refsig)
 
         p1 = {"maximumWidth": ex12, "minimumWidth": ex12, "readOnly": True}
         p2 = {"maximumWidth": ex8, "minimumWidth": ex8, "readOnly": True}
@@ -745,15 +740,15 @@ class MainWindow(QtWid.QWidget):
             xMax=0,
         )
 
-        self.CH_LIA_XR = ChartHistory(
+        self.hcc_LIA_XR = HistoryChartCurve(
             alia.config.BLOCK_SIZE, self.pi_XR.plot(pen=self.PEN_03)
         )
-        self.CH_LIA_YT = ChartHistory(
+        self.hcc_LIA_YT = HistoryChartCurve(
             alia.config.BLOCK_SIZE, self.pi_YT.plot(pen=self.PEN_03)
         )
-        self.CH_LIA_XR.x_axis_divisor = 1000  # From [us] to [ms]
-        self.CH_LIA_YT.x_axis_divisor = 1000  # From [us] to [ms]
-        self.CHs_LIA_output = [self.CH_LIA_XR, self.CH_LIA_YT]
+        self.hcc_LIA_XR.x_axis_divisor = 1000  # From [us] to [ms]
+        self.hcc_LIA_YT.x_axis_divisor = 1000  # From [us] to [ms]
+        self.hccs__LIA_output = (self.hcc_LIA_XR, self.hcc_LIA_YT)
 
         self.grid_pws_XYRT = QtWid.QGridLayout(spacing=0)
         self.grid_pws_XYRT.addWidget(self.pw_XR, 0, 0)
@@ -886,26 +881,22 @@ class MainWindow(QtWid.QWidget):
             yMax=5.25,
         )
 
-        self.CH_filt_1_in = ChartHistory(
+        self.hcc_filt_1_in = HistoryChartCurve(
             alia.config.BLOCK_SIZE, self.pi_filt_1.plot(pen=self.PEN_03)
         )
-        self.CH_filt_1_out = ChartHistory(
+        self.hcc_filt_1_out = HistoryChartCurve(
             alia.config.BLOCK_SIZE, self.pi_filt_1.plot(pen=self.PEN_04)
         )
-        self.CH_filt_1_in.x_axis_divisor = 1000  # From [us] to [ms]
-        self.CH_filt_1_out.x_axis_divisor = 1000  # From [us] to [ms]
-        self.CHs_filt_1 = [self.CH_filt_1_in, self.CH_filt_1_out]
+        self.hcc_filt_1_in.x_axis_divisor = 1000  # From [us] to [ms]
+        self.hcc_filt_1_out.x_axis_divisor = 1000  # From [us] to [ms]
+        self.hccs__filt_1 = (self.hcc_filt_1_in, self.hcc_filt_1_out)
 
         # QGROUP: Filter output
         self.legend_box_filt_1 = Legend_box(
             text=["sig_I", "filt_I"], pen=[self.PEN_03, self.PEN_04]
         )
-        (
-            [
-                chkb.clicked.connect(self.process_chkbs_legend_box_filt_1)
-                for chkb in self.legend_box_filt_1.chkbs
-            ]
-        )
+        for chkb in self.legend_box_filt_1.chkbs:
+            chkb.clicked.connect(self.process_chkbs_legend_box_filt_1)
 
         qgrp_filt_1 = QtWid.QGroupBox("Filter @ sig_I")
         qgrp_filt_1.setLayout(self.legend_box_filt_1.grid)
@@ -948,26 +939,22 @@ class MainWindow(QtWid.QWidget):
             yMax=5.25,
         )
 
-        self.CH_mix_X = ChartHistory(
+        self.hcc_mix_X = HistoryChartCurve(
             alia.config.BLOCK_SIZE, self.pi_mixer.plot(pen=self.PEN_01)
         )
-        self.CH_mix_Y = ChartHistory(
+        self.hcc_mix_Y = HistoryChartCurve(
             alia.config.BLOCK_SIZE, self.pi_mixer.plot(pen=self.PEN_02)
         )
-        self.CH_mix_X.x_axis_divisor = 1000  # From [us] to [ms]
-        self.CH_mix_Y.x_axis_divisor = 1000  # From [us] to [ms]
-        self.CHs_mixer = [self.CH_mix_X, self.CH_mix_Y]
+        self.hcc_mix_X.x_axis_divisor = 1000  # From [us] to [ms]
+        self.hcc_mix_Y.x_axis_divisor = 1000  # From [us] to [ms]
+        self.hccs__mixer = (self.hcc_mix_X, self.hcc_mix_Y)
 
         # QGROUP: Mixer
         self.legend_box_mixer = Legend_box(
             text=["mix_X", "mix_Y"], pen=[self.PEN_01, self.PEN_02]
         )
-        (
-            [
-                chkb.clicked.connect(self.process_chkbs_legend_box_mixer)
-                for chkb in self.legend_box_mixer.chkbs
-            ]
-        )
+        for chkb in self.legend_box_mixer.chkbs:
+            chkb.clicked.connect(self.process_chkbs_legend_box_mixer)
 
         qgrp_mixer = QtWid.QGroupBox("Mixer")
         qgrp_mixer.setLayout(self.legend_box_mixer.grid)
@@ -1026,18 +1013,18 @@ class MainWindow(QtWid.QWidget):
             xMin=0, xMax=self.alia.config.F_Nyquist, yMin=-300, yMax=60
         )
 
-        self.BP_PS_1 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_03))
-        self.BP_PS_2 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_04))
-        self.BP_PS_3 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_01))
-        self.BP_PS_4 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_02))
-        self.BP_PS_5 = BufferedPlot(self.pi_PS.plot(pen=self.PEN_05))
-        self.BP_PSs = [
-            self.BP_PS_1,
-            self.BP_PS_2,
-            self.BP_PS_3,
-            self.BP_PS_4,
-            self.BP_PS_5,
-        ]
+        self.pc_PS_1 = PlotCurve(self.pi_PS.plot(pen=self.PEN_03))
+        self.pc_PS_2 = PlotCurve(self.pi_PS.plot(pen=self.PEN_04))
+        self.pc_PS_3 = PlotCurve(self.pi_PS.plot(pen=self.PEN_01))
+        self.pc_PS_4 = PlotCurve(self.pi_PS.plot(pen=self.PEN_02))
+        self.pc_PS_5 = PlotCurve(self.pi_PS.plot(pen=self.PEN_05))
+        self.pc_PSs = (
+            self.pc_PS_1,
+            self.pc_PS_2,
+            self.pc_PS_3,
+            self.pc_PS_4,
+            self.pc_PS_5,
+        )
 
         # QGROUP: Zoom
         # fmt: off
@@ -1101,12 +1088,8 @@ class MainWindow(QtWid.QWidget):
             ],
             checked=[False, False, False, False, False],
         )
-        (
-            [
-                chkb.clicked.connect(self.process_chkbs_legend_box_PS)
-                for chkb in self.legend_box_PS.chkbs
-            ]
-        )
+        for chkb in self.legend_box_PS.chkbs:
+            chkb.clicked.connect(self.process_chkbs_legend_box_PS)
 
         grid = QtWid.QGridLayout(spacing=4)
         # grid.addWidget(QtWid.QLabel("CPU intensive!<br/>Only check<br/>"
@@ -1464,7 +1447,7 @@ class MainWindow(QtWid.QWidget):
         vbox.addLayout(hbox, stretch=1)
 
         # List of all pyqtgraph PlotWidgets containing charts and plots
-        self.all_charts = [
+        self.all_charts = (
             self.pw_refsig,
             self.pw_XR,
             self.pw_YT,
@@ -1473,7 +1456,7 @@ class MainWindow(QtWid.QWidget):
             self.pw_PS,
             self.pw_filt_1_resp,
             self.pw_filt_2_resp,
-        ]
+        )
 
         # -----------------------------------
         # -----------------------------------
@@ -1583,13 +1566,13 @@ class MainWindow(QtWid.QWidget):
         self.setUpdatesEnabled(True)
 
     @QtCore.pyqtSlot()
-    def clear_chart_histories_stage_1_and_2(self):
-        self.CH_filt_1_in.clear()
-        self.CH_filt_1_out.clear()
-        self.CH_mix_X.clear()
-        self.CH_mix_Y.clear()
-        self.CH_LIA_XR.clear()
-        self.CH_LIA_YT.clear()
+    def clear_charts_stage_1_and_2(self):
+        self.hcc_filt_1_in.clear()
+        self.hcc_filt_1_out.clear()
+        self.hcc_mix_X.clear()
+        self.hcc_mix_Y.clear()
+        self.hcc_LIA_XR.clear()
+        self.hcc_LIA_YT.clear()
 
     @QtCore.pyqtSlot()
     def process_qpbt_ENA_lockin(self):
@@ -1598,7 +1581,7 @@ class MainWindow(QtWid.QWidget):
             self.qpbt_ENA_lockin.setText("Lock-in ON")
 
             self.alia_qdev.state.reset()
-            self.clear_chart_histories_stage_1_and_2()
+            self.clear_charts_stage_1_and_2()
         else:
             self.alia_qdev.turn_off()
             self.qpbt_ENA_lockin.setText("Lock-in OFF")
@@ -1681,21 +1664,21 @@ class MainWindow(QtWid.QWidget):
         # """
 
         self.alia_qdev.state.reset()
-        self.clear_chart_histories_stage_1_and_2()
+        self.clear_charts_stage_1_and_2()
 
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_offset(self):
         self.qlin_ref_V_offset.setText("%.3f" % self.alia.config.ref_V_offset)
 
         self.alia_qdev.state.reset()
-        self.clear_chart_histories_stage_1_and_2()
+        self.clear_charts_stage_1_and_2()
 
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_ampl(self):
         self.qlin_ref_V_ampl.setText("%.3f" % self.alia.config.ref_V_ampl)
 
         self.alia_qdev.state.reset()
-        self.clear_chart_histories_stage_1_and_2()
+        self.clear_charts_stage_1_and_2()
 
     @QtCore.pyqtSlot()
     def process_chkbs_legend_box_refsig(self):
@@ -1722,7 +1705,7 @@ class MainWindow(QtWid.QWidget):
                 self.legend_box_PS.chkbs[0].isChecked()
                 and state.deque_sig_I.is_full
             ):
-                self.BP_PS_1.set_data(
+                self.pc_PS_1.setData(
                     L.fftw_PS_sig_I.freqs,
                     L.fftw_PS_sig_I.process_dB(state.deque_sig_I),
                 )
@@ -1731,7 +1714,7 @@ class MainWindow(QtWid.QWidget):
                 self.legend_box_PS.chkbs[1].isChecked()
                 and state.deque_filt_I.is_full
             ):
-                self.BP_PS_2.set_data(
+                self.pc_PS_2.setData(
                     L.fftw_PS_filt_I.freqs,
                     L.fftw_PS_filt_I.process_dB(state.deque_filt_I),
                 )
@@ -1740,7 +1723,7 @@ class MainWindow(QtWid.QWidget):
                 self.legend_box_PS.chkbs[2].isChecked()
                 and state.deque_mix_X.is_full
             ):
-                self.BP_PS_3.set_data(
+                self.pc_PS_3.setData(
                     L.fftw_PS_mix_X.freqs,
                     L.fftw_PS_mix_X.process_dB(state.deque_mix_X),
                 )
@@ -1749,7 +1732,7 @@ class MainWindow(QtWid.QWidget):
                 self.legend_box_PS.chkbs[3].isChecked()
                 and state.deque_mix_Y.is_full
             ):
-                self.BP_PS_4.set_data(
+                self.pc_PS_4.setData(
                     L.fftw_PS_mix_Y.freqs,
                     L.fftw_PS_mix_Y.process_dB(state.deque_mix_Y),
                 )
@@ -1758,7 +1741,7 @@ class MainWindow(QtWid.QWidget):
                 self.legend_box_PS.chkbs[4].isChecked()
                 and state.deque_R.is_full
             ):
-                self.BP_PS_5.set_data(
+                self.pc_PS_5.setData(
                     L.fftw_PS_R.freqs, L.fftw_PS_R.process_dB(state.deque_R)
                 )
 
@@ -1787,13 +1770,13 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def process_qpbt_autorange_x(self):
-        plot_items = [
+        plot_items = (
             self.pi_refsig,
             self.pi_filt_1,
             self.pi_mixer,
             self.pi_XR,
             self.pi_YT,
-        ]
+        )
         for pi in plot_items:
             pi.enableAutoRange("x", False)
             pi.setXRange(
@@ -1806,7 +1789,7 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def process_qpbt_autorange_y(self):
-        plot_items = [self.pi_refsig, self.pi_filt_1, self.pi_mixer]
+        plot_items = (self.pi_refsig, self.pi_filt_1, self.pi_mixer)
         for pi in plot_items:
             pi.enableAutoRange("y", True)
             pi.enableAutoRange("y", False)
@@ -1816,10 +1799,10 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qrbt_XR(self):
         if self.qrbt_XR_X.isChecked():
-            self.CH_LIA_XR.curve.setPen(self.PEN_01)
+            self.hcc_LIA_XR.curve.setPen(self.PEN_01)
             self.pi_XR.setLabel("top", "X")
         else:
-            self.CH_LIA_XR.curve.setPen(self.PEN_03)
+            self.hcc_LIA_XR.curve.setPen(self.PEN_03)
             self.pi_XR.setLabel("top", "R")
 
         if self.alia_qdev.worker_DAQ._paused:
@@ -1832,14 +1815,14 @@ class MainWindow(QtWid.QWidget):
                 return
 
             if self.qrbt_XR_X.isChecked():
-                self.CH_LIA_XR.add_new_readings(
+                self.hcc_LIA_XR.extendData(
                     self.alia_qdev.state.time_2, self.alia_qdev.state.X
                 )
             else:
-                self.CH_LIA_XR.add_new_readings(
+                self.hcc_LIA_XR.extendData(
                     self.alia_qdev.state.time_2, self.alia_qdev.state.R
                 )
-            self.CH_LIA_XR.update_curve()
+            self.hcc_LIA_XR.update()
             self.autorange_y_XR()
         else:
             # To be handled by update_chart_LIA_output
@@ -1848,11 +1831,11 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qrbt_YT(self):
         if self.qrbt_YT_Y.isChecked():
-            self.CH_LIA_YT.curve.setPen(self.PEN_02)
+            self.hcc_LIA_YT.curve.setPen(self.PEN_02)
             self.pi_YT.setLabel("top", "Y")
             self.pi_YT.setLabel("left", text="voltage (V)")
         else:
-            self.CH_LIA_YT.curve.setPen(self.PEN_03)
+            self.hcc_LIA_YT.curve.setPen(self.PEN_03)
             self.pi_YT.setLabel("top", "%s" % chr(0x398))
             self.pi_YT.setLabel("left", text="phase (deg)")
 
@@ -1866,14 +1849,14 @@ class MainWindow(QtWid.QWidget):
                 return
 
             if self.qrbt_YT_Y.isChecked():
-                self.CH_LIA_YT.add_new_readings(
+                self.hcc_LIA_YT.extendData(
                     self.alia_qdev.state.time_2, self.alia_qdev.state.Y
                 )
             else:
-                self.CH_LIA_YT.add_new_readings(
+                self.hcc_LIA_YT.extendData(
                     self.alia_qdev.state.time_2, self.alia_qdev.state.T
                 )
-            self.CH_LIA_YT.update_curve()
+            self.hcc_LIA_YT.update()
             self.autorange_y_YT()
         else:
             # To be handled by update_chart_LIA_output
@@ -1885,7 +1868,7 @@ class MainWindow(QtWid.QWidget):
         else:
             self.pi_XR.setLimits(yMin=-0.1, yMax=5.25)
 
-        if len(self.CH_LIA_XR._x) == 0:
+        if self.hcc_LIA_XR.size[0] == 0:
             if self.qrbt_XR_X.isChecked():
                 self.pi_XR.setYRange(-5, 5, padding=0.05)
             else:
@@ -1902,7 +1885,7 @@ class MainWindow(QtWid.QWidget):
         else:
             self.pi_YT.setLimits(yMin=-100, yMax=100)
 
-        if len(self.CH_LIA_YT._x) == 0:
+        if self.hcc_LIA_YT.size[0] == 0:
             if self.qrbt_YT_Y.isChecked():
                 self.pi_YT.setYRange(-5, 5, padding=0.05)
             else:
@@ -1921,31 +1904,26 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def update_chart_refsig(self):
-        [CH.update_curve() for CH in self.CHs_refsig]
-        for i in range(3):
-            self.CHs_refsig[i].curve.setVisible(
-                self.legend_box_refsig.chkbs[i].isChecked()
-            )
+        for idx, hcc in enumerate(self.hccs__refsig):
+            hcc.update()
+            hcc.curve.setVisible(self.legend_box_refsig.chkbs[idx].isChecked())
 
     @QtCore.pyqtSlot()
     def update_chart_filt_1(self):
-        [CH.update_curve() for CH in self.CHs_filt_1]
-        for i in range(2):
-            self.CHs_filt_1[i].curve.setVisible(
-                self.legend_box_filt_1.chkbs[i].isChecked()
-            )
+        for idx, hcc in enumerate(self.hccs__filt_1):
+            hcc.update()
+            hcc.curve.setVisible(self.legend_box_filt_1.chkbs[idx].isChecked())
 
     @QtCore.pyqtSlot()
     def update_chart_mixer(self):
-        [CH.update_curve() for CH in self.CHs_mixer]
-        for i in range(2):
-            self.CHs_mixer[i].curve.setVisible(
-                self.legend_box_mixer.chkbs[i].isChecked()
-            )
+        for idx, hcc in enumerate(self.hccs__mixer):
+            hcc.update()
+            hcc.curve.setVisible(self.legend_box_mixer.chkbs[idx].isChecked())
 
     @QtCore.pyqtSlot()
     def update_chart_LIA_output(self):
-        [CH.update_curve() for CH in self.CHs_LIA_output]
+        for hcc in self.hccs__LIA_output:
+            hcc.update()
 
         if self.pi_XR.request_autorange_y == True:
             self.pi_XR.request_autorange_y = False
@@ -1957,11 +1935,9 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def update_plot_PS(self):
-        [BP.update_curve() for BP in self.BP_PSs]
-        for i in range(len(self.BP_PSs)):
-            self.BP_PSs[i].curve.setVisible(
-                self.legend_box_PS.chkbs[i].isChecked()
-            )
+        for idx, pc in enumerate(self.pc_PSs):
+            pc.update()
+            pc.curve.setVisible(self.legend_box_PS.chkbs[idx].isChecked())
 
     @QtCore.pyqtSlot()
     def update_plot_filt_1_resp(self):

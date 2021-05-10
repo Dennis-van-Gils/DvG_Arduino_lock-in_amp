@@ -2,3 +2,4 @@ dvg-debug-functions
 dvg-devices
 dvg-qdeviceio
 dvg-ringbuffer
+dvg-pyqtgraph-threadsafe
