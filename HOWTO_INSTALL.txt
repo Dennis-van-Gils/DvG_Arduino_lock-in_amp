@@ -5,8 +5,11 @@ conda install -c defaults --strict-channel-priority -y --file environment.yml
 conda install -c conda-forge --no-channel-priority -y fftw=3.3.9 pyfftw=0.12
 pip install -r requirements.txt --no-deps
 
-# Useful:
+# Useful commands:
 conda config --add channels defaults
 conda config --get channels
 conda list
 
+# More packages for development:
+conda install black pylint twine matplotlib
+pip install pytest-cov check-manifest sphinx_qt_documentation
