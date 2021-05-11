@@ -665,6 +665,8 @@ class MainWindow(QtWid.QWidget):
         grid.addItem(QtWid.QSpacerItem(0, 6)  , i, 0)      ; i+=1
         grid.addLayout(self.legend_refsig.grid, i, 0, 1, 3); i+=1
         grid.addItem(QtWid.QSpacerItem(0, 6)  , i, 0)      ; i+=1
+        grid.addWidget(QtWid.QLabel("sig_I:") , i, 0)      ; i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 4)  , i, 0)      ; i+=1
         grid.addWidget(QtWid.QLabel("max")    , i, 0)
         grid.addWidget(self.qlin_sig_I_max    , i, 1)
         grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
