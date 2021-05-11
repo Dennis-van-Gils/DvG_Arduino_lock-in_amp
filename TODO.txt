@@ -6,5 +6,3 @@ TODO:
   code will think there are dropped samples at timer roll-over. Happens every
   71.2 minutes.
   https://arduino.stackexchange.com/questions/12587/how-can-i-handle-the-millis-rollover
-
-* Incorporate dvg_pyqtgraph_threadsafe::LegendSelect()

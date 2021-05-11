@@ -5,8 +5,9 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "10-05-2021"
+__date__ = "11-05-2021"
 __version__ = "2.0.0"
+# pylint: disable=invalid-name
 
 import os
 import sys
@@ -124,8 +125,8 @@ def lockin_DAQ_update():
         # events when doing heavy calculations to unburden the CPU and prevent
         # dropped buffers. Dropped graphing frames are prefereable to dropped
         # data buffers.
-        for gw in window.all_charts:
-            gw.setUpdatesEnabled(False)
+        for graph in window.all_graphs:
+            graph.setUpdatesEnabled(False)
 
     # Listen for data buffers send by the lock-in
     (
@@ -145,8 +146,8 @@ def lockin_DAQ_update():
         # events when doing heavy calculations to unburden the CPU and prevent
         # dropped buffers. Dropped graphing frames are prefereable to dropped
         # data buffers.
-        for gw in window.all_charts:
-            gw.setUpdatesEnabled(False)
+        for graph in window.all_graphs:
+            graph.setUpdatesEnabled(False)
 
     # HACK: hard-coded calibration correction on the ADC
     # TODO: make a self-calibration procedure and store correction results
@@ -287,15 +288,12 @@ def lockin_DAQ_update():
     state.deque_R.extend(state.R)
     state.deque_T.extend(state.T)
 
-    if window.qrbt_XR_X.isChecked():
-        window.hcc_LIA_XR.extendData(state.time_2, state.X)
-    else:
-        window.hcc_LIA_XR.extendData(state.time_2, state.R)
-
-    if window.qrbt_YT_Y.isChecked():
-        window.hcc_LIA_YT.extendData(state.time_2, state.Y)
-    else:
-        window.hcc_LIA_YT.extendData(state.time_2, state.T)
+    window.hcc_LIA_XR.extendData(
+        state.time_2, state.X if window.qrbt_XR_X.isChecked() else state.R
+    )
+    window.hcc_LIA_YT.extendData(
+        state.time_2, state.Y if window.qrbt_YT_Y.isChecked() else state.T
+    )
 
     # Check if memory address of underlying buffer is still unchanged
     """
@@ -311,35 +309,11 @@ def lockin_DAQ_update():
     # Power spectra
     # -------------
 
-    if window.legend_box_PS.chkbs[0].isChecked() and state.deque_sig_I.is_full:
-        window.pc_PS_1.setData(
-            alia_qdev.fftw_PS_sig_I.freqs,
-            alia_qdev.fftw_PS_sig_I.process_dB(state.deque_sig_I),
-        )
-
-    if window.legend_box_PS.chkbs[1].isChecked() and state.deque_filt_I.is_full:
-        window.pc_PS_2.setData(
-            alia_qdev.fftw_PS_filt_I.freqs,
-            alia_qdev.fftw_PS_filt_I.process_dB(state.deque_filt_I),
-        )
-
-    if window.legend_box_PS.chkbs[2].isChecked() and state.deque_mix_X.is_full:
-        window.pc_PS_3.setData(
-            alia_qdev.fftw_PS_mix_X.freqs,
-            alia_qdev.fftw_PS_mix_X.process_dB(state.deque_mix_X),
-        )
-
-    if window.legend_box_PS.chkbs[3].isChecked() and state.deque_mix_Y.is_full:
-        window.pc_PS_4.setData(
-            alia_qdev.fftw_PS_mix_Y.freqs,
-            alia_qdev.fftw_PS_mix_Y.process_dB(state.deque_mix_Y),
-        )
-
-    if window.legend_box_PS.chkbs[4].isChecked() and state.deque_R.is_full:
-        window.pc_PS_5.setData(
-            alia_qdev.fftw_PS_R.freqs,
-            alia_qdev.fftw_PS_R.process_dB(state.deque_R),
-        )
+    calculate_PS_sig_I()
+    calculate_PS_filt_I()
+    calculate_PS_mix_X()
+    calculate_PS_mix_Y()
+    calculate_PS_R()
 
     # Logging to file
     # ----------------
@@ -398,8 +372,8 @@ def lockin_DAQ_update():
             #                  (time[i], ref_X[i], ref_Y[i], sig_I[i]))
 
     # Re-enable pyqtgraph.PlotWidget() redraws and GUI events
-    for gw in window.all_charts:
-        gw.setUpdatesEnabled(True)
+    for graph in window.all_graphs:
+        graph.setUpdatesEnabled(True)
 
     return True
 
@@ -417,7 +391,7 @@ if __name__ == "__main__":
             proc.nice(psutil.HIGH_PRIORITY_CLASS)  # Windows
         else:
             proc.nice(-20)  # Other
-    except:
+    except:  # pylint: disable=bare-except
         print("Warning: Could not set process to high priority.\n")
 
     # --------------------------------------------------------------------------
@@ -469,7 +443,7 @@ if __name__ == "__main__":
     )
 
     # --------------------------------------------------------------------------
-    #   Create power spectrum FFTW objects as members of alia_qdev
+    #   Create power spectrum FFTW objects
     # --------------------------------------------------------------------------
 
     p = {
@@ -484,6 +458,96 @@ if __name__ == "__main__":
     alia_qdev.fftw_PS_mix_Y  = FFTW_WelchPowerSpectrum(**p)
     alia_qdev.fftw_PS_R      = FFTW_WelchPowerSpectrum(**p)
     # fmt: on
+
+    # Only calculate the power spectrum when the curve is visible. Calculating
+    # spectra is CPU intensive and might impact the responsiveness of the GUI
+    # or, in the extreme case, cause dropped buffers.
+
+    def calculate_PS_sig_I():
+        state = alia_qdev.state
+        if window.pc_PS_sig_I.isVisible() and state.deque_sig_I.is_full:
+            window.pc_PS_sig_I.setData(
+                alia_qdev.fftw_PS_sig_I.freqs,
+                alia_qdev.fftw_PS_sig_I.process_dB(state.deque_sig_I),
+            )
+
+    def calculate_PS_filt_I():
+        state = alia_qdev.state
+        if window.pc_PS_filt_I.isVisible() and state.deque_filt_I.is_full:
+            window.pc_PS_filt_I.setData(
+                alia_qdev.fftw_PS_filt_I.freqs,
+                alia_qdev.fftw_PS_filt_I.process_dB(state.deque_filt_I),
+            )
+
+    def calculate_PS_mix_X():
+        state = alia_qdev.state
+        if window.pc_PS_mix_X.isVisible() and state.deque_mix_X.is_full:
+            window.pc_PS_mix_X.setData(
+                alia_qdev.fftw_PS_mix_X.freqs,
+                alia_qdev.fftw_PS_mix_X.process_dB(state.deque_mix_X),
+            )
+
+    def calculate_PS_mix_Y():
+        state = alia_qdev.state
+        if window.pc_PS_mix_Y.isVisible() and state.deque_mix_Y.is_full:
+            window.pc_PS_mix_Y.setData(
+                alia_qdev.fftw_PS_mix_Y.freqs,
+                alia_qdev.fftw_PS_mix_Y.process_dB(state.deque_mix_Y),
+            )
+
+    def calculate_PS_R():
+        state = alia_qdev.state
+        if window.pc_PS_R.isVisible() and state.deque_R.is_full:
+            window.pc_PS_R.setData(
+                alia_qdev.fftw_PS_R.freqs,
+                alia_qdev.fftw_PS_R.process_dB(state.deque_R),
+            )
+
+    # Special case where the lock-in is paused: Clicking the legend checkboxes
+    # to unhide the PS curves should recalculate the PS based on the last known
+    # data. We must check if the lock-in is paused before calculating, because
+    # we might otherwise interfere with the other possible PS calculation
+    # already happening in the worker_DAQ thread if the lock-in is actually
+    # running at the moment of toggling the checkboxes.
+    #
+    # Ugly workaround, I know. All because we want the PS to be calculated only
+    # when the curve will be shown.
+
+    @QtCore.pyqtSlot()
+    def update_paused_PS_sig_I():
+        if alia.lockin_paused:
+            calculate_PS_sig_I()
+            window.pc_PS_sig_I.update()
+
+    @QtCore.pyqtSlot()
+    def update_paused_PS_filt_I():
+        if alia.lockin_paused:
+            calculate_PS_filt_I()
+            window.pc_PS_filt_I.update()
+
+    @QtCore.pyqtSlot()
+    def update_paused_PS_mix_X():
+        if alia.lockin_paused:
+            calculate_PS_mix_X()
+            window.pc_PS_mix_X.update()
+
+    @QtCore.pyqtSlot()
+    def update_paused_PS_mix_Y():
+        if alia.lockin_paused:
+            calculate_PS_mix_Y()
+            window.pc_PS_mix_Y.update()
+
+    @QtCore.pyqtSlot()
+    def update_paused_PS_R():
+        if alia.lockin_paused:
+            calculate_PS_R()
+            window.pc_PS_R.update()
+
+    window.legend_PS.chkbs[0].clicked.connect(update_paused_PS_sig_I)
+    window.legend_PS.chkbs[1].clicked.connect(update_paused_PS_filt_I)
+    window.legend_PS.chkbs[2].clicked.connect(update_paused_PS_mix_X)
+    window.legend_PS.chkbs[3].clicked.connect(update_paused_PS_mix_Y)
+    window.legend_PS.chkbs[4].clicked.connect(update_paused_PS_R)
 
     # --------------------------------------------------------------------------
     #   Start threads

@@ -6,7 +6,7 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "10-05-2021"
+__date__ = "11-05-2021"
 __version__ = "2.0.0"
 
 import sys
@@ -18,8 +18,6 @@ import pyqtgraph as pg
 import numpy as np
 
 import time as Time
-
-from DvG_pyqt_controls import create_Toggle_button
 
 from Alia_protocol_serial import Alia
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
@@ -106,7 +104,9 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_exit = QtWid.QPushButton("Exit")
         self.qpbt_exit.clicked.connect(self.close)
         self.qpbt_exit.setMinimumHeight(30)
-        self.qpbt_ENA_lockin = create_Toggle_button("lock-in OFF")
+        self.qpbt_ENA_lockin = QtWid.QPushButton(
+            "lock-in OFF", checkable=True, minimumHeight=40
+        )
         self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
 
         vbox_right = QtWid.QVBoxLayout()
@@ -177,7 +177,7 @@ class MainWindow(QtWid.QWidget):
         self.timer_wall_clock.start(50)
 
     @QtCore.pyqtSlot()
-    def update_chart_refsig(self):
+    def update_graph_refsig(self):
         for hcc in self.hccs__refsig:
             hcc.update()
 
@@ -323,7 +323,7 @@ def update_GUI():
         window.qlbl_DAQ_rate.setText(
             "Buffers/s: %.1f" % alia_qdev.obtained_DAQ_rate_Hz
         )
-        window.update_chart_refsig()
+        window.update_graph_refsig()
 
     # Re-enable screen repaints and GUI events
     window.setUpdatesEnabled(True)
