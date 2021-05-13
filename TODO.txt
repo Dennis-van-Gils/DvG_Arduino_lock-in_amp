@@ -11,3 +11,6 @@ TODO:
 
 * Rethink `write_data_to_log()` because writing data line for line is slow.
 Try writing a complete block of lines instead.
+
+* Requesting and retrieving Arduino settings should print to the console as one
+block instead of two

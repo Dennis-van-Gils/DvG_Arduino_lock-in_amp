@@ -12,8 +12,7 @@ __version__ = "2.0.0"
 import os
 import sys
 
-# import time as Time
-
+import time as Time
 import psutil
 
 from PyQt5 import QtCore
@@ -353,8 +352,11 @@ def write_data_to_log():
         idx_offset = alia_qdev.firf_1_sig_I.win_idx_valid_start
         state = alia_qdev.state
 
+        tick = Time.perf_counter()
+
+        lines = list()
         for i in range(alia.config.BLOCK_SIZE):
-            data = ("%i\t" + "%.5f\t" * 9 + "%.4f\n") % (
+            line = ("%i\t" + "%.5f\t" * 9 + "%.4f\n") % (
                 # "%.4f\t%i\t%i\n") % (
                 state.deque_time[i],
                 state.deque_ref_X[i],
@@ -370,7 +372,13 @@ def write_data_to_log():
                 # state.deque_time_1[i + idx_offset],
                 # state.time_2[i]
             )
-            logger.write(data)
+            lines.append(line)
+            # logger.write(line)
+
+        tock = Time.perf_counter()
+        print("%.4f" % (tock - tick), end=", ")
+        logger.writelines(lines)
+        print("%.4f" % (Time.perf_counter() - tock))
 
 
 # ------------------------------------------------------------------------------
