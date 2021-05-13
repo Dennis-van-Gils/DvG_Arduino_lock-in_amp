@@ -2,14 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 Dennis van Gils
-19-08-2019
+13-05-2021
 """
 
 import numpy as np
 import matplotlib.pyplot as plt
-import msvcrt
 
-plt.ion()
 fig = plt.figure()
 ax = fig.add_subplot(111)
 ax.plot(0, 0)
@@ -56,8 +54,5 @@ plt.xlabel("time (ms)")
 plt.ylabel("voltage (V)")
 plt.title(fn)
 
-while (1):
-    plt.pause(0.5)
-            
-    if msvcrt.kbhit(): # and msvcrt.getch().decode() == chr(27):
-        break
+fig.canvas.draw()
+plt.show(block=True)

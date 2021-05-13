@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Dennis van Gils
-25-04-2019
+13-05-2021
 """
 
 import os
@@ -14,7 +14,6 @@ import matplotlib.pyplot as plt
 plt.style.use('dark_background')
 marker = '.-'
 
-plt.ion()
 fig = plt.figure()
 ax = fig.add_subplot(111)
 ax.plot(0, 0)
@@ -87,5 +86,5 @@ ax2.legend(bbox_to_anchor=(1.02,1), loc="upper left")
 ax3.legend(bbox_to_anchor=(1.02,1), loc="upper left")
 #fig.legend(loc=7) 
 
-while (1):
-    plt.pause(0.5)
+fig.canvas.draw()
+plt.show(block=True)
