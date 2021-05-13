@@ -9,8 +9,13 @@ TODO:
 
 * Add min, max, avg, std textfields to tab `Mixer` for signal `filt_I`
 
-* Rethink `write_data_to_log()` because writing data line for line is slow.
-Try writing a complete block of lines instead.
-
 * Requesting and retrieving Arduino settings should print to the console as one
 block instead of two
+
+* Incorporate `np.savetxt()` into `dvg_pyqt_filelogger`
+
+* Make t_0 start at 0 seconds in the log.
+The best solution might be to change the firmware on the Arduino to start the
+time at t = 0 when having received 'lock_in.start()'. We subtract the internal
+Arduino time with a newly set `t_start`, which might also fix the timer
+roll-over problem.

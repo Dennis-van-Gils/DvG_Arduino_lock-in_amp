@@ -43,7 +43,7 @@ Y      = np.array(a[:, 8])
 R      = np.array(a[:, 9])
 T      = np.array(a[:, 10])
 
-time = time - time[0]
+time = (time - time[0]) * 1e6
 
 time_diff = np.diff(time)
 print("time_diff:")

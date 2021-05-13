@@ -332,7 +332,7 @@ def lockin_DAQ_update():
 
 def write_header_to_log():
     header = (
-        "time[us]\t"
+        "time[s]\t"
         "ref_X*[V]\t"
         "ref_Y*[V]\t"
         "sig_I[V]\t"
@@ -348,37 +348,43 @@ def write_header_to_log():
 
 
 def write_data_to_log():
+    # Try: https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_csv.html
+
     if alia_qdev.firf_2_mix_X.has_deque_settled:  # All lights green!
         idx_offset = alia_qdev.firf_1_sig_I.win_idx_valid_start
+        N = alia.config.BLOCK_SIZE
         state = alia_qdev.state
 
         tick = Time.perf_counter()
-
-        lines = list()
-        for i in range(alia.config.BLOCK_SIZE):
-            line = ("%i\t" + "%.5f\t" * 9 + "%.4f\n") % (
-                # "%.4f\t%i\t%i\n") % (
-                state.deque_time[i],
-                state.deque_ref_X[i],
-                state.deque_ref_Y[i],
-                state.deque_sig_I[i],
-                state.deque_filt_I[i + idx_offset],
-                state.deque_mix_X[i + idx_offset],
-                state.deque_mix_Y[i + idx_offset],
-                state.X[i],
-                state.Y[i],
-                state.R[i],
-                state.T[i]  # ,
-                # state.deque_time_1[i + idx_offset],
-                # state.time_2[i]
-            )
-            lines.append(line)
-            # logger.write(line)
+        data = np.asmatrix(
+            [
+                state.deque_time[:N] / 1e6,
+                state.deque_ref_X[:N],
+                state.deque_ref_Y[:N],
+                state.deque_sig_I[:N],
+                state.deque_filt_I[idx_offset : idx_offset + N],
+                state.deque_mix_X[idx_offset : idx_offset + N],
+                state.deque_mix_Y[idx_offset : idx_offset + N],
+                state.X[:N],
+                state.Y[:N],
+                state.R[:N],
+                state.T[:N],
+                # state.deque_time_1[idx_offset : idx_offset + N] / 1e6,
+                # state.time_2[:N] / 1e6,
+            ]
+        )
+        data = np.ma.transpose(data)
 
         tock = Time.perf_counter()
-        print("%.4f" % (tock - tick), end=", ")
-        logger.writelines(lines)
-        print("%.4f" % (Time.perf_counter() - tock))
+        # print("%.4f" % (tock - tick), end=", ")
+
+        # TODO: incorporate `np.savetxt()` into `dvg_pyqt_filelogger`
+        for row in data:
+            np.savetxt(
+                logger._filehandle, row, fmt="%.5f", delimiter="\t",
+            )
+
+        # print("%.4f" % (Time.perf_counter() - tock))
 
 
 # ------------------------------------------------------------------------------
