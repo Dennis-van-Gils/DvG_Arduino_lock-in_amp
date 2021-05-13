@@ -336,15 +336,15 @@ def write_header_to_log():
             (
                 "time[s]",
                 "ref_X*[V]",
-                # "ref_Y*[V]",
+                "ref_Y*[V]",
                 "sig_I[V]",
-                # "filt_I[V]",
-                # "mix_X[V]",
-                # "mix_Y[V]",
+                "filt_I[V]",
+                "mix_X[V]",
+                "mix_Y[V]",
                 "X[V]",
                 "Y[V]",
-                # "R[V]",
-                # "T[deg]",
+                "R[V]",
+                "T[deg]",
             )
         )
         + "\n"
@@ -357,22 +357,22 @@ def write_data_to_log():
         # All filters have settled --> green light
         N = alia.config.BLOCK_SIZE
         state = alia_qdev.state
-        # idx_offset = alia_qdev.firf_1_sig_I.win_idx_valid_start
+        idx_offset = alia_qdev.firf_1_sig_I.win_idx_valid_start
 
         # tick = Time.perf_counter()
         data = np.asmatrix(
             [
                 state.deque_time[:N] / 1e6,
                 state.deque_ref_X[:N],
-                # state.deque_ref_Y[:N],
+                state.deque_ref_Y[:N],
                 state.deque_sig_I[:N],
-                # state.deque_filt_I[idx_offset : idx_offset + N],
-                # state.deque_mix_X[idx_offset : idx_offset + N],
-                # state.deque_mix_Y[idx_offset : idx_offset + N],
+                state.deque_filt_I[idx_offset : idx_offset + N],
+                state.deque_mix_X[idx_offset : idx_offset + N],
+                state.deque_mix_Y[idx_offset : idx_offset + N],
                 state.X[:N],
                 state.Y[:N],
-                # state.R[:N],
-                # state.T[:N],
+                state.R[:N],
+                state.T[:N],
                 # For debugging:
                 # state.deque_time_1[idx_offset : idx_offset + N] / 1e6,
                 # state.time_2[:N] / 1e6,
