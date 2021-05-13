@@ -1,21 +1,21 @@
-TODO:
-
 * Timer roll-over
 
   Handle Arduino timer roll-over at t = 4294967295 us correctly. Current Python
   code will think there are dropped samples at timer roll-over. Happens every
   71.2 minutes.
   https://arduino.stackexchange.com/questions/12587/how-can-i-handle-the-millis-rollover
+  
+  The SAMD51 M4 board reports time in microseconds, based on SYSTICK, as 32
+  bits, hence the rollover is 2^32 = 4294967295 us = 71.2 minutes. This can't be
+  improved easily on the microcontroller.
+  
+  We should work around this on the Python side, which can handle 64 bits. 
+  
+  In addition: make t_0 start at 0 seconds in the log.
 
 * Add min, max, avg, std textfields to tab `Mixer` for signal `filt_I`
 
 * Requesting and retrieving Arduino settings should print to the console as one
-block instead of two
+  block instead of two
 
 * Add support for HDF5 to allow writing log as binary file
-
-* Make t_0 start at 0 seconds in the log.
-The best solution might be to change the firmware on the Arduino to start the
-time at t = 0 when having received 'lock_in.start()'. We subtract the internal
-Arduino time with a newly set `t_start`, which might also fix the timer
-roll-over problem.
