@@ -12,7 +12,7 @@ TODO:
 * Requesting and retrieving Arduino settings should print to the console as one
 block instead of two
 
-* Incorporate `np.savetxt()` into `dvg_pyqt_filelogger`
+* Add support for HDF5 to allow writing log as binary file
 
 * Make t_0 start at 0 seconds in the log.
 The best solution might be to change the firmware on the Arduino to start the
