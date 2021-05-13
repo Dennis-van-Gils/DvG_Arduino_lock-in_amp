@@ -8,3 +8,6 @@ TODO:
   https://arduino.stackexchange.com/questions/12587/how-can-i-handle-the-millis-rollover
 
 * Add min, max, avg, std textfields to tab `Mixer` for signal `filt_I`
+
+* Rethink `write_data_to_log()` because writing data line for line is slow.
+Try writing a complete block of lines instead.

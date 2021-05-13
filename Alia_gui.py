@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "11-05-2021"
+__date__ = "13-05-2021"
 __version__ = "2.0.0"
 
 from PyQt5 import QtCore, QtGui
@@ -16,7 +16,6 @@ import numpy as np
 import psutil
 import os
 
-from DvG_pyqt_FileLogger import FileLogger
 from dvg_pyqtgraph_threadsafe import HistoryChartCurve, PlotCurve, LegendSelect
 from dvg_debug_functions import dprint
 
@@ -302,7 +301,6 @@ class MainWindow(QtWid.QWidget):
         self,
         alia: Alia,
         alia_qdev: Alia_qdev,
-        file_logger: FileLogger,
         parent=None,
         **kwargs
     ):
@@ -310,7 +308,6 @@ class MainWindow(QtWid.QWidget):
 
         self.alia = alia
         self.alia_qdev = alia_qdev
-        self.file_logger = file_logger
 
         self.proc = psutil.Process(os.getpid())
         self.cpu_count = psutil.cpu_count()
@@ -381,7 +378,6 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_record = create_Toggle_button(
             "Click to start recording to file", minimumHeight=40
         )
-        self.qpbt_record.clicked.connect(self.process_qpbt_record)
 
         vbox_middle = QtWid.QVBoxLayout()
         vbox_middle.addWidget(self.qlbl_title)
@@ -1501,9 +1497,6 @@ class MainWindow(QtWid.QWidget):
         self.alia_qdev.signal_ref_V_ampl_is_set.connect(
             self.update_newly_set_ref_V_ampl
         )
-        self.file_logger.signal_set_recording_text.connect(
-            self.set_text_qpbt_record
-        )
 
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------
@@ -1598,17 +1591,6 @@ class MainWindow(QtWid.QWidget):
         else:
             self.alia_qdev.turn_off()
             self.qpbt_ENA_lockin.setText("Lock-in OFF")
-
-    @QtCore.pyqtSlot()
-    def process_qpbt_record(self):
-        if self.qpbt_record.isChecked():
-            self.file_logger.start_recording()
-        else:
-            self.file_logger.stop_recording()
-
-    @QtCore.pyqtSlot(str)
-    def set_text_qpbt_record(self, text_str):
-        self.qpbt_record.setText(text_str)
 
     @QtCore.pyqtSlot()
     def process_qlin_ref_freq(self):

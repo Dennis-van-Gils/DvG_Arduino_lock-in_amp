@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "11-05-2021"
+__date__ = "13-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -21,7 +21,7 @@ from PyQt5 import QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import numpy as np
 
-from DvG_pyqt_FileLogger import FileLogger
+from dvg_pyqt_filelogger import FileLogger
 from dvg_debug_functions import dprint  # , print_fancy_traceback as pft
 from DvG_FFTW_WelchPowerSpectrum import FFTW_WelchPowerSpectrum
 
@@ -46,7 +46,7 @@ pyfftw.interfaces.cache.enable()      # Turn on cache for optimum performance
 
 
 # ------------------------------------------------------------------------------
-#   Update GUI routines
+#   current_date_time_strings
 # ------------------------------------------------------------------------------
 
 
@@ -67,7 +67,7 @@ def stop_running():
     app.processEvents()
     alia_qdev.turn_off()
     alia_qdev.quit()
-    file_logger.close_log()
+    logger.close()
 
 
 @QtCore.pyqtSlot()
@@ -316,66 +316,61 @@ def lockin_DAQ_update():
     calculate_PS_R()
 
     # Logging to file
-    # ----------------
-
-    if file_logger.starting:
-        fn_log = QDateTime.currentDateTime().toString("yyMMdd_HHmmss") + ".txt"
-        if file_logger.create_log(state.time, fn_log, mode="w"):
-            file_logger.signal_set_recording_text.emit(
-                "Recording to file: " + fn_log
-            )
-            header = (
-                "time[us]\t"
-                "ref_X*[V]\t"
-                "ref_Y*[V]\t"
-                "sig_I[V]\t"
-                "filt_I[V]\t"
-                "mix_X[V]\t"
-                "mix_Y[V]\t"
-                "X[V]\t"
-                "Y[V]\t"
-                "R[V]\t"
-                "T[deg]\n"
-            )
-            file_logger.write(header)
-            # file_logger.write("time[us]\tref_X[V]\tref_Y[V]\tsig_I[V]\n")
-
-    if file_logger.stopping:
-        file_logger.signal_set_recording_text.emit(
-            "Click to start recording to file"
-        )
-        file_logger.close_log()
-
-    if file_logger.is_recording:
-        if alia_qdev.firf_2_mix_X.has_deque_settled:  # All lights green!
-            idx_offset = alia_qdev.firf_1_sig_I.win_idx_valid_start
-
-            for i in range(c.BLOCK_SIZE):
-                data = ("%i\t" + "%.5f\t" * 9 + "%.4f\n") % (
-                    # "%.4f\t%i\t%i\n") % (
-                    state.deque_time[i],
-                    state.deque_ref_X[i],
-                    state.deque_ref_Y[i],
-                    state.deque_sig_I[i],
-                    state.deque_filt_I[i + idx_offset],
-                    state.deque_mix_X[i + idx_offset],
-                    state.deque_mix_Y[i + idx_offset],
-                    state.X[i],
-                    state.Y[i],
-                    state.R[i],
-                    state.T[i]  # ,
-                    # state.deque_time_1[i + idx_offset],
-                    # state.time_2[i]
-                )
-                file_logger.write(data)
-            # file_logger.write("%i\t%.4f\t%.4f\t%.4f\n" %
-            #                  (time[i], ref_X[i], ref_Y[i], sig_I[i]))
+    logger.update(mode="w")
 
     # Re-enable pyqtgraph.PlotWidget() redraws and GUI events
     for graph in window.all_graphs:
         graph.setUpdatesEnabled(True)
 
+    # Return success
     return True
+
+
+# ------------------------------------------------------------------------------
+#   Log functions
+# ------------------------------------------------------------------------------
+
+
+def write_header_to_log():
+    header = (
+        "time[us]\t"
+        "ref_X*[V]\t"
+        "ref_Y*[V]\t"
+        "sig_I[V]\t"
+        "filt_I[V]\t"
+        "mix_X[V]\t"
+        "mix_Y[V]\t"
+        "X[V]\t"
+        "Y[V]\t"
+        "R[V]\t"
+        "T[deg]\n"
+    )
+    logger.write(header)
+
+
+def write_data_to_log():
+    if alia_qdev.firf_2_mix_X.has_deque_settled:  # All lights green!
+        idx_offset = alia_qdev.firf_1_sig_I.win_idx_valid_start
+        state = alia_qdev.state
+
+        for i in range(alia.config.BLOCK_SIZE):
+            data = ("%i\t" + "%.5f\t" * 9 + "%.4f\n") % (
+                # "%.4f\t%i\t%i\n") % (
+                state.deque_time[i],
+                state.deque_ref_X[i],
+                state.deque_ref_Y[i],
+                state.deque_sig_I[i],
+                state.deque_filt_I[i + idx_offset],
+                state.deque_mix_X[i + idx_offset],
+                state.deque_mix_Y[i + idx_offset],
+                state.X[i],
+                state.Y[i],
+                state.R[i],
+                state.T[i]  # ,
+                # state.deque_time_1[i + idx_offset],
+                # state.time_2[i]
+            )
+            logger.write(data)
 
 
 # ------------------------------------------------------------------------------
@@ -426,9 +421,6 @@ if __name__ == "__main__":
     )
     alia_qdev.signal_connection_lost.connect(notify_connection_lost)
 
-    # Manage logging to disk
-    file_logger = FileLogger()
-
     # --------------------------------------------------------------------------
     #   Create application and main window
     # --------------------------------------------------------------------------
@@ -438,8 +430,27 @@ if __name__ == "__main__":
     app = QtWid.QApplication(sys.argv)
     app.aboutToQuit.connect(about_to_quit)
 
-    window = MainWindow(
-        alia=alia, alia_qdev=alia_qdev, file_logger=file_logger,
+    window = MainWindow(alia, alia_qdev)
+
+    # --------------------------------------------------------------------------
+    #   File logger
+    # --------------------------------------------------------------------------
+
+    logger = FileLogger(
+        write_header_function=write_header_to_log,
+        write_data_function=write_data_to_log,
+    )
+    logger.signal_recording_started.connect(
+        lambda filepath: window.qpbt_record.setText(
+            "Recording to file: %s" % filepath
+        )
+    )
+    logger.signal_recording_stopped.connect(
+        lambda: window.qpbt_record.setText("Click to start recording to file")
+    )
+
+    window.qpbt_record.clicked.connect(
+        lambda state: logger.record(state)  # pylint: disable=unnecessary-lambda
     )
 
     # --------------------------------------------------------------------------
@@ -511,7 +522,7 @@ if __name__ == "__main__":
     # running at the moment of toggling the checkboxes.
     #
     # Ugly workaround, I know. All because we want the PS to be calculated only
-    # when the curve will be shown.
+    # when the curve will be shown in order to reduce the cpu load.
 
     @QtCore.pyqtSlot()
     def update_paused_PS_sig_I():
