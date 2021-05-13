@@ -1,0 +1,23 @@
+command             compute LUT     reply                               Remark
+--------------------------------------------------------------------------------
+
+_freq #.###         no              none
+_offs #.###         no              none
+_ampl #.###         no              none
+_wave #             no              none
+                                                         
+compute_lut / c     yes             ASCII ['Computing LUT... done.']    Convenience function for use in a serial terminal.
+freq #.###          yes             ASCII [freq]                        Convenience function for use in a serial terminal.
+offs #.###          yes             ASCII [offs]                        Convenience function for use in a serial terminal.
+ampl #.###          yes             ASCII [ampl]                        Convenience function for use in a serial terminal.
+
+cos/ sqr / saw /    yes             ASCII ['Computing LUT... done.']    Convenience functions for use in a serial terminal.
+tri / ecg                           ASCII [waveform]
+                                                            
+ref? / ?            no              ASCII [freq, offs, ampl, waveform, N_LUT]
+
+lut?                no              ASCII [N_LUT, is_LUT_dirty]
+                                    BINARY [LUT[]]
+                                       
+lut_ascii?          no              ASCII [N_LUT, is_LUT_dirty]
+                                    ASCII [LUT[]]

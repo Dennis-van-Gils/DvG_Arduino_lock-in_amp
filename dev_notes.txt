@@ -1,0 +1,6 @@
+# To enable Visual Studio Code debugger to have debug access to another thread
+# add this to the start of `worker_DAQ._do_work()` and `worker_jobs._do_work()`
+
+if self.debug:
+    import pydevd
+    pydevd.settrace(suspend=False)
