@@ -26,7 +26,7 @@ from DvG_Buffered_FIR_Filter__GUI import Filter_design_GUI
 
 # Monkey-patch errors in pyqtgraph v0.10 and v0.11
 import pyqtgraph.exporters
-import DvG_monkeypatch_pyqtgraph as pgmp
+import dvg_monkeypatch_pyqtgraph as pgmp
 
 pg.PlotCurveItem.paintGL = pgmp.PlotCurveItem_paintGL
 pg.exporters.ImageExporter.export = pgmp.ImageExporter_export

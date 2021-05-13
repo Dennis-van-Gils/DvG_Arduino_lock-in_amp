@@ -25,7 +25,7 @@ from dvg_pyqtgraph_threadsafe import HistoryChartCurve
 from dvg_debug_functions import dprint
 
 # Monkey-patch errors in pyqtgraph v0.10
-import DvG_monkeypatch_pyqtgraph as pgmp
+import dvg_monkeypatch_pyqtgraph as pgmp
 
 pg.PlotCurveItem.paintGL = pgmp.PlotCurveItem_paintGL
 
