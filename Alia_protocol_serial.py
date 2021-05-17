@@ -6,33 +6,33 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "07-05-2019"
+__date__ = "17-05-2021"
 __version__ = "2.0.0"
+# pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
 import sys
 import struct
+from enum import Enum
+from typing import AnyStr, Optional, Tuple
 
 import serial
 import numpy as np
-from enum import Enum
 
 from dvg_devices import Arduino_protocol_serial
 from dvg_debug_functions import dprint, print_fancy_traceback as pft
 
 
-def round_C_style(values: np.ndarray):
-    sign_backup = np.sign(values)
-    values = np.abs(values)
+def round_C_style(array_in: np.ndarray) -> np.ndarray:
+    """
+    round_C_style([0.1 , 1.45, 1.55, -0.1 , -1.45, -1.55])
+    Out[]:  array([0.  , 1.  , 2.  , -0.  , -1.  , -2.  ])
+    """
+    _abs = np.abs(array_in)
+    _trunc = np.trunc(_abs)
+    _frac_rounded = np.zeros_like(_abs)
+    _frac_rounded[(_abs % 1) >= 0.5] = 1
 
-    values_trunc = np.trunc(values)
-    values_frac = values % 1
-
-    frac_rounded = np.zeros_like(values)
-    frac_rounded[values_frac >= 0.5] = 1
-
-    values_rounded = sign_backup * (values_trunc + frac_rounded)
-
-    return values_rounded
+    return np.sign(array_in) * (_trunc + _frac_rounded)
 
 
 class Waveform(Enum):
@@ -50,6 +50,7 @@ class Alia(Arduino_protocol_serial.Arduino):
     """
 
     class Config:
+        # fmt: off
         # Serial communication sentinels: start and end of message
         SOM = b"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80"
         EOM = b"\xff\x7f\x00\x00\xff\x7f\x00\x00\xff\x7f"
@@ -57,56 +58,56 @@ class Alia(Arduino_protocol_serial.Arduino):
         N_BYTES_EOM = len(EOM)
 
         # Data types to decode from binary streams
-        # fmt: off
-        binary_type_counter   = "I"   # [uint32_t] TX_buffer header
-        binary_type_millis    = "I"   # [uint32_t] TX_buffer header
-        binary_type_micros    = "H"   # [uint16_t] TX_buffer header
-        binary_type_idx_phase = "H"   # [uint16_t] TX_buffer header
-        binary_type_sig_I     = "H"   # [uint16_t] TX_buffer body
+        binary_type_counter   = "I"  # [uint32_t] TX_buffer header
+        binary_type_millis    = "I"  # [uint32_t] TX_buffer header
+        binary_type_micros    = "H"  # [uint16_t] TX_buffer header
+        binary_type_idx_phase = "H"  # [uint16_t] TX_buffer header
+        binary_type_sig_I     = "H"  # [uint16_t] TX_buffer body
 
         # Return types
-        return_type_time   = np.float64   # Ensure signed to allow for flexible arithmetic
+        return_type_time   = np.float64  # Ensure signed to allow for flexible arithmetic
         return_type_ref_XY = np.float64
         return_type_sig_I  = np.float64
 
         # Microcontroller unit (mcu) info
-        mcu_firmware = ""   # Firmware version
-        mcu_model    = ""   # Chipset model
-        mcu_uid      = ""   # Unique identifier of the chip (serial number)
+        mcu_firmware = ""      # Firmware version
+        mcu_model    = ""      # Chipset model
+        mcu_uid      = ""      # Unique identifier of the chip (serial number)
 
         # Lock-in amplifier CONSTANTS
-        SAMPLING_PERIOD   = 0   # [s]
-        BLOCK_SIZE        = 0   # Number of samples send per TX_buffer
-        N_BYTES_TX_BUFFER = 0   # [data bytes] Expected number of bytes for each
-                                # correctly received TX_buffer from the Arduino
-        DAC_OUTPUT_BITS   = 0   # [bits]
-        ADC_INPUT_BITS    = 0   # [bits]
-        A_REF             = 0   # [V] Analog voltage reference of the Arduino
-        MIN_N_LUT         = 0   # Minimum allowed number of LUT samples
-        MAX_N_LUT         = 0   # Maximum allowed number of LUT samples
+        SAMPLING_PERIOD   = 0  # [s]
+        BLOCK_SIZE        = 0  # Number of samples send per TX_buffer
+        N_BYTES_TX_BUFFER = 0  # [data bytes] Expected number of bytes for each
+                               # correctly received TX_buffer from the Arduino
+        DAC_OUTPUT_BITS   = 0  # [bits]
+        ADC_INPUT_BITS    = 0  # [bits]
+        A_REF             = 0  # [V] Analog voltage reference of the Arduino
+        MIN_N_LUT         = 0  # Minimum allowed number of LUT samples
+        MAX_N_LUT         = 0  # Maximum allowed number of LUT samples
 
         # Derived settings
-        Fs        = 0         # [Hz] Sampling rate
-        F_Nyquist = 0         # [Hz] Nyquist frequency
-        T_SPAN_TX_BUFFER = 0  # [s]  Time interval spanned by a single TX_buffer
+        Fs        = 0          # [Hz] Sampling rate
+        F_Nyquist = 0          # [Hz] Nyquist frequency
+        T_SPAN_TX_BUFFER = 0   # [s]  Time interval spanned by a single TX_buffer
 
         # Waveform look-up table (LUT) settings
-        N_LUT = 0             # Number of samples covering a full period
-        is_LUT_dirty = False  # Is there a pending change on the LUT?
+        N_LUT = 0              # Number of samples covering a full period
+        is_LUT_dirty = False   # Is there a pending change on the LUT?
         LUT_wave = np.array([], dtype=np.uint16)
-        # LUT_wave will contain a copy of the LUT array of the current reference
-        # signal waveform as used on the Arduino side. This array will be used
-        # to reconstruct the ref_X and ref_Y signals, based on the phase index
-        # that is sent in the header of each TX_buffer. The unit of each element
-        # in the array is the bit-value that is sent out over the DAC of the
-        # Arduino. Hence, multiply by A_REF/(2**ADC_INPUT_BITS - 1) to get
-        # units of [V].
+        """LUT_wave will contain a copy of the LUT array of the current
+        reference signal waveform as used on the Arduino side. This array will
+        be used to reconstruct the ref_X and ref_Y signals, based on the phase
+        index that is sent in the header of each TX_buffer. The unit of each
+        element in the array is the bit-value that is sent out over the DAC of
+        the Arduino. Hence, multiply by A_REF/(2**ADC_INPUT_BITS - 1) to get
+        units of [V].
+        """
 
         # Reference signal settings
-        ref_freq     = 0      # [Hz] Frequency
-        ref_V_offset = 0      # [V]  Voltage offset
-        ref_V_ampl   = 0      # [V]  Voltage amplitude
-        ref_waveform = Waveform.Unknown # Waveform enum
+        ref_freq     = 0                 # [Hz] Frequency
+        ref_V_offset = 0                 # [V]  Voltage offset
+        ref_V_ampl   = 0                 # [V]  Voltage amplitude
+        ref_waveform = Waveform.Unknown  # Waveform enum
         # fmt: on
 
     def __init__(
@@ -134,44 +135,48 @@ class Alia(Arduino_protocol_serial.Arduino):
         self.config = self.Config()
         self.lockin_paused = True
 
+    # --------------------------------------------------------------------------
+    #  begin
+    # --------------------------------------------------------------------------
+
     def begin(
         self,
-        ref_freq=None,
-        ref_V_offset=None,
-        ref_V_ampl=None,
-        ref_waveform=None,
-    ):
-        """Prepare the lock-in amp for operation. The start-up state is off.
-        If the optional parameters ref_freq, ref_V_offset, ref_V_ampl or
-        ref_waveform are not passed, the pre-existing values known to the
+        ref_freq: Optional[float] = None,
+        ref_V_offset: Optional[float] = None,
+        ref_V_ampl: Optional[float] = None,
+        ref_waveform: Optional[Waveform] = None,
+    ) -> bool:
+        """Prepare the lock-in amp for operation. The default startup state is
+        off. If the optional parameters `ref_freq`, `ref_V_offset`, `ref_V_ampl`
+        or `ref_waveform` are not passed, the pre-existing values known to the
         Arduino will be used instead, i.e. it will pick up where it left.
 
         Returns:
-            success
+            True if successful, False otherwise.
         """
-        success, __foo, __bar = self.turn_off()
+        success, _foo, _bar = self.turn_off()
         if not success:
             return False
 
         # Shorthand alias
         c = self.config
 
-        print("Retrieving 'mcu?'")
+        print("Microcontroller\n")
         success, ans_str = self.query("mcu?")
         if success:
             try:
                 c.mcu_firmware, c.mcu_model, c.mcu_uid = ans_str.split("\t")
-
             except Exception as err:
                 pft(err)
                 return False
         else:
             return False
-        print("  firmware: %s" % c.mcu_firmware)
-        print("  model   : %s" % c.mcu_model)
-        print("  uid     : %s" % c.mcu_uid)
 
-        print("\nRetrieving 'const?'")
+        print("  Firmware : %s" % c.mcu_firmware)
+        print("  Model    : %s" % c.mcu_model)
+        print("  UID      : %s" % c.mcu_uid)
+
+        print("\nLock-in constants\n")
         success, ans_str = self.query("const?")
         if success:
             try:
@@ -194,23 +199,23 @@ class Alia(Arduino_protocol_serial.Arduino):
         else:
             return False
         # fmt: off
-        print("  SAMPLING_PERIOD  : %-10.3f [us]"    % (c.SAMPLING_PERIOD*1e6))
-        print("  BLOCK_SIZE       : %-10i [samples]" % c.BLOCK_SIZE)
-        print("  N_BYTES_TX_BUFFER: %-10i [bytes]"   % c.N_BYTES_TX_BUFFER)
-        print("  DAC_OUTPUT_BITS  : %-10i [bit]"     % c.DAC_OUTPUT_BITS)
-        print("  ADC_INPUT_BITS   : %-10i [bit]"     % c.ADC_INPUT_BITS)
-        print("  A_REF            : %-10.3f [V]"     % c.A_REF)
-        print("  MIN_N_LUT        : %-10i [samples]" % c.MIN_N_LUT)
-        print("  MAX_N_LUT        : %-10i [samples]" % c.MAX_N_LUT)
+        print("  SAMPLING_PERIOD   : %10.3f  us"    % (c.SAMPLING_PERIOD*1e6))
+        print("  BLOCK_SIZE        : %10i  samples" % c.BLOCK_SIZE)
+        print("  N_BYTES_TX_BUFFER : %10i  bytes"   % c.N_BYTES_TX_BUFFER)
+        print("  DAC_OUTPUT_BITS   : %10i  bit"     % c.DAC_OUTPUT_BITS)
+        print("  ADC_INPUT_BITS    : %10i  bit"     % c.ADC_INPUT_BITS)
+        print("  A_REF             : %10.3f  V"     % c.A_REF)
+        print("  MIN_N_LUT         : %10i  samples" % c.MIN_N_LUT)
+        print("  MAX_N_LUT         : %10i  samples" % c.MAX_N_LUT)
         # fmt: on
 
         c.Fs = round(1.0 / c.SAMPLING_PERIOD, 6)
         c.F_Nyquist = round(c.Fs / 2, 6)
         c.T_SPAN_TX_BUFFER = c.BLOCK_SIZE * c.SAMPLING_PERIOD
 
-        print("  T_SPAN_TX_BUFFER : %-10.6f [s]" % c.T_SPAN_TX_BUFFER)
-        print("  Fs               : %-10.6f [kHz]" % (c.Fs / 1e3))
-        print("  F_Nyquist        : %-10.6f [kHz]" % (c.F_Nyquist / 1e3))
+        print("  T_SPAN_TX_BUFFER  : %10.6f  s" % c.T_SPAN_TX_BUFFER)
+        print("  Fs                : {:>10,.2f}  Hz".format(c.Fs))
+        print("  F_Nyquist         : {:>10,.2f}  Hz".format(c.F_Nyquist))
 
         """The following commands '_freq', '_offs', '_ampl' and '_wave' that
         will be sent to the Arduino will not update the LUT automatically.
@@ -224,29 +229,29 @@ class Alia(Arduino_protocol_serial.Arduino):
             x is not None
             for x in (ref_freq, ref_V_offset, ref_V_ampl, ref_waveform)
         ):
-            print("\nRequesting settings 'ref_X'")
+            print("\nRequesting `ref_X`\n")
 
-        if ref_freq != None:
-            print("  freq             : %-10.3f [Hz]" % ref_freq)
-            success, ans_str = self.query("_freq %f" % ref_freq)
+        if ref_freq is not None:
+            print("  freq     : {:>8,.2f}  Hz".format(ref_freq))
+            success, _ans_str = self.query("_freq %f" % ref_freq)
             if not success:
                 return False
 
-        if ref_V_offset != None:
-            print("  offset           : %-10.3f [V]" % ref_V_offset)
-            success, ans_str = self.query("_offs %f" % ref_V_offset)
+        if ref_V_offset is not None:
+            print("  offset   : %8.3f  V" % ref_V_offset)
+            success, _ans_str = self.query("_offs %f" % ref_V_offset)
             if not success:
                 return False
 
-        if ref_V_ampl != None:
-            print("  ampl             : %-10.3f [V]" % ref_V_ampl)
-            success, ans_str = self.query("_ampl %f" % ref_V_ampl)
+        if ref_V_ampl is not None:
+            print("  ampl     : %8.3f  V" % ref_V_ampl)
+            success, _ans_str = self.query("_ampl %f" % ref_V_ampl)
             if not success:
                 return False
 
-        if ref_waveform != None:
-            print("  waveform         : %-10s" % ref_waveform.name)
-            success, ans_str = self.query("_wave %i" % ref_waveform.value)
+        if ref_waveform is not None:
+            print("  waveform : %8s" % ref_waveform.name)
+            success, _ans_str = self.query("_wave %i" % ref_waveform.value)
             if not success:
                 return False
 
@@ -260,25 +265,39 @@ class Alia(Arduino_protocol_serial.Arduino):
         print("\n--- All systems GO! ---\n")
         return True
 
-    def safe_query(self, msg_str, timeout_warning_style=1):
-        """
+    # --------------------------------------------------------------------------
+    #   safe_query
+    # --------------------------------------------------------------------------
+
+    def safe_query(
+        self, msg_str: AnyStr, raises_on_timeout: bool = True
+    ) -> Tuple[bool, AnyStr]:
+        """Wraps `query()` with a check on the running state of the lock-in amp.
+        When running it will stop running, perform the query and resume running.
+
         Returns:
-            [success, ans_str]
+            Tuple(success: bool, ans_str: AnyStr)
         """
         was_paused = self.lockin_paused
+
         if not was_paused:
             self.turn_off()
 
-        success, ans_str = self.query(msg_str, timeout_warning_style)
+        success, ans_str = self.query(msg_str, raises_on_timeout)
 
         if success and not was_paused:
             self.turn_on()
+
         return success, ans_str
 
-    def turn_on(self):
+    # --------------------------------------------------------------------------
+    #   turn_on/off
+    # --------------------------------------------------------------------------
+
+    def turn_on(self) -> bool:
         """
         Returns:
-            success
+            True if successful, False otherwise.
         """
         success = self.write("on")
         if success:
@@ -287,21 +306,26 @@ class Alia(Arduino_protocol_serial.Arduino):
 
         return success
 
-    def turn_off(self, timeout_warning_style=1):
+    def turn_off(
+        self, raises_on_timeout: bool = False
+    ) -> Tuple[bool, bool, AnyStr]:
         """
         Returns:
-            success
-            was_off
-            ans_bytes: for debugging purposes
+            Tuple(
+                success: bool,
+                was_off: bool,
+                ans_bytes: AnyStr # For debugging purposes
+            )
         """
         success = False
         was_off = True
         ans_bytes = b""
 
-        # First ensure the lock-in amp will switch off if not already so.
-        self.ser.flushInput()  # Essential to clear potential large amount of
-        # binary data waiting in the buffer to be read
-        if self.write("off", timeout_warning_style):
+        # Clear potentially large amount of binary data waiting in the buffer to
+        # be read. Essential.
+        self.ser.flushInput()
+
+        if self.write("off", raises_on_timeout):
             self.ser.flushOutput()  # Send out 'off' as fast as possible
 
             # Check for acknowledgement reply
@@ -324,10 +348,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             else:
                 if len(ans_bytes) == 0:
                     # Received 0 bytes, probably due to a timeout.
-                    if timeout_warning_style == 1:
-                        pft("Received 0 bytes. Read probably timed out.", 3)
-                    elif timeout_warning_style == 2:
-                        raise (serial.SerialTimeoutException)
+                    pft("Received 0 bytes. Read probably timed out.", 3)
                 else:
                     try:
                         was_off = ans_bytes[-12:] == b"already_off\n"
@@ -336,31 +357,35 @@ class Alia(Arduino_protocol_serial.Arduino):
                     success = True
                     self.lockin_paused = True
 
-        return [success, was_off, ans_bytes]
+        return success, was_off, ans_bytes
 
-    def compute_LUT(self):
-        """Send command 'compute_lut' to the Arduino lock-in amp to (re)compute
+    # --------------------------------------------------------------------------
+    #   LUT
+    # --------------------------------------------------------------------------
+
+    def compute_LUT(self) -> bool:
+        """Send command "compute_lut" to the Arduino lock-in amp to (re)compute
         the look-up table (LUT) used for the analog output of the reference
-        signal 'ref_X'. Any pending changes at the Arduino side to ref_freq,
-        ref_V_offset, ref_V_ampl and ref_waveform will become effective.
+        signal `ref_X`. Any pending changes at the Arduino side to `ref_freq`,
+        `ref_V_offset`, `ref_V_ampl` and `ref_waveform` will become effective.
 
         Returns:
-            success
+            True if successful, False otherwise.
         """
-        success, ans_str = self.safe_query("c")
+        success, _ans_str = self.safe_query("c")
         return success
 
-    def query_LUT(self):
+    def query_LUT(self) -> bool:
         """Send command "lut?" to the Arduino lock-in amp to retrieve the look-
-        up table (LUT) that is used for the output reference signal 'ref_X'.
+        up table (LUT) that is used for the output reference signal `ref_X`.
 
         This method will update members:
-            self.config.N_LUT
-            self.config.is_LUT_dirty
-            self.config.LUT_wave
+            `config.N_LUT`
+            `config.is_LUT_dirty`
+            `config.LUT_wave`
 
         Returns:
-            success
+            True if successful, False otherwise.
         """
         was_paused = self.lockin_paused
         if not was_paused:
@@ -369,7 +394,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         if not self.write("l?"):
             return False
 
-        # First read 'N_LUT' and 'is_LUT_dirty' from the binary stream
+        # First read `N_LUT` and `is_LUT_dirty` from the binary stream
         try:
             ans_bytes = self.ser.read(size=3)
         except:
@@ -423,23 +448,29 @@ class Alia(Arduino_protocol_serial.Arduino):
 
         if not was_paused:
             self.turn_on()
+
         return True
 
-    def query_ref(self):
+    # --------------------------------------------------------------------------
+    #   query & set
+    # --------------------------------------------------------------------------
+
+    def query_ref(self) -> bool:
         """Send command "ref?" to the Arduino lock-in amp to retrieve the
-        output reference signal 'ref_X' settings.
+        output reference signal `ref_X` settings.
 
         This method will update members:
-            self.config.ref_freq
-            self.config.ref_V_offset
-            self.config.ref_V_ampl
-            self.config.ref_waveform
-            self.config.N_LUT
+            `config.ref_freq`
+            `config.ref_V_offset`
+            `config.ref_V_ampl`
+            `config.ref_waveform`
+            `config.N_LUT`
 
         Returns:
-            success
+            True if successful, False otherwise.
         """
-        print("\nRetrieving settings 'ref_X'")
+        print("\nObtained `ref_X`\n")
+
         success, ans_str = self.safe_query("?")
         if success:
             try:
@@ -459,144 +490,160 @@ class Alia(Arduino_protocol_serial.Arduino):
             return False
 
         # fmt: off
-        print("  freq             : %-10.3f [Hz]" % self.config.ref_freq)
-        print("  offset           : %-10.3f [V]"  % self.config.ref_V_offset)
-        print("  ampl             : %-10.3f [V]"  % self.config.ref_V_ampl)
-        print("  waveform         : %-10s"        % self.config.ref_waveform.name)
-        print("  N_LUT            : %-10i"        % self.config.N_LUT)
+        print("  freq     : {:>8,.2f}  Hz".format(self.config.ref_freq))
+        print("  offset   : %8.3f  V" % self.config.ref_V_offset)
+        print("  ampl     : %8.3f  V" % self.config.ref_V_ampl)
+        print("  waveform : %8s"      % self.config.ref_waveform.name)
+        print("  N_LUT    : %8i"      % self.config.N_LUT)
         # fmt: on
+
         return True
 
-    def set_ref_freq(self, ref_freq):
-        """Set the frequency [Hz] for the output reference signal 'ref_X'
+    def set_ref_freq(self, ref_freq) -> bool:
+        """Set the frequency [Hz] for the output reference signal `ref_X`
         at the Arduino lock-in amp. The actual obtained frequency might differ.
         The Arduino will automatically compute the new LUT.
 
         This method will update members:
-            self.config.ref_freq
-            self.config.ref_V_offset
-            self.config.ref_V_ampl
-            self.config.ref_waveform
-            self.config.N_LUT
-            self.config.is_LUT_dirty
-            self.config.LUT_wave
+            `config.ref_freq`
+            `config.ref_V_offset`
+            `config.ref_V_ampl`
+            `config.ref_waveform`
+            `config.N_LUT`
+            `config.is_LUT_dirty`
+            `config.LUT_wave`
 
         Returns:
-            success
+            True if successful, False otherwise.
         """
         was_paused = self.lockin_paused
         if not was_paused:
             self.turn_off()
 
-        success, ans_str = self.query("freq %f" % ref_freq)
+        success, _ans_str = self.query("freq %f" % ref_freq)
         if not success or not self.query_ref() or not self.query_LUT():
             return False
 
         if not was_paused:
             self.turn_on()
+
         return True
 
-    def set_ref_V_offset(self, ref_V_offset):
-        """Set the voltage offset [V] for the output reference signal 'ref_X'
+    def set_ref_V_offset(self, ref_V_offset) -> bool:
+        """Set the voltage offset [V] for the output reference signal `ref_X`
         at the Arduino lock-in amp.
         The Arduino will automatically compute the new LUT.
 
         This method will update members:
-            self.config.ref_freq
-            self.config.ref_V_offset
-            self.config.ref_V_ampl
-            self.config.ref_waveform
-            self.config.N_LUT
-            self.config.is_LUT_dirty
-            self.config.LUT_wave
+            `config.ref_freq`
+            `config.ref_V_offset`
+            `config.ref_V_ampl`
+            `config.ref_waveform`
+            `config.N_LUT`
+            `config.is_LUT_dirty`
+            `config.LUT_wave`
 
         Returns:
-            success
+            True if successful, False otherwise.
         """
         was_paused = self.lockin_paused
         if not was_paused:
             self.turn_off()
 
-        success, ans_str = self.query("offs %f" % ref_V_offset)
+        success, _ans_str = self.query("offs %f" % ref_V_offset)
         if not success or not self.query_ref() or not self.query_LUT():
             return False
 
         if not was_paused:
             self.turn_on()
+
         return True
 
-    def set_ref_V_ampl(self, ref_V_ampl):
-        """Set the voltage amplitude [V] for the output reference signal 'ref_X'
+    def set_ref_V_ampl(self, ref_V_ampl) -> bool:
+        """Set the voltage amplitude [V] for the output reference signal `ref_X`
         at the Arduino lock-in amp.
         The Arduino will automatically compute the new LUT.
 
         This method will update members:
-            self.config.ref_freq
-            self.config.ref_V_offset
-            self.config.ref_V_ampl
-            self.config.ref_waveform
-            self.config.N_LUT
-            self.config.is_LUT_dirty
-            self.config.LUT_wave
+            `config.ref_freq`
+            `config.ref_V_offset`
+            `config.ref_V_ampl`
+            `config.ref_waveform`
+            `config.N_LUT`
+            `config.is_LUT_dirty`
+            `config.LUT_wave`
 
         Returns:
-            success
+            True if successful, False otherwise.
         """
         was_paused = self.lockin_paused
         if not was_paused:
             self.turn_off()
 
-        success, ans_str = self.query("ampl %f" % ref_V_ampl)
+        success, _ans_str = self.query("ampl %f" % ref_V_ampl)
         if not success or not self.query_ref() or not self.query_LUT():
             return False
 
         if not was_paused:
             self.turn_on()
+
         return True
 
-    def set_ref_waveform(self, ref_waveform: Waveform):
-        """Set the waveform type for the output reference signal 'ref_X'
+    def set_ref_waveform(self, ref_waveform: Waveform) -> bool:
+        """Set the waveform type for the output reference signal `ref_X`
         at the Arduino lock-in amp.
         The Arduino will automatically compute the new LUT.
 
         This method will update members:
-            self.config.ref_freq
-            self.config.ref_V_offset
-            self.config.ref_V_ampl
-            self.config.ref_waveform
-            self.config.N_LUT
-            self.config.is_LUT_dirty
-            self.config.LUT_wave
+            `config.ref_freq`
+            `config.ref_V_offset`
+            `config.ref_V_ampl`
+            `config.ref_waveform`
+            `config.N_LUT`
+            `config.is_LUT_dirty`
+            `config.LUT_wave`
 
         Returns:
-            success
+            True if successful, False otherwise.
         """
         was_paused = self.lockin_paused
         if not was_paused:
             self.turn_off()
 
-        success, ans_str = self.query("wave %f" % ref_waveform.value)
+        success, _ans_str = self.query("wave %f" % ref_waveform.value)
         if not success or not self.query_ref() or not self.query_LUT():
             return False
 
         if not was_paused:
             self.turn_on()
+
         return True
 
-    def read_until_EOM(self, size=None):
+    # --------------------------------------------------------------------------
+    #   read_until_EOM
+    # --------------------------------------------------------------------------
+
+    def read_until_EOM(self, size: Optional[int] = None) -> bytes:
         """Reads from the serial port until the EOM sentinel is found, the size
         is exceeded or until timeout occurs.
 
-        Contrary to 'serial.read_until' which reads 1 byte at a time, here we
-        read chunks of 2*N_BYTES_EOM. This is way more efficient for the OS
+        Contrary to `serial.read_until()` which reads 1 byte at a time, here we
+        read chunks of `2*N_BYTES_EOM`. This is way more efficient for the OS
         and drastically reduces a non-responsive GUI and dropped I/O (even
         though they are running in separate threads?!). Any left-over bytes
-        after the EOM will be remembered and prefixed to the next read_until_EOM
-        operation.
+        after the EOM will be remembered and prefixed to the next
+        `read_until_EOM()` operation.
+
+        Returns:
+            The read contents as type `bytes`.
         """
         line = bytearray()
         line[:] = self.read_until_left_over_bytes
-        timeout = serial.Timeout(self.ser._timeout)
+
+        # fmt: off
+        timeout = serial.Timeout(self.ser._timeout)  # pylint: disable=protected-access
+        # fmt: on
+
         while True:
             try:
                 c = self.ser.read(2 * self.config.N_BYTES_EOM)
@@ -631,22 +678,34 @@ class Alia(Arduino_protocol_serial.Arduino):
                     break
             else:
                 break
+
             if timeout.expired():
                 break
 
         return bytes(line)
 
-    def listen_to_lockin_amp(self):
+    # --------------------------------------------------------------------------
+    #   listen_to_lockin_amp
+    # --------------------------------------------------------------------------
+
+    def listen_to_lockin_amp(
+        self,
+    ) -> Tuple[
+        bool, np.ndarray, np.ndarray, np.ndarray, np.ndarray, Optional[int]
+    ]:
         """Reads incoming data packets coming from the lock-in amp. This method
-        is blocking until it receives an 'end-of-message' sentinel or until it
-        times out.
+        is blocking until it receives an EOM (end-of-message) sentinel or until
+        it times out.
 
         Returns:
-            success
-            time
-            ref_X
-            ref_Y
-            sig_I
+            Tuple (
+                success: bool
+                time: numpy.array
+                ref_X: numpy.array
+                ref_Y: numpy.array
+                sig_I: numpy.array
+                counter: Optional(int)
+            )
         """
         c = self.config  # Shorthand alias
 
@@ -654,7 +713,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         # dprint("EOM found with %i bytes and..." % len(ans_bytes))
         if not ans_bytes[: c.N_BYTES_SOM] == c.SOM:
             dprint("'%s' I/O ERROR: No SOM found" % self.name)
-            return False, [np.nan], [np.nan], [np.nan], [np.nan]
+            return False, [np.nan], [np.nan], [np.nan], [np.nan], None
 
         # dprint("SOM okay")
         if not len(ans_bytes) == c.N_BYTES_TX_BUFFER:
@@ -662,7 +721,7 @@ class Alia(Arduino_protocol_serial.Arduino):
                 "'%s' I/O ERROR: Expected %i bytes but received %i"
                 % (self.name, c.N_BYTES_TX_BUFFER, len(ans_bytes))
             )
-            return False, [np.nan], [np.nan], [np.nan], [np.nan]
+            return False, [np.nan], [np.nan], [np.nan], [np.nan], None
 
         # fmt: off
         ans_bytes = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM] # Remove sentinels
@@ -689,7 +748,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             )
         except:
             dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
-            return False, [np.nan], [np.nan], [np.nan], [np.nan]
+            return False, [np.nan], [np.nan], [np.nan], [np.nan], None
 
         # fmt: off
         counter   = counter[0]
@@ -758,7 +817,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             ref_Y_tiled[: c.BLOCK_SIZE], dtype=c.return_type_ref_XY, order="C"
         )
 
-        return True, time, ref_X, ref_Y, sig_I
+        return True, time, ref_X, ref_Y, sig_I, counter
 
 
 # ------------------------------------------------------------------------------
