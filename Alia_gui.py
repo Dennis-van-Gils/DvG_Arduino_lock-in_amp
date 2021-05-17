@@ -297,13 +297,7 @@ FONT_MONOSPACE.setStyleHint(QtGui.QFont.Monospace)
 
 
 class MainWindow(QtWid.QWidget):
-    def __init__(
-        self,
-        alia: Alia,
-        alia_qdev: Alia_qdev,
-        parent=None,
-        **kwargs
-    ):
+    def __init__(self, alia: Alia, alia_qdev: Alia_qdev, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
         self.alia = alia
@@ -352,7 +346,7 @@ class MainWindow(QtWid.QWidget):
         # Left box
         self.qlbl_update_counter = QtWid.QLabel("0")
         self.qlbl_sample_rate = QtWid.QLabel(
-            "Sample rate: %.2f Hz" % alia.config.Fs
+            "Sample rate: {:,.0f} Hz".format(alia.config.Fs)
         )
         self.qlbl_CPU_syst = QtWid.QLabel("CPU system : nan%")
         self.qlbl_CPU_proc = QtWid.QLabel("CPU process: nan%")
@@ -657,7 +651,7 @@ class MainWindow(QtWid.QWidget):
         i = 0
         grid = QtWid.QGridLayout(spacing=4)
         grid.addWidget(self.qlin_time         , i, 0, 1, 2)
-        grid.addWidget(QtWid.QLabel("us")     , i, 2)      ; i+=1
+        grid.addWidget(QtWid.QLabel("s")      , i, 2)      ; i+=1
         grid.addItem(QtWid.QSpacerItem(0, 6)  , i, 0)      ; i+=1
         grid.addLayout(self.legend_refsig.grid, i, 0, 1, 3); i+=1
         grid.addItem(QtWid.QSpacerItem(0, 6)  , i, 0)      ; i+=1
@@ -1541,7 +1535,7 @@ class MainWindow(QtWid.QWidget):
             )
 
         self.qlin_time.setText(
-            "%.0f" % alia_qdev.state.time[0]
+            "%.3f" % (alia_qdev.state.time[0] / 1e6)
         )  # NOTE: time[0] can be np.nan, so leave the format as a float!
         self.qlin_sig_I_max.setText("%.4f" % alia_qdev.state.sig_I_max)
         self.qlin_sig_I_min.setText("%.4f" % alia_qdev.state.sig_I_min)

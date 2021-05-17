@@ -134,7 +134,15 @@ def lockin_DAQ_update():
         state.ref_X,
         state.ref_Y,
         state.sig_I,
+        counter,
     ) = alia.listen_to_lockin_amp()
+
+    # IN PROGRESS, TODO: keep track of buffer counter
+    if counter == 1:
+        state.t_0 = state.time[0]
+        print(state.t_0)
+    else:
+        state.time = state.time - state.t_0
 
     if not success:
         dprint("@ %s %s" % current_date_time_strings())

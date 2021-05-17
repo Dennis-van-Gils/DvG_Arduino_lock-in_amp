@@ -67,6 +67,10 @@ class Alia_qdev(QDeviceIO):
             the lock-in amplifier. There should only be one instance of the
             State class.
             """
+
+            # IN PROGRESS, TODO: keep track of buffer counter
+            self.t_0 = np.nan
+
             # fmt: off
             self.buffers_received   = 0
             self.buffer_size        = buffer_size           # [samples]
