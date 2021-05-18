@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "17-05-2021"
+__date__ = "18-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -103,7 +103,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         units of [V].
         """
 
-        # Reference signal settings
+        # Reference signal parameters
         ref_freq     = 0                 # [Hz] Frequency
         ref_V_offset = 0                 # [V]  Voltage offset
         ref_V_ampl   = 0                 # [V]  Voltage amplitude
@@ -141,14 +141,14 @@ class Alia(Arduino_protocol_serial.Arduino):
 
     def begin(
         self,
-        ref_freq: Optional[float] = None,
-        ref_V_offset: Optional[float] = None,
-        ref_V_ampl: Optional[float] = None,
-        ref_waveform: Optional[Waveform] = None,
+        freq: Optional[float] = None,
+        V_offset: Optional[float] = None,
+        V_ampl: Optional[float] = None,
+        waveform: Optional[Waveform] = None,
     ) -> bool:
         """Prepare the lock-in amp for operation. The default startup state is
-        off. If the optional parameters `ref_freq`, `ref_V_offset`, `ref_V_ampl`
-        or `ref_waveform` are not passed, the pre-existing values known to the
+        off. If the optional parameters `freq`, `V_offset`, `V_ampl` or
+        `ref_waveform` are not passed, the pre-existing values known to the
         Arduino will be used instead, i.e. it will pick up where it left.
 
         Returns:
@@ -161,7 +161,8 @@ class Alia(Arduino_protocol_serial.Arduino):
         # Shorthand alias
         c = self.config
 
-        print("Microcontroller\n")
+        print("Microcontroller")
+        print("───────────────\n")
         success, ans_str = self.query("mcu?")
         if success:
             try:
@@ -172,11 +173,13 @@ class Alia(Arduino_protocol_serial.Arduino):
         else:
             return False
 
-        print("  Firmware : %s" % c.mcu_firmware)
-        print("  Model    : %s" % c.mcu_model)
-        print("  UID      : %s" % c.mcu_uid)
+        print("  Firmware  %s" % c.mcu_firmware)
+        print("     Model  %s" % c.mcu_model)
+        print("       UID  %s" % c.mcu_uid)
+        print("")
 
-        print("\nLock-in constants\n")
+        print("Lock-in constants")
+        print("─────────────────\n")
         success, ans_str = self.query("const?")
         if success:
             try:
@@ -198,71 +201,32 @@ class Alia(Arduino_protocol_serial.Arduino):
                 return False
         else:
             return False
-        # fmt: off
-        print("  SAMPLING_PERIOD   : %10.3f  us"    % (c.SAMPLING_PERIOD*1e6))
-        print("  BLOCK_SIZE        : %10i  samples" % c.BLOCK_SIZE)
-        print("  N_BYTES_TX_BUFFER : %10i  bytes"   % c.N_BYTES_TX_BUFFER)
-        print("  DAC_OUTPUT_BITS   : %10i  bit"     % c.DAC_OUTPUT_BITS)
-        print("  ADC_INPUT_BITS    : %10i  bit"     % c.ADC_INPUT_BITS)
-        print("  A_REF             : %10.3f  V"     % c.A_REF)
-        print("  MIN_N_LUT         : %10i  samples" % c.MIN_N_LUT)
-        print("  MAX_N_LUT         : %10i  samples" % c.MAX_N_LUT)
-        # fmt: on
 
         c.Fs = round(1.0 / c.SAMPLING_PERIOD, 6)
         c.F_Nyquist = round(c.Fs / 2, 6)
         c.T_SPAN_TX_BUFFER = c.BLOCK_SIZE * c.SAMPLING_PERIOD
 
-        print("  T_SPAN_TX_BUFFER  : %10.6f  s" % c.T_SPAN_TX_BUFFER)
-        print("  Fs                : {:>10,.2f}  Hz".format(c.Fs))
-        print("  F_Nyquist         : {:>10,.2f}  Hz".format(c.F_Nyquist))
+        # fmt: off
+        print("    SAMPLING_PERIOD  {:>9.3f}  us"   .format(c.SAMPLING_PERIOD*1e6))
+        print("         BLOCK_SIZE  {:>9d}  samples".format(c.BLOCK_SIZE))
+        print("  N_BYTES_TX_BUFFER  {:>9d}  bytes"  .format(c.N_BYTES_TX_BUFFER))
+        print("    DAC_OUTPUT_BITS  {:>9d}  bit"    .format(c.DAC_OUTPUT_BITS))
+        print("     ADC_INPUT_BITS  {:>9d}  bit"    .format(c.ADC_INPUT_BITS))
+        print("              A_REF  {:>9.3f}  V"    .format(c.A_REF))
+        print("          MIN_N_LUT  {:>9d}  samples".format(c.MIN_N_LUT))
+        print("          MAX_N_LUT  {:>9d}  samples".format(c.MAX_N_LUT))
+        print("   T_SPAN_TX_BUFFER  {:>9.6f}  s"    .format(c.T_SPAN_TX_BUFFER))
+        print("                 Fs  {:>9,.2f}  Hz"  .format(c.Fs))
+        print("          F_Nyquist  {:>9,.2f}  Hz"  .format(c.F_Nyquist))
+        print("")
+        # fmt: on
 
-        """The following commands '_freq', '_offs', '_ampl' and '_wave' that
-        will be sent to the Arduino will not update the LUT automatically.
-        We send the wished-for settings for the reference signal all bunched up
-        in a row, and only then will we compute the LUT corresponding to these
-        settings. This prevents a lot of overhead by not having to wait for the
-        LUT computation every time a single setting gets changed, as would be
-        the case when using the methods 'set_ref_{freq/V_offs/V_ampl/waveform}'.
-        """
-        if any(
-            x is not None
-            for x in (ref_freq, ref_V_offset, ref_V_ampl, ref_waveform)
-        ):
-            print("\nRequesting `ref_X`\n")
+        self.set_ref(freq, V_offset, V_ampl, waveform)
 
-        if ref_freq is not None:
-            print("  freq     : {:>8,.2f}  Hz".format(ref_freq))
-            success, _ans_str = self.query("_freq %f" % ref_freq)
-            if not success:
-                return False
-
-        if ref_V_offset is not None:
-            print("  offset   : %8.3f  V" % ref_V_offset)
-            success, _ans_str = self.query("_offs %f" % ref_V_offset)
-            if not success:
-                return False
-
-        if ref_V_ampl is not None:
-            print("  ampl     : %8.3f  V" % ref_V_ampl)
-            success, _ans_str = self.query("_ampl %f" % ref_V_ampl)
-            if not success:
-                return False
-
-        if ref_waveform is not None:
-            print("  waveform : %8s" % ref_waveform.name)
-            success, _ans_str = self.query("_wave %i" % ref_waveform.value)
-            if not success:
-                return False
-
-        if (
-            not self.compute_LUT()
-            or not self.query_LUT()
-            or not self.query_ref()
-        ):
-            return False
-
-        print("\n--- All systems GO! ---\n")
+        print("")
+        print("┌─────────────────────────┐")
+        print("│     All systems GO!     │")
+        print("└─────────────────────────┘\n")
         return True
 
     # --------------------------------------------------------------------------
@@ -452,12 +416,12 @@ class Alia(Arduino_protocol_serial.Arduino):
         return True
 
     # --------------------------------------------------------------------------
-    #   query & set
+    #   query_ref
     # --------------------------------------------------------------------------
 
     def query_ref(self) -> bool:
         """Send command "ref?" to the Arduino lock-in amp to retrieve the
-        output reference signal `ref_X` settings.
+        output reference signal `ref_X` parameters.
 
         This method will update members:
             `config.ref_freq`
@@ -469,8 +433,6 @@ class Alia(Arduino_protocol_serial.Arduino):
         Returns:
             True if successful, False otherwise.
         """
-        print("\nObtained `ref_X`\n")
-
         success, ans_str = self.safe_query("?")
         if success:
             try:
@@ -489,133 +451,115 @@ class Alia(Arduino_protocol_serial.Arduino):
         else:
             return False
 
+        return True
+
+    # --------------------------------------------------------------------------
+    #   set_ref
+    # --------------------------------------------------------------------------
+
+    def set_ref(
+        self,
+        freq: Optional[float] = None,
+        V_offset: Optional[float] = None,
+        V_ampl: Optional[float] = None,
+        waveform: Optional[Waveform] = None,
+    ) -> bool:
+        """Request new parameters to be set of the output reference signal
+        `ref_X` at the Arduino. The Arduino will compute the new LUT, based on
+        the obtained parameters, and will send the new LUT and obtained
+        `ref_X` parameters back. The actually obtained parameters might differ
+        from the requested ones, noticably the frequency.
+
+        This method will update members:
+            `config.ref_freq`
+            `config.ref_V_offset`
+            `config.ref_V_ampl`
+            `config.ref_waveform`
+            `config.N_LUT`
+            `config.is_LUT_dirty`
+            `config.LUT_wave`
+
+        Args:
+            freq (float):
+                The requested frequency in Hz.
+
+            V_offset (float):
+                The requested voltage offset in V.
+
+            V_ampl (float):
+                The requested voltage amplitude in V.
+
+            waveform (Waveform):
+                Enumeration decoding a waveform type, like cosine, square or
+                triangle wave.
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        was_paused = self.lockin_paused
+        if not was_paused:
+            self.turn_off()
+
+        if freq is not None:
+            success, _ans_str = self.query("_freq %f" % freq)
+            if not success:
+                return False
+
+        if V_offset is not None:
+            success, _ans_str = self.query("_offs %f" % V_offset)
+            if not success:
+                return False
+
+        if V_ampl is not None:
+            success, _ans_str = self.query("_ampl %f" % V_ampl)
+            if not success:
+                return False
+
+        if waveform is not None:
+            success, _ans_str = self.query("_wave %i" % waveform.value)
+            if not success:
+                return False
+
+        if (
+            not self.compute_LUT()
+            or not self.query_LUT()
+            or not self.query_ref()
+        ):
+            return False
+
+        if not was_paused:
+            self.turn_on()
+
         # fmt: off
-        print("  freq     : {:>8,.2f}  Hz".format(self.config.ref_freq))
-        print("  offset   : %8.3f  V" % self.config.ref_V_offset)
-        print("  ampl     : %8.3f  V" % self.config.ref_V_ampl)
-        print("  waveform : %8s"      % self.config.ref_waveform.name)
-        print("  N_LUT    : %8i"      % self.config.N_LUT)
+        print("Reference signal `ref_X`")
+        print("────────────────────────\n")
+        print("            requested   obtained")
+        if freq is not None:
+            print("      freq  {:>9,.2f}  {:>9,.2f}  Hz"
+                .format(freq, self.config.ref_freq))
+        else:
+            print("      freq  {:>9s}  {:>9,.2f}  Hz"
+                .format("-", self.config.ref_freq))
+        if V_offset is not None:
+            print("    offset  {:>9,.3f}  {:>9,.3f}  V"
+                .format(V_offset, self.config.ref_V_offset))
+        else:
+            print("    offset  {:>9s}  {:>9,.3f}  V"
+                .format("-", self.config.ref_V_offset))
+        if V_ampl is not None:
+            print("      ampl  {:>9,.3f}  {:>9,.3f}  V"
+                .format(V_ampl, self.config.ref_V_ampl))
+        else:
+            print("      ampl  {:>9s}  {:>9,.3f}  V"
+                .format("-", self.config.ref_V_ampl))
+        if waveform is not None:
+            print("  waveform  {:>9s}  {:>9s}"
+                .format(waveform.name, self.config.ref_waveform.name))
+        else:
+            print("  waveform  {:>9s}  {:>9s}"
+                .format("-", self.config.ref_waveform.name))
+        print("     N_LUT  {:>9s}  {:>9d}".format("-", self.config.N_LUT))
         # fmt: on
-
-        return True
-
-    def set_ref_freq(self, ref_freq) -> bool:
-        """Set the frequency [Hz] for the output reference signal `ref_X`
-        at the Arduino lock-in amp. The actual obtained frequency might differ.
-        The Arduino will automatically compute the new LUT.
-
-        This method will update members:
-            `config.ref_freq`
-            `config.ref_V_offset`
-            `config.ref_V_ampl`
-            `config.ref_waveform`
-            `config.N_LUT`
-            `config.is_LUT_dirty`
-            `config.LUT_wave`
-
-        Returns:
-            True if successful, False otherwise.
-        """
-        was_paused = self.lockin_paused
-        if not was_paused:
-            self.turn_off()
-
-        success, _ans_str = self.query("freq %f" % ref_freq)
-        if not success or not self.query_ref() or not self.query_LUT():
-            return False
-
-        if not was_paused:
-            self.turn_on()
-
-        return True
-
-    def set_ref_V_offset(self, ref_V_offset) -> bool:
-        """Set the voltage offset [V] for the output reference signal `ref_X`
-        at the Arduino lock-in amp.
-        The Arduino will automatically compute the new LUT.
-
-        This method will update members:
-            `config.ref_freq`
-            `config.ref_V_offset`
-            `config.ref_V_ampl`
-            `config.ref_waveform`
-            `config.N_LUT`
-            `config.is_LUT_dirty`
-            `config.LUT_wave`
-
-        Returns:
-            True if successful, False otherwise.
-        """
-        was_paused = self.lockin_paused
-        if not was_paused:
-            self.turn_off()
-
-        success, _ans_str = self.query("offs %f" % ref_V_offset)
-        if not success or not self.query_ref() or not self.query_LUT():
-            return False
-
-        if not was_paused:
-            self.turn_on()
-
-        return True
-
-    def set_ref_V_ampl(self, ref_V_ampl) -> bool:
-        """Set the voltage amplitude [V] for the output reference signal `ref_X`
-        at the Arduino lock-in amp.
-        The Arduino will automatically compute the new LUT.
-
-        This method will update members:
-            `config.ref_freq`
-            `config.ref_V_offset`
-            `config.ref_V_ampl`
-            `config.ref_waveform`
-            `config.N_LUT`
-            `config.is_LUT_dirty`
-            `config.LUT_wave`
-
-        Returns:
-            True if successful, False otherwise.
-        """
-        was_paused = self.lockin_paused
-        if not was_paused:
-            self.turn_off()
-
-        success, _ans_str = self.query("ampl %f" % ref_V_ampl)
-        if not success or not self.query_ref() or not self.query_LUT():
-            return False
-
-        if not was_paused:
-            self.turn_on()
-
-        return True
-
-    def set_ref_waveform(self, ref_waveform: Waveform) -> bool:
-        """Set the waveform type for the output reference signal `ref_X`
-        at the Arduino lock-in amp.
-        The Arduino will automatically compute the new LUT.
-
-        This method will update members:
-            `config.ref_freq`
-            `config.ref_V_offset`
-            `config.ref_V_ampl`
-            `config.ref_waveform`
-            `config.N_LUT`
-            `config.is_LUT_dirty`
-            `config.LUT_wave`
-
-        Returns:
-            True if successful, False otherwise.
-        """
-        was_paused = self.lockin_paused
-        if not was_paused:
-            self.turn_off()
-
-        success, _ans_str = self.query("wave %f" % ref_waveform.value)
-        if not success or not self.query_ref() or not self.query_LUT():
-            return False
-
-        if not was_paused:
-            self.turn_on()
 
         return True
 
@@ -832,32 +776,29 @@ if __name__ == "__main__":
         sys.exit(0)
 
     alia.begin(
-        ref_freq=220,
-        ref_V_offset=2,
-        ref_V_ampl=1,
-        ref_waveform=Waveform.Cosine,
+        freq=220, waveform=Waveform.Cosine,
     )
-
+    # alia.begin()
     alia.turn_on()
 
     reply = alia.listen_to_lockin_amp()
-    print("success: %s" % reply[0])
-    print("time   : %s" % reply[1])
-    print("ref_X  : %s" % reply[2])
-    print("ref_Y  : %s" % reply[3])
-    print("sig_I  : %s" % reply[4])
+    print("success  %s" % reply[0])
+    print("   time  %s" % reply[1])
+    print("  ref_X  %s" % reply[2])
+    print("  ref_Y  %s" % reply[3])
+    print("  sig_I  %s" % reply[4])
+    print("counter  %s\n" % reply[5])
 
-    alia.set_ref_freq(330)
-    alia.set_ref_V_offset(1.5)
-    alia.set_ref_V_ampl(0.5)
-    alia.set_ref_waveform(Waveform.Square)
+    alia.set_ref(freq=250, V_offset=1.5, V_ampl=0.5, waveform=Waveform.Triangle)
 
     reply = alia.listen_to_lockin_amp()
-    print("\nsuccess: %s" % reply[0])
-    print("time   : %s" % reply[1])
-    print("ref_X  : %s" % reply[2])
-    print("ref_Y  : %s" % reply[3])
-    print("sig_I  : %s" % reply[4])
+    print("")
+    print("success  %s" % reply[0])
+    print("   time  %s" % reply[1])
+    print("  ref_X  %s" % reply[2])
+    print("  ref_Y  %s" % reply[3])
+    print("  sig_I  %s" % reply[4])
+    print("counter  %s\n" % reply[5])
 
     alia.turn_off()
     alia.close()
