@@ -6,10 +6,11 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "11-05-2021"
+__date__ = "18-05-2021"
 __version__ = "2.0.0"
 
 import sys
+import time as Time
 
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
@@ -17,31 +18,28 @@ from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 import numpy as np
 
-import time as Time
-
-from Alia_protocol_serial import Alia
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_pyqtgraph_threadsafe import HistoryChartCurve
 from dvg_debug_functions import dprint
+from Alia_protocol_serial import Alia
 
 # Monkey-patch errors in pyqtgraph v0.10
 import dvg_monkeypatch_pyqtgraph as pgmp
 
 pg.PlotCurveItem.paintGL = pgmp.PlotCurveItem_paintGL
 
-# BOOST_FPS_GRAPHING = true:
-# Favors more frames per second for graphing at the expense of a higher CPU load and possibly
-# dropped samples.
+# When True, favors more frames per second for graphing at the expense of a
+# higher CPU load and possibly dropped samples.
 BOOST_FPS_GRAPHING = True
 
 try:
-    import OpenGL.GL as gl
+    import OpenGL.GL as gl  # pylint: disable=unused-import
 
     pg.setConfigOptions(useOpenGL=True)
     pg.setConfigOptions(enableExperimental=True)
     pg.setConfigOptions(antialias=True)
     print("OpenGL hardware acceleration enabled.")
-except:
+except:  # pylint: disable=bare-except
     pg.setConfigOptions(useOpenGL=False)
     pg.setConfigOptions(enableExperimental=False)
     pg.setConfigOptions(antialias=False)
@@ -72,7 +70,7 @@ class MainWindow(QtWid.QWidget):
         # Left box
         self.qlbl_update_counter = QtWid.QLabel("0")
         self.qlbl_sample_rate = QtWid.QLabel(
-            "SAMPLE RATE: %.2f Hz" % alia.config.Fs
+            "SAMPLE RATE: {:,.0f} Hz".format(alia.config.Fs)
         )
         self.qlbl_buffer_size = QtWid.QLabel(
             "BUFFER SIZE  : %i" % alia.config.BLOCK_SIZE
@@ -287,11 +285,11 @@ def lockin_DAQ_update():
         # data buffers.
         window.gw_refsig.setUpdatesEnabled(False)
 
-    tick = Time.perf_counter()
-    success, time, ref_X, __ref_Y, sig_I = alia.listen_to_lockin_amp()
+    # tick = Time.perf_counter()
+    success, time, ref_X, _ref_Y, sig_I, _counter = alia.listen_to_lockin_amp()
     # dprint("%i" % ((Time.perf_counter() - tick) * 1e3))
 
-    if not (success):
+    if not success:
         return False
 
     if BOOST_FPS_GRAPHING:
@@ -345,7 +343,7 @@ if __name__ == "__main__":
         print("Exiting...\n")
         sys.exit(0)
 
-    alia.begin(ref_freq=109.8, ref_V_offset=1.5, ref_V_ampl=0.5)
+    alia.begin(freq=109.8, V_offset=1.5, V_ampl=0.5)
 
     # Create workers and threads
     alia_qdev = Alia_qdev(
