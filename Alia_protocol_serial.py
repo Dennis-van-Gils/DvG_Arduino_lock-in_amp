@@ -768,7 +768,7 @@ class Alia(Arduino_protocol_serial.Arduino):
 
 if __name__ == "__main__":
     alia = Alia()
-    alia.auto_connect("port_data.txt")
+    alia.auto_connect()
 
     if not alia.is_alive:
         sys.exit(0)
