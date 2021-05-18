@@ -218,12 +218,10 @@ class Alia(Arduino_protocol_serial.Arduino):
         print("   T_SPAN_TX_BUFFER  {:>9.6f}  s"    .format(c.T_SPAN_TX_BUFFER))
         print("                 Fs  {:>9,.2f}  Hz"  .format(c.Fs))
         print("          F_Nyquist  {:>9,.2f}  Hz"  .format(c.F_Nyquist))
-        print("")
         # fmt: on
 
         self.set_ref(freq, V_offset, V_ampl, waveform)
 
-        print("")
         print("┌─────────────────────────┐")
         print("│     All systems GO!     │")
         print("└─────────────────────────┘\n")
@@ -531,7 +529,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             self.turn_on()
 
         # fmt: off
-        print("Reference signal `ref_X`")
+        print("\nReference signal `ref_X`")
         print("────────────────────────\n")
         print("            requested   obtained")
         if freq is not None:
@@ -558,7 +556,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         else:
             print("  waveform  {:>9s}  {:>9s}"
                 .format("-", self.config.ref_waveform.name))
-        print("     N_LUT  {:>9s}  {:>9d}".format("-", self.config.N_LUT))
+        print("     N_LUT  {:>9s}  {:>9d}\n".format("-", self.config.N_LUT))
         # fmt: on
 
         return True
