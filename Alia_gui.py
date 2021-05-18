@@ -5,27 +5,28 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "13-05-2021"
+__date__ = "18-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
+import os
+
+from PyQt5 import QtCore, QtGui, QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 import numpy as np
 import psutil
-import os
 
 from dvg_pyqtgraph_threadsafe import HistoryChartCurve, PlotCurve, LegendSelect
-from dvg_debug_functions import dprint
+
+# from dvg_debug_functions import dprint
 
 from Alia_protocol_serial import Alia
 from Alia_qdev import Alia_qdev
 from DvG_Buffered_FIR_Filter__GUI import Filter_design_GUI
 
 # Monkey-patch errors in pyqtgraph v0.10 and v0.11
-import pyqtgraph.exporters
+import pyqtgraph.exporters  # pylint: disable=unused-import
 import dvg_monkeypatch_pyqtgraph as pgmp
 
 pg.PlotCurveItem.paintGL = pgmp.PlotCurveItem_paintGL
@@ -34,16 +35,12 @@ pg.exporters.ImageExporter.export = pgmp.ImageExporter_export
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 
-if os.name == "nt" or os.name == "posix":
-    # Tested succesful in Windows & Linux
-    TRY_USING_OPENGL = True
-else:
-    # Untested in MacOS
-    TRY_USING_OPENGL = False
+# OpenGL tested succesful in Windows & Linux, untested in MacOS
+TRY_USING_OPENGL = True if (os.name == "nt" or os.name == "posix") else False
 
 if TRY_USING_OPENGL:
     try:
-        import OpenGL.GL as gl
+        import OpenGL.GL as gl  # pylint: disable=unused-import
 
         pg.setConfigOptions(useOpenGL=True)
         pg.setConfigOptions(enableExperimental=True)
@@ -335,8 +332,8 @@ class MainWindow(QtWid.QWidget):
         ex10 = 8 + 10 * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
         ex12 = 8 + 12 * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
 
-        def Header():
-            pass  # Spider IDE outline bookmark
+        def Header():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # -----------------------------------
         # -----------------------------------
@@ -408,8 +405,8 @@ class MainWindow(QtWid.QWidget):
         hbox_header.addStretch(1)
         hbox_header.addLayout(vbox_right)
 
-        def Tabs():
-            pass  # Spider IDE outline bookmark
+        def Tabs():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # -----------------------------------
         # -----------------------------------
@@ -436,8 +433,8 @@ class MainWindow(QtWid.QWidget):
         self.tabs.addTab(self.tab_settings       , "Settings")
         # fmt: on
 
-        def Sidebar():
-            pass  # Spider IDE outline bookmark
+        def Sidebar():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # -----------------------------------
         # -----------------------------------
@@ -572,8 +569,8 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
 
-        def Reference_and_signal():
-            pass  # Spider IDE outline bookmark
+        def Reference_and_signal():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # -----------------------------------
         # -----------------------------------
@@ -677,8 +674,8 @@ class MainWindow(QtWid.QWidget):
         qgrp_readings = QtWid.QGroupBox("Readings")
         qgrp_readings.setLayout(grid)
 
-        def LIA_output():
-            pass  # Spider IDE outline bookmark
+        def LIA_output():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # -----------------------------------
         # -----------------------------------
@@ -847,8 +844,8 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
 
-        def Filter_1_output():
-            pass  # Spider IDE outline bookmark
+        def Filter_1_output():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # -----------------------------------
         # -----------------------------------
@@ -911,8 +908,8 @@ class MainWindow(QtWid.QWidget):
         qgrp_filt_1 = QtWid.QGroupBox("Filter @ sig_I")
         qgrp_filt_1.setLayout(self.legend_filt_1.grid)
 
-        def Mixer():
-            pass  # Spider IDE outline bookmark
+        def Mixer():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # -----------------------------------
         # -----------------------------------
@@ -991,8 +988,8 @@ class MainWindow(QtWid.QWidget):
 
         self.tab_mixer.setLayout(grid)
 
-        def Power_spectrum():
-            pass  # Spider IDE outline bookmark
+        def Power_spectrum():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -1135,8 +1132,8 @@ class MainWindow(QtWid.QWidget):
 
         self.tab_power_spectrum.setLayout(grid)
 
-        def Filter_1_design():
-            pass  # Spider IDE outline bookmark
+        def Filter_1_design():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -1172,9 +1169,9 @@ class MainWindow(QtWid.QWidget):
             xMin=0, xMax=self.alia.config.F_Nyquist, yMin=-120, yMax=20
         )
 
-        if 0:
+        if 0:  # pylint: disable=using-constant-test
+            # This will show individual symbols per data point
             # Only enable for debugging
-            # This will show individual symbols per data point, which is slow
             self.curve_filt_1_resp = pg.ScatterPlotItem(
                 pen=self.PEN_03, size=8, symbol="o"
             )
@@ -1249,8 +1246,8 @@ class MainWindow(QtWid.QWidget):
 
         self.tab_filter_1_design.setLayout(grid)
 
-        def Filter_2_design():
-            pass  # Spider IDE outline bookmark
+        def Filter_2_design():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -1286,9 +1283,9 @@ class MainWindow(QtWid.QWidget):
             xMin=0, xMax=self.alia.config.F_Nyquist, yMin=-120, yMax=20
         )
 
-        if 0:
+        if 0:  # pylint: disable=using-constant-test
+            # Show individual symbols per data point
             # Only enable for debugging
-            # This will show individual symbols per data point, which is slow
             self.curve_filt_2_resp = pg.ScatterPlotItem(
                 pen=self.PEN_03, size=8, symbol="o"
             )
@@ -1367,8 +1364,8 @@ class MainWindow(QtWid.QWidget):
 
         self.tab_filter_2_design.setLayout(grid)
 
-        def Diagram():
-            pass  # Spider IDE outline bookmark
+        def Diagram():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -1379,7 +1376,7 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
 
         # Schematic diagram
-        qlbl = QtGui.QLabel()
+        qlbl = QtWid.QLabel()
         qpix = QtGui.QPixmap("diagram_signal_processing.png")
         qlbl.setPixmap(qpix)
 
@@ -1395,8 +1392,8 @@ class MainWindow(QtWid.QWidget):
 
         self.tab_diagram.setLayout(grid)
 
-        def Settings():
-            pass  # Spider IDE outline bookmark
+        def Settings():  # pylint: disable=unused-variable
+            pass  # IDE bookmark
 
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
@@ -1528,7 +1525,7 @@ class MainWindow(QtWid.QWidget):
         alia_qdev = self.alia_qdev
         self.qlbl_update_counter.setText("%i" % alia_qdev.update_counter_DAQ)
 
-        if alia_qdev.worker_DAQ._paused:
+        if alia_qdev.worker_DAQ._paused:  # pylint: disable=protected-access
             self.qlbl_DAQ_rate.setText("Buffers/s: paused")
         else:
             self.qlbl_DAQ_rate.setText(
@@ -1728,7 +1725,9 @@ class MainWindow(QtWid.QWidget):
             self.hcc_LIA_XR.curve.setPen(self.PEN_03)
             self.pi_XR.setLabel("top", "R")
 
-        if self.alia_qdev.worker_DAQ._paused:
+        if (
+            self.alia_qdev.worker_DAQ._paused  # pylint: disable=protected-access
+        ):
             # The graphs are not being updated with the newly chosen timeseries
             # automatically because the lock-in is not running. It is safe
             # however to make a copy of the alia_qdev.state timeseries,
@@ -1762,7 +1761,9 @@ class MainWindow(QtWid.QWidget):
             self.pi_YT.setLabel("top", "%s" % chr(0x398))
             self.pi_YT.setLabel("left", text="phase (deg)")
 
-        if self.alia_qdev.worker_DAQ._paused:
+        if (
+            self.alia_qdev.worker_DAQ._paused  # pylint: disable=protected-access
+        ):
             # The graphs are not being updated with the newly chosen timeseries
             # automatically because the lock-in is not running. It is safe
             # however to make a copy of the alia_qdev.state timeseries,
@@ -1799,7 +1800,7 @@ class MainWindow(QtWid.QWidget):
         else:
             self.pi_XR.enableAutoRange("y", True)
             self.pi_XR.enableAutoRange("y", False)
-            XRange, YRange = self.pi_XR.viewRange()
+            _XRange, YRange = self.pi_XR.viewRange()
             self.pi_XR.setYRange(YRange[0], YRange[1], padding=1.0)
 
     def autorange_y_YT(self):
@@ -1816,7 +1817,7 @@ class MainWindow(QtWid.QWidget):
         else:
             self.pi_YT.enableAutoRange("y", True)
             self.pi_YT.enableAutoRange("y", False)
-            XRange, YRange = self.pi_YT.viewRange()
+            _XRange, YRange = self.pi_YT.viewRange()
             self.pi_YT.setYRange(YRange[0], YRange[1], padding=1.0)
 
     # --------------------------------------------------------------------------
@@ -1899,4 +1900,5 @@ class MainWindow(QtWid.QWidget):
 
 
 if __name__ == "__main__":
-    exec(open("DvG_Arduino_lockin_amp.py").read())
+    exec(open("DvG_Arduino_lockin_amp.py").read())  # pylint: disable=exec-used
+
