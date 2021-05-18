@@ -11,7 +11,7 @@ freq #.###          yes             ASCII [freq]                        Convenie
 offs #.###          yes             ASCII [offs]                        Convenience function for use in a serial terminal.
 ampl #.###          yes             ASCII [ampl]                        Convenience function for use in a serial terminal.
 
-cos/ sqr / saw /    yes             ASCII ['Computing LUT... done.']    Convenience functions for use in a serial terminal.
+cos / sqr / saw /   yes             ASCII ['Computing LUT... done.']    Convenience functions for use in a serial terminal.
 tri / ecg                           ASCII [waveform]
                                                             
 ref? / ?            no              ASCII [freq, offs, ampl, waveform, N_LUT]
