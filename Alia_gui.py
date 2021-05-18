@@ -7,6 +7,7 @@ __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
 __date__ = "13-05-2021"
 __version__ = "2.0.0"
+# pylint: disable=invalid-name
 
 from PyQt5 import QtCore, QtGui
 from PyQt5 import QtWidgets as QtWid
