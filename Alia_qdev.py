@@ -6,17 +6,18 @@ acquisition for an Arduino based lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "09-05-2021"
+__date__ = "18-05-2021"
 __version__ = "2.0.0"
+# pylint: disable=invalid-name
 
 import numpy as np
 from PyQt5 import QtCore
 
-from Alia_protocol_serial import Alia
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
-
-from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
 from dvg_ringbuffer import RingBuffer
+
+from Alia_protocol_serial import Alia
+from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
 
 # ------------------------------------------------------------------------------
 #   Alia_qdev
@@ -55,11 +56,9 @@ class Alia_qdev(QDeviceIO):
         signal_ref_V_ampl_is_set
     """
 
-    # fmt: off
-    signal_ref_freq_is_set     = QtCore.pyqtSignal()
+    signal_ref_freq_is_set = QtCore.pyqtSignal()
     signal_ref_V_offset_is_set = QtCore.pyqtSignal()
-    signal_ref_V_ampl_is_set   = QtCore.pyqtSignal()
-    # fmt: on
+    signal_ref_V_ampl_is_set = QtCore.pyqtSignal()
 
     class State:
         def __init__(self, buffer_size, N_buffers_in_deque=0):
@@ -260,14 +259,14 @@ class Alia_qdev(QDeviceIO):
     def turn_off(self):
         self.send("turn_off")
 
-    def set_ref_freq(self, ref_freq):
-        self.send("set_ref_freq", ref_freq)
+    def set_ref_freq(self, value: float):
+        self.send("set_ref_freq", value)
 
-    def set_ref_V_offset(self, ref_V_offset):
-        self.send("set_ref_V_offset", ref_V_offset)
+    def set_ref_V_offset(self, value: float):
+        self.send("set_ref_V_offset", value)
 
-    def set_ref_V_ampl(self, ref_V_ampl):
-        self.send("set_ref_V_ampl", ref_V_ampl)
+    def set_ref_V_ampl(self, value: float):
+        self.send("set_ref_V_ampl", value)
 
     # -------------------------------------------------------------------------
     #   jobs_function
@@ -293,13 +292,13 @@ class Alia_qdev(QDeviceIO):
                     self.pause_DAQ()
 
                 if func == "set_ref_freq":
-                    self.dev.set_ref_freq(set_value)
+                    self.dev.set_ref(freq=set_value)
                     self.signal_ref_freq_is_set.emit()
                 elif func == "set_ref_V_offset":
-                    self.dev.set_ref_V_offset(set_value)
+                    self.dev.set_ref(V_offset=set_value)
                     self.signal_ref_V_offset_is_set.emit()
                 elif func == "set_ref_V_ampl":
-                    self.dev.set_ref_V_ampl(set_value)
+                    self.dev.set_ref(V_ampl=set_value)
                     self.signal_ref_V_ampl_is_set.emit()
 
                 if not was_paused:

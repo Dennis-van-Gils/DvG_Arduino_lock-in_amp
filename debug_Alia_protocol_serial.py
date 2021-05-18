@@ -6,18 +6,18 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "09-05-2021"
+__date__ = "18-05-2021"
 __version__ = "2.0.0"
+# pylint: disable=invalid-name
 
 import os
 import sys
-import msvcrt
-import psutil
+from collections import deque
 import time as Time
 
+import psutil
 import numpy as np
 import matplotlib.pyplot as plt
-from collections import deque
 
 from Alia_protocol_serial import Alia, Waveform
 
@@ -37,12 +37,8 @@ if __name__ == "__main__":
         print("Exiting...\n")
         sys.exit(0)
 
-    alia.begin(  # ref_freq=2173,
-        ref_freq=2500,
-        # ref_freq=2500,
-        ref_V_offset=1.65,
-        ref_V_ampl=1.65,
-        ref_waveform=Waveform(0),
+    alia.begin(
+        freq=2500, V_offset=1.65, V_ampl=1.65, waveform=Waveform.Cosine,
     )
 
     if fDrawPlot:
@@ -67,9 +63,11 @@ if __name__ == "__main__":
     alia.turn_on()
     for i_set in range(N_SETS):
         if i_set == 1:
-            alia.set_ref_freq(200)
+            alia.set_ref(freq=200)
+            print("")
         if i_set == 2:
-            alia.set_ref_waveform(Waveform.Triangle)
+            alia.set_ref(waveform=Waveform.Triangle)
+            print("")
 
         deque_time.clear()
         deque_ref_X.clear()
@@ -79,10 +77,14 @@ if __name__ == "__main__":
         tick = 0
         buffers_received = 0
         for i_rep in range(N_REPS):
-            # if msvcrt.kbhit() and msvcrt.getch().decode() == chr(27):
-            #    sys.exit(0)
-
-            success, time, ref_X, ref_Y, sig_I = alia.listen_to_lockin_amp()
+            (
+                success,
+                time,
+                ref_X,
+                ref_Y,
+                sig_I,
+                counter,
+            ) = alia.listen_to_lockin_amp()
 
             if success:
                 buffers_received += 1
@@ -124,7 +126,7 @@ if __name__ == "__main__":
                 buffers_received,
                 buffers_received / (Time.perf_counter() - tick),
             )
-            print(str_info1 + "    " + str_info2)
+            print("\n%s    %s\n" % (str_info1, str_info2))
 
         if fDrawPlot:
             # alia.turn_off()
@@ -152,18 +154,11 @@ if __name__ == "__main__":
     f_log.close()
 
     print(
-        "\nSamples received per buffer: [min, max] = [%d, %d]"
+        "Samples received per buffer: [min, max] = [%d, %d]"
         % (np.min(samples_received), np.max(samples_received))
     )
 
-    while 1:
-        if fDrawPlot:
-            plt.pause(0.5)
-        else:
-            break
-
-        if msvcrt.kbhit():  # and msvcrt.getch().decode() == chr(27):
-            break
+    fig.canvas.draw()
 
     with open(fn_log, "r") as file:
         filedata = file.read()
@@ -185,8 +180,8 @@ if __name__ == "__main__":
     print("\ntime_diff:")
     print("  median = %i usec" % np.median(time_diff))
     print("  mean   = %i usec" % np.mean(time_diff))
-    print("  min = %i usec" % np.min(time_diff))
-    print("  max = %i usec" % np.max(time_diff))
+    print("  min    = %i usec" % np.min(time_diff))
+    print("  max    = %i usec" % np.max(time_diff))
 
     time_ = time[:-1]
     time_gaps = time_[time_diff > 500]
@@ -198,3 +193,4 @@ if __name__ == "__main__":
             % (i + 1, time_gaps[i] / 1e3, time_gap_durations[i] / 1e3)
         )
 
+    plt.show(block=True)

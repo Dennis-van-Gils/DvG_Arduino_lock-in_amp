@@ -15,7 +15,4 @@
 
 * Add min, max, avg, std textfields to tab `Mixer` for signal `filt_I`
 
-* Requesting and retrieving Arduino settings should print to the console as one
-  block instead of two
-
 * Add support for HDF5 to allow writing log as binary file

@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "13-05-2021"
+__date__ = "18-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -41,7 +41,7 @@ USE_CUDA = False
 import pyfftw
 np.fft = pyfftw.interfaces.numpy_fft  # Monkey patch fftpack
 pyfftw.interfaces.cache.enable()      # Turn on cache for optimum performance
-"""
+"""  # pylint: disable=pointless-string-statement
 
 
 # ------------------------------------------------------------------------------
@@ -424,10 +424,7 @@ if __name__ == "__main__":
 
     # alia.begin()
     alia.begin(
-        ref_freq=250,
-        ref_V_offset=1.5,
-        ref_V_ampl=1.417,
-        ref_waveform=Waveform.Cosine,
+        freq=250, V_offset=1.5, V_ampl=1.417, waveform=Waveform.Cosine,
     )
 
     # Create workers and threads
