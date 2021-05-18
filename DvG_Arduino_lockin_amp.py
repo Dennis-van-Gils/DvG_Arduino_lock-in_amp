@@ -431,7 +431,6 @@ if __name__ == "__main__":
     alia_qdev = Alia_qdev(
         dev=alia,
         DAQ_function=lockin_DAQ_update,
-        critical_not_alive_count=3,
         N_buffers_in_deque=21,
         use_CUDA=USE_CUDA,
         debug=DEBUG,

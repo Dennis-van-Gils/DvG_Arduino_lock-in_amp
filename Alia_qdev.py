@@ -173,7 +173,7 @@ class Alia_qdev(QDeviceIO):
         self,
         dev: Alia,
         DAQ_function=None,
-        critical_not_alive_count=3,
+        critical_not_alive_count=np.nan,  # np.nan goes on indefinitely
         N_buffers_in_deque=21,
         use_CUDA=False,
         debug=False,
