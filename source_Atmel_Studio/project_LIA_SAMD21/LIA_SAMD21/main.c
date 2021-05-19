@@ -659,9 +659,10 @@ int main(void) {
     //SysTick_Config(SystemCoreClock / 1000);
     SysTick->LOAD = (uint32_t) (SystemCoreClock / 1000 - 1UL);
     SysTick->VAL  = 0UL;
-    SysTick->CTRL = SysTick_CTRL_CLKSOURCE_Msk |
-    SysTick_CTRL_TICKINT_Msk   |
-    SysTick_CTRL_ENABLE_Msk;
+    SysTick->CTRL =
+		SysTick_CTRL_CLKSOURCE_Msk |
+		SysTick_CTRL_TICKINT_Msk |
+		SysTick_CTRL_ENABLE_Msk;
 
     // LUT
     parse_freq("250.0");  // [Hz] Wanted startup frequency
@@ -866,6 +867,18 @@ int main(void) {
                     } else if (strcmp(str_cmd, "on") == 0) {
                         // Start lock-in amp
                         start_LIA();
+
+
+
+					} else if (strcmp(str_cmd, "_on") == 0) {
+						// Start lock-in amp and reset the timestamp to (near) 0
+						// for the upcoming new transmit buffer
+						NVIC_DisableIRQ(SysTick_IRQn);
+						millis = 0;         // Reset millis part
+						SysTick->VAL = 0UL; // Reset micros part
+						NVIC_EnableIRQ(SysTick_IRQn);
+
+						start_LIA();
 
 
 
