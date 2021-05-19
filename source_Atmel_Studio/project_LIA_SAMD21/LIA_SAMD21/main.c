@@ -544,7 +544,6 @@ void init_LIA(void) {
 
 void start_LIA(void) {
     timer_stop(&TIMER_0);
-
     TIMER_0.time = 0;
 
     // DAC
