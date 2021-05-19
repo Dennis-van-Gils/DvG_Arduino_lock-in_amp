@@ -6,7 +6,7 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "18-05-2021"
+__date__ = "19-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
     deque_sig_I = deque(maxlen=N_deque)
     samples_received = np.array([], dtype=int)
 
-    alia.turn_on()
+    alia.turn_on(reset_timer=True)
     for i_set in range(N_SETS):
         if i_set == 1:
             alia.set_ref(freq=200)
@@ -79,11 +79,11 @@ if __name__ == "__main__":
         for i_rep in range(N_REPS):
             (
                 success,
+                counter,
                 time,
                 ref_X,
                 ref_Y,
                 sig_I,
-                counter,
             ) = alia.listen_to_lockin_amp()
 
             if success:
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     time = np.array(a[:, 0])
     ref_X = np.array(a[:, 1])
     sig_I = np.array(a[:, 2])
-    time = time - time[0]
+    # time = time - time[0]
 
     time_diff = np.diff(time)
     print("\ntime_diff:")

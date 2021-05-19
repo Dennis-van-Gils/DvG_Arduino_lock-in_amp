@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "18-05-2021"
+__date__ = "19-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -130,19 +130,12 @@ def lockin_DAQ_update():
     # Listen for data buffers send by the lock-in
     (
         success,
+        _counter,
         state.time,
         state.ref_X,
         state.ref_Y,
         state.sig_I,
-        counter,
     ) = alia.listen_to_lockin_amp()
-
-    # IN PROGRESS, TODO: keep track of buffer counter
-    if counter == 1:
-        state.t_0 = state.time[0]
-        print(state.t_0)
-    else:
-        state.time = state.time - state.t_0
 
     if not success:
         dprint("@ %s %s" % current_date_time_strings())

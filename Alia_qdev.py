@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "18-05-2021"
+__date__ = "19-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -66,9 +66,6 @@ class Alia_qdev(QDeviceIO):
             the lock-in amplifier. There should only be one instance of the
             State class.
             """
-
-            # IN PROGRESS, TODO: keep track of buffer counter
-            self.t_0 = np.nan
 
             # fmt: off
             self.buffers_received   = 0
@@ -306,7 +303,7 @@ class Alia_qdev(QDeviceIO):
 
         elif func == "turn_on":
             self.state.reset()
-            if self.dev.turn_on():
+            if self.dev.turn_on(reset_timer=True):
                 self.unpause_DAQ()
 
         elif func == "turn_off":

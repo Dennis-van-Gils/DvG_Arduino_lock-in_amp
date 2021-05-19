@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Dennis van Gils
-18-05-2021
+19-05-2021
 """
 
 import numpy as np
@@ -31,19 +31,19 @@ ref_X = np.array(a[:, 1])
 ref_Y = np.array(a[:, 2])
 sig_I = np.array(a[:, 3])
 # fmt: on
-time = time - time[0]
+# time = time - time[0]
 
 time_diff = np.diff(time)
 print("time_diff:")
 print("  median = %i usec" % np.median(time_diff))
 print("  mean   = %i usec" % np.mean(time_diff))
-print("  min = %i usec" % np.min(time_diff))
-print("  max = %i usec" % np.max(time_diff))
+print("  min    = %i usec" % np.min(time_diff))
+print("  max    = %i usec" % np.max(time_diff))
 
 time_ = time[:-1]
 time_gaps = time_[time_diff > 500]
 time_gap_durations = time_diff[time_diff > 500]
-print("number of gaps > 500 usec: %i" % len(time_gaps))
+print("\nnumber of gaps > 500 usec: %i" % len(time_gaps))
 for i in range(len(time_gaps)):
     print(
         "  gap %i @ t = %.3f msec for %.3f msec"

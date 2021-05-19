@@ -11,6 +11,9 @@
   command             compute LUT     reply                               Remark
   --------------------------------------------------------------------------------
 
+  on																	  Start lock-in
+  _on																	  Start lock-in and reset timer to 0
+
   _freq #.###         no              none
   _offs #.###         no              none
   _ampl #.###         no              none

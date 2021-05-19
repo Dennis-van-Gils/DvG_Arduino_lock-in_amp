@@ -258,12 +258,12 @@ class Alia(Arduino_protocol_serial.Arduino):
     #   turn_on/off
     # --------------------------------------------------------------------------
 
-    def turn_on(self) -> bool:
+    def turn_on(self, reset_timer: bool = False) -> bool:
         """
         Returns:
             True if successful, False otherwise.
         """
-        success = self.write("on")
+        success = self.write("_on" if reset_timer else "on")
         if success:
             self.lockin_paused = False
             self.read_until_left_over_bytes = bytearray()
@@ -644,20 +644,21 @@ class Alia(Arduino_protocol_serial.Arduino):
         Returns:
             Tuple (
                 success: bool
-                time: numpy.array
-                ref_X: numpy.array
-                ref_Y: numpy.array
-                sig_I: numpy.array
-                counter: Optional(int)
+                counter: int | None
+                time   : numpy.array
+                ref_X  : numpy.array
+                ref_Y  : numpy.array
+                sig_I  : numpy.array
             )
         """
+        failed = False, None, [np.nan], [np.nan], [np.nan], [np.nan]
         c = self.config  # Shorthand alias
 
         ans_bytes = self.read_until_EOM()
         # dprint("EOM found with %i bytes and..." % len(ans_bytes))
         if not ans_bytes[: c.N_BYTES_SOM] == c.SOM:
             dprint("'%s' I/O ERROR: No SOM found" % self.name)
-            return False, [np.nan], [np.nan], [np.nan], [np.nan], None
+            return failed
 
         # dprint("SOM okay")
         if not len(ans_bytes) == c.N_BYTES_TX_BUFFER:
@@ -665,7 +666,7 @@ class Alia(Arduino_protocol_serial.Arduino):
                 "'%s' I/O ERROR: Expected %i bytes but received %i"
                 % (self.name, c.N_BYTES_TX_BUFFER, len(ans_bytes))
             )
-            return False, [np.nan], [np.nan], [np.nan], [np.nan], None
+            return failed
 
         # fmt: off
         ans_bytes = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM] # Remove sentinels
@@ -692,7 +693,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             )
         except:
             dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
-            return False, [np.nan], [np.nan], [np.nan], [np.nan], None
+            return failed
 
         # fmt: off
         counter   = counter[0]
@@ -761,7 +762,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             ref_Y_tiled[: c.BLOCK_SIZE], dtype=c.return_type_ref_XY, order="C"
         )
 
-        return True, time, ref_X, ref_Y, sig_I, counter
+        return True, counter, time, ref_X, ref_Y, sig_I
 
 
 # ------------------------------------------------------------------------------
@@ -769,6 +770,16 @@ class Alia(Arduino_protocol_serial.Arduino):
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
+
+    def print_reply(reply: str):
+        print("")
+        print("success  %s" % reply[0])
+        print("counter  %s" % reply[1])
+        print("   time  %s" % reply[2])
+        print("  ref_X  %s" % reply[3])
+        print("  ref_Y  %s" % reply[4])
+        print("  sig_I  %s\n" % reply[5])
+
     alia = Alia()
     alia.auto_connect()
 
@@ -779,26 +790,13 @@ if __name__ == "__main__":
         freq=220, waveform=Waveform.Cosine,
     )
     # alia.begin()
-    alia.turn_on()
+    alia.turn_on(reset_timer=True)
 
-    reply = alia.listen_to_lockin_amp()
-    print("success  %s" % reply[0])
-    print("   time  %s" % reply[1])
-    print("  ref_X  %s" % reply[2])
-    print("  ref_Y  %s" % reply[3])
-    print("  sig_I  %s" % reply[4])
-    print("counter  %s\n" % reply[5])
-
+    print_reply(alia.listen_to_lockin_amp())
+    print_reply(alia.listen_to_lockin_amp())
     alia.set_ref(freq=250, V_offset=1.5, V_ampl=0.5, waveform=Waveform.Triangle)
-
-    reply = alia.listen_to_lockin_amp()
-    print("")
-    print("success  %s" % reply[0])
-    print("   time  %s" % reply[1])
-    print("  ref_X  %s" % reply[2])
-    print("  ref_Y  %s" % reply[3])
-    print("  sig_I  %s" % reply[4])
-    print("counter  %s\n" % reply[5])
+    print_reply(alia.listen_to_lockin_amp())
+    print_reply(alia.listen_to_lockin_amp())
 
     alia.turn_off()
     alia.close()

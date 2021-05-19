@@ -12,8 +12,7 @@ __version__ = "2.0.0"
 import sys
 import time as Time
 
-from PyQt5 import QtCore, QtGui
-from PyQt5 import QtWidgets as QtWid
+from PyQt5 import QtCore, QtGui, QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 import numpy as np
@@ -242,7 +241,7 @@ class Alia_qdev(QDeviceIO):
 
     def jobs_function(self, func, args):
         if func == "turn_on":
-            if self.dev.turn_on():
+            if self.dev.turn_on(reset_timer=True):
                 self.unpause_DAQ()
 
         elif func == "turn_off":
@@ -286,7 +285,7 @@ def lockin_DAQ_update():
         window.gw_refsig.setUpdatesEnabled(False)
 
     # tick = Time.perf_counter()
-    success, time, ref_X, _ref_Y, sig_I, _counter = alia.listen_to_lockin_amp()
+    success, _counter, time, ref_X, _ref_Y, sig_I = alia.listen_to_lockin_amp()
     # dprint("%i" % ((Time.perf_counter() - tick) * 1e3))
 
     if not success:
