@@ -330,7 +330,6 @@ class MainWindow(QtWid.QWidget):
         # Textbox widths for fitting N characters using the current font
         ex8 = 8 + 8 * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
         ex10 = 8 + 10 * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
-        ex12 = 8 + 12 * QtGui.QFontMetrics(QtGui.QFont()).averageCharWidth()
 
         def Header():  # pylint: disable=unused-variable
             pass  # IDE bookmark
@@ -458,6 +457,9 @@ class MainWindow(QtWid.QWidget):
         self.qlin_ref_V_ampl = QtWid.QLineEdit(
             "%.3f" % alia.config.ref_V_ampl, **p1
         )
+        self.qlin_ref_freq.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_ref_V_offset.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_ref_V_ampl.setAlignment(QtCore.Qt.AlignRight)
 
         self.qlin_ref_freq.editingFinished.connect(self.process_qlin_ref_freq)
         self.qlin_ref_V_offset.editingFinished.connect(
@@ -637,19 +639,22 @@ class MainWindow(QtWid.QWidget):
         self.hcc_sig_I.x_axis_divisor = 1000  # From [us] to [ms]
 
         # QGROUP: Readings
-        p1 = {"maximumWidth": ex12, "minimumWidth": ex12, "readOnly": True}
-        p2 = {"maximumWidth": ex8, "minimumWidth": ex8, "readOnly": True}
-        self.qlin_time = QtWid.QLineEdit(**p1)
-        self.qlin_sig_I_max = QtWid.QLineEdit(**p2)
-        self.qlin_sig_I_min = QtWid.QLineEdit(**p2)
-        self.qlin_sig_I_avg = QtWid.QLineEdit(**p2)
-        self.qlin_sig_I_std = QtWid.QLineEdit(**p2)
+        p = {"maximumWidth": ex8, "minimumWidth": ex8, "readOnly": True}
+        self.qlin_time = QtWid.QLineEdit(readOnly=True)
+        self.qlin_sig_I_max = QtWid.QLineEdit(**p)
+        self.qlin_sig_I_min = QtWid.QLineEdit(**p)
+        self.qlin_sig_I_avg = QtWid.QLineEdit(**p)
+        self.qlin_sig_I_std = QtWid.QLineEdit(**p)
+        self.qlin_time.setAlignment(QtCore.Qt.AlignHCenter)
+        self.qlin_sig_I_max.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_sig_I_min.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_sig_I_avg.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_sig_I_std.setAlignment(QtCore.Qt.AlignRight)
 
         # fmt: off
         i = 0
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(self.qlin_time         , i, 0, 1, 2)
-        grid.addWidget(QtWid.QLabel("s")      , i, 2)      ; i+=1
+        grid.addWidget(self.qlin_time         , i, 0, 1, 3); i+=1
         grid.addItem(QtWid.QSpacerItem(0, 6)  , i, 0)      ; i+=1
         grid.addLayout(self.legend_refsig.grid, i, 0, 1, 3); i+=1
         grid.addItem(QtWid.QSpacerItem(0, 6)  , i, 0)      ; i+=1
@@ -793,6 +798,10 @@ class MainWindow(QtWid.QWidget):
         self.qlin_Y_avg = QtWid.QLineEdit(**p)
         self.qlin_R_avg = QtWid.QLineEdit(**p)
         self.qlin_T_avg = QtWid.QLineEdit(**p)
+        self.qlin_X_avg.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_Y_avg.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_R_avg.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_T_avg.setAlignment(QtCore.Qt.AlignRight)
 
         # fmt: off
         i = 0
@@ -1532,9 +1541,14 @@ class MainWindow(QtWid.QWidget):
                 "Buffers/s: %.1f" % alia_qdev.obtained_DAQ_rate_Hz
             )
 
-        self.qlin_time.setText(
-            "%.3f" % (alia_qdev.state.time[0] / 1e6)
-        )  # NOTE: time[0] can be np.nan, so leave the format as a float!
+        if np.isnan(alia_qdev.state.time[0]):
+            time_str = "00 : 00 : 00.000"
+        else:
+            m, s = divmod(alia_qdev.state.time[0] / 1e6, 60)
+            h, m = divmod(m, 60)
+            time_str = "%02.0f : %02.0f : %06.3f" % (h, m, s)
+
+        self.qlin_time.setText(time_str)
         self.qlin_sig_I_max.setText("%.4f" % alia_qdev.state.sig_I_max)
         self.qlin_sig_I_min.setText("%.4f" % alia_qdev.state.sig_I_min)
         self.qlin_sig_I_avg.setText("%.4f" % alia_qdev.state.sig_I_avg)
@@ -1858,14 +1872,14 @@ class MainWindow(QtWid.QWidget):
         #                             self.filt_resp_construct_title(firf))
 
     def filt_resp_construct_title(self, firf):
-        __tmp1 = "N_taps = %i" % firf.N_taps
+        tmp1 = "N_taps = %i" % firf.N_taps
         if isinstance(firf.window, str):
-            __tmp2 = "%s" % firf.window
+            tmp2 = "%s" % firf.window
         else:
-            __tmp2 = "%s" % [x for x in firf.window]
-        __tmp3 = "%s Hz" % [round(x, 1) for x in firf.cutoff]
+            tmp2 = "%s" % [x for x in firf.window]
+        tmp3 = "%s Hz" % [round(x, 1) for x in firf.cutoff]
 
-        return "%s, %s, %s" % (__tmp1, __tmp2, __tmp3)
+        return "%s, %s, %s" % (tmp1, tmp2, tmp3)
 
     @QtCore.pyqtSlot()
     def plot_zoom_ROI_filt_1(self):
