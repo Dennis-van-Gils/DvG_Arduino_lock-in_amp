@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "18-05-2021"
+__date__ = "19-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -17,11 +17,13 @@ from typing import AnyStr, Optional, Tuple
 
 import serial
 import numpy as np
+from numba import njit
 
 from dvg_devices import Arduino_protocol_serial
 from dvg_debug_functions import dprint, print_fancy_traceback as pft
 
 
+@njit("float64[:](float64[:])", nogil=True, cache=False)
 def round_C_style(array_in: np.ndarray) -> np.ndarray:
     """
     round_C_style([0.1 , 1.45, 1.55, -0.1 , -1.45, -1.55])
