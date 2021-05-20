@@ -12,7 +12,7 @@ __version__ = "2.0.0"
 import os
 import sys
 
-# import time as Time
+import time as Time
 import psutil
 
 from PyQt5 import QtCore
@@ -21,7 +21,7 @@ from PyQt5.QtCore import QDateTime
 import numpy as np
 
 from dvg_pyqt_filelogger import FileLogger
-from dvg_debug_functions import dprint  # , print_fancy_traceback as pft
+from dvg_debug_functions import dprint, tprint
 from DvG_FFTW_WelchPowerSpectrum import FFTW_WelchPowerSpectrum
 
 from Alia_protocol_serial import Alia, Waveform
@@ -118,6 +118,11 @@ def lockin_DAQ_update():
     # Prevent throwings errors if just paused
     if alia.lockin_paused:
         return False
+
+    # DEBUG
+    tock = Time.perf_counter()
+    print("%.2f " % (tock - alia.tick))
+    alia.tick = tock
 
     if not window.boost_fps_graphing:
         # Prevent possible concurrent pyqtgraph.PlotWidget() redraws and GUI
@@ -414,6 +419,9 @@ if __name__ == "__main__":
         print("\nCheck connection and try resetting the Arduino.")
         print("Exiting...\n")
         sys.exit(0)
+
+    # DEBUG
+    alia.tick = Time.perf_counter()
 
     # alia.begin()
     alia.begin(
