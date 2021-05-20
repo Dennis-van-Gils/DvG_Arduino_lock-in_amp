@@ -8,5 +8,4 @@ numba=0.53.1
 numpy=1.20.1
 mkl=2021.2.0
 psutil
-pathlib2
 pip
