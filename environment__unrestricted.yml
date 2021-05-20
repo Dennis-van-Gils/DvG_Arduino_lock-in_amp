@@ -1,0 +1,12 @@
+ipython
+pyserial
+pyqt
+pyqtgraph=0.11.0
+scipy
+numba
+numpy
+fftw
+pyfftw
+mkl
+psutil
+pip

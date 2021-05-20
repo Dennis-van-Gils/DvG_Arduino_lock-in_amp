@@ -4,6 +4,14 @@
   if self.debug:
       import pydevd
       pydevd.settrace(suspend=False)
+	  
+* Alternative install procedure (can't get it to work yet though):
+
+conda create -n liaforge -c conda-forge  --force -y python=3.8.10
+conda activate liaforge
+conda install -c conda-forge --strict-channel-priority -y --file environment__unrestricted.yml
+conda install pyopengl pyopengl-accelerate  <----- problem with numpy
+pip install -r requirements.txt --no-deps
 
 
 * Arduino lockin-amplifier commands
