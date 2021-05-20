@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "19-05-2021"
+__date__ = "20-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -21,7 +21,7 @@ from PyQt5.QtCore import QDateTime
 import numpy as np
 
 from dvg_pyqt_filelogger import FileLogger
-from dvg_debug_functions import dprint, tprint
+from dvg_debug_functions import dprint
 from DvG_FFTW_WelchPowerSpectrum import FFTW_WelchPowerSpectrum
 
 from Alia_protocol_serial import Alia, Waveform
@@ -30,6 +30,7 @@ from Alia_gui import MainWindow
 
 # Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
 DEBUG = False
+DEBUG_TIMING = False
 
 # Enable GPU-accelerated computations on an NVIDIA videocard with CUDA support?
 # Will handle fftconvolve (FIR filters).
@@ -119,10 +120,10 @@ def lockin_DAQ_update():
     if alia.lockin_paused:
         return False
 
-    # DEBUG
-    tock = Time.perf_counter()
-    print("%.2f " % (tock - alia.tick))
-    alia.tick = tock
+    if DEBUG_TIMING:
+        tock = Time.perf_counter()
+        print("%.2f _DAQ" % (tock - alia.tick))
+        alia.tick = tock
 
     if not window.boost_fps_graphing:
         # Prevent possible concurrent pyqtgraph.PlotWidget() redraws and GUI
@@ -420,8 +421,8 @@ if __name__ == "__main__":
         print("Exiting...\n")
         sys.exit(0)
 
-    # DEBUG
-    alia.tick = Time.perf_counter()
+    if DEBUG_TIMING:
+        alia.tick = Time.perf_counter()
 
     # alia.begin()
     alia.begin(

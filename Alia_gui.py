@@ -5,11 +5,12 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "18-05-2021"
+__date__ = "20-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
 import os
+import time as Time
 
 from PyQt5 import QtCore, QtGui, QtWidgets as QtWid
 from PyQt5.QtCore import QDateTime
@@ -34,6 +35,9 @@ pg.exporters.ImageExporter.export = pgmp.ImageExporter_export
 
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
+
+# Show debug info in terminal? Warning: Slow! Do not leave on unintentionally.
+DEBUG_TIMING = False
 
 # OpenGL tested succesful in Windows & Linux, untested in MacOS
 TRY_USING_OPENGL = True if (os.name == "nt" or os.name == "posix") else False
@@ -297,6 +301,9 @@ FONT_MONOSPACE.setStyleHint(QtGui.QFont.Monospace)
 class MainWindow(QtWid.QWidget):
     def __init__(self, alia: Alia, alia_qdev: Alia_qdev, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
+
+        if DEBUG_TIMING:
+            self.tick = Time.perf_counter()
 
         self.alia = alia
         self.alia_qdev = alia_qdev
@@ -1525,7 +1532,10 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def update_GUI(self):
-        # dprint("Update GUI")
+        if DEBUG_TIMING:
+            tock = Time.perf_counter()
+            print("%.2f GUI" % (tock - self.tick))
+            self.tick = tock
 
         # Major visual changes upcoming. Reduce CPU overhead by momentarily
         # disabling screen repaints and GUI events.
