@@ -13,6 +13,8 @@ conda activate liaforge
 pip install -r requirements_alternative.txt
 pip install -r requirements.txt --no-deps
 
+Extra for Linux to get PyQt5 to work:
+sudo apt-get install libxcb-xinerama0
 
 
 * Arduino lockin-amplifier commands
