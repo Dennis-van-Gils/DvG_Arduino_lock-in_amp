@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "19-05-2021"
+__date__ = "20-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -14,6 +14,7 @@ import sys
 import struct
 from enum import Enum
 from typing import AnyStr, Optional, Tuple
+import time as Time
 
 import serial
 import numpy as np
@@ -567,66 +568,75 @@ class Alia(Arduino_protocol_serial.Arduino):
     #   read_until_EOM
     # --------------------------------------------------------------------------
 
-    def read_until_EOM(self, size: Optional[int] = None) -> bytes:
-        """Reads from the serial port until the EOM sentinel is found, the size
-        is exceeded or until timeout occurs.
-
-        Contrary to `serial.read_until()` which reads 1 byte at a time, here we
-        read chunks of `2*N_BYTES_EOM`. This is way more efficient for the OS
-        and drastically reduces a non-responsive GUI and dropped I/O (even
-        though they are running in separate threads?!). Any left-over bytes
-        after the EOM will be remembered and prefixed to the next
-        `read_until_EOM()` operation.
+    def read_until_EOM(self) -> bytes:
+        """Reads from the serial port until the EOM sentinel is found or until
+        a timeout occurs. Any left-over bytes after the EOM will be remembered
+        and prefixed to the next `read_until_EOM()` call. This method is
+        blocking. Read `Behind the scenes` for more information on the use
+        of this method in multithreaded scenarios.
 
         Returns:
             The read contents as type `bytes`.
+
+        Behind the scenes:
+            Reading happens in bursts whenever any new bytes are waiting in the
+            serial-in buffer of the OS. When no bytes are waiting, this method
+            `read_until_EOM()` will sleep 0.01 s, before trying again. All read
+            bytes will be collected in a single bytearray and tested for the EOM
+            sentinel.
+
+            Even though this method itself is blocking (in its caller thread),
+            other threads will be able to get processed by the Python
+            Interpreter because of the small sleep period. The sleep period will
+            free up the caller thread from the Python GIL.
+
+            See comment by Gabriel Staples
+            https://stackoverflow.com/questions/17553543/pyserial-non-blocking-read-loop/38758773
         """
-        line = bytearray()
-        line[:] = self.read_until_left_over_bytes
 
         # fmt: off
         timeout = serial.Timeout(self.ser._timeout)  # pylint: disable=protected-access
         # fmt: on
 
+        c = bytearray(self.read_until_left_over_bytes)
+        idx_EOM = -1
         while True:
             try:
-                c = self.ser.read(2 * self.config.N_BYTES_EOM)
-            except:
-                # Remain silent
-                break
+                if self.ser.in_waiting > 0:
+                    new_bytes = self.ser.read(self.ser.in_waiting)
 
-            if c:
-                line += c
-                line_tail = line[-4 * self.config.N_BYTES_EOM :]
-                i_found_terminator = line_tail.find(self.config.EOM)
-                if i_found_terminator > -1:
-                    N_left_over_bytes_after_EOM = (
-                        len(line_tail)
-                        - i_found_terminator
-                        - self.config.N_BYTES_EOM
-                    )
+                    if new_bytes:
+                        c.extend(new_bytes)
+                        idx_EOM = c.find(self.config.EOM)
 
-                    if N_left_over_bytes_after_EOM:
-                        left_over_bytes = line_tail[
-                            -N_left_over_bytes_after_EOM:
-                        ]
-                        line = line[:-N_left_over_bytes_after_EOM]
-                        # print(N_left_over_bytes_after_EOM)
-                        # print(left_over_bytes)
-                    else:
-                        left_over_bytes = bytearray()
+                    if idx_EOM > -1:
+                        N_left_over_bytes_after_EOM = (
+                            len(c) - idx_EOM - self.config.N_BYTES_EOM
+                        )
 
-                    self.read_until_left_over_bytes = left_over_bytes
-                    break
-                if size is not None and len(line) >= size:
-                    break
-            else:
-                break
+                        if N_left_over_bytes_after_EOM:
+                            left_over_bytes = c[-N_left_over_bytes_after_EOM:]
+                            c = c[:-N_left_over_bytes_after_EOM]
+                            # print(
+                            #    "LEFT OVER BYTES: %d"
+                            #    % N_left_over_bytes_after_EOM
+                            # )
+                        else:
+                            left_over_bytes = bytearray()
+
+                        self.read_until_left_over_bytes = left_over_bytes
+                        break
+
+                # Do not hog the CPU
+                Time.sleep(0.01)
+
+            except Exception as err:
+                pft(err)
 
             if timeout.expired():
                 break
 
-        return bytes(line)
+        return bytes(c)
 
     # --------------------------------------------------------------------------
     #   listen_to_lockin_amp
