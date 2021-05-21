@@ -606,10 +606,12 @@ class Alia(Arduino_protocol_serial.Arduino):
                     new_bytes = self.ser.read(self.ser.in_waiting)
 
                     if new_bytes:
+                        # print(len(new_bytes))
                         c.extend(new_bytes)
                         idx_EOM = c.find(self.config.EOM)
 
                     if idx_EOM > -1:
+                        # print("_____EOM")
                         N_left_over_bytes_after_EOM = (
                             len(c) - idx_EOM - self.config.N_BYTES_EOM
                         )
