@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "20-05-2021"
+__date__ = "21-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -921,8 +921,41 @@ class MainWindow(QtWid.QWidget):
         self.hcc_filt_1_out.x_axis_divisor = 1000  # From [us] to [ms]
 
         # QGROUP: Filter output
+        p = {"maximumWidth": ex8, "minimumWidth": ex8, "readOnly": True}
+        self.qlin_filt_I_max = QtWid.QLineEdit(**p)
+        self.qlin_filt_I_min = QtWid.QLineEdit(**p)
+        self.qlin_filt_I_avg = QtWid.QLineEdit(**p)
+        self.qlin_filt_I_std = QtWid.QLineEdit(**p)
+        self.qlin_filt_I_max.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_filt_I_min.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_filt_I_avg.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_filt_I_std.setAlignment(QtCore.Qt.AlignRight)
+
+        # fmt: off
+        i = 0
+        grid = QtWid.QGridLayout(spacing=4)
+        grid.addLayout(self.legend_filt_1.grid, i, 0, 1, 3); i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 6)  , i, 0)      ; i+=1
+        grid.addWidget(QtWid.QLabel("filt_I:"), i, 0)      ; i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 4)  , i, 0)      ; i+=1
+        grid.addWidget(QtWid.QLabel("max")    , i, 0)
+        grid.addWidget(self.qlin_filt_I_max   , i, 1)
+        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
+        grid.addWidget(QtWid.QLabel("min")    , i, 0)
+        grid.addWidget(self.qlin_filt_I_min   , i, 1)
+        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
+        grid.addItem(QtWid.QSpacerItem(0, 4)  , i, 0)      ; i+=1
+        grid.addWidget(QtWid.QLabel("avg")    , i, 0)
+        grid.addWidget(self.qlin_filt_I_avg   , i, 1)
+        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
+        grid.addWidget(QtWid.QLabel("std")    , i, 0)
+        grid.addWidget(self.qlin_filt_I_std   , i, 1)
+        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
+        grid.setAlignment(QtCore.Qt.AlignTop)
+        # fmt: on
+
         qgrp_filt_1 = QtWid.QGroupBox("Filter @ sig_I")
-        qgrp_filt_1.setLayout(self.legend_filt_1.grid)
+        qgrp_filt_1.setLayout(grid)
 
         def Mixer():  # pylint: disable=unused-variable
             pass  # IDE bookmark
@@ -1209,7 +1242,7 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_filt_1_resp_zoom_ROI = QtWid.QPushButton("Region of interest")
 
         self.qpbt_filt_1_resp_zoom_DC.clicked.connect(
-            lambda: self.plot_zoom_x(self.pi_filt_1_resp, 0, 2)
+            lambda: self.plot_zoom_x(self.pi_filt_1_resp, 0, 5)
         )
         self.qpbt_filt_1_resp_zoom_50.clicked.connect(
             lambda: self.plot_zoom_x(self.pi_filt_1_resp, 47, 53)
@@ -1325,7 +1358,7 @@ class MainWindow(QtWid.QWidget):
         # fmt: on
 
         self.qpbt_filt_2_resp_zoom_DC.clicked.connect(
-            lambda: self.plot_zoom_x(self.pi_filt_2_resp, 0, 2)
+            lambda: self.plot_zoom_x(self.pi_filt_2_resp, 0, 5)
         )
         self.qpbt_filt_2_resp_zoom_50.clicked.connect(
             lambda: self.plot_zoom_x(self.pi_filt_2_resp, 47, 53)
@@ -1552,21 +1585,24 @@ class MainWindow(QtWid.QWidget):
             )
 
         if np.isnan(alia_qdev.state.time[0]):
-            time_str = "00 : 00 : 00.000"
+            h, m, s = (0, 0, 0)
         else:
             m, s = divmod(alia_qdev.state.time[0] / 1e6, 60)
             h, m = divmod(m, 60)
-            time_str = "%02.0f : %02.0f : %06.3f" % (h, m, s)
 
-        self.qlin_time.setText(time_str)
+        self.qlin_time.setText("%02.0f : %02.0f : %06.3f" % (h, m, s))
         self.qlin_sig_I_max.setText("%.4f" % alia_qdev.state.sig_I_max)
         self.qlin_sig_I_min.setText("%.4f" % alia_qdev.state.sig_I_min)
         self.qlin_sig_I_avg.setText("%.4f" % alia_qdev.state.sig_I_avg)
         self.qlin_sig_I_std.setText("%.4f" % alia_qdev.state.sig_I_std)
-        self.qlin_X_avg.setText("%.4f" % np.mean(alia_qdev.state.X))
-        self.qlin_Y_avg.setText("%.4f" % np.mean(alia_qdev.state.Y))
-        self.qlin_R_avg.setText("%.4f" % np.mean(alia_qdev.state.R))
-        self.qlin_T_avg.setText("%.3f" % np.mean(alia_qdev.state.T))
+        self.qlin_filt_I_max.setText("%.4f" % alia_qdev.state.filt_I_max)
+        self.qlin_filt_I_min.setText("%.4f" % alia_qdev.state.filt_I_min)
+        self.qlin_filt_I_avg.setText("%.4f" % alia_qdev.state.filt_I_avg)
+        self.qlin_filt_I_std.setText("%.4f" % alia_qdev.state.filt_I_std)
+        self.qlin_X_avg.setText("%.4f" % alia_qdev.state.X_avg)
+        self.qlin_Y_avg.setText("%.4f" % alia_qdev.state.Y_avg)
+        self.qlin_R_avg.setText("%.4f" % alia_qdev.state.R_avg)
+        self.qlin_T_avg.setText("%.3f" % alia_qdev.state.T_avg)
 
         if alia_qdev.firf_1_sig_I.has_deque_settled:
             self.LED_filt_1_deque_settled.setChecked(True)

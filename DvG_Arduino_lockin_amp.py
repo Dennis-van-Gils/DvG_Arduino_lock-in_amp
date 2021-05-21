@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "20-05-2021"
+__date__ = "21-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -237,6 +237,11 @@ def lockin_DAQ_update():
         state.mix_X  = np.full(c.BLOCK_SIZE, np.nan)
         state.mix_Y  = np.full(c.BLOCK_SIZE, np.nan)
 
+    state.filt_I_min = np.min(state.filt_I)
+    state.filt_I_max = np.max(state.filt_I)
+    state.filt_I_avg = np.mean(state.filt_I)
+    state.filt_I_std = np.std(state.filt_I)
+
     state.deque_time_1.extend(state.time_1)
     state.deque_filt_I.extend(state.filt_I)
     state.deque_mix_X .extend(state.mix_X)
@@ -281,6 +286,11 @@ def lockin_DAQ_update():
         state.time_2 = np.full(c.BLOCK_SIZE, np.nan)
         state.R = np.full(c.BLOCK_SIZE, np.nan)
         state.T = np.full(c.BLOCK_SIZE, np.nan)
+
+    state.X_avg = np.mean(state.X)
+    state.Y_avg = np.mean(state.Y)
+    state.R_avg = np.mean(state.R)
+    state.T_avg = np.mean(state.T)
 
     state.deque_time_2.extend(state.time_2)
     state.deque_X.extend(state.X)

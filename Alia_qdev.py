@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "19-05-2021"
+__date__ = "21-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -96,6 +96,14 @@ class Alia_qdev(QDeviceIO):
             self.sig_I_max = np.nan
             self.sig_I_avg = np.nan
             self.sig_I_std = np.nan
+            self.filt_I_min = np.nan
+            self.filt_I_max = np.nan
+            self.filt_I_avg = np.nan
+            self.filt_I_std = np.nan
+            self.X_avg = np.nan
+            self.Y_avg = np.nan
+            self.R_avg = np.nan
+            self.T_avg = np.nan
 
             """ Deque arrays needed for proper FIR filtering.
             Each time a complete buffer of BUFFER_SIZE samples is received from
@@ -203,7 +211,7 @@ class Alia_qdev(QDeviceIO):
                              149.5, 150.5]
             firwin_window = ("chebwin", 50)
         else:
-            firwin_cutoff = [5.0,]
+            firwin_cutoff = [2.0,]
             """firwin_cutoff = [  1.0,
                               49.0,  51.0,
                               99.0, 101.0,
