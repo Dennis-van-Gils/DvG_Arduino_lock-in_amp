@@ -162,28 +162,24 @@ def lockin_DAQ_update():
     # state.sig_I += 0.01
 
     # Detect dropped samples / buffers
-    alia_qdev.state.buffers_received += 1
+    # --------------------------------
 
-    prev_last_deque_time = (
-        state.deque_time[-1] if state.buffers_received > 1 else np.nan
-    )
-    dT = (
-        state.time[0] - prev_last_deque_time
-    ) / 1e6  # Transform [usec] to [sec]
-    if (
-        dT > (c.SAMPLING_PERIOD * 1e6) * 1.10
-    ):  # Allow a few percent clock jitter
+    alia_qdev.state.buffers_received += 1
+    last_time = state.deque_time[-1] if state.buffers_received > 1 else np.nan
+    dT = (state.time[0] - last_time) / 1e6  # [usec] to [sec]
+
+    if dT > c.SAMPLING_PERIOD * 1e6 * 1.10:  # Allow a little clock jitter
         N_dropped_samples = int(round(dT / c.SAMPLING_PERIOD) - 1)
         dprint("Dropped samples: %i" % N_dropped_samples)
         dprint("@ %s %s" % current_date_time_strings())
 
         # Replace dropped samples with np.nan samples.
         # As a result, the filter output will contain a continuous series of
-        # np.nan values in the output for up to DvG_Buffered_FIR_Filter.
-        # Buffered_FIR_Filter().T_settle_deque seconds long after the occurrence
-        # of the last dropped sample.
+        # np.nan values in the output for up to `DvG_Buffered_FIR_Filter.
+        # Buffered_FIR_Filter().T_settle_deque` seconds long after the
+        # occurrence of the last dropped sample.
         state.deque_time.extend(
-            prev_last_deque_time
+            last_time
             + np.arange(1, N_dropped_samples + 1) * c.SAMPLING_PERIOD * 1e6
         )
         state.deque_ref_X.extend(np.full(N_dropped_samples, np.nan))
@@ -209,11 +205,11 @@ def lockin_DAQ_update():
 
     # Stage 1
     # -------
+    # fmt: off
 
     # Apply filter 1 to sig_I
     state.filt_I = alia_qdev.firf_1_sig_I.process(state.deque_sig_I)
 
-    # fmt: off
     if alia_qdev.firf_1_sig_I.has_deque_settled:
         # Retrieve the block of original data from the past that aligns with
         # the current filter output
@@ -272,16 +268,14 @@ def lockin_DAQ_update():
         # Signal amplitude and phase reconstruction
         np.sqrt(state.X ** 2 + state.Y ** 2, out=state.R)
 
-        # NOTE: Because 'mix_X' and 'mix_Y' are both of type 'numpy.array', a
-        # division by (mix_X = 0) is handled correctly due to 'numpy.inf'.
-        # Likewise, 'numpy.arctan(numpy.inf)' will result in pi/2. We suppress
+        # NOTE: Because `mix_X` and `mix_Y` are both of type `numpy.ndarray`, a
+        # division by (mix_X = 0) is handled correctly due to `numpy.inf`.
+        # Likewise, `numpy.arctan(numpy.inf)`` will result in pi/2. We suppress
         # the RuntimeWarning: divide by zero encountered in true_divide.
         np.seterr(divide="ignore")
         np.divide(state.Y, state.X, out=state.T)
         np.arctan(state.T, out=state.T)
-        np.multiply(
-            state.T, 180 / np.pi, out=state.T
-        )  # Transform [rad] to [deg]
+        np.multiply(state.T, 180 / np.pi, out=state.T)  # [rad] to [deg]
         np.seterr(divide="warn")
     else:
         state.time_2 = np.full(c.BLOCK_SIZE, np.nan)
@@ -532,7 +526,7 @@ if __name__ == "__main__":
                 alia_qdev.fftw_PS_R.process_dB(state.deque_R),
             )
 
-    # Special case where the lock-in is paused: Clicking the legend checkboxes
+    # Special cases where the lock-in is paused: Clicking the legend checkboxes
     # to unhide the PS curves should recalculate the PS based on the last known
     # data. We must check if the lock-in is paused before calculating, because
     # we might otherwise interfere with the other possible PS calculation
