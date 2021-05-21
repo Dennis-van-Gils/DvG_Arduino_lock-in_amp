@@ -10,7 +10,7 @@ __version__ = "1.0.0"
 
 import numpy as np
 from scipy.signal import firwin, freqz
-from DvG_FFTW_ConvolveValid1D import FFTW_ConvolveValid1D
+from dvg_fftw_convolver import FFTW_Convolver_Valid1D
 from dvg_ringbuffer import RingBuffer
 
 
@@ -70,7 +70,7 @@ class Buffered_FIR_Filter:
             self.sigpy = __import__("sigpy")
         else:
             # Create FFTW plans for fft convolution
-            self.fftw_fftconvolve = FFTW_ConvolveValid1D(
+            self.fftw_convolver = FFTW_Convolver_Valid1D(
                 self.N_deque, self.N_taps
             )
 
@@ -222,7 +222,7 @@ class Buffered_FIR_Filter:
                 valid_out = valid_out[:, 0]
             else:
                 # Perform convolution on the CPU
-                valid_out = self.fftw_fftconvolve.process(deque_sig_in, self.b)
+                valid_out = self.fftw_convolver.convolve(deque_sig_in, self.b)
             # print("%.1f" % ((Time.perf_counter() - tick)*1000))
 
         if self.has_deque_settled and not (self.was_deque_settled):
