@@ -22,8 +22,11 @@ from dvg_ringbuffer import RingBuffer
 from dvg_fftw_convolver import FFTW_Convolver_Valid1D
 
 
-class Ringbuffered_FIR_Filter:
-    """Ringbuffered_FIR_Filter description...
+class Ringbuffer_FIR_Filter:
+    """Ringbuffer_FIR_Filter description...
+
+    Acts upon a `DvG_RingBuffer` class instance, which we call incorrectly a
+    'deque` in this module.
 
     Args:
         buffer_size: int
@@ -108,11 +111,27 @@ class Ringbuffered_FIR_Filter:
             self.freq_Hz__ROI_end = np.nan  # was `resp_freq_Hz__ROI_end`
 
     class Config:
-        """
+        """In progress
         """
 
         def __init__(self):
-            pass
+            self.buffer_size = np.nan
+            self.N_buffers_in_deque = np.nan
+            self.Fs = np.nan
+            self.cutoff = np.nan
+            self.window = "hamming"
+            self.pass_zero = True
+            self.use_CUDA = False
+
+            # Calculated based on above
+            self.window_description = ""
+            self.N_deque = np.nan
+            self.N_taps = np.nan
+            self.T_span_taps = np.nan
+            self.T_span_buffer = np.nan
+            self.valid_slice = slice(0)
+            self.T_settle_filter = np.nan
+            self.T_settle_deque = np.nan
 
     def __init__(
         self,
@@ -131,7 +150,9 @@ class Ringbuffered_FIR_Filter:
         self.cutoff = np.atleast_1d(cutoff)
         self.window = window
         self.pass_zero = pass_zero
-        self.display_name = display_name
+        self.display_name = (
+            display_name  # TODO: Keep as member, do not put in Config()
+        )
         self.use_CUDA = use_CUDA
 
         # Friendly window description
@@ -150,11 +171,16 @@ class Ringbuffered_FIR_Filter:
         self.T_span_buffer = self.buffer_size / self.Fs  # [s]
 
         # Indices within window corresponding to valid filter output
+        # TODO: instead of storing `win_idx_valid_start` and `win_idx_valid_end`
+        # store the valid slice instead, like:
+        # valid_slice = slice(win_idx_valid_start, win_idx_valid_end)
         self.win_idx_valid_start = int((self.N_taps - 1) / 2)
         self.win_idx_valid_end = self.N_deque - self.win_idx_valid_start
 
         self.T_settle_filter = self.win_idx_valid_start / self.Fs  # [s]
         self.T_settle_deque = self.T_settle_filter * 2  # [s]
+
+        # TODO: Keep as members, do not put in Config()
         self.was_deque_settled = False
         self.has_deque_settled = False
 
