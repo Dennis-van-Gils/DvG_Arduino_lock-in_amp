@@ -1,3 +1,9 @@
 * Add support for HDF5 to allow writing log as binary file
 
 * Use more numba.njit to speed up calculations
+
+* Make docstrings conform my other modules (Google hybrid style). Among others,
+  touch-up `dvg_fftw_convolver.py` and `dvg_ringbuffered_fir_filter.py`
+  
+* Turn `dvg_fftw_convolver`, `dvg_ringbuffered_fir_filter` and
+  `dvg_fftw_welchpowerspectrum.py` into new PyPi package called `dvg-signal-processing`
