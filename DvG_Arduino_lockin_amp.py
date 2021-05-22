@@ -263,12 +263,11 @@ def lockin_DAQ_update():
     if alia_qdev.firf_2_mix_X.has_deque_settled:
         # Retrieve the block of time data from the past that aligns with
         # the current filter output
-        # fmt: off
-        state.time_2 = state.deque_time_1[
-            alia_qdev.firf_1_sig_I.win_idx_valid_start :
-            alia_qdev.firf_1_sig_I.win_idx_valid_end
-        ]
-        # fmt: on
+        valid_slice2 = slice(
+            alia_qdev.firf_1_sig_I.win_idx_valid_start,
+            alia_qdev.firf_1_sig_I.win_idx_valid_end,
+        )
+        state.time_2 = state.deque_time_1[valid_slice2]
 
         # Signal amplitude and phase reconstruction
         np.sqrt(state.X ** 2 + state.Y ** 2, out=state.R)
