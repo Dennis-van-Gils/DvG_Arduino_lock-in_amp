@@ -26,10 +26,10 @@ def fast_multiply(in1: np.ndarray, in2: np.ndarray) -> np.ndarray:
 
 
 class FFTW_Convolver_Valid1D:
-    def __init__(self, len1: int, len2: int):
-        """
-        """
+    """
+    """
 
+    def __init__(self, len1: int, len2: int):
         # Check that input sizes are compatible with 'valid' mode
         self.switch_inputs = len2 > len1
         if self.switch_inputs:
