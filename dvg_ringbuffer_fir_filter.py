@@ -31,10 +31,10 @@ class Ringbuffer_FIR_Filter:
     where timeseries data are continuously being appended to in chunks of size
     `buffer_size` (TODO: should be renamed block_size).
 
-    The FIR filter output is (obviously) delayed with respect to the incoming
-    timeseries data, namely by `T_settle_filter` seconds. Attribute
+    The FIR filter output is (by definition) delayed with respect to the
+    incoming timeseries data, namely by `T_settle_filter` seconds. Attribute
     `valid_slice` will contain the slice to be taken from the incoming
-    ringbuffer corresponding to the matching time... bla...
+    ringbuffer corresponding to the matching time... bla... history
 
     The class name implies that the FIR filter takes in a `DvG_RingBuffer` class
     instance containing timeseries data. It does not mean that the FIR filter
@@ -372,7 +372,7 @@ class Ringbuffer_FIR_Filter:
         self.freqz.phase_rad = full_phase[idx_keep]
 
     # --------------------------------------------------------------------------
-    #   process
+    #   process, TODO: rename as `perform_filter`?
     # --------------------------------------------------------------------------
 
     def process(self, deque_sig_in: RingBuffer) -> np.ndarray:
@@ -380,6 +380,9 @@ class Ringbuffer_FIR_Filter:
         deque_sig_in array and return the valid convolution output. Will track
         if the filter has settled. Any NaNs in deque_sig_in will desettle the
         filter.
+
+        Returns:
+          The output as numpy.ndarray
         """
         c = self.config  # Shorthand
 
