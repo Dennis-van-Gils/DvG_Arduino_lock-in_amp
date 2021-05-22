@@ -107,6 +107,13 @@ class Ringbuffered_FIR_Filter:
             self.freq_Hz__ROI_start = np.nan  # was `resp_freq_Hz__ROI_start`
             self.freq_Hz__ROI_end = np.nan  # was `resp_freq_Hz__ROI_end`
 
+    class Config:
+        """
+        """
+
+        def __init__(self):
+            pass
+
     def __init__(
         self,
         buffer_size: int,
@@ -150,6 +157,10 @@ class Ringbuffered_FIR_Filter:
         self.T_settle_deque = self.T_settle_filter * 2  # [s]
         self.was_deque_settled = False
         self.has_deque_settled = False
+
+        # Calculated FIR filter tap array
+        self.b = None  # Used when `use_CUDA = False`
+        self.b_cp = None  # Used when `use_CUDA = True`
 
         # Container for the calculated frequency response of the filter based
         # on the output of :meth:`scipy.signal.freqz`.
@@ -205,8 +216,20 @@ class Ringbuffered_FIR_Filter:
         if cutoff is not None:
             self.cutoff = np.atleast_1d(cutoff)
 
+        # Check cutoff frequencies for illegal values and cap when necessary,
+        # sort by increasing value and remove duplicates.
+        #   Frequencies <= 0 Hz will be removed
+        #   Frequencies >= Nyquist will be set to Nyquist - 'cutoff_grain'
+        cutoff_grain = 1e-6
+        cutoff = self.cutoff
+        cutoff = cutoff[cutoff > 0]
+        cutoff[cutoff >= self.Fs / 2] = self.Fs / 2 - cutoff_grain
+        self.cutoff = np.unique(np.sort(cutoff))
+
         if window is not None:
             self.window = window
+
+            # Friendly window description
             if isinstance(self.window, str):
                 self.window_description = "%s" % self.window
             else:
@@ -215,7 +238,7 @@ class Ringbuffered_FIR_Filter:
         if pass_zero is not None:
             self.pass_zero = pass_zero
 
-        self._constrain_cutoff()
+        # Calculate the FIR filter tap array
         self.b = firwin(
             numtaps=self.N_taps,
             cutoff=self.cutoff,
@@ -223,20 +246,24 @@ class Ringbuffered_FIR_Filter:
             pass_zero=self.pass_zero,
             fs=self.Fs,
         )
-        self._compute_freqz(worN=freqz_worN, dB_floor=freqz_dB_floor)
-        # self.report()
 
         if self.use_CUDA:
-            # Copy FIR filter tap array from CPU to GPU memory
-            # Turning 1-D array into column vector by [:, None] for CUDA
+            # Copy FIR filter tap array from CPU to GPU memory.
+            # Turning 1-D array into column vector by [:, None] for CUDA.
             self.b_cp = self.cupy.array(self.b[:, None])
+
+        # Calculate the frequency response
+        self._compute_freqz(worN=freqz_worN, dB_floor=freqz_dB_floor)
+
+        # self.report()
 
     # --------------------------------------------------------------------------
     #   _compute_freqz
     # --------------------------------------------------------------------------
 
     def _compute_freqz(self, worN: int, dB_floor: float):
-        """Compute the full frequency response.
+        """Compute the full frequency response and store it in class member
+        `freqz`.
 
         Note: The full result arrays will become of length `worN`, which could
         overwhelm a user-interface when plotting so many points. Hence, we will
@@ -311,28 +338,10 @@ class Ringbuffered_FIR_Filter:
         self.freqz.phase_rad = full_phase[idx_keep]
 
     # --------------------------------------------------------------------------
-    #  _constrain_cutoff
-    # --------------------------------------------------------------------------
-
-    def _constrain_cutoff(self):
-        """Check cutoff frequencies for illegal values and cap when necessary,
-        sort by increasing value and remove duplicates.
-
-        Frequencies <= 0 Hz will be removed.
-        Frequencies >= Nyquist freq. will be set to Nyquist - 'cutoff_grain'.
-        cutoff_grain = 1e-6 Hz
-        """
-        cutoff_grain = 1e-6
-        cutoff = np.array(self.cutoff, dtype=np.float64, ndmin=1)
-        cutoff = cutoff[cutoff > 0]
-        cutoff[cutoff >= self.Fs / 2] = self.Fs / 2 - cutoff_grain
-        self.cutoff = np.unique(np.sort(cutoff))
-
-    # --------------------------------------------------------------------------
     #   process
     # --------------------------------------------------------------------------
 
-    def process(self, deque_sig_in: RingBuffer):
+    def process(self, deque_sig_in: RingBuffer) -> np.ndarray:
         """Perform a convolution between the FIR filter tap array and the
         deque_sig_in array and return the valid convolution output. Will track
         if the filter has settled. Any NaNs in deque_sig_in will desettle the
