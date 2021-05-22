@@ -86,15 +86,26 @@ class Ringbuffered_FIR_Filter:
         T_settle_deque:
         was_deque_settled:
         has_deque_settled:
-        full_resp_freq_Hz:
-        full_resp_ampl_dB:
-        full_resp_phase_rad:
-        resp_freq_Hz:
-        resp_ampl_dB:
-        resp_phase_rad:
-        resp_freq_Hz__ROI_start:
-        resp_freq_Hz__ROI_end:
+        freqz: FreqResponse()
     """
+
+    class FreqResponse:
+        """Container for the calculated frequency response of the filter based
+        on the output of :meth:`scipy.signal.freqz`.
+
+        ROI: Region of interest
+        """
+
+        # pylint: disable=too-many-instance-attributes, too-few-public-methods
+        def __init__(self):
+            self.full_freq_Hz = np.nan  # was `full_resp_freq_Hz`
+            self.full_ampl_dB = np.nan  # was `full_resp_ampl_dB`
+            self.full_phase_rad = np.nan  # was `full_resp_phase_rad`
+            self.freq_Hz = np.nan  # was `resp_freq_Hz`
+            self.ampl_dB = np.nan  # was `resp_ampl_dB`
+            self.phase_rad = np.nan  # was `resp_phase_rad`
+            self.freq_Hz__ROI_start = np.nan  # was `resp_freq_Hz__ROI_start`
+            self.freq_Hz__ROI_end = np.nan  # was `resp_freq_Hz__ROI_end`
 
     def __init__(
         self,
@@ -122,10 +133,6 @@ class Ringbuffered_FIR_Filter:
         else:
             self.window_description = "%s" % [x for x in self.window]
 
-        self.dB_floor = (
-            -120
-        )  # [dB], floor used for plotting, TODO: make param of `compute_freqz` and remove here
-
         # Deque size
         self.N_deque = self.buffer_size * self.N_buffers_in_deque  # [samples]
 
@@ -144,15 +151,9 @@ class Ringbuffered_FIR_Filter:
         self.was_deque_settled = False
         self.has_deque_settled = False
 
-        # Placeholders for :meth:`compute_freqz`
-        self.full_resp_freq_Hz = np.nan
-        self.full_resp_ampl_dB = np.nan
-        self.full_resp_phase_rad = np.nan
-        self.resp_freq_Hz = np.nan
-        self.resp_ampl_dB = np.nan
-        self.resp_phase_rad = np.nan
-        self.resp_freq_Hz__ROI_start = np.nan
-        self.resp_freq_Hz__ROI_end = np.nan
+        # Container for the calculated frequency response of the filter based
+        # on the output of :meth:`scipy.signal.freqz`.
+        self.freqz = self.FreqResponse()
 
         if self.use_CUDA:
             self.cupy = import_module("cupy")
@@ -164,6 +165,8 @@ class Ringbuffered_FIR_Filter:
             )
 
         # Compute the FIR filter tap array
+        # TODO: perhaps remove the method call and have the user make the call
+        # instead. Benefits: user can alter `freq_worN` and `freqz_dB_floor`.
         self.compute_firwin()
 
     # --------------------------------------------------------------------------
@@ -175,8 +178,10 @@ class Ringbuffered_FIR_Filter:
         cutoff: Optional[Union[float, List[float]]] = None,
         window: Optional[Union[str, Tuple]] = None,
         pass_zero: Optional[Union[bool, str]] = None,
+        freqz_worN: Optional[int] = 2 ** 18,
+        freqz_dB_floor: Optional[float] = -120,
     ):
-        """Compute the FIR filter tap array and the frequency response.
+        """Compute the FIR filter tap array and the frequency response `freqz`.
 
         Args:
             cutoff: float or 1-D array_like, optional
@@ -190,6 +195,12 @@ class Ringbuffered_FIR_Filter:
             pass_zero: {True, False, 'bandpass', 'lowpass', 'highpass', 'bandstop'}, optional
                 See :class:`Ringbuffered_FIR_Filter`. When set to None or not
                 supplied, the last set `pass_zero` value will be used.
+
+            freqz_worN: int
+                Bla... # TODO
+
+            freqz_dB_floor: float
+                Decibel (noise-)floor bla... # TODO
         """
         if cutoff is not None:
             self.cutoff = np.atleast_1d(cutoff)
@@ -212,7 +223,7 @@ class Ringbuffered_FIR_Filter:
             pass_zero=self.pass_zero,
             fs=self.Fs,
         )
-        self.compute_freqz()
+        self._compute_freqz(worN=freqz_worN, dB_floor=freqz_dB_floor)
         # self.report()
 
         if self.use_CUDA:
@@ -221,73 +232,83 @@ class Ringbuffered_FIR_Filter:
             self.b_cp = self.cupy.array(self.b[:, None])
 
     # --------------------------------------------------------------------------
-    #   compute_freqz
+    #   _compute_freqz
     # --------------------------------------------------------------------------
 
-    def compute_freqz(self, worN=2 ** 18):
+    def _compute_freqz(self, worN: int, dB_floor: float):
         """Compute the full frequency response.
 
-        Note: The full result arrays will become of length 'worN', which could
+        Note: The full result arrays will become of length `worN`, which could
         overwhelm a user-interface when plotting so many points. Hence, we will
-        also calculate a 'lossy compressed' dataset: resp_freq_Hz,
-        resp_ampl_dB, and resp_phase_rad, useful for plotting.
+        also calculate a 'lossy compressed' dataset: `freq_Hz`, `ampl_dB`, and
+        `phase_rad`, useful for faster and less-memory hungry plotting.
 
         Note: Amplitude ratio in dB: 20 log_10(A1/A2)
               Power     ratio in dB: 10 log_10(P1/P2)
         """
         w, h = freqz(self.b, worN=worN)
-        self.full_resp_freq_Hz = w / np.pi * self.Fs / 2
-        self.full_resp_ampl_dB = 20 * np.log10(abs(h))
-        self.full_resp_phase_rad = np.unwrap(np.angle(h)) / self.Fs
+        full_freq = w / np.pi * self.Fs / 2  # [Hz]
+        full_ampl = 20 * np.log10(abs(h))  # [dB]
+        full_phase = np.unwrap(np.angle(h)) / self.Fs  # [rad]
 
-        # -------------------------------------------------
-        #  Select region of interest for plotting later on
-        # -------------------------------------------------
-        # First flat-line all power below the dB floor
-        idx_dB_floor = np.asarray(
-            self.full_resp_ampl_dB < self.dB_floor
-        ).nonzero()[0]
-        __ampl_dB = self.full_resp_ampl_dB
-        __ampl_dB[idx_dB_floor] = self.dB_floor
+        # ---------------------------------
+        #  Select region of interest (ROI)
+        # ---------------------------------
 
-        # Keep points on the curve with large absolute acceleration.
-        # Will in effect simplify a 'boring' region to a linear curve.
+        # First flat-line all power below the dB floor to simplify the ROI
+        ampl = full_ampl
+        ampl[np.asarray(full_ampl < dB_floor).nonzero()[0]] = dB_floor
+
+        # Keep points on the curve with large absolute acceleration. Will in
+        # effect simplify a 'boring' region to a linear curve.
         dAdF_2_threshold = 1e-4
-        dAdF_2 = np.abs(np.diff(__ampl_dB, 2))
+        dAdF_2 = np.abs(np.diff(ampl, 2))
         idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0] + 1
 
-        # Store region of interest
         if len(idx_keep) <= 1:
-            self.resp_freq_Hz__ROI_start = 0
-            self.resp_freq_Hz__ROI_end = self.Fs / 2
+            freq_Hz__ROI_start = 0
+            freq_Hz__ROI_end = self.Fs / 2
         else:
-            self.resp_freq_Hz__ROI_start = self.full_resp_freq_Hz[idx_keep[0]]
-            self.resp_freq_Hz__ROI_end = self.full_resp_freq_Hz[idx_keep[-1]]
+            freq_Hz__ROI_start = full_freq[idx_keep[0]]
+            freq_Hz__ROI_end = full_freq[idx_keep[-1]]
 
         # -------------------------------------------
         #  Lossy compress curves for faster plotting
         # -------------------------------------------
-        # Keep points on the curve with large absolute acceleration.
-        # Will in effect simplify a 'boring' region to a linear curve.
+
+        # Keep points on the curve with large absolute acceleration. Will in
+        # effect simplify a 'boring' region to a linear curve.
         dAdF_2_threshold = 1e-6
-        dAdF_2 = np.abs(np.diff(__ampl_dB, 2))
+        dAdF_2 = np.abs(np.diff(ampl, 2))
         idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0] + 1
 
         if len(idx_keep) <= 1:
-            idx_keep = np.array([0, len(self.full_resp_ampl_dB) - 1])
+            idx_keep = np.array([0, len(full_ampl) - 1])
 
-        # Add back zero (first 2 points) and Nyquist frequency (last point)
+        # Add back DC (first 2 points) and Nyquist frequency (last point)
         if not (idx_keep[0] == 0):
             idx_keep = np.insert(idx_keep, 0, 0)
+
         if not (idx_keep[1] == 1):
             idx_keep = np.insert(idx_keep, 1, 1)
-        if not (idx_keep[-1] == (len(self.full_resp_ampl_dB) - 1)):
-            idx_keep = np.append(idx_keep, len(self.full_resp_ampl_dB) - 1)
 
-        # Store compressed curves
-        self.resp_freq_Hz = self.full_resp_freq_Hz[idx_keep]
-        self.resp_ampl_dB = __ampl_dB[idx_keep]
-        self.resp_phase_rad = self.full_resp_phase_rad[idx_keep]
+        if not (idx_keep[-1] == (len(full_ampl) - 1)):
+            idx_keep = np.append(idx_keep, len(full_ampl) - 1)
+
+        # -------
+        #  Store
+        # -------
+
+        self.freqz.full_freq_Hz = full_freq
+        self.freqz.full_ampl_dB = full_ampl
+        self.freqz.full_phase_rad = full_phase
+
+        self.freqz.freq_Hz__ROI_start = freq_Hz__ROI_start
+        self.freqz.freq_Hz__ROI_end = freq_Hz__ROI_end
+
+        self.freqz.freq_Hz = full_freq[idx_keep]
+        self.freqz.ampl_dB = ampl[idx_keep]
+        self.freqz.phase_rad = full_phase[idx_keep]
 
     # --------------------------------------------------------------------------
     #  _constrain_cutoff
@@ -296,7 +317,7 @@ class Ringbuffered_FIR_Filter:
     def _constrain_cutoff(self):
         """Check cutoff frequencies for illegal values and cap when necessary,
         sort by increasing value and remove duplicates.
-        I.e.:
+
         Frequencies <= 0 Hz will be removed.
         Frequencies >= Nyquist freq. will be set to Nyquist - 'cutoff_grain'.
         cutoff_grain = 1e-6 Hz
@@ -364,7 +385,7 @@ class Ringbuffered_FIR_Filter:
     # --------------------------------------------------------------------------
 
     def report(self):
-        # TODO: print out filter name
+        print("Buffered_FIR_Filter: %s" % self.display_name)
         print("--------------------------------")
         print("Fs                 = %.0f Hz" % self.Fs)
         print("buffer_size        = %i samples" % self.buffer_size)
