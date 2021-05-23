@@ -401,7 +401,7 @@ def write_data_to_log():
 
 if __name__ == "__main__":
     # Set priority of this process to maximum in the operating system
-    print("PID: %s\n" % os.getpid())
+    print("PID: %s" % os.getpid())
     try:
         proc = psutil.Process(os.getpid())
         if os.name == "nt":
@@ -409,7 +409,7 @@ if __name__ == "__main__":
         else:
             proc.nice(-20)  # Other
     except:  # pylint: disable=bare-except
-        print("Warning: Could not set process to high priority.\n")
+        print("Warning: Could not set process to high priority.")
 
     # --------------------------------------------------------------------------
     #   Arduino
