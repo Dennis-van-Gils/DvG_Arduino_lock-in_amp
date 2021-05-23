@@ -1,9 +1,14 @@
 * Add support for HDF5 to allow writing log as binary file
 
-* Use more numba.njit to speed up calculations
+* Investigate more numba.njit to speed up calculations
 
 * Make docstrings conform my other modules (Google hybrid style). Among others,
   touch-up `dvg_fftw_convolver.py` and `dvg_ringbuffered_fir_filter.py`
   
-* Turn `dvg_fftw_convolver`, `dvg_ringbuffered_fir_filter` and
-  `dvg_fftw_welchpowerspectrum.py` into new PyPi package called `dvg-signal-processing`
+* Turn `dvg_fftw_convolver`, `dvg_ringbuffer_fir_filter` and
+  `dvg_fftw_welchpowerspectrum.py` into new PyPi package called
+  `dvg-signal-processing`
+  
+* LED status light does not indicate filter has settled, instead it indicates
+  that there is valid filter output present. Perhaps explain that with settle we
+  actually mean the above.

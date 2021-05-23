@@ -14,6 +14,7 @@ __version__ = "1.0.0"
 # pylint: disable=invalid-name, too-many-instance-attributes, too-few-public-methods, too-many-arguments
 
 from typing import Optional, Union, List, Tuple
+from collections import deque
 from importlib import import_module
 
 import numpy as np
@@ -30,18 +31,17 @@ class RingBuffer_FIR_Filter_Config:
     module!
 
     Args:
-        block_size: int
-            The fixed number of samples of one incoming data buffer.
-
-        N_blocks: int
-            Number of incoming data buffers to make up a full ring buffer, aka
-            'deque'.
-
         Fs: float
-            The sampling frequency of the signal in Hz. Each frequency in
+            The sampling frequency of the input signal in Hz. Each frequency in
             `firwin_cutoff` must be between 0 and ``Fs/2``.
 
             See :meth:`scipy.signal.firwin` for more details.
+
+        block_size: int
+            The fixed number of samples of one incoming block of signal data.
+
+        N_blocks: int
+            Number of blocks that make up a full ring buffer.
 
         firwin_cutoff: float or 1-D array_like
             Cutoff frequency of the filter in Hz OR an array of cutoff
@@ -120,10 +120,9 @@ class RingBuffer_FIR_Filter_Config:
 
         # Informational: Time periods
         # fmt: off
-        self.T_span_taps     = self.firwin_numtaps / Fs  # [s]
-        self.T_span_block    = block_size / Fs           # [s]
-        self.T_settle_filter = idx_rb_valid_start / Fs   # [s]
-        self.T_settle_rb     = self.T_settle_filter * 2  # [s]
+        self.T_span_taps     = self.firwin_numtaps / Fs           # [s]
+        self.T_span_block    = block_size / Fs                    # [s]
+        self.T_settle_filter = (N_blocks - 1) * block_size / Fs   # [s]
         # fmt: on
 
 
@@ -142,8 +141,7 @@ class RingBuffer_FIR_Filter:
 
     The class name implies that the FIR filter takes in a `DvG_RingBuffer` class
     instance containing timeseries data. It does not mean that the FIR filter
-    output is a ring buffer. The ring buffer is referenced as a 'deque` throughout
-    this module.
+    output is a ring buffer.
 
     Args:
         config: RingBuffer_FIR_Filter_Config(...)
@@ -167,13 +165,15 @@ class RingBuffer_FIR_Filter:
         config: RingBuffer_FIR_Filter_Config()
         name: str
         freqz: FreqResponse()
-        was_deque_settled: bool
-        has_deque_settled: bool
+
+        filter_has_settled: bool
+            True when the filter starts outputting, not to be confused with the
+            filter theoretical response time to an impulse.
     """
 
     class FreqResponse:
-        """Container for the computed frequency response of the filter based
-        on the output of :meth:`scipy.signal.freqz`.
+        """Container for the computed theoretical frequency response of the
+        filter based on the output of :meth:`scipy.signal.freqz`.
 
         ROI: Region of interest
         """
@@ -197,8 +197,8 @@ class RingBuffer_FIR_Filter:
         self.config = config
         self.name = name
         self.use_CUDA = use_CUDA
-        self.was_deque_settled = False
-        self.has_deque_settled = False
+        self.filter_has_settled = False
+        self._filter_was_settled = False
 
         # Container for the computed FIR filter tap array
         self._taps = None
@@ -367,61 +367,70 @@ class RingBuffer_FIR_Filter:
         self.freqz.phase_rad = full_phase[idx_keep]
 
     # --------------------------------------------------------------------------
-    #   process, TODO: rename as `perform_filter`?
+    #   apply_filter
     # --------------------------------------------------------------------------
 
-    def process(self, deque_sig_in: RingBuffer) -> np.ndarray:
-        """Perform a convolution between the FIR filter tap array and the
-        deque_sig_in array and return the valid convolution output. Will track
-        if the filter has settled. Any NaNs in deque_sig_in will desettle the
-        filter.
+    def apply_filter(
+        self, ringbuffer_in: Union[RingBuffer, deque]
+    ) -> np.ndarray:
+        """Apply the currently set FIR filter to the incoming `ringbuffer_in`
+        data and return the filter output. I.e., perform a convolution between
+        the FIR filter tap array and the `ringbuffer_in` array and keep only the
+        valid convolution output.
+
+        Using a `dvg_ringbuffer::RingBuffer` instead of a `collections.deque`
+        is way faster.
+
+        Will track if the filter has settled. Any NaNs in `ringbuffer_in` will
+        desettle the filter. If `ringbuffer_in` is not yet fully populated with
+        data, the filter will return an array filled with NaNs.
 
         Returns:
-          The output as numpy.ndarray
+          The filter output as numpy.ndarray
         """
         c = self.config  # Shorthand
+        # print("%s: %i" % (self.name, len(ringbuffer_in)))
 
-        # print("%s: %i" % (self.name, len(deque_sig_in)))
-        if not deque_sig_in.is_full or np.isnan(deque_sig_in).any():
-            # Start-up. Deque still needs time to settle.
-            self.has_deque_settled = False
-            valid_out = np.full(c.block_size, np.nan)
-        else:
-            self.has_deque_settled = True
-            # Select window out of the signal deque to feed into the
-            # convolution. By optimal design, this happens to be the full deque.
-            # Returns valid filtered signal output of current window.
+        is_full = (
+            len(ringbuffer_in) == ringbuffer_in.maxlen
+            if isinstance(ringbuffer_in, deque)
+            else ringbuffer_in.is_full
+        )
+        self.filter_has_settled = is_full and not np.isnan(ringbuffer_in).any()
+        # Note: Keep the second more cpu-intensive check `isnan` at last
 
+        if self.filter_has_settled:
             # tick = Time.perf_counter()
-
             if not self.use_CUDA:
                 # Perform convolution on the CPU
                 valid_out = self._fftw_convolver.convolve(
-                    deque_sig_in, self._taps
+                    ringbuffer_in, self._taps
                 )
             else:
                 # Perform convolution on the GPU
-                cp_valid_out = self.sigpy.convolve(
-                    self.cupy.array(np.asarray(deque_sig_in)[:, None]),
+                valid_out_cupy = self.sigpy.convolve(
+                    self.cupy.array(np.asarray(ringbuffer_in)[:, None]),
                     # Turning 1-D array into column vector by [:, None]
                     self._taps_cupy,
                     mode="valid",
                 )
 
                 # Transfer result from GPU to CPU memory
-                valid_out = self.cupy.asnumpy(cp_valid_out)
+                valid_out = self.cupy.asnumpy(valid_out_cupy)
 
                 # Reduce the dimension again
                 valid_out = valid_out[:, 0]
 
             # print("%.1f" % ((Time.perf_counter() - tick)*1000))
+        else:
+            valid_out = np.full(c.block_size, np.nan)
 
-        if self.has_deque_settled and not self.was_deque_settled:
-            # print("%s: Deque has settled" % self.name)
-            self.was_deque_settled = True
-        elif not self.has_deque_settled and self.was_deque_settled:
-            # print("%s: Deque has reset" % self.name)
-            self.was_deque_settled = False
+        if self.filter_has_settled and not self._filter_was_settled:
+            # print("%s: Filter has settled" % self.name)
+            self._filter_was_settled = True
+        elif not self.filter_has_settled and self._filter_was_settled:
+            # print("%s: Filter has reset" % self.name)
+            self._filter_was_settled = False
 
         return valid_out
 
@@ -458,6 +467,5 @@ class RingBuffer_FIR_Filter:
         print("─" * 50)
         f("rb_valid_slice", str(c.rb_valid_slice), "{:<s}")
         f("T_settle_filter", c.T_settle_filter, "{:>9.3f}", "s")
-        f("T_settle_rb", c.T_settle_rb, "{:>9.3f}", "s")
         print("═" * 50)
 
