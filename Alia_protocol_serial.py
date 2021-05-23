@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "20-05-2021"
+__date__ = "23-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -176,8 +176,8 @@ class Alia(Arduino_protocol_serial.Arduino):
         else:
             return False
 
-        print("  Firmware  %s" % c.mcu_firmware)
-        print("     Model  %s" % c.mcu_model)
+        print("  firmware  %s" % c.mcu_firmware)
+        print("     model  %s" % c.mcu_model)
         print("       UID  %s" % c.mcu_uid)
         print("")
 
@@ -209,19 +209,27 @@ class Alia(Arduino_protocol_serial.Arduino):
         c.F_Nyquist = round(c.Fs / 2, 6)
         c.T_SPAN_TX_BUFFER = c.BLOCK_SIZE * c.SAMPLING_PERIOD
 
-        # fmt: off
-        print("    SAMPLING_PERIOD  {:>9.3f}  us"   .format(c.SAMPLING_PERIOD*1e6))
-        print("         BLOCK_SIZE  {:>9d}  samples".format(c.BLOCK_SIZE))
-        print("  N_BYTES_TX_BUFFER  {:>9d}  bytes"  .format(c.N_BYTES_TX_BUFFER))
-        print("    DAC_OUTPUT_BITS  {:>9d}  bit"    .format(c.DAC_OUTPUT_BITS))
-        print("     ADC_INPUT_BITS  {:>9d}  bit"    .format(c.ADC_INPUT_BITS))
-        print("              A_REF  {:>9.3f}  V"    .format(c.A_REF))
-        print("          MIN_N_LUT  {:>9d}  samples".format(c.MIN_N_LUT))
-        print("          MAX_N_LUT  {:>9d}  samples".format(c.MAX_N_LUT))
-        print("   T_SPAN_TX_BUFFER  {:>9.6f}  s"    .format(c.T_SPAN_TX_BUFFER))
-        print("                 Fs  {:>9,.2f}  Hz"  .format(c.Fs))
-        print("          F_Nyquist  {:>9,.2f}  Hz"  .format(c.F_Nyquist))
-        # fmt: on
+        def fancy(name, value, value_format, unit=""):
+            format_str = "{:>16s}  %s  {:<s}" % value_format
+            print(format_str.format(name, value, unit))
+
+        fancy("Fs", c.Fs, "{:>9,.2f}", "Hz")
+        fancy("F_Nyquist", c.F_Nyquist, "{:>9,.2f}", "Hz")
+        fancy("sampling period", c.SAMPLING_PERIOD * 1e6, "{:>9.3f}", "us")
+        fancy("block size", c.BLOCK_SIZE, "{:>9d}", "samples")
+        fancy("TX buffer", c.N_BYTES_TX_BUFFER, "{:>9d}", "bytes")
+        fancy("TX buffer", c.T_SPAN_TX_BUFFER, "{:>9.3f}", "s")
+        fancy(
+            "TX data rate",
+            c.N_BYTES_TX_BUFFER * c.Fs / c.BLOCK_SIZE / 1024,
+            "{:>9,.1f}",
+            "kb/s",
+        )
+        fancy("DAC output", c.DAC_OUTPUT_BITS, "{:>9d}", "bit")
+        fancy("ADC input", c.ADC_INPUT_BITS, "{:>9d}", "bit")
+        fancy("A_ref", c.A_REF, "{:>9.3f}", "V")
+        fancy("min N_LUT", c.MIN_N_LUT, "{:>9d}", "samples")
+        fancy("max N_LUT", c.MAX_N_LUT, "{:>9d}", "samples")
 
         self.set_ref(freq, V_offset, V_ampl, waveform)
 
