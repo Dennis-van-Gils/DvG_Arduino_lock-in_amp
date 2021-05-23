@@ -1,3 +1,6 @@
+# Install procedure
+-------------------
+
 conda update -n base -c defaults conda
 conda create -n lia -c defaults --force -y python=3.9.4
 conda activate lia
@@ -5,11 +8,31 @@ conda install -c defaults --strict-channel-priority -y --file environment.yml
 conda install -c conda-forge --no-channel-priority -y fftw=3.3.9 pyfftw=0.12
 pip install -r requirements.txt --no-deps
 
-# Useful commands:
+
+# Useful commands
+-----------------
+
 conda config --add channels defaults
 conda config --get channels
 conda list
 
-# More packages for development:
+
+# More packages for development
+-------------------------------
+
 conda install black pylint twine matplotlib
 pip install pytest-cov check-manifest sphinx_qt_documentation
+
+
+# Alternative install procedure
+-------------------------------
+- Using newer packages from conda-forge over pip, python 3.9 not supported (yet)
+
+conda update -n base -c defaults conda
+conda create -n liaforge -c conda-forge  --force -y python=3.8.10
+conda activate liaforge
+pip install -r requirements_alternative.txt
+pip install -r requirements.txt --no-deps
+
+- Extra for Linux to get PyQt5 to work
+sudo apt-get install libxcb-xinerama0

@@ -4,17 +4,6 @@
   if self.debug:
       import pydevd
       pydevd.settrace(suspend=False)
-	  
-                      
-                      
-* Alternative install procedure:
-conda create -n liaforge -c conda-forge  --force -y python=3.8.10
-conda activate liaforge
-pip install -r requirements_alternative.txt
-pip install -r requirements.txt --no-deps
-
-Extra for Linux to get PyQt5 to work:
-sudo apt-get install libxcb-xinerama0
 
 
 * Arduino lockin-amplifier commands
