@@ -191,8 +191,8 @@ class RingBuffer_FIR_Filter:
     def __init__(
         self,
         config: RingBuffer_FIR_Filter_Config,
-        name: Optional[str] = "",
-        use_CUDA: Optional[bool] = False,
+        name: str = "",
+        use_CUDA: bool = False,
     ):
         self.config = config
         self.name = name
