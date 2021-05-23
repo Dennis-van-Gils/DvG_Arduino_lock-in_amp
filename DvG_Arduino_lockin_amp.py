@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "21-05-2021"
+__date__ = "23-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -208,15 +208,12 @@ def lockin_DAQ_update():
     # fmt: off
 
     # Apply filter 1 to sig_I
-    state.filt_I = alia_qdev.firf_1_sig_I.process(state.deque_sig_I)
+    state.filt_I = alia_qdev.firf_1_sig_I.apply_filter(state.deque_sig_I)
 
-    if alia_qdev.firf_1_sig_I.has_deque_settled:
+    if alia_qdev.firf_1_sig_I.filter_has_settled:
         # Retrieve the block of original data from the past that aligns with
         # the current filter output
-        valid_slice = slice(
-            alia_qdev.firf_1_sig_I.win_idx_valid_start,
-            alia_qdev.firf_1_sig_I.win_idx_valid_end,
-        )
+        valid_slice = alia_qdev.firf_1_sig_I.config.rb_valid_slice
 
         state.time_1 = state.deque_time [valid_slice]
         old_sig_I    = state.deque_sig_I[valid_slice]
@@ -257,17 +254,14 @@ def lockin_DAQ_update():
     # -------
 
     # Apply filter 2 to the mixer output
-    state.X = alia_qdev.firf_2_mix_X.process(state.deque_mix_X)
-    state.Y = alia_qdev.firf_2_mix_Y.process(state.deque_mix_Y)
+    state.X = alia_qdev.firf_2_mix_X.apply_filter(state.deque_mix_X)
+    state.Y = alia_qdev.firf_2_mix_Y.apply_filter(state.deque_mix_Y)
 
-    if alia_qdev.firf_2_mix_X.has_deque_settled:
+    if alia_qdev.firf_2_mix_X.filter_has_settled:
         # Retrieve the block of time data from the past that aligns with
         # the current filter output
-        valid_slice2 = slice(
-            alia_qdev.firf_1_sig_I.win_idx_valid_start,
-            alia_qdev.firf_1_sig_I.win_idx_valid_end,
-        )
-        state.time_2 = state.deque_time_1[valid_slice2]
+        valid_slice = alia_qdev.firf_1_sig_I.config.rb_valid_slice
+        state.time_2 = state.deque_time_1[valid_slice]
 
         # Signal amplitude and phase reconstruction
         np.sqrt(state.X ** 2 + state.Y ** 2, out=state.R)
@@ -363,11 +357,11 @@ def write_header_to_log():
 
 
 def write_data_to_log():
-    if alia_qdev.firf_2_mix_X.has_deque_settled:
+    if alia_qdev.firf_2_mix_X.filter_has_settled:
         # All filters have settled --> green light
         N = alia.config.BLOCK_SIZE
         state = alia_qdev.state
-        idx_offset = alia_qdev.firf_1_sig_I.win_idx_valid_start
+        idx_offset = alia_qdev.firf_1_sig_I.config.rb_valid_slice.start
 
         # tick = Time.perf_counter()
         data = np.asmatrix(

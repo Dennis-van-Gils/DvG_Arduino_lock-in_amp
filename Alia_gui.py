@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "21-05-2021"
+__date__ = "23-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -24,7 +24,7 @@ from dvg_pyqtgraph_threadsafe import HistoryChartCurve, PlotCurve, LegendSelect
 
 from Alia_protocol_serial import Alia
 from Alia_qdev import Alia_qdev
-from DvG_Buffered_FIR_Filter__GUI import Filter_design_GUI
+from dvg_ringbuffer_fir_filter_GUI import Filter_design_GUI
 
 # Monkey-patch errors in pyqtgraph v0.10 and v0.11
 import pyqtgraph.exporters  # pylint: disable=unused-import
@@ -557,7 +557,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.LED_filt_2_deque_settled   , 1, 1)
         # fmt: on
 
-        qgrp_settling = QtWid.QGroupBox("Buffers settled?")
+        qgrp_settling = QtWid.QGroupBox("Filters settled?")
         qgrp_settling.setLayout(grid)
 
         # Round up frame
@@ -1604,13 +1604,14 @@ class MainWindow(QtWid.QWidget):
         self.qlin_R_avg.setText("%.4f" % alia_qdev.state.R_avg)
         self.qlin_T_avg.setText("%.3f" % alia_qdev.state.T_avg)
 
-        if alia_qdev.firf_1_sig_I.has_deque_settled:
+        if alia_qdev.firf_1_sig_I.filter_has_settled:
             self.LED_filt_1_deque_settled.setChecked(True)
             self.LED_filt_1_deque_settled.setText("YES")
         else:
             self.LED_filt_1_deque_settled.setChecked(False)
             self.LED_filt_1_deque_settled.setText("NO")
-        if alia_qdev.firf_2_mix_X.has_deque_settled:
+
+        if alia_qdev.firf_2_mix_X.filter_has_settled:
             self.LED_filt_2_deque_settled.setChecked(True)
             self.LED_filt_2_deque_settled.setText("YES")
         else:
@@ -1703,8 +1704,8 @@ class MainWindow(QtWid.QWidget):
             print("WARNING: Filter @ mix_X/Y can't reach desired cut-off freq.")
             f_cutoff = self.alia.config.F_Nyquist - roll_off_width
 
-        self.alia_qdev.firf_2_mix_X.compute_firwin(cutoff=f_cutoff)
-        self.alia_qdev.firf_2_mix_Y.compute_firwin(cutoff=f_cutoff)
+        self.alia_qdev.firf_2_mix_X.compute_firwin_and_freqz(cutoff=f_cutoff)
+        self.alia_qdev.firf_2_mix_Y.compute_firwin_and_freqz(cutoff=f_cutoff)
         self.filt_2_design_GUI.update_filter_design()
         self.update_plot_filt_2_resp()
         self.plot_zoom_ROI_filt_2()
@@ -1901,50 +1902,32 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def update_plot_filt_1_resp(self):
-        firf = self.alia_qdev.firf_1_sig_I
+        freqz = self.alia_qdev.firf_1_sig_I.freqz
         if isinstance(self.curve_filt_1_resp, pg.PlotCurveItem):
-            self.curve_filt_1_resp.setFillLevel(np.min(firf.resp_ampl_dB))
-        self.curve_filt_1_resp.setData(firf.resp_freq_Hz, firf.resp_ampl_dB)
-        # self.pi_filt_1_resp.setTitle("Filter response: <br/>%s" %
-        #                              self.filt_resp_construct_title(firf))
+            self.curve_filt_1_resp.setFillLevel(np.min(freqz.ampl_dB))
+        self.curve_filt_1_resp.setData(freqz.freq_Hz, freqz.ampl_dB)
 
     @QtCore.pyqtSlot()
     def update_plot_filt_2_resp(self):
-        firf = self.alia_qdev.firf_2_mix_X
+        freqz = self.alia_qdev.firf_2_mix_X.freqz
         if isinstance(self.curve_filt_2_resp, pg.PlotCurveItem):
-            self.curve_filt_2_resp.setFillLevel(np.min(firf.resp_ampl_dB))
-        self.curve_filt_2_resp.setData(firf.resp_freq_Hz, firf.resp_ampl_dB)
-        # self.pi_filt_2_resp.setTitle("Filter response: <br/>%s" %
-        #                             self.filt_resp_construct_title(firf))
-
-    def filt_resp_construct_title(self, firf):
-        tmp1 = "N_taps = %i" % firf.N_taps
-        if isinstance(firf.window, str):
-            tmp2 = "%s" % firf.window
-        else:
-            tmp2 = "%s" % [x for x in firf.window]
-        tmp3 = "%s Hz" % [round(x, 1) for x in firf.cutoff]
-
-        return "%s, %s, %s" % (tmp1, tmp2, tmp3)
+            self.curve_filt_2_resp.setFillLevel(np.min(freqz.ampl_dB))
+        self.curve_filt_2_resp.setData(freqz.freq_Hz, freqz.ampl_dB)
 
     @QtCore.pyqtSlot()
     def plot_zoom_ROI_filt_1(self):
-        firf = self.alia_qdev.firf_1_sig_I
+        freqz = self.alia_qdev.firf_1_sig_I.freqz
         self.pi_filt_1_resp.setXRange(
-            firf.resp_freq_Hz__ROI_start,
-            firf.resp_freq_Hz__ROI_end,
-            padding=0.01,
+            freqz.freq_Hz__ROI_start, freqz.freq_Hz__ROI_end, padding=0.01,
         )
         self.pi_filt_1_resp.enableAutoRange("y", True)
         self.pi_filt_1_resp.enableAutoRange("y", False)
 
     @QtCore.pyqtSlot()
     def plot_zoom_ROI_filt_2(self):
-        firf = self.alia_qdev.firf_2_mix_X
+        freqz = self.alia_qdev.firf_2_mix_X.freqz
         self.pi_filt_2_resp.setXRange(
-            firf.resp_freq_Hz__ROI_start,
-            firf.resp_freq_Hz__ROI_end,
-            padding=0.01,
+            freqz.freq_Hz__ROI_start, freqz.freq_Hz__ROI_end, padding=0.01,
         )
         self.pi_filt_2_resp.enableAutoRange("y", True)
         self.pi_filt_2_resp.enableAutoRange("y", False)

@@ -217,6 +217,8 @@ class RingBuffer_FIR_Filter:
             self.cupy = import_module("cupy")
             self.sigpy = import_module("sigpy")
 
+        self.compute_firwin_and_freqz()
+
     # --------------------------------------------------------------------------
     #   compute_firwin_and_freqz
     # --------------------------------------------------------------------------

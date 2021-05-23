@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "21-05-2021"
+__date__ = "23-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -15,9 +15,12 @@ from PyQt5 import QtCore
 
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_ringbuffer import RingBuffer
+from dvg_ringbuffer_fir_filter import (
+    RingBuffer_FIR_Filter,
+    RingBuffer_FIR_Filter_Config,
+)
 
 from Alia_protocol_serial import Alia
-from DvG_Buffered_FIR_Filter import Buffered_FIR_Filter
 
 # ------------------------------------------------------------------------------
 #   Alia_qdev
@@ -219,15 +222,18 @@ class Alia_qdev(QDeviceIO):
             """
             firwin_window = "blackmanharris"
         # fmt: on
-        self.firf_1_sig_I = Buffered_FIR_Filter(
-            self.state.buffer_size,
-            self.state.N_buffers_in_deque,
-            dev.config.Fs,
-            firwin_cutoff,
-            firwin_window,
-            pass_zero=False,
-            display_name="firf_1_sig_I",
-            use_CUDA=self.use_CUDA,
+
+        firf_1_config = RingBuffer_FIR_Filter_Config(
+            Fs=dev.config.Fs,
+            block_size=self.state.buffer_size,
+            N_blocks=self.state.N_buffers_in_deque,
+            firwin_cutoff=firwin_cutoff,
+            firwin_window=firwin_window,
+            firwin_pass_zero=False,
+        )
+
+        self.firf_1_sig_I = RingBuffer_FIR_Filter(
+            config=firf_1_config, name="firf_1_sig_I", use_CUDA=self.use_CUDA,
         )
 
         # Create FIR filter: Low-pass on mix_X and mix_Y
@@ -235,27 +241,22 @@ class Alia_qdev(QDeviceIO):
         # f_cutoff should be calculated based on the roll-off width of the
         # filter, instead of hard-coded
         roll_off_width = 5  # [Hz]
-        firwin_cutoff = 2 * dev.config.ref_freq - roll_off_width
-        firwin_window = "blackmanharris"
-        self.firf_2_mix_X = Buffered_FIR_Filter(
-            self.state.buffer_size,
-            self.state.N_buffers_in_deque,
-            dev.config.Fs,
-            firwin_cutoff,
-            firwin_window,
-            pass_zero=True,
-            display_name="firf_2_mix_X",
-            use_CUDA=self.use_CUDA,
+
+        firf_2_config = RingBuffer_FIR_Filter_Config(
+            Fs=dev.config.Fs,
+            block_size=self.state.buffer_size,
+            N_blocks=self.state.N_buffers_in_deque,
+            firwin_cutoff=2 * dev.config.ref_freq - roll_off_width,
+            firwin_window="blackmanharris",
+            firwin_pass_zero=True,
         )
-        self.firf_2_mix_Y = Buffered_FIR_Filter(
-            self.state.buffer_size,
-            self.state.N_buffers_in_deque,
-            dev.config.Fs,
-            firwin_cutoff,
-            firwin_window,
-            pass_zero=True,
-            display_name="firf_2_mix_Y",
-            use_CUDA=self.use_CUDA,
+
+        self.firf_2_mix_X = RingBuffer_FIR_Filter(
+            config=firf_2_config, name="firf_2_mix_X", use_CUDA=self.use_CUDA,
+        )
+
+        self.firf_2_mix_Y = RingBuffer_FIR_Filter(
+            config=firf_2_config, name="firf_2_mix_Y", use_CUDA=self.use_CUDA,
         )
 
     def turn_on(self):
