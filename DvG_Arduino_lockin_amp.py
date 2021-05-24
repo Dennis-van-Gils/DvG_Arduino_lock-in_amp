@@ -22,7 +22,7 @@ import numpy as np
 
 from dvg_pyqt_filelogger import FileLogger
 from dvg_debug_functions import dprint
-from DvG_FFTW_WelchPowerSpectrum import FFTW_WelchPowerSpectrum
+from dvg_fftw_welchpowerspectrum import FFTW_WelchPowerSpectrum
 
 from Alia_protocol_serial import Alia, Waveform
 from Alia_qdev import Alia_qdev
