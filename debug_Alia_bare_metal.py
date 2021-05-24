@@ -25,7 +25,7 @@ Fs = 20000  # [Hz]
 
 # Simulation vars
 T_total = 120  # [s]
-ref_freq_Hz = 300  # [Hz]
+ref_freq_Hz = 250  # [Hz]
 ref_V_offset = 1.5  # [V]
 sig_I_phase = 10  # [deg]
 sig_I_noise_ampl = 0.04
@@ -179,6 +179,20 @@ if __name__ == "__main__":
         2 * np.pi * ref_freq_Hz * time - sig_I_phase / 180 * np.pi
     )
     np.add(sig_I, sig_I_noise, out=sig_I)
+
+    """
+    # Lower memory consumption by using a look-up table (LUT)
+    N_LUT = int(np.round(Fs / ref_freq_Hz))
+    ref_freq = Fs / N_LUT
+
+    # Arduino C++ style using for-loop
+    lut_cos = np.full(N_LUT, np.nan)
+    for i in range(N_LUT):
+        # -- Cosine
+        # N_LUT even: [ 0, 1]
+        # N_LUT odd : [>0, 1]
+        lut_cos[i] = 0.5 * (1 + np.cos(2 * np.pi * i / N_LUT))
+    """
 
     #  Simulate incoming blocks on the fly
     # -------------------------------------
