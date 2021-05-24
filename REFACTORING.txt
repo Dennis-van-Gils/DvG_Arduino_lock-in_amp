@@ -1,4 +1,4 @@
-Fs       
+Fs
 block_size                     <--  buffer_size
 N_blocks                       <--  N_buffers_in_deque
 
@@ -6,7 +6,7 @@ firwin_cutoff                  <--  cutoff
 firwin_window                  <--  window
 firwin_pass_zero               <--  pass_zero
 
-freqz_worN       
+freqz_worN
 freqz_dB_floor
 
 firwin_window_descr            <--  window_description
@@ -14,7 +14,7 @@ firwin_numtaps                 <--  N_taps
 rb_capacity                    <--  N_deque
 rb_valid_slice                 <--  valid_deque_slice
 
-T_span_taps       
+T_span_taps
 T_span_block                   <--  T_span_buffer
 T_settle_filter                <--  T_settle_filter
 
@@ -22,7 +22,7 @@ filter_has_settled             <--  was_deque_settled
 _filter_was_settled            <--  has_deque_settled
 ringbuffer_in                  <--  deque_sig_in
 apply_filter                   <--  process
-                               
+
 name                           <--  display_name
 
 full_freq_Hz                   <--  full_resp_freq_H

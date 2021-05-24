@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Dennis van Gils
-23-05-2021
+24-05-2021
 """
 # pylint: disable=invalid-name
 
@@ -98,10 +98,10 @@ config = RingBuffer_FIR_Filter_Config(
     firwin_cutoff=[49, 51],
     firwin_window="blackmanharris",
     firwin_pass_zero=True,
+    use_CUDA=False,
 )
 
-firf = RingBuffer_FIR_Filter(config=config, use_CUDA=False,)
-firf.compute_firwin_and_freqz()
+firf = RingBuffer_FIR_Filter(config=config)
 firf.report()
 
 residuals = np.full(len(time), np.nan)
@@ -117,28 +117,24 @@ for i_block in range(int(len(time) / BLOCK_SIZE)):
         if i_block == 43 or i_block == 46:
             continue
 
-    # Extend ringbufffers with incoming data
+    # Extend ring buffers with incoming data
     rb_time.extend(block_time)
     rb_sig_I.extend(block_sig_I)
 
     filt_I = firf.apply_filter(rb_sig_I)
 
-    # Retrieve the block of original data from the past that aligns with
-    # the current filter output
-    old_time = np.array(rb_time)[firf.config.rb_valid_slice]
-    old_sig_I = np.array(rb_sig_I)[firf.config.rb_valid_slice]
+    # Retrieve the block of original data from the past that aligns with the
+    # current filter output
+    old_time = np.array(rb_time)[firf.rb_valid_slice]
+    old_sig_I = np.array(rb_sig_I)[firf.rb_valid_slice]
 
     if firf.filter_has_settled:
-        slice_orig_array = slice(
-            firf.config.rb_valid_slice.start
-            + BLOCK_SIZE * (i_block - N_BLOCKS + 1),
-            firf.config.rb_valid_slice.stop
-            + BLOCK_SIZE * (i_block - N_BLOCKS + 1),
+        idx_offset = BLOCK_SIZE * (i_block - N_BLOCKS + 1)
+        sig_slice = slice(
+            firf.rb_valid_slice.start + idx_offset,
+            firf.rb_valid_slice.stop + idx_offset,
         )
-
-        residuals[slice_orig_array] = (
-            sig1[slice_orig_array] + sig3[slice_orig_array] - filt_I
-        )
+        residuals[sig_slice] = sig1[sig_slice] + sig3[sig_slice] - filt_I
 
         if f_SHOW_PLOT:
             color = "r" if (i_block % 2 == 0) else "g"
@@ -161,9 +157,7 @@ if f_SHOW_PLOT:
     plt.title("N_taps = %i, dev = %.3f" % (firf.config.firwin_numtaps, dev))
     plt.xlabel("time (s)")
     plt.ylabel("signal")
-    plt.xlim(
-        [firf.config.T_settle_filter - 0.1, firf.config.T_settle_filter + 0.8]
-    )
+    plt.xlim([firf.T_settle_filter / 2 - 0.1, firf.T_settle_filter / 2 + 0.8])
     plt.ylim([-2.5, 2.5])
     plt.grid()
 

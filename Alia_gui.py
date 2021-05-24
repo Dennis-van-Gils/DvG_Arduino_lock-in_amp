@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "23-05-2021"
+__date__ = "24-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -1704,8 +1704,12 @@ class MainWindow(QtWid.QWidget):
             print("WARNING: Filter @ mix_X/Y can't reach desired cut-off freq.")
             f_cutoff = self.alia.config.F_Nyquist - roll_off_width
 
-        self.alia_qdev.firf_2_mix_X.compute_firwin_and_freqz(cutoff=f_cutoff)
-        self.alia_qdev.firf_2_mix_Y.compute_firwin_and_freqz(cutoff=f_cutoff)
+        self.alia_qdev.firf_2_mix_X.compute_firwin_and_freqz(
+            firwin_cutoff=f_cutoff
+        )
+        self.alia_qdev.firf_2_mix_Y.compute_firwin_and_freqz(
+            firwin_cutoff=f_cutoff
+        )
         self.filt_2_design_GUI.update_filter_design()
         self.update_plot_filt_2_resp()
         self.plot_zoom_ROI_filt_2()

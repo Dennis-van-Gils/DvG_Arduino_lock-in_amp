@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "23-05-2021"
+__date__ = "24-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -230,10 +230,11 @@ class Alia_qdev(QDeviceIO):
             firwin_cutoff=firwin_cutoff,
             firwin_window=firwin_window,
             firwin_pass_zero=False,
+            use_CUDA=self.use_CUDA,
         )
 
         self.firf_1_sig_I = RingBuffer_FIR_Filter(
-            config=firf_1_config, name="firf_1_sig_I", use_CUDA=self.use_CUDA,
+            config=firf_1_config, name="firf_1_sig_I"
         )
 
         # Create FIR filter: Low-pass on mix_X and mix_Y
@@ -249,14 +250,15 @@ class Alia_qdev(QDeviceIO):
             firwin_cutoff=2 * dev.config.ref_freq - roll_off_width,
             firwin_window="blackmanharris",
             firwin_pass_zero=True,
+            use_CUDA=self.use_CUDA,
         )
 
         self.firf_2_mix_X = RingBuffer_FIR_Filter(
-            config=firf_2_config, name="firf_2_mix_X", use_CUDA=self.use_CUDA,
+            config=firf_2_config, name="firf_2_mix_X"
         )
 
         self.firf_2_mix_Y = RingBuffer_FIR_Filter(
-            config=firf_2_config, name="firf_2_mix_Y", use_CUDA=self.use_CUDA,
+            config=firf_2_config, name="firf_2_mix_Y"
         )
 
     def turn_on(self):

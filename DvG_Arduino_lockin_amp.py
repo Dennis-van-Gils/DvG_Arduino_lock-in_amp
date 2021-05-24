@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "23-05-2021"
+__date__ = "24-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -213,7 +213,7 @@ def lockin_DAQ_update():
     if alia_qdev.firf_1_sig_I.filter_has_settled:
         # Retrieve the block of original data from the past that aligns with
         # the current filter output
-        valid_slice = alia_qdev.firf_1_sig_I.config.rb_valid_slice
+        valid_slice = alia_qdev.firf_1_sig_I.rb_valid_slice
 
         state.time_1 = state.deque_time [valid_slice]
         old_sig_I    = state.deque_sig_I[valid_slice]
@@ -260,7 +260,7 @@ def lockin_DAQ_update():
     if alia_qdev.firf_2_mix_X.filter_has_settled:
         # Retrieve the block of time data from the past that aligns with
         # the current filter output
-        valid_slice = alia_qdev.firf_1_sig_I.config.rb_valid_slice
+        valid_slice = alia_qdev.firf_1_sig_I.rb_valid_slice
         state.time_2 = state.deque_time_1[valid_slice]
 
         # Signal amplitude and phase reconstruction
@@ -361,7 +361,7 @@ def write_data_to_log():
         # All filters have settled --> green light
         N = alia.config.BLOCK_SIZE
         state = alia_qdev.state
-        idx_offset = alia_qdev.firf_1_sig_I.config.rb_valid_slice.start
+        idx_offset = alia_qdev.firf_1_sig_I.rb_valid_slice.start
 
         # tick = Time.perf_counter()
         data = np.asmatrix(

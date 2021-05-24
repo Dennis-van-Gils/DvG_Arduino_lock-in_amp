@@ -4,10 +4,10 @@
 
 * Make docstrings conform my other modules (Google hybrid style). Among others,
   touch-up `dvg_fftw_convolver.py` and `dvg_ringbuffered_fir_filter.py`
-  
+
 * Turn `dvg_fftw_convolver`, `dvg_ringbuffer_fir_filter` and
   `dvg_fftw_welchpowerspectrum.py` into new PyPi package called
   `dvg-signal-processing`
   
-* Put member `rb_valid_slice` from sub class `Config` one level lower back to
-  `RingBuffer_FIR_Filter`
+* Refactor `Alia_qdev` and co.: buffers should be called blocks and deque should
+  be called ring buffer
