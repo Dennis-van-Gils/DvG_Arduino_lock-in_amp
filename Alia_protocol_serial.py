@@ -665,7 +665,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             Tuple (
                 success: bool
                 counter: int | None
-                time   : numpy.array, units [s]
+                time   : numpy.array, units [us]
                 ref_X  : numpy.array, units [V]
                 ref_Y  : numpy.array, units [V]
                 sig_I  : numpy.array, units [V]
@@ -723,9 +723,8 @@ class Alia(Arduino_protocol_serial.Arduino):
         # fmt: on
 
         # dprint("%i %i" % (millis, micros))
-        t0 = (millis + micros) * 1000
-        time = np.arange(0, c.BLOCK_SIZE)
-        time = t0 + time * c.SAMPLING_PERIOD * 1e6
+        t0 = millis * 1000 + micros
+        time = t0 + np.arange(0, c.BLOCK_SIZE) * c.SAMPLING_PERIOD * 1e6
         time = np.asarray(time, dtype=c.return_type_time, order="C")
 
         idxs_phase = np.arange(idx_phase, idx_phase + c.N_LUT) % c.N_LUT
