@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils"
-__date__ = "23-05-2021"
+__date__ = "24-05-2021"
 __version__ = "1.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
 
@@ -179,7 +179,9 @@ class Filter_design_GUI(QtCore.QObject):
             freq_list = freq_list[1:]
 
         self.qlin_N_taps.setText("%i" % c.firwin_numtaps)
-        self.qlin_T_settle_filter.setText("%.2f" % c.T_settle_filter)
+        self.qlin_T_settle_filter.setText(
+            "%.2f" % self.firfs[0].T_settle_filter
+        )
 
         # Next line cannot be replaced by setUpdatesEnabled(False)
         self.qtbl_bandstop_cellChanged_lock = True

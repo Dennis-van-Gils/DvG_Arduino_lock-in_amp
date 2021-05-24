@@ -2,14 +2,14 @@
 # -*- coding: utf-8 -*-
 """
 
+rb: ring buffer
 FIR: finite impulse response
-rb: RingBuffer
 Zero-phase distortion filter, aka linear filter
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils"
-__date__ = "23-05-2021"
+__date__ = "24-05-2021"
 __version__ = "1.0.0"
 # pylint: disable=invalid-name, too-many-instance-attributes, too-few-public-methods, too-many-arguments
 
@@ -70,8 +70,20 @@ class RingBuffer_FIR_Filter_Config:
 
             Default: True
 
-    Parameters for :meth:`scipy.signal.firwin`
-    Parameters for :meth:`scipy.signal.freqz`
+        freqz_worN: int
+            See :meth:`scipy.signal.freqz` for more details.
+
+        freqz_dB_floor: float
+
+        use_CUDA: bool, optional
+            Use NVidia's CUDA acceleration for the 1D FFT convolution? You'll
+            need `cupy` and `sigpy` properly installed in your system for CUDA
+            to work. Only beneficial when processing large amounts of data
+            (approx. > 1e5 samples) as the overhead of copying memory from CPU
+            to GPU is substantial. Not really worth it when `block_size <= 500`
+            and `N_blocks <= 41`.
+
+            Default: False
     """
 
     def __init__(
@@ -84,6 +96,7 @@ class RingBuffer_FIR_Filter_Config:
         firwin_pass_zero: Union[bool, str] = True,
         freqz_worN: int = 2 ** 18,
         freqz_dB_floor: float = -120.0,
+        use_CUDA: bool = False,
     ):
         self.Fs = Fs
         self.block_size = block_size
@@ -93,37 +106,25 @@ class RingBuffer_FIR_Filter_Config:
         self.firwin_pass_zero = firwin_pass_zero
         self.freqz_worN = freqz_worN
         self.freqz_dB_floor = freqz_dB_floor
+        self.use_CUDA = use_CUDA
 
         #  Derived config parameters
         # ---------------------------
-        # Full capacity of ring buffer
+
+        # Full capacity of the ring buffer
         self.rb_capacity = block_size * N_blocks
 
-        # Informational: String description of window settings
+        # Neat string description of window settings
         self.firwin_window_descr = (
             "%s" % firwin_window
             if isinstance(firwin_window, str)
             else "%s" % [x for x in firwin_window]
         )
 
-        # Calculate max number of possible taps. We'll force an odd number
-        # in order to create a zero-phase distortion filter, aka linear
-        # filter.
+        # Calculate max number of possible taps that will fit inside the ring
+        # buffer given `block_size` and `N_blocks`. We'll force an odd number in
+        # order to create a zero-phase distortion filter, aka linear filter.
         self.firwin_numtaps = block_size * (N_blocks - 1) + 1
-
-        # Indices within the input-signal ring buffer corresponding to the
-        # time stamps of the computed valid filter output
-        idx_rb_valid_start = int((self.firwin_numtaps - 1) / 2)
-        self.rb_valid_slice = slice(
-            idx_rb_valid_start, self.rb_capacity - idx_rb_valid_start
-        )
-
-        # Informational: Time periods
-        # fmt: off
-        self.T_span_taps     = self.firwin_numtaps / Fs           # [s]
-        self.T_span_block    = block_size / Fs                    # [s]
-        self.T_settle_filter = (N_blocks - 1) * block_size / Fs   # [s]
-        # fmt: on
 
 
 class RingBuffer_FIR_Filter:
@@ -135,7 +136,7 @@ class RingBuffer_FIR_Filter:
     `block_size`
 
     The FIR filter output is (by definition) delayed with respect to the
-    incoming timeseries data, namely by `T_settle_filter` seconds. Attribute
+    incoming timeseries data, namely by `T_settle_filter`/2 seconds. Attribute
     `valid_slice` will contain the slice to be taken from the incoming
     ring buffer corresponding to the matching time... bla... history
 
@@ -151,24 +152,25 @@ class RingBuffer_FIR_Filter:
 
             Default: ""
 
-        use_CUDA: bool, optional
-            Use NVidia's CUDA acceleration for the 1D FFT convolution? You'll
-            need `cupy` and `sigpy` properly installed in your system for CUDA
-            to work. Only beneficial when processing large amounts of data
-            (approx. > 1e5 samples) as the overhead of copying memory from CPU
-            to GPU is substantial. Not really worth it when block_size <= 500
-            and N_blocks <= 41.
-
-            Default: False
-
     Attributes:
         config: RingBuffer_FIR_Filter_Config()
         name: str
         freqz: FreqResponse()
 
+        T_settle_filter: float
+            Time period in seconds for the filter to start outputting valid
+            data, not to be confused with the filter theoretical response time
+            to an impulse. Note that the output of the filter lies in the past
+            by `T_settle_filter/2` seconds with respect to the input signal,
+            see `rb_valid_slice`.
+
         filter_has_settled: bool
-            True when the filter starts outputting, not to be confused with the
-            filter theoretical response time to an impulse.
+            True when the filter starts outputting valid data, not to be
+            confused with the filter theoretical response time to an impulse.
+
+        rb_valid_slice: slice
+            Indices within the input-signal ring buffer aligning to the time
+            stamps of the computed valid filter output.
     """
 
     class FreqResponse:
@@ -189,29 +191,35 @@ class RingBuffer_FIR_Filter:
             self.phase_rad = None
 
     def __init__(
-        self,
-        config: RingBuffer_FIR_Filter_Config,
-        name: str = "",
-        use_CUDA: bool = False,
+        self, config: RingBuffer_FIR_Filter_Config, name: str = "",
     ):
         self.config = config
         self.name = name
-        self.use_CUDA = use_CUDA
+
+        # Filter settling
+        self.T_settle_filter = (
+            (config.N_blocks - 1) * config.block_size / config.Fs
+        )  # [s]
         self.filter_has_settled = False
         self._filter_was_settled = False
 
+        # Indices within the input-signal ring buffer aligning to the time
+        # stamps of the computed valid filter output
+        idx = int((config.firwin_numtaps - 1) / 2)
+        self.rb_valid_slice = slice(idx, config.rb_capacity - idx)
+
         # Container for the computed FIR filter tap array
         self._taps = None
-        self._taps_cupy = None  # Only used when `use_CUDA = True`
+        self._taps_cupy = None  # Only used when `config.use_CUDA = True`
 
         # Container for the computed frequency response of the filter based
-        # on the output of :meth:`scipy.signal.freqz`.
+        # on the output of :meth:`scipy.signal.freqz`
         self.freqz = self.FreqResponse()
 
-        if not self.use_CUDA:
+        if not config.use_CUDA:
             # Create FFTW plan for FFT convolution
             self._fftw_convolver = FFTW_Convolver_Valid1D(
-                self.config.rb_capacity, self.config.firwin_numtaps
+                config.rb_capacity, config.firwin_numtaps
             )
         else:
             self.cupy = import_module("cupy")
@@ -285,7 +293,7 @@ class RingBuffer_FIR_Filter:
             fs=c.Fs,
         )
 
-        if self.use_CUDA:
+        if c.use_CUDA:
             # Copy FIR filter tap array from CPU to GPU memory
             self._taps_cupy = self.cupy.array(self._taps[:, None])
             # Turning 1-D array `_taps` into column vector by [:, None]
@@ -403,7 +411,7 @@ class RingBuffer_FIR_Filter:
 
         if self.filter_has_settled:
             # tick = Time.perf_counter()
-            if not self.use_CUDA:
+            if not c.use_CUDA:
                 # Perform convolution on the CPU
                 valid_out = self._fftw_convolver.convolve(
                     ringbuffer_in, self._taps
@@ -443,31 +451,28 @@ class RingBuffer_FIR_Filter:
     def report(self):
         c = self.config  # Shorthand
 
-        def f(name, value, value_format, unit=""):
+        def fancy(name, value, value_format, unit=""):
             format_str = "{:>19s}  %s  {:<s}" % value_format
             print(format_str.format(name, value, unit))
 
         print("\nRingbuffer_FIR_Filter `%s`" % self.name)
         print("═" * 50)
-        f("Fs", c.Fs, "{:>9,.2f}", "Hz")
-        f("block_size", c.block_size, "{:>9d}", "samples")
-        f("N_blocks", c.N_blocks, "{:>9d}")
+        fancy("Fs", c.Fs, "{:>9,.2f}", "Hz")
+        fancy("block_size", c.block_size, "{:>9d}", "samples")
+        fancy("N_blocks", c.N_blocks, "{:>9d}")
         print("─" * 50)
-        f("firwin_window", c.firwin_window_descr, "{:<s}")
-        f(
+        fancy("rb_capacity", c.rb_capacity, "{:>9d}", "samples")
+        fancy("firwin_numtaps", c.firwin_numtaps, "{:>9d}", "samples")
+        fancy("rb_valid_slice", str(self.rb_valid_slice), "{:<s}")
+        fancy("T_settle_filter", self.T_settle_filter, "{:>9.3f}", "s")
+        print("─" * 50)
+        fancy("firwin_window", c.firwin_window_descr, "{:<s}")
+        fancy(
             "firwin_cutoff",
             "%s" % [round(x, 1) for x in c.firwin_cutoff],
             "{:<s}",
             "Hz",
         )
-        f("firwin_pass_zero", str(c.firwin_pass_zero), "{:<s}")
-        print("─" * 50)
-        f("rb_capacity", c.rb_capacity, "{:>9d}", "samples")
-        f("firwin_numtaps", c.firwin_numtaps, "{:>9d}", "samples")
-        f("T_span_taps", c.T_span_taps, "{:>9.3f}", "s")
-        f("T_span_block", c.T_span_block, "{:>9.3f}", "s")
-        print("─" * 50)
-        f("rb_valid_slice", str(c.rb_valid_slice), "{:<s}")
-        f("T_settle_filter", c.T_settle_filter, "{:>9.3f}", "s")
+        fancy("firwin_pass_zero", str(c.firwin_pass_zero), "{:<s}")
         print("═" * 50)
 
