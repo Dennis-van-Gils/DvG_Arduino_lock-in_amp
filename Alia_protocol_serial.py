@@ -665,10 +665,10 @@ class Alia(Arduino_protocol_serial.Arduino):
             Tuple (
                 success: bool
                 counter: int | None
-                time   : numpy.array
-                ref_X  : numpy.array
-                ref_Y  : numpy.array
-                sig_I  : numpy.array
+                time   : numpy.array, units [s]
+                ref_X  : numpy.array, units [V]
+                ref_Y  : numpy.array, units [V]
+                sig_I  : numpy.array, units [V]
             )
         """
         failed = False, None, [np.nan], [np.nan], [np.nan], [np.nan]
@@ -723,7 +723,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         # fmt: on
 
         # dprint("%i %i" % (millis, micros))
-        t0 = millis * 1000 + micros
+        t0 = (millis + micros) * 1000
         time = np.arange(0, c.BLOCK_SIZE)
         time = t0 + time * c.SAMPLING_PERIOD * 1e6
         time = np.asarray(time, dtype=c.return_type_time, order="C")
