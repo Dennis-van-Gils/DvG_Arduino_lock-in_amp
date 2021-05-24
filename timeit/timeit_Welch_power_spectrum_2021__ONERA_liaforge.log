@@ -1,0 +1,31 @@
+Timeit: Welch power spectrum
+
+Conda environment:
+  C:\Users\vangi\anaconda3\envs\liaforge
+
+Running on...
+  node   : Onera
+  system : Windows
+  release: 10
+  version: 10.0.19042
+  machine: AMD64
+  proc   : AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD
+  Python : 3.8.10
+
+N = 1000, REPS = 5
+
+scipy.signal.welch:
+               1.492 ms
+               1.485 ms
+               1.489 ms
+               1.485 ms
+               1.489 ms
+
+dvg_fftw_welchpowerspectrum:
+               0.321 ms
+               0.317 ms
+               0.318 ms
+               0.328 ms
+               0.317 ms
+
+Times faster: 4.69

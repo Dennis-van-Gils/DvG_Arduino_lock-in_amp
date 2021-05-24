@@ -67,7 +67,7 @@ if __name__ == "__main__":
         f = None
 
     def report(str_txt):
-        if not (f == None):
+        if f is not None:
             f.write("%s\n" % str_txt)
         print(str_txt)
 
@@ -81,6 +81,8 @@ if __name__ == "__main__":
     report("Timeit: Welch power spectrum\n")
 
     uname = platform.uname()
+    report("Conda environment:")
+    report("  %s\n" % os.environ["CONDA_PREFIX"])
     report("Running on...")
     report("  node   : %s" % uname.node)
     report("  system : %s" % uname.system)

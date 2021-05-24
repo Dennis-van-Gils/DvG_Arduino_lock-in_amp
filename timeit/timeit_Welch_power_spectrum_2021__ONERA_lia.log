@@ -1,0 +1,31 @@
+Timeit: Welch power spectrum
+
+Conda environment:
+  C:\Users\vangi\anaconda3\envs\lia
+
+Running on...
+  node   : Onera
+  system : Windows
+  release: 10
+  version: 10.0.19041
+  machine: AMD64
+  proc   : AMD64 Family 23 Model 113 Stepping 0, AuthenticAMD
+  Python : 3.9.4
+
+N = 1000, REPS = 5
+
+scipy.signal.welch:
+               1.440 ms
+               1.428 ms
+               1.429 ms
+               1.425 ms
+               1.432 ms
+
+dvg_fftw_welchpowerspectrum:
+               0.472 ms
+               0.470 ms
+               0.471 ms
+               0.470 ms
+               0.468 ms
+
+Times faster: 3.04
