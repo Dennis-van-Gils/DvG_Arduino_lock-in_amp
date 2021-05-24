@@ -1426,7 +1426,7 @@ class MainWindow(QtWid.QWidget):
 
         # Schematic diagram
         qlbl = QtWid.QLabel()
-        qpix = QtGui.QPixmap("diagram_signal_processing.png")
+        qpix = QtGui.QPixmap("user_manual/fig_diagram.png")
         qlbl.setPixmap(qpix)
 
         # -----------------------------------
