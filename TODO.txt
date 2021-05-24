@@ -14,3 +14,5 @@
   
 * See `timeit_np_ufunc_more.py` and observe that param `out` speeds up
   calculations when using numpy.ufuncs like `np.multiply()` and `np.add()`
+
+* `Arduino_protocol_serial.listen_to_lockin_amp()` can be sped up by numpy ufuncs.
