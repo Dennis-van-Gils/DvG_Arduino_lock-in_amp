@@ -9,7 +9,7 @@ Zero-phase distortion filter, aka linear filter
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils"
-__date__ = "24-05-2021"
+__date__ = "25-05-2021"
 __version__ = "1.0.0"
 # pylint: disable=invalid-name, too-many-instance-attributes, too-few-public-methods, too-many-arguments
 
@@ -96,6 +96,7 @@ class RingBuffer_FIR_Filter_Config:
         firwin_pass_zero: Union[bool, str] = True,
         freqz_worN: int = 2 ** 18,
         freqz_dB_floor: float = -120.0,
+        fftw_threads: int = 5,
         use_CUDA: bool = False,
     ):
         self.Fs = Fs
@@ -106,6 +107,7 @@ class RingBuffer_FIR_Filter_Config:
         self.firwin_pass_zero = firwin_pass_zero
         self.freqz_worN = freqz_worN
         self.freqz_dB_floor = freqz_dB_floor
+        self.fftw_threads = fftw_threads
         self.use_CUDA = use_CUDA
 
         #  Derived config parameters
@@ -219,7 +221,9 @@ class RingBuffer_FIR_Filter:
         if not config.use_CUDA:
             # Create FFTW plan for FFT convolution
             self._fftw_convolver = FFTW_Convolver_Valid1D(
-                config.rb_capacity, config.firwin_numtaps
+                config.rb_capacity,
+                config.firwin_numtaps,
+                fftw_threads=config.fftw_threads,
             )
         else:
             self.cupy = import_module("cupy")

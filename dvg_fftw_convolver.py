@@ -26,7 +26,7 @@ class FFTW_Convolver_Valid1D:
     """
     """
 
-    def __init__(self, len1: int, len2: int):
+    def __init__(self, len1: int, len2: int, fftw_threads: int = 5):
         # Check that input sizes are compatible with 'valid' mode
         self.switch_inputs = len2 > len1
         if self.switch_inputs:
@@ -59,7 +59,10 @@ class FFTW_Convolver_Valid1D:
         print("Creating FFTW plans for convolution...", end="")
         sys.stdout.flush()
 
-        p = {"flags": ("FFTW_MEASURE", "FFTW_DESTROY_INPUT"), "threads": 5}
+        p = {
+            "flags": ("FFTW_MEASURE", "FFTW_DESTROY_INPUT"),
+            "threads": fftw_threads,
+        }
         self._fftw_rfft1 = pyfftw.FFTW(self._rfft_in1, self._rfft_out1, **p)
         self._fftw_rfft2 = pyfftw.FFTW(self._rfft_in2, self._rfft_out2, **p)
         self._fftw_irfft = pyfftw.FFTW(

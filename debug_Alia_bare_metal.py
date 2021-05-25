@@ -22,6 +22,7 @@ TEST_POWERSPECTRA = True
 BLOCK_SIZE = 2000
 N_BLOCKS = 21
 Fs = 20000  # [Hz]
+fftw_threads = 5  # sweet spot seems to be 5
 
 # Simulation vars
 T_total = 120  # [s]
@@ -89,26 +90,26 @@ class State:
         """
 
         # Create ring buffers
-        p = {'capacity': self.rb_capacity, 'dtype': np.float64}
+        _p = {'capacity': self.rb_capacity, 'dtype': np.float64}
 
         # Stage 0: unprocessed data
-        self.rb_time   = RingBuffer(**p)
-        self.rb_ref_X  = RingBuffer(**p)
-        self.rb_ref_Y  = RingBuffer(**p)
-        self.rb_sig_I  = RingBuffer(**p)
+        self.rb_time   = RingBuffer(**_p)
+        self.rb_ref_X  = RingBuffer(**_p)
+        self.rb_ref_Y  = RingBuffer(**_p)
+        self.rb_sig_I  = RingBuffer(**_p)
 
         # Stage 1: apply AC-coupling and band-stop filter and heterodyne mixing
-        self.rb_time_1 = RingBuffer(**p)
-        self.rb_filt_I = RingBuffer(**p)
-        self.rb_mix_X  = RingBuffer(**p)
-        self.rb_mix_Y  = RingBuffer(**p)
+        self.rb_time_1 = RingBuffer(**_p)
+        self.rb_filt_I = RingBuffer(**_p)
+        self.rb_mix_X  = RingBuffer(**_p)
+        self.rb_mix_Y  = RingBuffer(**_p)
 
         # Stage 2: apply low-pass filter and signal reconstruction
-        self.rb_time_2 = RingBuffer(**p)
-        self.rb_X      = RingBuffer(**p)
-        self.rb_Y      = RingBuffer(**p)
-        self.rb_R      = RingBuffer(**p)
-        self.rb_T      = RingBuffer(**p)
+        self.rb_time_2 = RingBuffer(**_p)
+        self.rb_X      = RingBuffer(**_p)
+        self.rb_Y      = RingBuffer(**_p)
+        self.rb_R      = RingBuffer(**_p)
+        self.rb_T      = RingBuffer(**_p)
         # fmt: on
 
 
@@ -131,6 +132,7 @@ if __name__ == "__main__":
         firwin_cutoff=[2.0, 48.0, 52.0],
         firwin_window="blackmanharris",
         firwin_pass_zero=False,
+        fftw_threads=fftw_threads,
     )
     firf_1_sig_I = RingBuffer_FIR_Filter(
         config=firf_1_config, name="firf_1_sig_I"
@@ -145,6 +147,7 @@ if __name__ == "__main__":
         firwin_cutoff=2 * ref_freq_Hz - roll_off_width,
         firwin_window="blackmanharris",
         firwin_pass_zero=True,
+        fftw_threads=fftw_threads,
     )
     firf_2_mix_X = RingBuffer_FIR_Filter(
         config=firf_2_config, name="firf_2_mix_X"
@@ -157,8 +160,13 @@ if __name__ == "__main__":
     # ------------------------------------
 
     if TEST_POWERSPECTRA:
+        p = {
+            "len_data": BLOCK_SIZE * N_BLOCKS,
+            "fs": Fs,
+            "nperseg": Fs,
+            "fftw_threads": fftw_threads,
+        }
         # fmt: off
-        p = {"len_data": BLOCK_SIZE * N_BLOCKS, "fs": Fs, "nperseg": Fs}
         fftw_PS_sig_I  = FFTW_WelchPowerSpectrum(**p)
         fftw_PS_filt_I = FFTW_WelchPowerSpectrum(**p)
         fftw_PS_mix_X  = FFTW_WelchPowerSpectrum(**p)
