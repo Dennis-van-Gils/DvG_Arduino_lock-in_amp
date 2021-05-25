@@ -7,22 +7,19 @@ FFT: Fast-Fourier Transform
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "21-05-2021"
+__date__ = "25-05-2021"
 __version__ = "1.0.0"
 # pylint: disable=pointless-string-statement, invalid-name
 
 import sys
 import numpy as np
 import pyfftw
-
-"""
 from numba import njit
 
 
 @njit("complex128[:](complex128[:], complex128[:])", nogil=True, cache=True)
 def fast_multiply(in1: np.ndarray, in2: np.ndarray) -> np.ndarray:
     return np.multiply(in1, in2)
-"""
 
 
 class FFTW_Convolver_Valid1D:
@@ -62,7 +59,7 @@ class FFTW_Convolver_Valid1D:
         print("Creating FFTW plans for convolution...", end="")
         sys.stdout.flush()
 
-        p = {"flags": ("FFTW_MEASURE", "FFTW_DESTROY_INPUT")}
+        p = {"flags": ("FFTW_MEASURE", "FFTW_DESTROY_INPUT"), "threads": 4}
         self._fftw_rfft1 = pyfftw.FFTW(self._rfft_in1, self._rfft_out1, **p)
         self._fftw_rfft2 = pyfftw.FFTW(self._rfft_in2, self._rfft_out2, **p)
         self._fftw_irfft = pyfftw.FFTW(
@@ -108,11 +105,8 @@ class FFTW_Convolver_Valid1D:
         self._fftw_rfft2()
 
         # Convolution and backwards Fourier transformation
-        # Note: Using `numba.njit()` on the following `np.multiply()` operation
-        # has no apparent speed improvement. Tested 21-05-2021. We'll forgo
-        # the use of numba.njit().
-        # self._irfft_in[:] = fast_multiply(self._rfft_out1, self._rfft_out2)
-        self._irfft_in[:] = np.multiply(self._rfft_out1, self._rfft_out2)
+        # self._irfft_in[:] = np.multiply(self._rfft_out1, self._rfft_out2)
+        self._irfft_in[:] = fast_multiply(self._rfft_out1, self._rfft_out2)
         ret = self._fftw_irfft()
 
         # Return only the 'valid' elements
