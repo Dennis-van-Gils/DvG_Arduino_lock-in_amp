@@ -47,6 +47,7 @@ __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
 __date__ = "25-05-2021"
 __version__ = "1.0.0"
+# pylint: disable=invalid-name
 
 import sys
 
@@ -56,41 +57,35 @@ import pyfftw
 from numba import njit
 
 
-@njit("void(float64[:], float64[:,:])", nogil=True, cache=True)
-def fast_multiply_window(window_in, data):
+@njit("float64[:,:](float64[:], float64[:,:])", nogil=True, cache=True)
+def fast_multiply_window(window_in: np.ndarray, data: np.ndarray) -> np.ndarray:
     # Equivalent of:
     # Pxx_in = self.win * Pxx_in  # float64, leave as A = B * A
-    data = np.multiply(window_in, data)
+    return np.multiply(window_in, data)
 
 
 @njit("float64[:,:](complex128[:,:], float64)", nogil=True, cache=True)
-def fast_conjugate_rescale(data_in, scale):
+def fast_conjugate_rescale(data_in: np.ndarray, scale: float) -> np.ndarray:
     # Equivalent of:
     # Pxx = np.conjugate(Pxx) * Pxx
     # Pxx = Pxx.real
     # Pxx *= self.scale
-    data_out = np.conjugate(data_in)
-    data_out = np.multiply(data_out, data_in)
-    data_out = np.real(data_out)
-    data_out = np.multiply(data_out, scale)
-    return data_out
+    x = np.multiply(np.conjugate(data_in), data_in)
+    return np.multiply(np.real(x), scale)
 
 
 @njit("float64[:,:](float64[:,:])", nogil=True, cache=True)
-def fast_transpose(data_in):
-    data_out = np.transpose(data_in)
-    return data_out
+def fast_transpose(data_in: np.ndarray) -> np.ndarray:
+    return np.transpose(data_in)
 
 
 @njit("float64[:](float64[:])", nogil=True, cache=True)
-def fast_10log10(data_in):
-    data_out = np.log10(data_in)
-    data_out = np.multiply(data_out, 10)
-    return data_out
+def fast_10log10(data_in: np.ndarray) -> np.ndarray:
+    return np.multiply(np.log10(data_in), 10)
 
 
 class FFTW_WelchPowerSpectrum:
-    def __init__(self, len_data, fs, nperseg):
+    def __init__(self, len_data: int, fs: float, nperseg: int, fftw_threads=5):
         nperseg = int(nperseg)
         if nperseg > len_data:
             print(
@@ -133,11 +128,11 @@ class FFTW_WelchPowerSpectrum:
             self._rfft_in,
             self._rfft_out,
             flags=("FFTW_MEASURE", "FFTW_DESTROY_INPUT"),
-            threads=5,
+            threads=fftw_threads,
         )
         print(" done.")
 
-    def process(self, data):
+    def process(self, data: np.ndarray) -> np.ndarray:
         x = np.asarray(data)
 
         if self.len_data != len(x):
@@ -154,7 +149,7 @@ class FFTW_WelchPowerSpectrum:
         # Apply window by multiplication
         # Equivalent of:
         # Pxx_in = self.win * Pxx_in  # float64, leave as A = B * A
-        fast_multiply_window(self.win, Pxx_in)
+        Pxx_in = fast_multiply_window(self.win, Pxx_in)
 
         # Perform the fft
         self._rfft_in[:] = Pxx_in  # float64
@@ -185,5 +180,5 @@ class FFTW_WelchPowerSpectrum:
 
         return Pxx
 
-    def process_dB(self, data):
+    def process_dB(self, data: np.ndarray) -> np.ndarray:
         return fast_10log10(self.process(data))
