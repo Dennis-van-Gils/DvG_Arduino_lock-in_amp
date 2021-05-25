@@ -45,8 +45,10 @@ Based on: scipy.signal.welch()
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "24-05-2021"
+__date__ = "25-05-2021"
 __version__ = "1.0.0"
+
+import sys
 
 import numpy as np
 from scipy import signal
@@ -124,10 +126,14 @@ class FFTW_WelchPowerSpectrum:
             self.shape_out, dtype="complex128"
         )
 
-        flags = ("FFTW_PATIENT", "FFTW_DESTROY_INPUT")
         print("Creating FFTW plan for Welch power spectrum...", end="")
+        sys.stdout.flush()
+
         self._fftw_welch = pyfftw.FFTW(
-            self._rfft_in, self._rfft_out, flags=flags
+            self._rfft_in,
+            self._rfft_out,
+            flags=("FFTW_MEASURE", "FFTW_DESTROY_INPUT"),
+            threads=4,
         )
         print(" done.")
 
