@@ -6,7 +6,7 @@ acquisition for an Arduino based lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "24-05-2021"
+__date__ = "25-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -176,6 +176,8 @@ class Alia_qdev(QDeviceIO):
                     this_deque.clear()
 
             locker.unlock()
+
+    dev: Alia  # Type hint for Pylint/Pylance
 
     def __init__(
         self,
