@@ -9,6 +9,8 @@ Dennis van Gils
 import time as Time
 
 import numpy as np
+from numba import njit
+from pyinstrument import Profiler
 
 from dvg_ringbuffer import RingBuffer
 from dvg_ringbuffer_fir_filter import (
@@ -17,19 +19,41 @@ from dvg_ringbuffer_fir_filter import (
 )
 from dvg_fftw_welchpowerspectrum import FFTW_WelchPowerSpectrum
 
-# Main parameters to test for
+RUN_PYINSTRUMENT = False
 TEST_POWERSPECTRA = True
+
+# Main parameters to test for
 BLOCK_SIZE = 2000
 N_BLOCKS = 21
 Fs = 20000  # [Hz]
 fftw_threads = 5  # sweet spot seems to be 5
 
 # Simulation vars
-T_total = 120  # [s]
+T_total = 360  # [s]
 ref_freq_Hz = 250  # [Hz]
 ref_V_offset = 1.5  # [V]
 sig_I_phase = 10  # [deg]
 sig_I_noise_ampl = 0.04
+
+
+@njit("float64(float64[:])")
+def fast_min(in1):
+    return in1.min()
+
+
+@njit("float64(float64[:])")
+def fast_max(in1):
+    return in1.max()
+
+
+@njit("float64(float64[:])")
+def fast_mean(in1):
+    return in1.mean()
+
+
+@njit("float64(float64[:])")
+def fast_std(in1):
+    return in1.std()
 
 
 class State:
@@ -118,7 +142,6 @@ class State:
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-
     state = State(BLOCK_SIZE, N_BLOCKS)
 
     #  Create FIR filters
@@ -204,6 +227,9 @@ if __name__ == "__main__":
 
     #  Simulate incoming blocks on the fly
     # -------------------------------------
+    if RUN_PYINSTRUMENT:
+        profiler = Profiler()
+        profiler.start()
 
     tick = Time.perf_counter()
     N_sim_blocks = int(len(time) / BLOCK_SIZE)
@@ -220,10 +246,10 @@ if __name__ == "__main__":
         state.ref_Y = ref_Y[sim_slice]
         state.sig_I = sig_I[sim_slice]
 
-        state.sig_I_min = np.min(state.sig_I)
-        state.sig_I_max = np.max(state.sig_I)
-        state.sig_I_avg = np.mean(state.sig_I)
-        state.sig_I_std = np.std(state.sig_I)
+        state.sig_I_min = fast_min(state.sig_I)  # np.min(state.sig_I)
+        state.sig_I_max = fast_max(state.sig_I)  # np.max(state.sig_I)
+        state.sig_I_avg = fast_mean(state.sig_I)  # np.mean(state.sig_I)
+        state.sig_I_std = fast_std(state.sig_I)  # np.std(state.sig_I)
 
         state.rb_time.extend(state.time)
         state.rb_ref_X.extend(state.ref_X)
@@ -261,10 +287,10 @@ if __name__ == "__main__":
             state.mix_X  = np.full(BLOCK_SIZE, np.nan)
             state.mix_Y  = np.full(BLOCK_SIZE, np.nan)
 
-        state.filt_I_min = np.min(state.filt_I)
-        state.filt_I_max = np.max(state.filt_I)
-        state.filt_I_avg = np.mean(state.filt_I)
-        state.filt_I_std = np.std(state.filt_I)
+        state.filt_I_min = fast_min(state.filt_I)  # np.min(state.filt_I)
+        state.filt_I_max = fast_max(state.filt_I)  # np.max(state.filt_I)
+        state.filt_I_avg = fast_mean(state.filt_I) # np.mean(state.filt_I)
+        state.filt_I_std = fast_std(state.filt_I)  # np.std(state.filt_I)
 
         state.rb_time_1.extend(state.time_1)
         state.rb_filt_I.extend(state.filt_I)
@@ -302,10 +328,10 @@ if __name__ == "__main__":
             state.R = np.full(BLOCK_SIZE, np.nan)
             state.T = np.full(BLOCK_SIZE, np.nan)
 
-        state.X_avg = np.mean(state.X)
-        state.Y_avg = np.mean(state.Y)
-        state.R_avg = np.mean(state.R)
-        state.T_avg = np.mean(state.T)
+        state.X_avg = fast_mean(state.X)  # np.mean(state.X)
+        state.Y_avg = fast_mean(state.Y)  # np.mean(state.Y)
+        state.R_avg = fast_mean(state.R)  # np.mean(state.R)
+        state.T_avg = fast_mean(state.T)  # np.mean(state.T)
 
         state.rb_time_2.extend(state.time_2)
         state.rb_X.extend(state.X)
@@ -331,10 +357,14 @@ if __name__ == "__main__":
             if state.rb_R.is_full:
                 fftw_PS_R.process_dB(state.rb_R)
 
+    if RUN_PYINSTRUMENT:
+        profiler.stop()
+        profiler.open_in_browser()
+        # print(profiler.output_text(unicode=True, color=True))
+
     print("%5.3f %5.3f" % (state.sig_I_avg, state.filt_I_avg))
     print("%5.3f %5.3f" % (state.R_avg, state.T_avg))
 
     tock = Time.perf_counter()
     print("Number of blocks simulated: %i" % N_sim_blocks)
     print("Avg time per block: %.1f ms" % ((tock - tick) / N_sim_blocks * 1000))
-

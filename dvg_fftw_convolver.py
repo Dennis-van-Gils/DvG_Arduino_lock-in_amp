@@ -22,6 +22,12 @@ def fast_multiply(in1: np.ndarray, in2: np.ndarray) -> np.ndarray:
     return np.multiply(in1, in2)
 
 
+@njit("float64[:](float64[:], float64[:])", nogil=True, cache=True)
+def fast_concatenate(in1: np.ndarray, in2: np.ndarray) -> np.ndarray:
+    # Tested 25-05-2021 to have (very) little improvement
+    return np.concatenate((in1, in2))
+
+
 class FFTW_Convolver_Valid1D:
     """
     """
@@ -102,8 +108,10 @@ class FFTW_Convolver_Valid1D:
         # Perform FFT convolution
         # -----------------------
         # Zero padding and forwards Fourier transformation
-        self._rfft_in1[:] = np.concatenate((in1, self.padding_in1))
-        self._rfft_in2[:] = np.concatenate((in2, self.padding_in2))
+        # self._rfft_in1[:] = np.concatenate((in1, self.padding_in1))
+        # self._rfft_in2[:] = np.concatenate((in2, self.padding_in2))
+        self._rfft_in1[:] = fast_concatenate(in1, self.padding_in1)
+        self._rfft_in2[:] = fast_concatenate(in2, self.padding_in2)
         self._fftw_rfft1()
         self._fftw_rfft2()
 
