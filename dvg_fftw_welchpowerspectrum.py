@@ -133,7 +133,7 @@ class FFTW_WelchPowerSpectrum:
             self._rfft_in,
             self._rfft_out,
             flags=("FFTW_MEASURE", "FFTW_DESTROY_INPUT"),
-            threads=4,
+            threads=5,
         )
         print(" done.")
 

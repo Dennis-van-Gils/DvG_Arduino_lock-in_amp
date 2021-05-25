@@ -59,7 +59,7 @@ class FFTW_Convolver_Valid1D:
         print("Creating FFTW plans for convolution...", end="")
         sys.stdout.flush()
 
-        p = {"flags": ("FFTW_MEASURE", "FFTW_DESTROY_INPUT"), "threads": 4}
+        p = {"flags": ("FFTW_MEASURE", "FFTW_DESTROY_INPUT"), "threads": 5}
         self._fftw_rfft1 = pyfftw.FFTW(self._rfft_in1, self._rfft_out1, **p)
         self._fftw_rfft2 = pyfftw.FFTW(self._rfft_in2, self._rfft_out2, **p)
         self._fftw_irfft = pyfftw.FFTW(
