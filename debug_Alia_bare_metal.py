@@ -6,6 +6,7 @@ Dennis van Gils
 """
 # pylint: disable=invalid-name, missing-function-docstring
 
+from typing import Tuple
 import time as Time
 
 import numpy as np
@@ -36,24 +37,14 @@ sig_I_phase = 10  # [deg]
 sig_I_noise_ampl = 0.04
 
 
-@njit("float64(float64[:])")
-def fast_min(in1):
-    return in1.min()
+@njit("UniTuple(float64, 4)(float64[:])")
+def fast_min_max_mean_std(data: np.ndarray) -> Tuple[float]:
+    return data.min(), data.max(), data.mean(), data.std()
 
 
 @njit("float64(float64[:])")
-def fast_max(in1):
-    return in1.max()
-
-
-@njit("float64(float64[:])")
-def fast_mean(in1):
-    return in1.mean()
-
-
-@njit("float64(float64[:])")
-def fast_std(in1):
-    return in1.std()
+def fast_mean(data):
+    return data.mean()
 
 
 class State:
@@ -205,11 +196,11 @@ if __name__ == "__main__":
     ref_Y = ref_V_offset + np.sin(2 * np.pi * ref_freq_Hz * time)
 
     np.random.seed(0)
-    sig_I_noise = sig_I_noise_ampl * np.random.randn(len(time))
-    sig_I = ref_V_offset + np.cos(
-        2 * np.pi * ref_freq_Hz * time - sig_I_phase / 180 * np.pi
+    sig_I = (
+        ref_V_offset
+        + np.cos(2 * np.pi * ref_freq_Hz * time - sig_I_phase / 180 * np.pi)
+        + sig_I_noise_ampl * np.random.randn(len(time))
     )
-    np.add(sig_I, sig_I_noise, out=sig_I)
 
     """
     # Lower memory consumption by using a look-up table (LUT)
@@ -246,10 +237,12 @@ if __name__ == "__main__":
         state.ref_Y = ref_Y[sim_slice]
         state.sig_I = sig_I[sim_slice]
 
-        state.sig_I_min = fast_min(state.sig_I)  # np.min(state.sig_I)
-        state.sig_I_max = fast_max(state.sig_I)  # np.max(state.sig_I)
-        state.sig_I_avg = fast_mean(state.sig_I)  # np.mean(state.sig_I)
-        state.sig_I_std = fast_std(state.sig_I)  # np.std(state.sig_I)
+        (
+            state.sig_I_min,
+            state.sig_I_max,
+            state.sig_I_avg,
+            state.sig_I_std,
+        ) = fast_min_max_mean_std(state.sig_I)
 
         state.rb_time.extend(state.time)
         state.rb_ref_X.extend(state.ref_X)
@@ -286,17 +279,19 @@ if __name__ == "__main__":
             old_sig_I    = np.full(BLOCK_SIZE, np.nan)
             state.mix_X  = np.full(BLOCK_SIZE, np.nan)
             state.mix_Y  = np.full(BLOCK_SIZE, np.nan)
+        # fmt: on
 
-        state.filt_I_min = fast_min(state.filt_I)  # np.min(state.filt_I)
-        state.filt_I_max = fast_max(state.filt_I)  # np.max(state.filt_I)
-        state.filt_I_avg = fast_mean(state.filt_I) # np.mean(state.filt_I)
-        state.filt_I_std = fast_std(state.filt_I)  # np.std(state.filt_I)
+        (
+            state.filt_I_min,
+            state.filt_I_max,
+            state.filt_I_avg,
+            state.filt_I_std,
+        ) = fast_min_max_mean_std(state.filt_I)
 
         state.rb_time_1.extend(state.time_1)
         state.rb_filt_I.extend(state.filt_I)
-        state.rb_mix_X .extend(state.mix_X)
-        state.rb_mix_Y .extend(state.mix_Y)
-        # fmt: on
+        state.rb_mix_X.extend(state.mix_X)
+        state.rb_mix_Y.extend(state.mix_Y)
 
         # Stage 2
         # -------
@@ -328,10 +323,10 @@ if __name__ == "__main__":
             state.R = np.full(BLOCK_SIZE, np.nan)
             state.T = np.full(BLOCK_SIZE, np.nan)
 
-        state.X_avg = fast_mean(state.X)  # np.mean(state.X)
-        state.Y_avg = fast_mean(state.Y)  # np.mean(state.Y)
-        state.R_avg = fast_mean(state.R)  # np.mean(state.R)
-        state.T_avg = fast_mean(state.T)  # np.mean(state.T)
+        state.X_avg = fast_mean(state.X)
+        state.Y_avg = fast_mean(state.Y)
+        state.R_avg = fast_mean(state.R)
+        state.T_avg = fast_mean(state.T)
 
         state.rb_time_2.extend(state.time_2)
         state.rb_X.extend(state.X)
