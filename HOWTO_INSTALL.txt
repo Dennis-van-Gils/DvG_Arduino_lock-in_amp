@@ -21,7 +21,7 @@ conda list
 -------------------------------
 
 conda install black pylint twine matplotlib
-pip install pytest-cov check-manifest sphinx_qt_documentation pyinstrument
+pip install pytest-cov check-manifest sphinx_qt_documentation pyinstrument snooty
 
 
 # Alternative install procedure

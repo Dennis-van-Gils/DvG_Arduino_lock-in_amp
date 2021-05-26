@@ -45,43 +45,38 @@ Based on: scipy.signal.welch()
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "25-05-2021"
+__date__ = "26-05-2021"
 __version__ = "1.0.0"
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name, missing-function-docstring
 
 import sys
-
 import numpy as np
 from scipy import signal
 import pyfftw
 from numba import njit
 
-
-@njit("float64[:,:](float64[:], float64[:,:])", nogil=True, cache=True)
-def fast_multiply_window(window_in: np.ndarray, data: np.ndarray) -> np.ndarray:
-    # Equivalent of:
-    # Pxx_in = self.win * Pxx_in  # float64, leave as A = B * A
-    return np.multiply(window_in, data)
+p_njit = {"nogil": True, "cache": True, "fastmath": True}
 
 
-@njit("float64[:,:](complex128[:,:], float64)", nogil=True, cache=True)
-def fast_conjugate_rescale(data_in: np.ndarray, scale: float) -> np.ndarray:
-    # Equivalent of:
-    # Pxx = np.conjugate(Pxx) * Pxx
-    # Pxx = Pxx.real
-    # Pxx *= self.scale
-    x = np.multiply(np.conjugate(data_in), data_in)
-    return np.multiply(np.real(x), scale)
+@njit("float64[:,:](float64[:], float64[:,:])", **p_njit)
+def fast_multiply_window(window: np.ndarray, data: np.ndarray) -> np.ndarray:
+    return np.multiply(window, data)
 
 
-@njit("float64[:,:](float64[:,:])", nogil=True, cache=True)
-def fast_transpose(data_in: np.ndarray) -> np.ndarray:
-    return np.transpose(data_in)
+@njit("float64[:,:](complex128[:,:], float64)", **p_njit)
+def fast_conjugate_rescale(data: np.ndarray, scale: float) -> np.ndarray:
+    data = np.multiply(np.conjugate(data), data)
+    return np.multiply(np.real(data), scale)
 
 
-@njit("float64[:](float64[:])", nogil=True, cache=True)
-def fast_10log10(data_in: np.ndarray) -> np.ndarray:
-    return np.multiply(np.log10(data_in), 10)
+@njit("float64[:,:](float64[:,:])", **p_njit)
+def fast_transpose(data: np.ndarray) -> np.ndarray:
+    return np.transpose(data)
+
+
+@njit("float64[:](float64[:])", **p_njit)
+def fast_10log10(data: np.ndarray) -> np.ndarray:
+    return np.multiply(np.log10(data), 10)
 
 
 class FFTW_WelchPowerSpectrum:
@@ -146,9 +141,7 @@ class FFTW_WelchPowerSpectrum:
             x, shape=self.shape_in, strides=strides
         )
 
-        # Apply window by multiplication
-        # Equivalent of:
-        # Pxx_in = self.win * Pxx_in  # float64, leave as A = B * A
+        # Apply window
         Pxx_in = fast_multiply_window(self.win, Pxx_in)
 
         # Perform the fft
@@ -157,8 +150,7 @@ class FFTW_WelchPowerSpectrum:
 
         # Equivalent of:
         # Pxx = np.conjugate(Pxx) * Pxx
-        # Pxx = Pxx.real
-        # Pxx *= self.scale
+        # Pxx = Pxx.real * self.scale
         Pxx = fast_conjugate_rescale(Pxx, self.scale)
 
         if self.nperseg % 2:
@@ -167,11 +159,9 @@ class FFTW_WelchPowerSpectrum:
             # Last point is unpaired Nyquist freq point, don't double
             Pxx[..., 1:-1] *= 2
 
-        # Equivalent of:
-        # Pxx = Pxx.transpose()
         Pxx = fast_transpose(Pxx)
 
-        # Average over windows.
+        # Average over windows
         if len(Pxx.shape) >= 2 and Pxx.size > 0:
             if Pxx.shape[-1] > 1:
                 Pxx = Pxx.mean(axis=-1)

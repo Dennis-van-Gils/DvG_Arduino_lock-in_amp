@@ -7,30 +7,31 @@ FFT: Fast-Fourier Transform
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "25-05-2021"
+__date__ = "26-05-2021"
 __version__ = "1.0.0"
-# pylint: disable=pointless-string-statement, invalid-name
+# pylint: disable=invalid-name, missing-function-docstring
 
 import sys
 import numpy as np
 import pyfftw
 from numba import njit
 
+p_njit = {"nogil": True, "cache": True}
 
-@njit("complex128[:](complex128[:], complex128[:])", nogil=True, cache=True)
+
+@njit("complex128[:](complex128[:], complex128[:])", **p_njit)
 def fast_multiply(in1: np.ndarray, in2: np.ndarray) -> np.ndarray:
     return np.multiply(in1, in2)
 
 
-@njit("float64[:](float64[:], float64[:])", nogil=True, cache=True)
+@njit("float64[:](float64[:], float64[:])", **p_njit)
 def fast_concatenate(in1: np.ndarray, in2: np.ndarray) -> np.ndarray:
-    # Tested 25-05-2021 to have (very) little improvement
+    # Tested 25-05-2021 to have very little improvement
     return np.concatenate((in1, in2))
 
 
 class FFTW_Convolver_Valid1D:
-    """
-    """
+    """ """
 
     def __init__(self, len1: int, len2: int, fftw_threads: int = 5):
         # Check that input sizes are compatible with 'valid' mode
@@ -72,7 +73,10 @@ class FFTW_Convolver_Valid1D:
         self._fftw_rfft1 = pyfftw.FFTW(self._rfft_in1, self._rfft_out1, **p)
         self._fftw_rfft2 = pyfftw.FFTW(self._rfft_in2, self._rfft_out2, **p)
         self._fftw_irfft = pyfftw.FFTW(
-            self._irfft_in, self._irfft_out, direction="FFTW_BACKWARD", **p,
+            self._irfft_in,
+            self._irfft_out,
+            direction="FFTW_BACKWARD",
+            **p,
         )
 
         print(" done.")
@@ -108,17 +112,14 @@ class FFTW_Convolver_Valid1D:
         # Perform FFT convolution
         # -----------------------
         # Zero padding and forwards Fourier transformation
-        # self._rfft_in1[:] = np.concatenate((in1, self.padding_in1))
-        # self._rfft_in2[:] = np.concatenate((in2, self.padding_in2))
         self._rfft_in1[:] = fast_concatenate(in1, self.padding_in1)
         self._rfft_in2[:] = fast_concatenate(in2, self.padding_in2)
         self._fftw_rfft1()
         self._fftw_rfft2()
 
         # Convolution and backwards Fourier transformation
-        # self._irfft_in[:] = np.multiply(self._rfft_out1, self._rfft_out2)
         self._irfft_in[:] = fast_multiply(self._rfft_out1, self._rfft_out2)
-        ret = self._fftw_irfft()
+        result = self._fftw_irfft()
 
         # Return only the 'valid' elements
-        return ret[self.valid_slice]
+        return result[self.valid_slice]

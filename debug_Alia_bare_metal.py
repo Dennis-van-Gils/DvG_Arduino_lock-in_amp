@@ -4,7 +4,7 @@
 Dennis van Gils
 24-05-2021
 """
-# pylint: disable=invalid-name
+# pylint: disable=invalid-name, missing-function-docstring
 
 import time as Time
 
@@ -29,7 +29,7 @@ Fs = 20000  # [Hz]
 fftw_threads = 5  # sweet spot seems to be 5
 
 # Simulation vars
-T_total = 360  # [s]
+T_total = 120  # [s]
 ref_freq_Hz = 250  # [Hz]
 ref_V_offset = 1.5  # [V]
 sig_I_phase = 10  # [deg]
