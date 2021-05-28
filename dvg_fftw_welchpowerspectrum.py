@@ -1,12 +1,18 @@
 # -*- coding: utf-8 -*-
-"""Class FFTW_WelchPowerSpectrum is a fast implementation for calculating
-power spectra using Welch's method on 1-D timeseries data. This class relies
-upon the highly optimized FFTW library, which will outperform the numpy or
-scipy libraries by a factor of ~8!
+"""Performs lightning-fast power-spectrum calculations on 1D time series data
+using Welch's method.
 
-The windowing function is fixed to hanning with 50% overlap and no detrending
-will take place on the input data. The input data must always be of the same
-length.
+The fast-Fourier transform (FFT) is performed by the excellent `fftw`
+(http://www.fftw.org/) library. It will plan the transformations ahead of time
+to optimize the calculations. Also, multiple threads can be specified for the
+FFT and, when set to > 1, the Python GIL will not be invoked. This results in
+true multithreading across multiple cores, which can result in a huge
+performance gain. It can outperform the `numpy` and `scipy` libraries by a
+factor of > 8 in calculation speed.
+
+The windowing function is fixed to `Hanning` with 50% overlap and no detrending
+will take place on the input data. The input data array must always be of the
+same length.
 
 Class:
     FFTW_WelchPowerSpectrum(len_data, fs, nperseg):
@@ -44,8 +50,8 @@ Based on: scipy.signal.welch()
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "26-05-2021"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-signal-processing"
+__date__ = "28-05-2021"
 __version__ = "1.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
 
@@ -55,7 +61,7 @@ from scipy import signal
 import pyfftw
 from numba import njit
 
-p_njit = {"nogil": True, "cache": True, "fastmath": True}
+p_njit = {"nogil": True, "cache": True, "fastmath": False}
 
 
 @njit("float64[:,:](float64[:], float64[:,:])", **p_njit)
@@ -77,6 +83,11 @@ def fast_transpose(data: np.ndarray) -> np.ndarray:
 @njit("float64[:](float64[:])", **p_njit)
 def fast_10log10(data: np.ndarray) -> np.ndarray:
     return np.multiply(np.log10(data), 10)
+
+
+# ------------------------------------------------------------------------------
+#   FFTW_WelchPowerSpectrum
+# ------------------------------------------------------------------------------
 
 
 class FFTW_WelchPowerSpectrum:
@@ -127,6 +138,10 @@ class FFTW_WelchPowerSpectrum:
         )
         print(" done.")
 
+    # --------------------------------------------------------------------------
+    #   process
+    # --------------------------------------------------------------------------
+
     def process(self, data: np.ndarray) -> np.ndarray:
         x = np.asarray(data)
 
@@ -169,6 +184,10 @@ class FFTW_WelchPowerSpectrum:
                 Pxx = np.reshape(Pxx, Pxx.shape[:-1])
 
         return Pxx
+
+    # --------------------------------------------------------------------------
+    #   process_dB
+    # --------------------------------------------------------------------------
 
     def process_dB(self, data: np.ndarray) -> np.ndarray:
         return fast_10log10(self.process(data))
