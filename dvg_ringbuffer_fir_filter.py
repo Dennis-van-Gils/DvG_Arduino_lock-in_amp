@@ -62,13 +62,14 @@ from dvg_ringbuffer import RingBuffer
 from dvg_fftw_convolver import FFTW_Convolver_Valid1D
 
 # ------------------------------------------------------------------------------
-#   FreqResponse
+#   FreqzResponse
 # ------------------------------------------------------------------------------
 
 
-class FreqResponse:
-    """Container for the computed theoretical frequency response of the filter
-    based on the output of :meth:`scipy.signal.freqz`.
+class FreqzResponse:
+    """Container for the computed frequency response of the configured FIR
+    filter based on the output of `scipy.signal.freqz()`, see
+    https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.freqz.html
 
     ROI: Region of interest
     """
@@ -90,34 +91,35 @@ class FreqResponse:
 
 
 class RingBuffer_FIR_Filter_Config:
-    """In progress...
-
-    You should not alter the class/object attributes from outside of this
-    module!
+    """Configuration settings for the initialisation of a
+    `RingBuffer_FIR_Filter()` object. Once created, you should not alter the
+    object attributes anymore. Updated `firwin` and `freqz` settings can be set
+    by providing these as arguments to `compute_firwin_and_freqz()`.
 
     Args:
-        Fs: float
-            The sampling frequency of the input signal in Hz. Each frequency in
-            `firwin_cutoff` must be between 0 and ``Fs/2``.
+        Fs (float):
+            The sampling frequency of the input signal in [Hz]. Each frequency
+            in `firwin_cutoff` must be between `0` and `Fs/2`.
 
             See :meth:`scipy.signal.firwin` for more details.
 
-        block_size: int
+        block_size (int):
             The fixed number of samples of one incoming block of signal data.
 
-        N_blocks: int
+        N_blocks (int):
             Number of blocks that make up a full ring buffer.
 
-        firwin_cutoff: float or 1-D array_like
-            Cutoff frequency of the filter in Hz OR an array of cutoff
-            frequencies (that is, band edges). In the latter case, the
-            frequencies in `firwin_cutoff` should be positive and monotonically
-            increasing between 0 and `Fs/2`. The values 0 and `Fs/2` must
-            not be included in `firwin_cutoff`.
+        firwin_cutoff (float or 1-D array_like):
+            Cut-off frequency of the filter in [Hz] or an array of cut-off
+            frequencies, i.e. band edges. In the latter case, the frequencies in
+            `firwin_cutoff` should be positive and monotonically increasing
+            between `0` and `Fs/2`. The values `0` and `Fs/2` must not be
+            included in `firwin_cutoff`. These rules will get enforced for you
+            when calling `compute_firwin_and_freqz()`.
 
             See :meth:`scipy.signal.firwin` for more details.
 
-        firwin_window: string or tuple of string and parameter values, optional
+        firwin_window (string or tuple of string and parameter values, optional):
             Desired window to use.
 
             See :meth:`scipy.signal.get_window` for a list of windows and
@@ -125,30 +127,37 @@ class RingBuffer_FIR_Filter_Config:
 
             Default: "hamming"
 
-        firwin_pass_zero: {True, False, 'bandpass', 'lowpass', 'highpass', 'bandstop'}, optional
-            If True, the gain at the frequency 0 (i.e., the "DC gain") is 1.
+        firwin_pass_zero ({True, False, 'bandpass', 'lowpass', 'highpass', 'bandstop'}, optional):
+            If True, the gain at the frequency 0 (i.e. the DC gain) is set to 1.
             If False, the DC gain is 0. Can also be a string argument for the
-            desired filter type (equivalent to ``btype`` in IIR design
-            functions).
+            desired filter type (equivalent to `btype` in IIR design functions).
 
             See :meth:`scipy.signal.firwin` for more details.
 
             Default: True
 
-        freqz_worN: int
+        freqz_worN (int, optional):
             See :meth:`scipy.signal.freqz` for more details.
 
-        freqz_dB_floor: float
+            Default: 2 ** 18
 
-        use_CUDA: bool, optional
+        freqz_dB_floor (float, optional):
+
+            Default: -120
+
+        use_CUDA (bool, optional):
             Use NVidia's CUDA acceleration for the 1D FFT convolution? You'll
             need `cupy` and `sigpy` properly installed in your system for CUDA
-            to work. Only beneficial when processing large amounts of data
-            (approx. > 1e5 samples) as the overhead of copying memory from CPU
-            to GPU is substantial. Not really worth it when `block_size <= 500`
-            and `N_blocks <= 41`.
+            to work.
 
             Default: False
+
+         fftw_threads (int, optional):
+            Number of threads to use for the FFT transformations. When set to
+            > 1, the Python GIL will not be invoked. Ignored when `use_CUDA`
+            is True.
+
+            Default: 5
     """
 
     def __init__(
@@ -213,7 +222,7 @@ class RingBuffer_FIR_Filter:
     Attributes:
         config (RingBuffer_FIR_Filter_Config())
         name (str)
-        freqz (FreqResponse())
+        freqz (FreqzResponse())
 
         T_settle_filter (float)
             Time period in seconds for the filter to start outputting valid
@@ -255,9 +264,9 @@ class RingBuffer_FIR_Filter:
         self._taps = None
         self._taps_cupy = None  # Only used when `config.use_CUDA = True`
 
-        # Container for the computed frequency response of the filter based
-        # on the output of :meth:`scipy.signal.freqz`
-        self.freqz = FreqResponse()
+        # Container for the computed frequency response of the configured FIR
+        # filter based on the output of `scipy.signal.freqz()`
+        self.freqz = FreqzResponse()
 
         if not config.use_CUDA:
             # Create FFTW plan for FFT convolution
@@ -494,6 +503,7 @@ class RingBuffer_FIR_Filter:
     # --------------------------------------------------------------------------
 
     def report(self):
+        """Print the FIR filter parameters to the terminal output."""
         c = self.config  # Shorthand
 
         def fancy(name, value, value_format, unit=""):
