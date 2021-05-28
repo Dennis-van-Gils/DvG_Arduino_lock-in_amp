@@ -2,16 +2,13 @@
 # -*- coding: utf-8 -*-
 """
 Dennis van Gils
-24-05-2021
+28-05-2021
 """
 # pylint: disable=invalid-name, missing-function-docstring
 
-from typing import Tuple
 import time as Time
 
 import numpy as np
-from numba import njit
-from pyinstrument import Profiler
 
 from dvg_ringbuffer import RingBuffer
 from dvg_ringbuffer_fir_filter import (
@@ -19,6 +16,8 @@ from dvg_ringbuffer_fir_filter import (
     RingBuffer_FIR_Filter_Config,
 )
 from dvg_fftw_welchpowerspectrum import FFTW_WelchPowerSpectrum
+
+from pyinstrument import Profiler
 
 RUN_PYINSTRUMENT = False
 TEST_POWERSPECTRA = True
@@ -35,16 +34,6 @@ ref_freq_Hz = 250  # [Hz]
 ref_V_offset = 1.5  # [V]
 sig_I_phase = 10  # [deg]
 sig_I_noise_ampl = 0.04
-
-
-@njit("UniTuple(float64, 4)(float64[:])")
-def fast_min_max_mean_std(data: np.ndarray) -> Tuple[float]:
-    return data.min(), data.max(), data.mean(), data.std()
-
-
-@njit("float64(float64[:])")
-def fast_mean(data):
-    return data.mean()
 
 
 class State:
@@ -195,11 +184,11 @@ if __name__ == "__main__":
     ref_X = ref_V_offset + np.cos(2 * np.pi * ref_freq_Hz * time)
     ref_Y = ref_V_offset + np.sin(2 * np.pi * ref_freq_Hz * time)
 
-    np.random.seed(0)
+    prng = np.random.RandomState(1234567890)  # pylint: disable=no-member
     sig_I = (
         ref_V_offset
         + np.cos(2 * np.pi * ref_freq_Hz * time - sig_I_phase / 180 * np.pi)
-        + sig_I_noise_ampl * np.random.randn(len(time))
+        + sig_I_noise_ampl * prng.randn(len(time))
     )
 
     """
@@ -222,6 +211,11 @@ if __name__ == "__main__":
         profiler = Profiler()
         profiler.start()
 
+    # DEV NOTE: The use of a `numba.njit(nogil=True)`` decorator on numpy
+    # functions operating on the relatively small `state` time series will not
+    # significantly improve the calculation speed. Simply refrain from using it
+    # in the upcoming block of code.
+
     tick = Time.perf_counter()
     N_sim_blocks = int(len(time) / BLOCK_SIZE)
     for idx_sim_block in range(N_sim_blocks):
@@ -237,12 +231,10 @@ if __name__ == "__main__":
         state.ref_Y = ref_Y[sim_slice]
         state.sig_I = sig_I[sim_slice]
 
-        (
-            state.sig_I_min,
-            state.sig_I_max,
-            state.sig_I_avg,
-            state.sig_I_std,
-        ) = fast_min_max_mean_std(state.sig_I)
+        state.sig_I_min = np.max(state.sig_I)
+        state.sig_I_max = np.min(state.sig_I)
+        state.sig_I_avg = np.mean(state.sig_I)
+        state.sig_I_std = np.std(state.sig_I)
 
         state.rb_time.extend(state.time)
         state.rb_ref_X.extend(state.ref_X)
@@ -251,7 +243,6 @@ if __name__ == "__main__":
 
         # Stage 1
         # -------
-        # fmt: off
 
         # Apply filter 1 to sig_I
         state.filt_I = firf_1_sig_I.apply_filter(state.rb_sig_I)
@@ -260,11 +251,10 @@ if __name__ == "__main__":
             # Retrieve the block of original data from the past that aligns with
             # the current filter output
             valid_slice = firf_1_sig_I.rb_valid_slice
-
-            state.time_1 = state.rb_time [valid_slice]
-            old_sig_I    = state.rb_sig_I[valid_slice]
-            old_ref_X    = state.rb_ref_X[valid_slice]
-            old_ref_Y    = state.rb_ref_Y[valid_slice]
+            state.time_1 = state.rb_time[valid_slice]
+            old_sig_I = state.rb_sig_I[valid_slice]
+            old_ref_X = state.rb_ref_X[valid_slice]
+            old_ref_Y = state.rb_ref_Y[valid_slice]
 
             # Heterodyne mixing
             # Equivalent to:
@@ -275,18 +265,15 @@ if __name__ == "__main__":
             np.multiply(old_ref_X, state.filt_I, out=state.mix_X)
             np.multiply(old_ref_Y, state.filt_I, out=state.mix_Y)
         else:
-            state.time_1 = np.full(BLOCK_SIZE, np.nan)
-            old_sig_I    = np.full(BLOCK_SIZE, np.nan)
-            state.mix_X  = np.full(BLOCK_SIZE, np.nan)
-            state.mix_Y  = np.full(BLOCK_SIZE, np.nan)
-        # fmt: on
+            state.time_1.fill(np.nan)
+            old_sig_I = np.full(BLOCK_SIZE, np.nan)
+            state.mix_X.fill(np.nan)
+            state.mix_Y.fill(np.nan)
 
-        (
-            state.filt_I_min,
-            state.filt_I_max,
-            state.filt_I_avg,
-            state.filt_I_std,
-        ) = fast_min_max_mean_std(state.filt_I)
+        state.filt_I_min = np.max(state.filt_I)
+        state.filt_I_max = np.min(state.filt_I)
+        state.filt_I_avg = np.mean(state.filt_I)
+        state.filt_I_std = np.std(state.filt_I)
 
         state.rb_time_1.extend(state.time_1)
         state.rb_filt_I.extend(state.filt_I)
@@ -307,7 +294,7 @@ if __name__ == "__main__":
             state.time_2 = state.rb_time_1[valid_slice]
 
             # Signal amplitude and phase reconstruction
-            np.sqrt(state.X ** 2 + state.Y ** 2, out=state.R)
+            np.sqrt(np.add(np.square(state.X), np.square(state.Y)), out=state.R)
 
             # NOTE: Because `mix_X` and `mix_Y` are both of type `numpy.ndarray`, a
             # division by (mix_X = 0) is handled correctly due to `numpy.inf`.
@@ -319,14 +306,14 @@ if __name__ == "__main__":
             np.multiply(state.T, 180 / np.pi, out=state.T)  # [rad] to [deg]
             np.seterr(divide="warn")
         else:
-            state.time_2 = np.full(BLOCK_SIZE, np.nan)
-            state.R = np.full(BLOCK_SIZE, np.nan)
-            state.T = np.full(BLOCK_SIZE, np.nan)
+            state.time_2.fill(np.nan)
+            state.R.fill(np.nan)
+            state.T.fill(np.nan)
 
-        state.X_avg = fast_mean(state.X)
-        state.Y_avg = fast_mean(state.Y)
-        state.R_avg = fast_mean(state.R)
-        state.T_avg = fast_mean(state.T)
+        state.X_avg = np.mean(state.X)
+        state.Y_avg = np.mean(state.Y)
+        state.R_avg = np.mean(state.R)
+        state.T_avg = np.mean(state.T)
 
         state.rb_time_2.extend(state.time_2)
         state.rb_X.extend(state.X)
