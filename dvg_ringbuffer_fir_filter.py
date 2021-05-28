@@ -1,20 +1,58 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
+"""Provides class `RingBuffer_FIR_Filter` that configures and performs a
+lightning-fast finite-impulse response (FIR) filter on, typically, 1D time
+series data acquired at a fixed sampling frequency.
 
-rb: ring buffer
-FIR: finite impulse response
-Zero-phase distortion filter, aka linear filter
+The time series data to be fed in should originate from a ring buffer, either a
+`collections.deque()` or a `dvg_ringbuffer.DvG_RingBuffer()` instance. The use
+of a `deque` is supported, but not recommended as it is ~60 times slower than a
+`DvG_RingBuffer`. The latter is purposefully made to get the maximum performance
+gain in conjunction with the `fftw` library.
+
+The typical use-case for this `RingBuffer_FIR_Filter` class is a real-time data
+acquisition program where blocks of time series data of length `block_size` are
+appended to the ring buffer for each data-acquisition interval. The FIR filter
+will maximize the number of taps that will fit inside the passed ring buffer
+while resulting in an 1D filtered output array of also length `block_size`. This
+filtered output could then, in turn, be easily taken up in another ring buffer
+(outside of this module) and get processed during the current data-acquisition
+interval that already is operating on chunks of data with length `block_size`.
+
+The FIR filter algorithm uses convolution based on the fast-Fourier transform
+(FFT). The FFT can be configured to get performed on either the CPU or the GPU.
+
+When on the CPU (default), it will use the excellent `fftw`
+(http://www.fftw.org) library. It will plan the transformations ahead of time to
+optimize the calculations. Also, multiple threads can be specified for the FFT
+and, when set to > 1, the Python GIL will not be invoked. This results in true
+multithreading across multiple cores, which can result in a huge performance
+gain.
+
+When on the GPU, it will rely on NVidia's `CUDA` acceleration provided by the
+`sigpy` and `cupy` packages. This can be a hassle to set up correctly, but can
+really pay off big time when large amounts of data are involved. For small
+amounts of data (typically, ring buffers smaller than 500.000 samples), the
+overhead of having to transfer data from system memory to GPU memory and back is
+negating any performance gain and simply not worth it.
+
+The FIR filter output is (by mathematical definition) delayed with respect to
+the incoming time series data, namely by `T_settle_filter / 2` seconds.
+Attribute `valid_slice` will contain the slice to be taken from the incoming
+ring buffer corresponding to the matching time stamps of the filter output.
+
+The FIR filter is programmed to be a zero-phase distortion filter, also known
+as a linear filter.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__ = "https://github.com/Dennis-van-Gils"
-__date__ = "25-05-2021"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-signal-processing"
+__date__ = "28-05-2021"
 __version__ = "1.0.0"
 # pylint: disable=invalid-name, too-many-instance-attributes, too-few-public-methods, too-many-arguments
 
 from typing import Optional, Union, List, Tuple
-from collections import deque
+from collections import deque  # Use of `deque` is supported but not recommended
 from importlib import import_module
 
 import numpy as np
@@ -22,6 +60,33 @@ from scipy.signal import firwin, freqz
 
 from dvg_ringbuffer import RingBuffer
 from dvg_fftw_convolver import FFTW_Convolver_Valid1D
+
+# ------------------------------------------------------------------------------
+#   FreqResponse
+# ------------------------------------------------------------------------------
+
+
+class FreqResponse:
+    """Container for the computed theoretical frequency response of the filter
+    based on the output of :meth:`scipy.signal.freqz`.
+
+    ROI: Region of interest
+    """
+
+    def __init__(self):
+        self.full_freq_Hz = None
+        self.full_ampl_dB = None
+        self.full_phase_rad = None
+        self.freq_Hz__ROI_start = None
+        self.freq_Hz__ROI_end = None
+        self.freq_Hz = None
+        self.ampl_dB = None
+        self.phase_rad = None
+
+
+# ------------------------------------------------------------------------------
+#   RingBuffer_FIR_Filter_Config
+# ------------------------------------------------------------------------------
 
 
 class RingBuffer_FIR_Filter_Config:
@@ -129,71 +194,47 @@ class RingBuffer_FIR_Filter_Config:
         self.firwin_numtaps = block_size * (N_blocks - 1) + 1
 
 
+# ------------------------------------------------------------------------------
+#   RingBuffer_FIR_Filter
+# ------------------------------------------------------------------------------
+
+
 class RingBuffer_FIR_Filter:
     """In progress...
 
-    Use-case:
-    Real-time data acquisition and processing, hence the use of a ring buffer
-    where timeseries data are continuously being appended to in chunks of size
-    `block_size`
-
-    The FIR filter output is (by definition) delayed with respect to the
-    incoming timeseries data, namely by `T_settle_filter`/2 seconds. Attribute
-    `valid_slice` will contain the slice to be taken from the incoming
-    ring buffer corresponding to the matching time... bla... history
-
-    The class name implies that the FIR filter takes in a `DvG_RingBuffer` class
-    instance containing timeseries data. It does not mean that the FIR filter
-    output is a ring buffer.
-
     Args:
-        config: RingBuffer_FIR_Filter_Config(...)
+        config (RingBuffer_FIR_Filter_Config())
             See :class:`RingBuffer_FIR_Filter_Config`
 
-        name: str, optional
+        name (str, optional):
 
             Default: ""
 
     Attributes:
-        config: RingBuffer_FIR_Filter_Config()
-        name: str
-        freqz: FreqResponse()
+        config (RingBuffer_FIR_Filter_Config())
+        name (str)
+        freqz (FreqResponse())
 
-        T_settle_filter: float
+        T_settle_filter (float)
             Time period in seconds for the filter to start outputting valid
             data, not to be confused with the filter theoretical response time
             to an impulse. Note that the output of the filter lies in the past
             by `T_settle_filter/2` seconds with respect to the input signal,
             see `rb_valid_slice`.
 
-        filter_has_settled: bool
+        filter_has_settled (bool)
             True when the filter starts outputting valid data, not to be
             confused with the filter theoretical response time to an impulse.
 
-        rb_valid_slice: slice
+        rb_valid_slice (slice)
             Indices within the input-signal ring buffer aligning to the time
             stamps of the computed valid filter output.
     """
 
-    class FreqResponse:
-        """Container for the computed theoretical frequency response of the
-        filter based on the output of :meth:`scipy.signal.freqz`.
-
-        ROI: Region of interest
-        """
-
-        def __init__(self):
-            self.full_freq_Hz = None
-            self.full_ampl_dB = None
-            self.full_phase_rad = None
-            self.freq_Hz__ROI_start = None
-            self.freq_Hz__ROI_end = None
-            self.freq_Hz = None
-            self.ampl_dB = None
-            self.phase_rad = None
-
     def __init__(
-        self, config: RingBuffer_FIR_Filter_Config, name: str = "",
+        self,
+        config: RingBuffer_FIR_Filter_Config,
+        name: str = "",
     ):
         self.config = config
         self.name = name
@@ -216,7 +257,7 @@ class RingBuffer_FIR_Filter:
 
         # Container for the computed frequency response of the filter based
         # on the output of :meth:`scipy.signal.freqz`
-        self.freqz = self.FreqResponse()
+        self.freqz = FreqResponse()
 
         if not config.use_CUDA:
             # Create FFTW plan for FFT convolution
@@ -479,4 +520,3 @@ class RingBuffer_FIR_Filter:
         )
         fancy("firwin_pass_zero", str(c.firwin_pass_zero), "{:<s}")
         print("═" * 50)
-
