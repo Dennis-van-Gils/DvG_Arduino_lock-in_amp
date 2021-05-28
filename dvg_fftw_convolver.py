@@ -49,7 +49,7 @@ class FFTW_Convolver_Valid1D:
     """Manages a fast-Fourier transform (FFT) convolution on 1D input arrays
     `in1` and `in2` as passed to method `convolve()`, which will return the
     result as a contiguous C-style `numpy.ndarray` containing only the 'valid'
-    convolution  elements.
+    convolution elements.
 
     When the lengths of the passed input arrays are not equal to the lengths
     `len1` and `len2` as specified during the object creation, an array full of
