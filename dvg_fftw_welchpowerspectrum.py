@@ -1,6 +1,7 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """Performs lightning-fast power-spectrum calculations on 1D time series data
-using Welch's method.
+acquired at a fixed sampling frequency using Welch's method.
 
 The fast-Fourier transform (FFT) is performed by the excellent `fftw`
 (http://www.fftw.org/) library. It will plan the transformations ahead of time
