@@ -10,43 +10,9 @@ true multithreading across multiple cores, which can result in a huge
 performance gain. It can outperform the `numpy` and `scipy` libraries by a
 factor of > 8 in calculation speed.
 
-The windowing function is fixed to `Hanning` with 50% overlap and no detrending
-will take place on the input data. The input data array must always be of the
-same length.
-
-Class:
-    FFTW_WelchPowerSpectrum(len_data, fs, nperseg):
-        Args:
-            len_data:
-                Length of the 1-D data array that will be fed into the power
-                spectrum calculation each time when calling 'process()'.
-            fs:
-                Sampling frequency of the timeseries data [Hz].
-            nperseg:
-                Length of each segment in Welch's method.
-
-        Methods:
-            process(data):
-                Returns the power spectrum array of the passed 1-D array
-                'data'. The output units are V^2. You still have to apply
-                10*log10() to get the power ratio in dB.
-            process_dB(data):
-                Like process(), but now output as the power ratio in dB.
-
-        Important member:
-            freqs:
-                The frequency table in [Hz].
-
-
-Based on: scipy.signal.welch()
-  with hard-coded defaults: window   = 'hanning'
-                            noverlap = 50 %
-                            detrend  = False
-                            scaling  = 'spectrum'
-                            mode     = 'psd'
-                            boundary = None
-                            padded   = False
-                            sides    = 'onesided'
+Futher improvement to the calculation speed in this module comes from the use of
+the `numba.njit()` decorator around arithmetic functions, releasing the Python
+GIL as well.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
@@ -91,6 +57,47 @@ def fast_10log10(data: np.ndarray) -> np.ndarray:
 
 
 class FFTW_WelchPowerSpectrum:
+    """Manages a power-spectrum calculation on 1D time series data `data` as
+    passed to methods `process()` or `process_dB()`.
+
+    The input data array must always be of the same length as specified by
+    argument `len_data`. When the length of the passed input array is not equal
+    to the `len_data`, an array full of `numpy.nan`s is returned.
+
+    The Welch algorithm is based on: `scipy.signal.welch()` with hard-coded
+    defaults:
+        window   = 'hanning'
+        noverlap = 50 %
+        detrend  = False
+        scaling  = 'spectrum'
+        mode     = 'psd'
+        boundary = None
+        padded   = False
+        sides    = 'onesided'
+
+    Args:
+        len_data (int):
+            Full length of the upcoming input array `data` passed to methods
+            `process()` or `process_dB().
+
+        fs (float):
+            Sampling frequency of the time series data [Hz].
+
+        nperseg (float):
+            Length of each segment in Welch's method to average over.
+
+        fftw_threads (int, optional):
+            Number of threads to use for the FFT transformations. When set to
+            > 1, the Python GIL will not be invoked.
+
+            Default: 5
+
+    Attributes:
+        freqs (np.ndarray):
+            The frequency table in [Hz] corresponding to the power spectrum
+            output of `process()` and `process_dB()`.
+    """
+
     def __init__(self, len_data: int, fs: float, nperseg: int, fftw_threads=5):
         nperseg = int(nperseg)
         if nperseg > len_data:
@@ -143,6 +150,14 @@ class FFTW_WelchPowerSpectrum:
     # --------------------------------------------------------------------------
 
     def process(self, data: np.ndarray) -> np.ndarray:
+        """Returns the power spectrum array of the passed 1D time series array
+        `data`. When `data` is in units [V], the output units are [V^2]. You
+        still have to apply `10*log10()` on the output to get the power ratio in
+        [dBV].
+
+        Returns:
+            The power spectrum array as a 1D numpy array.
+        """
         x = np.asarray(data)
 
         if self.len_data != len(x):
@@ -190,4 +205,5 @@ class FFTW_WelchPowerSpectrum:
     # --------------------------------------------------------------------------
 
     def process_dB(self, data: np.ndarray) -> np.ndarray:
+        """Like `process()`, but now output as the power ratio in [dBV]."""
         return fast_10log10(self.process(data))

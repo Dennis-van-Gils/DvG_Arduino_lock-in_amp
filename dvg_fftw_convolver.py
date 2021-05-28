@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Performs lightning-fast convolutions on 1D input arrays. The convolution is
-based on the fast-Fourier transform (FFT) as computed by the excellent `fftw`
-(http://www.fftw.org/) library. It will plan the transformations ahead of time
-to optimize the calculations. Also, multiple threads can be specified for the
-FFT and, when set to > 1, the Python GIL will not be invoked. This results in
-true multithreading across multiple cores, which can result in a huge
-performance gain.
+"""Performs lightning-fast convolutions on 1D input arrays.
+
+The convolution is based on the fast-Fourier transform (FFT) as performed by the
+excellent `fftw` (http://www.fftw.org) library. It will plan the transformations
+ahead of time to optimize the calculations. Also, multiple threads can be
+specified for the FFT and, when set to > 1, the Python GIL will not be invoked.
+This results in true multithreading across multiple cores, which can result in a
+huge performance gain.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
