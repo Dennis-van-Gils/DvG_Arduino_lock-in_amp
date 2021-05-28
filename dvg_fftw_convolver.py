@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-
-FFT: Fast-Fourier Transform
+"""Performs lightning-fast convolutions on 1D input arrays. The convolution is
+based on the fast-Fourier transform (FFT) as computed by the excellent `fftw`
+(http://www.fftw.org/) library. It will plan the transformations ahead of time
+to optimize the calculations. Also, multiple threads can be specified for the
+FFT and, when set to > 1, the Python GIL will not be invoked. This results in
+true multithreading across multiple cores, which can result in a huge
+performance gain.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
-__url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "26-05-2021"
+__url__ = "https://github.com/Dennis-van-Gils/python-dvg-signal-processing"
+__date__ = "28-05-2021"
 __version__ = "1.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
 
@@ -16,22 +20,56 @@ import numpy as np
 import pyfftw
 from numba import njit
 
-p_njit = {"nogil": True, "cache": True}
+
+# pylint: disable=pointless-string-statement
+""" DEV NOTE:
+One might be tempted to use a `numba.njit(nogil=True)` decorator on the
+`numpy.concatenate()` functions appearing in this module, but timeit tests
+reveal that it actually hurts the performance. Numpy has already optimised its
+`concatenate()` method to maximum performance.
+
+    # Don't use this:
+    @njit("float64[:](float64[:], float64[:])", **p_njit)
+    def fast_concatenate(in1: np.ndarray, in2: np.ndarray) -> np.ndarray:
+        return np.concatenate((in1, in2))
+"""
 
 
-@njit("complex128[:](complex128[:], complex128[:])", **p_njit)
+@njit("complex128[:](complex128[:], complex128[:])", nogil=True, cache=True)
 def fast_multiply(in1: np.ndarray, in2: np.ndarray) -> np.ndarray:
     return np.multiply(in1, in2)
 
 
-@njit("float64[:](float64[:], float64[:])", **p_njit)
-def fast_concatenate(in1: np.ndarray, in2: np.ndarray) -> np.ndarray:
-    # Tested 25-05-2021 to have very little improvement
-    return np.concatenate((in1, in2))
+# ------------------------------------------------------------------------------
+#   FFTW_Convolver_Valid1D
+# ------------------------------------------------------------------------------
 
 
 class FFTW_Convolver_Valid1D:
-    """ """
+    """Manages a fast-Fourier transform (FFT) convolution on 1D input arrays
+    `in1` and `in2` as passed to method `convolve()`, which will return the
+    result as a contiguous C-style `numpy.ndarray` containing only the 'valid'
+    convolution  elements.
+
+    When the lengths of the passed input arrays are not equal to the lengths
+    `len1` and `len2` as specified during the object creation, an array full of
+    `numpy.nan`s is returned.
+
+    Args:
+        len1 (int):
+            Full length of the upcoming input array `in1` passed to method
+            `convolve()`.
+
+        len2 (int):
+            Full length of the upcoming input array `in2` passed to method
+            `convolve()`.
+
+        fftw_threads (int, optional):
+            Number of threads to use for the FFT transformations. When set to
+            > 1, the Python GIL will not be invoked.
+
+            Default: 5
+    """
 
     def __init__(self, len1: int, len2: int, fftw_threads: int = 5):
         # Check that input sizes are compatible with 'valid' mode
@@ -95,7 +133,7 @@ class FFTW_Convolver_Valid1D:
         array full of `np.nan`s is returned.
 
         Returns:
-            The convolution result.
+            The valid convolution results as a 1D numpy array.
         """
         # Force contiguous C-style numpy arrays, super fast when already so
         in1 = np.asarray(in1)
@@ -112,8 +150,8 @@ class FFTW_Convolver_Valid1D:
         # Perform FFT convolution
         # -----------------------
         # Zero padding and forwards Fourier transformation
-        self._rfft_in1[:] = fast_concatenate(in1, self.padding_in1)
-        self._rfft_in2[:] = fast_concatenate(in2, self.padding_in2)
+        self._rfft_in1[:] = np.concatenate((in1, self.padding_in1))
+        self._rfft_in2[:] = np.concatenate((in2, self.padding_in2))
         self._fftw_rfft1()
         self._fftw_rfft2()
 
