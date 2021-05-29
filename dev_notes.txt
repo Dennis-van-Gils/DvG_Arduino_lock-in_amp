@@ -6,6 +6,15 @@
       pydevd.settrace(suspend=False)
 
 
+
+* SNIPPET: To quickly enable FFTW running inside numpy and (partially) scipy
+
+  import pyfftw
+  np.fft = pyfftw.interfaces.numpy_fft  # Monkey patch fftpack
+  pyfftw.interfaces.cache.enable()      # Turn on cache for optimum performance
+
+
+
 * Arduino lockin-amplifier commands
 
   command             compute LUT     reply                               Remark
