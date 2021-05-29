@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "24-05-2021"
+__date__ = "29-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -545,16 +545,16 @@ class MainWindow(QtWid.QWidget):
         qgrp_axes_controls = QtWid.QGroupBox("Zoom timeseries")
         qgrp_axes_controls.setLayout(grid)
 
-        # QGROUP: Filter deques settled?
-        self.LED_filt_1_deque_settled = create_LED_indicator_rect(False, "NO")
-        self.LED_filt_2_deque_settled = create_LED_indicator_rect(False, "NO")
+        # QGROUP: Filter settled?
+        self.LED_filt_1_settled = create_LED_indicator_rect(False, "NO")
+        self.LED_filt_2_settled = create_LED_indicator_rect(False, "NO")
 
         # fmt: off
         grid = QtWid.QGridLayout(spacing=4)
         grid.addWidget(QtWid.QLabel("Filter @ sig_I")  , 0, 0)
-        grid.addWidget(self.LED_filt_1_deque_settled   , 0, 1)
+        grid.addWidget(self.LED_filt_1_settled         , 0, 1)
         grid.addWidget(QtWid.QLabel("Filter @ mix_X/Y"), 1, 0)
-        grid.addWidget(self.LED_filt_2_deque_settled   , 1, 1)
+        grid.addWidget(self.LED_filt_2_settled         , 1, 1)
         # fmt: on
 
         qgrp_settling = QtWid.QGroupBox("Filters settled?")
@@ -1605,18 +1605,18 @@ class MainWindow(QtWid.QWidget):
         self.qlin_T_avg.setText("%.3f" % alia_qdev.state.T_avg)
 
         if alia_qdev.firf_1_sig_I.filter_has_settled:
-            self.LED_filt_1_deque_settled.setChecked(True)
-            self.LED_filt_1_deque_settled.setText("YES")
+            self.LED_filt_1_settled.setChecked(True)
+            self.LED_filt_1_settled.setText("YES")
         else:
-            self.LED_filt_1_deque_settled.setChecked(False)
-            self.LED_filt_1_deque_settled.setText("NO")
+            self.LED_filt_1_settled.setChecked(False)
+            self.LED_filt_1_settled.setText("NO")
 
         if alia_qdev.firf_2_mix_X.filter_has_settled:
-            self.LED_filt_2_deque_settled.setChecked(True)
-            self.LED_filt_2_deque_settled.setText("YES")
+            self.LED_filt_2_settled.setChecked(True)
+            self.LED_filt_2_settled.setText("YES")
         else:
-            self.LED_filt_2_deque_settled.setChecked(False)
-            self.LED_filt_2_deque_settled.setText("NO")
+            self.LED_filt_2_settled.setChecked(False)
+            self.LED_filt_2_settled.setText("NO")
 
         # Update threadsafe curves
         self.update_curves()
