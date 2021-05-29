@@ -6,7 +6,7 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "19-05-2021"
+__date__ = "29-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -38,7 +38,10 @@ if __name__ == "__main__":
         sys.exit(0)
 
     alia.begin(
-        freq=2500, V_offset=1.65, V_ampl=1.65, waveform=Waveform.Cosine,
+        freq=2500,
+        V_offset=1.65,
+        V_ampl=1.65,
+        waveform=Waveform.Cosine,
     )
 
     if fDrawPlot:
@@ -75,7 +78,7 @@ if __name__ == "__main__":
         deque_sig_I.clear()
 
         tick = 0
-        buffers_received = 0
+        blocks_received = 0
         for i_rep in range(N_REPS):
             (
                 success,
@@ -87,7 +90,7 @@ if __name__ == "__main__":
             ) = alia.listen_to_lockin_amp()
 
             if success:
-                buffers_received += 1
+                blocks_received += 1
 
                 if tick == 0:
                     tick = Time.perf_counter()
@@ -123,8 +126,8 @@ if __name__ == "__main__":
                 np.max(dt),
             )
             str_info2 = "N_buf = %d     %.2f buf/s" % (
-                buffers_received,
-                buffers_received / (Time.perf_counter() - tick),
+                blocks_received,
+                blocks_received / (Time.perf_counter() - tick),
             )
             print("\n%s    %s\n" % (str_info1, str_info2))
 

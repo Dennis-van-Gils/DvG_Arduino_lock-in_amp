@@ -33,16 +33,8 @@ DEBUG = False
 DEBUG_TIMING = False
 
 # Enable GPU-accelerated computations on an NVIDIA videocard with CUDA support?
-# Will handle fftconvolve (FIR filters).
+# Affects the FIR filters.
 USE_CUDA = False
-
-# SNIPPET: To quickly enable FFTW running inside numpy and (partially) scipy
-# Used for debugging only
-"""
-import pyfftw
-np.fft = pyfftw.interfaces.numpy_fft  # Monkey patch fftpack
-pyfftw.interfaces.cache.enable()      # Turn on cache for optimum performance
-"""  # pylint: disable=pointless-string-statement
 
 
 # ------------------------------------------------------------------------------
@@ -105,12 +97,12 @@ def about_to_quit():
 
 
 def lockin_DAQ_update():
-    """Listen for new data buffers send by the lock-in amplifier and perform the
+    """Listen for new data blocks send by the lock-in amplifier and perform the
     main mathematical operations for signal processing. This function will run
-    in a dedicated thread (i.e. worker_DAQ), separated from the main program
+    in a dedicated thread (i.e. `worker_DAQ`), separated from the main program
     thread that handles the GUI.
-    NOTE: NO (SLOW) GUI OPERATIONS ARE ALLOWED HERE. Otherwise it will affect
-    the worker_DAQ thread negatively, resulting in lost buffers.
+    NOTE: NO GUI OPERATIONS ARE ALLOWED HERE. Otherwise it may affect the
+    `worker_DAQ` thread negatively, resulting in lost blocks of data.
     """
     # Shorthands
     c: Alia.Config = alia.config
@@ -151,21 +143,24 @@ def lockin_DAQ_update():
         # Prevent possible concurrent pyqtgraph.PlotWidget() redraws and GUI
         # events when doing heavy calculations to unburden the CPU and prevent
         # dropped buffers. Dropped graphing frames are prefereable to dropped
-        # data buffers.
+        # data blocks.
         for graph in window.all_graphs:
             graph.setUpdatesEnabled(False)
 
-    # HACK: hard-coded calibration correction on the ADC
-    # TODO: make a self-calibration procedure and store correction results
+    # HACK: Hard-coded calibration correction on the ADC
+    # TODO: Make a self-calibration procedure and store correction results
     # on non-volatile memory of the microprocessor.
     # dev_sig_I = state.sig_I * 0.0054 + 0.0020
     # state.sig_I += 0.01
 
-    # Detect dropped samples / buffers
-    # --------------------------------
+    # Detect dropped blocks
+    # ---------------------
+    # TODO: Rethink this procedure. Might be easier done with the index of the
+    # block that also gets send by the Arduino. We either receive a full block,
+    # or we don't. There are no partial blocks that can be received.
 
-    alia_qdev.state.buffers_received += 1
-    last_time = state.deque_time[-1] if state.buffers_received > 1 else np.nan
+    alia_qdev.state.blocks_received += 1
+    last_time = state.rb_time[-1] if state.blocks_received > 1 else np.nan
     dT = (state.time[0] - last_time) / 1e6  # [usec] to [sec]
 
     if dT > c.SAMPLING_PERIOD * 1e6 * 1.10:  # Allow a little clock jitter
@@ -175,16 +170,16 @@ def lockin_DAQ_update():
 
         # Replace dropped samples with np.nan samples.
         # As a result, the filter output will contain a continuous series of
-        # np.nan values in the output for up to `DvG_Buffered_FIR_Filter.
-        # Buffered_FIR_Filter().T_settle_deque` seconds long after the
-        # occurrence of the last dropped sample.
-        state.deque_time.extend(
+        # np.nan values in the output for up to `RingBuffer_FIR_Filter.
+        # T_settle_filter` seconds long after the occurrence of the last dropped
+        # sample.
+        state.rb_time.extend(
             last_time
             + np.arange(1, N_dropped_samples + 1) * c.SAMPLING_PERIOD * 1e6
         )
-        state.deque_ref_X.extend(np.full(N_dropped_samples, np.nan))
-        state.deque_ref_Y.extend(np.full(N_dropped_samples, np.nan))
-        state.deque_sig_I.extend(np.full(N_dropped_samples, np.nan))
+        state.rb_ref_X.extend(np.full(N_dropped_samples, np.nan))
+        state.rb_ref_Y.extend(np.full(N_dropped_samples, np.nan))
+        state.rb_sig_I.extend(np.full(N_dropped_samples, np.nan))
 
     # Stage 0
     # -------
@@ -194,10 +189,10 @@ def lockin_DAQ_update():
     state.sig_I_avg = np.mean(state.sig_I)
     state.sig_I_std = np.std(state.sig_I)
 
-    state.deque_time.extend(state.time)
-    state.deque_ref_X.extend(state.ref_X)
-    state.deque_ref_Y.extend(state.ref_Y)
-    state.deque_sig_I.extend(state.sig_I)
+    state.rb_time.extend(state.time)
+    state.rb_ref_X.extend(state.ref_X)
+    state.rb_ref_Y.extend(state.ref_Y)
+    state.rb_sig_I.extend(state.sig_I)
 
     window.hcc_ref_X.extendData(state.time, state.ref_X)
     window.hcc_ref_Y.extendData(state.time, state.ref_Y)
@@ -208,17 +203,17 @@ def lockin_DAQ_update():
     # fmt: off
 
     # Apply filter 1 to sig_I
-    state.filt_I = alia_qdev.firf_1_sig_I.apply_filter(state.deque_sig_I)
+    state.filt_I = alia_qdev.firf_1_sig_I.apply_filter(state.rb_sig_I)
 
     if alia_qdev.firf_1_sig_I.filter_has_settled:
         # Retrieve the block of original data from the past that aligns with
         # the current filter output
         valid_slice = alia_qdev.firf_1_sig_I.rb_valid_slice
 
-        state.time_1 = state.deque_time [valid_slice]
-        old_sig_I    = state.deque_sig_I[valid_slice]
-        old_ref_X    = state.deque_ref_X[valid_slice]
-        old_ref_Y    = state.deque_ref_Y[valid_slice]
+        state.time_1 = state.rb_time [valid_slice]
+        old_sig_I    = state.rb_sig_I[valid_slice]
+        old_ref_X    = state.rb_ref_X[valid_slice]
+        old_ref_Y    = state.rb_ref_Y[valid_slice]
 
         # Heterodyne mixing
         # Equivalent to:
@@ -229,20 +224,20 @@ def lockin_DAQ_update():
         np.multiply(old_ref_X, state.filt_I  , out=state.mix_X)
         np.multiply(old_ref_Y, state.filt_I  , out=state.mix_Y)
     else:
-        state.time_1 = np.full(c.BLOCK_SIZE, np.nan)
-        old_sig_I    = np.full(c.BLOCK_SIZE, np.nan)
-        state.mix_X  = np.full(c.BLOCK_SIZE, np.nan)
-        state.mix_Y  = np.full(c.BLOCK_SIZE, np.nan)
+        state.time_1.fill(np.nan)
+        old_sig_I = np.full(c.BLOCK_SIZE, np.nan)
+        state.mix_X.fill(np.nan)
+        state.mix_Y.fill(np.nan)
 
     state.filt_I_min = np.min(state.filt_I)
     state.filt_I_max = np.max(state.filt_I)
     state.filt_I_avg = np.mean(state.filt_I)
     state.filt_I_std = np.std(state.filt_I)
 
-    state.deque_time_1.extend(state.time_1)
-    state.deque_filt_I.extend(state.filt_I)
-    state.deque_mix_X .extend(state.mix_X)
-    state.deque_mix_Y .extend(state.mix_Y)
+    state.rb_time_1.extend(state.time_1)
+    state.rb_filt_I.extend(state.filt_I)
+    state.rb_mix_X .extend(state.mix_X)
+    state.rb_mix_Y .extend(state.mix_Y)
 
     window.hcc_filt_1_in .extendData(state.time_1, old_sig_I)
     window.hcc_filt_1_out.extendData(state.time_1, state.filt_I)
@@ -254,20 +249,20 @@ def lockin_DAQ_update():
     # -------
 
     # Apply filter 2 to the mixer output
-    state.X = alia_qdev.firf_2_mix_X.apply_filter(state.deque_mix_X)
-    state.Y = alia_qdev.firf_2_mix_Y.apply_filter(state.deque_mix_Y)
+    state.X = alia_qdev.firf_2_mix_X.apply_filter(state.rb_mix_X)
+    state.Y = alia_qdev.firf_2_mix_Y.apply_filter(state.rb_mix_Y)
 
     if alia_qdev.firf_2_mix_X.filter_has_settled:
         # Retrieve the block of time data from the past that aligns with
         # the current filter output
         valid_slice = alia_qdev.firf_1_sig_I.rb_valid_slice
-        state.time_2 = state.deque_time_1[valid_slice]
+        state.time_2 = state.rb_time_1[valid_slice]
 
         # Signal amplitude and phase reconstruction
-        np.sqrt(state.X ** 2 + state.Y ** 2, out=state.R)
+        np.sqrt(np.add(np.square(state.X), np.square(state.Y)), out=state.R)
 
         # NOTE: Because `mix_X` and `mix_Y` are both of type `numpy.ndarray`, a
-        # division by (mix_X = 0) is handled correctly due to `numpy.inf`.
+        # division by `mix_X = 0` is handled correctly due to `numpy.inf`.
         # Likewise, `numpy.arctan(numpy.inf)`` will result in pi/2. We suppress
         # the RuntimeWarning: divide by zero encountered in true_divide.
         np.seterr(divide="ignore")
@@ -276,20 +271,20 @@ def lockin_DAQ_update():
         np.multiply(state.T, 180 / np.pi, out=state.T)  # [rad] to [deg]
         np.seterr(divide="warn")
     else:
-        state.time_2 = np.full(c.BLOCK_SIZE, np.nan)
-        state.R = np.full(c.BLOCK_SIZE, np.nan)
-        state.T = np.full(c.BLOCK_SIZE, np.nan)
+        state.time_2.fill(np.nan)
+        state.R.fill(np.nan)
+        state.T.fill(np.nan)
 
     state.X_avg = np.mean(state.X)
     state.Y_avg = np.mean(state.Y)
     state.R_avg = np.mean(state.R)
     state.T_avg = np.mean(state.T)
 
-    state.deque_time_2.extend(state.time_2)
-    state.deque_X.extend(state.X)
-    state.deque_Y.extend(state.Y)
-    state.deque_R.extend(state.R)
-    state.deque_T.extend(state.T)
+    state.rb_time_2.extend(state.time_2)
+    state.rb_X.extend(state.X)
+    state.rb_Y.extend(state.Y)
+    state.rb_R.extend(state.R)
+    state.rb_T.extend(state.T)
 
     window.hcc_LIA_XR.extendData(
         state.time_2, state.X if window.qrbt_XR_X.isChecked() else state.R
@@ -300,13 +295,13 @@ def lockin_DAQ_update():
 
     # Check if memory address of underlying buffer is still unchanged
     """
-    test = np.asarray(state.deque_X)
+    test = np.asarray(state.rb_X)
     print("%6i, mem: %i, cont?: %i, rb buf mem: %i, full? %i" % (
-            state.buffers_received,
+            state.blocks_received,
             test.__array_interface__['data'][0],
             test.flags['C_CONTIGUOUS'],
-            state.deque_X._unwrap_buffer.__array_interface__['data'][0],
-            state.deque_X.is_full))
+            state.rb_X._unwrap_buffer.__array_interface__['data'][0],
+            state.rb_X.is_full))
     """
 
     # Power spectra
@@ -366,19 +361,19 @@ def write_data_to_log():
         # tick = Time.perf_counter()
         data = np.asmatrix(
             [
-                state.deque_time[:N] / 1e6,
-                state.deque_ref_X[:N],
-                state.deque_ref_Y[:N],
-                state.deque_sig_I[:N],
-                state.deque_filt_I[idx_offset : idx_offset + N],
-                state.deque_mix_X[idx_offset : idx_offset + N],
-                state.deque_mix_Y[idx_offset : idx_offset + N],
+                state.rb_time[:N] / 1e6,
+                state.rb_ref_X[:N],
+                state.rb_ref_Y[:N],
+                state.rb_sig_I[:N],
+                state.rb_filt_I[idx_offset : idx_offset + N],
+                state.rb_mix_X[idx_offset : idx_offset + N],
+                state.rb_mix_Y[idx_offset : idx_offset + N],
                 state.X[:N],
                 state.Y[:N],
                 state.R[:N],
                 state.T[:N],
                 # For debugging:
-                # state.deque_time_1[idx_offset : idx_offset + N] / 1e6,
+                # state.rb_time_1[idx_offset : idx_offset + N] / 1e6,
                 # state.time_2[:N] / 1e6,
             ]
         )
@@ -433,7 +428,7 @@ if __name__ == "__main__":
     alia_qdev = Alia_qdev(
         dev=alia,
         DAQ_function=lockin_DAQ_update,
-        N_buffers_in_deque=21,
+        N_blocks=21,
         use_CUDA=USE_CUDA,
         debug=DEBUG,
     )
@@ -476,7 +471,7 @@ if __name__ == "__main__":
     # --------------------------------------------------------------------------
 
     p = {
-        "len_data": alia_qdev.state.N_deque,
+        "len_data": alia_qdev.state.rb_capacity,
         "fs": alia.config.Fs,
         "nperseg": alia.config.Fs,
     }
@@ -490,48 +485,46 @@ if __name__ == "__main__":
 
     # Only calculate the power spectrum when the curve is visible. Calculating
     # spectra is CPU intensive and might impact the responsiveness of the GUI
-    # or, in the extreme case, cause dropped buffers.
+    # or, in the extreme case, cause dropped blocks of data.
 
     def calculate_PS_sig_I():
         state = alia_qdev.state
-        if window.pc_PS_sig_I.isVisible() and state.deque_sig_I.is_full:
+        if window.pc_PS_sig_I.isVisible() and state.rb_sig_I.is_full:
             window.pc_PS_sig_I.setData(
                 alia_qdev.fftw_PS_sig_I.freqs,
-                alia_qdev.fftw_PS_sig_I.compute_spectrum_dB(state.deque_sig_I),
+                alia_qdev.fftw_PS_sig_I.compute_spectrum_dB(state.rb_sig_I),
             )
 
     def calculate_PS_filt_I():
         state = alia_qdev.state
-        if window.pc_PS_filt_I.isVisible() and state.deque_filt_I.is_full:
+        if window.pc_PS_filt_I.isVisible() and state.rb_filt_I.is_full:
             window.pc_PS_filt_I.setData(
                 alia_qdev.fftw_PS_filt_I.freqs,
-                alia_qdev.fftw_PS_filt_I.compute_spectrum_dB(
-                    state.deque_filt_I
-                ),
+                alia_qdev.fftw_PS_filt_I.compute_spectrum_dB(state.rb_filt_I),
             )
 
     def calculate_PS_mix_X():
         state = alia_qdev.state
-        if window.pc_PS_mix_X.isVisible() and state.deque_mix_X.is_full:
+        if window.pc_PS_mix_X.isVisible() and state.rb_mix_X.is_full:
             window.pc_PS_mix_X.setData(
                 alia_qdev.fftw_PS_mix_X.freqs,
-                alia_qdev.fftw_PS_mix_X.compute_spectrum_dB(state.deque_mix_X),
+                alia_qdev.fftw_PS_mix_X.compute_spectrum_dB(state.rb_mix_X),
             )
 
     def calculate_PS_mix_Y():
         state = alia_qdev.state
-        if window.pc_PS_mix_Y.isVisible() and state.deque_mix_Y.is_full:
+        if window.pc_PS_mix_Y.isVisible() and state.rb_mix_Y.is_full:
             window.pc_PS_mix_Y.setData(
                 alia_qdev.fftw_PS_mix_Y.freqs,
-                alia_qdev.fftw_PS_mix_Y.compute_spectrum_dB(state.deque_mix_Y),
+                alia_qdev.fftw_PS_mix_Y.compute_spectrum_dB(state.rb_mix_Y),
             )
 
     def calculate_PS_R():
         state = alia_qdev.state
-        if window.pc_PS_R.isVisible() and state.deque_R.is_full:
+        if window.pc_PS_R.isVisible() and state.rb_R.is_full:
             window.pc_PS_R.setData(
                 alia_qdev.fftw_PS_R.freqs,
-                alia_qdev.fftw_PS_R.compute_spectrum_dB(state.deque_R),
+                alia_qdev.fftw_PS_R.compute_spectrum_dB(state.rb_R),
             )
 
     # Special cases where the lock-in is paused: Clicking the legend checkboxes
