@@ -1208,7 +1208,7 @@ class MainWindow(QtWid.QWidget):
             self.pi_filt_1_resp,
             "Filter response @ sig_I",
             "frequency (Hz)",
-            "amplitude attenuation (dB)",
+            "amplitude attenuation (dBV)",
         )
         self.pi_filt_1_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_1_resp.enableAutoRange("x", False)
@@ -1322,7 +1322,7 @@ class MainWindow(QtWid.QWidget):
             self.pi_filt_2_resp,
             "Filter response @ mix_X/Y",
             "frequency (Hz)",
-            "amplitude attenuation (dB)",
+            "amplitude attenuation (dBV)",
         )
         self.pi_filt_2_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_2_resp.enableAutoRange("x", False)
@@ -1922,7 +1922,9 @@ class MainWindow(QtWid.QWidget):
     def plot_zoom_ROI_filt_1(self):
         freqz = self.alia_qdev.firf_1_sig_I.freqz
         self.pi_filt_1_resp.setXRange(
-            freqz.freq_Hz__ROI_start, freqz.freq_Hz__ROI_end, padding=0.01,
+            freqz.freq_Hz__ROI_start,
+            freqz.freq_Hz__ROI_end,
+            padding=0.01,
         )
         self.pi_filt_1_resp.enableAutoRange("y", True)
         self.pi_filt_1_resp.enableAutoRange("y", False)
@@ -1931,7 +1933,9 @@ class MainWindow(QtWid.QWidget):
     def plot_zoom_ROI_filt_2(self):
         freqz = self.alia_qdev.firf_2_mix_X.freqz
         self.pi_filt_2_resp.setXRange(
-            freqz.freq_Hz__ROI_start, freqz.freq_Hz__ROI_end, padding=0.01,
+            freqz.freq_Hz__ROI_start,
+            freqz.freq_Hz__ROI_end,
+            padding=0.01,
         )
         self.pi_filt_2_resp.enableAutoRange("y", True)
         self.pi_filt_2_resp.enableAutoRange("y", False)
@@ -1948,4 +1952,3 @@ class MainWindow(QtWid.QWidget):
 
 if __name__ == "__main__":
     exec(open("DvG_Arduino_lockin_amp.py").read())  # pylint: disable=exec-used
-
