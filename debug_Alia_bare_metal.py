@@ -26,7 +26,8 @@ TEST_POWERSPECTRA = True
 BLOCK_SIZE = 2000
 N_BLOCKS = 21
 Fs = 20000  # [Hz]
-fftw_threads = 5  # sweet spot seems to be 5
+FFTW_THREADS_CONVOLVE = 5  # sweet spot seems to be 5
+FFTW_THREADS_SPECTRUM = 5  # sweet spot seems to be 5
 
 # Simulation vars
 T_total = 120  # [s]
@@ -121,7 +122,7 @@ if __name__ == "__main__":
         firwin_cutoff=[2.0, 48.0, 52.0],
         firwin_window="blackmanharris",
         firwin_pass_zero=False,
-        fftw_threads=fftw_threads,
+        fftw_threads=FFTW_THREADS_CONVOLVE,
     )
 
     firf_1_sig_I = RingBuffer_FIR_Filter(
@@ -137,7 +138,7 @@ if __name__ == "__main__":
         firwin_cutoff=2 * ref_freq_Hz - roll_off_width,
         firwin_window="blackmanharris",
         firwin_pass_zero=True,
-        fftw_threads=fftw_threads,
+        fftw_threads=FFTW_THREADS_CONVOLVE,
     )
 
     firf_2_mix_X = RingBuffer_FIR_Filter(
@@ -156,7 +157,7 @@ if __name__ == "__main__":
             "len_data": BLOCK_SIZE * N_BLOCKS,
             "fs": Fs,
             "nperseg": Fs,
-            "fftw_threads": fftw_threads,
+            "fftw_threads": FFTW_THREADS_SPECTRUM,
         }
         # fmt: off
         fftw_PS_sig_I  = FFTW_WelchPowerSpectrum(**p)
