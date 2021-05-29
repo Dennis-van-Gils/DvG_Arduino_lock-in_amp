@@ -152,7 +152,7 @@ class FFTW_WelchPowerSpectrum:
 
     def compute_spectrum(self, data: np.ndarray) -> np.ndarray:
         """Returns the power spectrum array of the passed 1D time series array
-        `data`. When `data` is in units [V], the output units are [V^2]. Use
+        `data`. When `data` is in units of [V], the output units are [V^2]. Use
         `compute_spectrum_dB()` to get the equivalent power ratio in units of
         [dBV].
 
@@ -207,7 +207,18 @@ class FFTW_WelchPowerSpectrum:
 
     def compute_spectrum_dB(self, data: np.ndarray) -> np.ndarray:
         """Like `compute_spectrum()`, but now output as the power ratio in [dB].
-        When `data` is in units of [V], the output has units of [dBV].
+        When `data` is in units of power [W], the output has units of [dBW].
+
+        Physics note:
+        Technically, `data` should have units of power [W], hence the name
+        'power spectrum`. The output of this method will then have units of
+        [dBW]. However, if we measure a voltage, in order to calculate the
+        power we should also know the impedance `Z` to get to the electrical
+        power `P = V^2 / Z`. Because we don't always have access to the value
+        of the impedance, an engineering solution is to neglect the impedance
+        and simply use `V^2` as the power. Taking 1 V^2 as the reference 'power'
+        the power amplitude is now represented by the 'engineering' units of
+        [dBV], instead of [dBW].
 
         Returns:
             The power spectrum array as a 1D numpy array in units of [dB].
