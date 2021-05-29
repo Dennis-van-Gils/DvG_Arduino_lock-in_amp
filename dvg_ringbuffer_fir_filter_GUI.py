@@ -1,29 +1,55 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""PyQt5 user-interface elements to `dvg_ringbuffer_fir_filter.py`
+"""PyQt5 user-interface elements to facilitate the FIR filter design of
+`dvg_ringbuffer_fir_filter.py`.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils"
-__date__ = "24-05-2021"
+__date__ = "29-05-2021"
 __version__ = "1.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
 
-from typing import List
+from typing import Union, List
 
 import numpy as np
 from PyQt5 import QtCore, QtWidgets as QtWid
 
 from dvg_ringbuffer_fir_filter import RingBuffer_FIR_Filter
 
+# ------------------------------------------------------------------------------
+#  Filter_design_GUI
+# ------------------------------------------------------------------------------
+
 
 class Filter_design_GUI(QtCore.QObject):
-    """
+    """PyQt5 user-interface elements to facilitate the FIR filter design of
+    `dvg_ringbuffer_fir_filter.py`.
+
+    Args:
+        firf (RingBuffer_FIR_Filter or a list thereof):
+            The FIR filter instances to design the filter for.
+
+    Attributes:
+        qgrp (PyQt5.QtWidgets.QGroupBox):
+            The main GUI element for the design of a FIR filter.
+
+    Important method:
+        update_filter_design()
+
+    Signals:
+        signal_filter_design_updated():
+            Emitted when the user has interacted with the FIR filter design
+            controls, or when method `update_filter_design()` has been called.
     """
 
     signal_filter_design_updated = QtCore.pyqtSignal()
 
-    def __init__(self, firf: RingBuffer_FIR_Filter, parent=None):
+    def __init__(
+        self,
+        firf: Union[RingBuffer_FIR_Filter, List[RingBuffer_FIR_Filter]],
+        parent=None,
+    ):
         super().__init__(parent=parent)
 
         # Accept either a single instance of Buffered_FIR_Filter or accept
@@ -331,5 +357,8 @@ class Filter_design_GUI(QtCore.QObject):
     # --------------------------------------------------------------------------
 
     def update_filter_design(self):
+        """Reflect outside changes made to the filter configuration by updating
+        the GUI elements. Will emit `signal_filter_design_updated` once done.
+        """
         self.populate_design_controls()
         self.signal_filter_design_updated.emit()
