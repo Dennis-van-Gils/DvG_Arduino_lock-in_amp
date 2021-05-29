@@ -47,7 +47,7 @@ known as a linear filter.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-signal-processing"
-__date__ = "28-05-2021"
+__date__ = "29-05-2021"
 __version__ = "1.0.0"
 # pylint: disable=invalid-name, too-many-instance-attributes, too-few-public-methods, too-many-arguments
 
@@ -83,9 +83,11 @@ class FreqzResponse:
     If we assume the units of the incoming data to be in [V], then the amplitude
     response will be in units of [dBV].
 
+        amplitude [dBV]: `20 * log_10(A_in / A_ref)`, where `A_ref` = 1 [V].
+
     Attributes:
         full_freq_Hz, full_ampl_dB, full_phase_rad (each a np.ndarray):
-            The full data set in, respectively, units of [Hz], [dB] and [rad].
+            The full data set in, respectively, units of [Hz], [dBV] and [rad].
 
         freq_Hz, ampl_dB, phase_rad (each a np.ndarray):
             The lossy compressed data set in, respectively, units of [Hz], [dB]
@@ -122,7 +124,7 @@ class RingBuffer_FIR_Filter_Config:
             The sampling frequency of the input signal in [Hz]. Each frequency
             in `firwin_cutoff` must be between 0 and `Fs/2`.
 
-            See `scipy.signal.firwin` for more details.
+            See `scipy.signal.firwin()` for more details.
 
         block_size (int):
             The fixed number of samples of one incoming block of signal data.
@@ -138,12 +140,12 @@ class RingBuffer_FIR_Filter_Config:
             included in `firwin_cutoff`. These rules will get enforced for you
             when calling `compute_firwin_and_freqz()`.
 
-            See `scipy.signal.firwin` for more details.
+            See `scipy.signal.firwin()` for more details.
 
         firwin_window (string or tuple of string and parameter values, optional):
             Desired window to use.
 
-            See `scipy.signal.get_window` for a list of windows and required
+            See `scipy.signal.get_window()` for a list of windows and required
             parameters.
 
             Default: "hamming"
@@ -153,18 +155,18 @@ class RingBuffer_FIR_Filter_Config:
             If False, the DC gain is 0. Can also be a string argument for the
             desired filter type (equivalent to `btype` in IIR design functions).
 
-            See `scipy.signal.firwin` for more details.
+            See `scipy.signal.firwin()` for more details.
 
             Default: True
 
         freqz_worN (int, optional):
-            See `scipy.signal.freqz` for more details.
+            See `scipy.signal.freqz()` for more details.
 
             Default: 2 ** 18
 
         freqz_dB_floor (float, optional):
             The lossy compressed amplitude response will get floored to the
-            supplied `freqz_dB_floor` value.
+            supplied `freqz_dB_floor` value when below this value.
 
             Default: -120.0
 
@@ -232,20 +234,30 @@ class RingBuffer_FIR_Filter_Config:
 
 
 class RingBuffer_FIR_Filter:
-    """In progress...
+    """Configures and performs a lightning-fast finite-impulse response (FIR)
+    filter on, typically, 1D time series data acquired at a fixed sampling
+    frequency.
 
     Args:
         config (RingBuffer_FIR_Filter_Config())
-            See :class:`RingBuffer_FIR_Filter_Config`
+            See class `RingBuffer_FIR_Filter_Config()`.
 
         name (str, optional):
+            Display name.
 
             Default: ""
 
     Attributes:
-        config (RingBuffer_FIR_Filter_Config())
-        name (str)
-        freqz (FreqzResponse())
+        config (RingBuffer_FIR_Filter_Config()):
+            Once created, you should not alter this object attribute anymore.
+            New `firwin` and `freqz` settings can be set by providing these as
+            arguments to `compute_firwin_and_freqz()`.
+
+        name (str):
+            Display name.
+
+        freqz (FreqzResponse()):
+            See class `FreqzResponse()`.
 
         T_settle_filter (float)
             Time period in seconds for the filter to start outputting valid
@@ -324,7 +336,12 @@ class RingBuffer_FIR_Filter:
             `config`.
 
         Args:
-            See :class:`Ringbuffer_FIR_Filter.Config`.
+            See `Ringbuffer_FIR_Filter.Config()`.
+
+        Will update members:
+            `config`, when input arguments are supplied.
+            `freqz`, containing the frequency response.
+            ``
         """
         c = self.config  # Shorthand
 
@@ -392,9 +409,6 @@ class RingBuffer_FIR_Filter:
         overwhelm a user-interface when plotting so many points. Hence, we will
         also calculate a 'lossy compressed' dataset: `freq_Hz`, `ampl_dB`, and
         `phase_rad`, useful for faster and less-memory hungry plotting.
-
-        Note: Amplitude ratio in dB: 20 log_10(A1/A2), with A2=1V -> units [dBV]
-              Power     ratio in dB: 10 log_10(P1/P2), with P2=1W -> units [dBW]
         """
         w, h = freqz(self._taps, worN=worN)
         Fs = self.config.Fs
@@ -460,20 +474,22 @@ class RingBuffer_FIR_Filter:
     def apply_filter(
         self, ringbuffer_in: Union[RingBuffer, deque]
     ) -> np.ndarray:
-        """Apply the currently set FIR filter to the incoming `ringbuffer_in`
-        data and return the filter output. I.e., perform a convolution between
-        the FIR filter tap array and the `ringbuffer_in` array and keep only the
-        valid convolution output.
+        """Apply the currently configured FIR filter to the incoming
+        `ringbuffer_in` data and return the filter output. I.e., perform a
+        convolution between the FIR filter tap array and the `ringbuffer_in`
+        array and keep only the valid convolution output.
 
         Using a `dvg_ringbuffer::RingBuffer` instead of a `collections.deque`
-        is way faster.
+        is recommended and is ~60 times faster.
 
-        Will track if the filter has settled. Any NaNs in `ringbuffer_in` will
-        desettle the filter. If `ringbuffer_in` is not yet fully populated with
-        data, the filter will return an array filled with NaNs.
+        Will track if the filter has settled and updates member
+        `RingBuffer_FIR_filter.filter_has_settled` accordingly. If
+        `ringbuffer_in` contains any NaNs, or if it is not fully populated yet
+        with data, the filter will desettle. A desettled filter will return an
+        array filled with `numpy.nan`.
 
         Returns:
-          The filter output as numpy.ndarray
+            The filter output as numpy.ndarray.
         """
         c = self.config  # Shorthand
         # print("%s: %i" % (self.name, len(ringbuffer_in)))

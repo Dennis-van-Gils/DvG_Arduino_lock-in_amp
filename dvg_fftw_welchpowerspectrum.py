@@ -156,6 +156,10 @@ class FFTW_WelchPowerSpectrum:
         be [V^2]. Use `compute_spectrum_dB()` to get the equivalent power ratio
         in units of [dBV].
 
+        If `data` is not yet fully populated with data as specified by the
+        initialisation parameter `len_data`, this method will return an array
+        filled with `numpy.nan`.
+
         Returns:
             The power spectrum array as a 1D numpy array in units of [V^2].
         """
@@ -211,6 +215,10 @@ class FFTW_WelchPowerSpectrum:
         be [dBV].
 
           power [dBV]: `10 * log_10(P_in / P_ref)`, where `P_ref` = 1 [V].
+
+        If `data` is not yet fully populated with data as specified by the
+        initialisation parameter `len_data`, this method will return an array
+        filled with `numpy.nan`.
 
         Physics note:
         Technically, `data` should have units of power [W], hence the name
