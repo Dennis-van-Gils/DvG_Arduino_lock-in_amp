@@ -39,7 +39,7 @@ def test1():
 
 def test2():
     global Pxx2
-    Pxx2 = fftw_welch.process(wave)
+    Pxx2 = fftw_welch.compute_spectrum_dB(wave)
 
 
 if __name__ == "__main__":
