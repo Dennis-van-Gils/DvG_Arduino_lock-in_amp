@@ -20,7 +20,7 @@ filtered output could then, in turn, be easily taken up in another ring buffer
 interval that already is operating on chunks of data with length `block_size`.
 
 The FIR filter algorithm uses convolution based on the fast-Fourier transform
-(FFT). The FFT can be configured to get performed on either the CPU or the GPU.
+(FFT). The FFT can be configured to execute on either the CPU or the GPU.
 
 When on the CPU (default), it will use the excellent `fftw`
 (http://www.fftw.org) library. It will plan the transformations ahead of time to
@@ -41,8 +41,8 @@ the incoming time series data, namely by `T_settle_filter / 2` seconds.
 Attribute `valid_slice` will contain the slice to be taken from the incoming
 ring buffer corresponding to the matching time stamps of the filter output.
 
-The FIR filter is programmed to be a zero-phase distortion filter, also known
-as a linear filter.
+The FIR filter that will be employed is a zero-phase distortion filter, also
+known as a linear filter.
 """
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
@@ -68,10 +68,31 @@ from dvg_fftw_convolver import FFTW_Convolver_Valid1D
 
 class FreqzResponse:
     """Container for the computed frequency response of the configured FIR
-    filter based on the output of `scipy.signal.freqz()`, see
+    filter. It gets computed by calling
+    `RingBuffer_FIR_Filter.compute_firwin_and_freqz()`, which in turn is based
+    on the output of `scipy.signal.freqz()`, see
     https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.freqz.html
 
-    ROI: Region of interest
+    Two sets of data are contained: One set contains the full data set
+    denoted by prefix `full_`, the other set is a 'lossy compressed' data set
+    based on the full set but retaining only the visually interesting data
+    points, useful for faster and less-memory hungry plotting. The region of
+    interest (ROI), i.e. the frequencies at which signifant filtering happens,
+    is also provided for ease of plotting.
+
+    If we assume the units of the incoming data to be in [V], then the amplitude
+    response will be in units of [dBV].
+
+    Attributes:
+        full_freq_Hz, full_ampl_dB, full_phase_rad (each a np.ndarray):
+            The full data set in, respectively, units of [Hz], [dB] and [rad].
+
+        freq_Hz, ampl_dB, phase_rad (each a np.ndarray):
+            The lossy compressed data set in, respectively, units of [Hz], [dB]
+            and [rad].
+
+        freq_Hz__ROI_start, freq_Hz__ROI_end (each a float):
+            The start and end frequency in [Hz] of the region of interest.
     """
 
     def __init__(self):
@@ -93,15 +114,15 @@ class FreqzResponse:
 class RingBuffer_FIR_Filter_Config:
     """Configuration settings for the initialisation of a
     `RingBuffer_FIR_Filter()` object. Once created, you should not alter the
-    object attributes anymore. Updated `firwin` and `freqz` settings can be set
-    by providing these as arguments to `compute_firwin_and_freqz()`.
+    object attributes anymore. New `firwin` and `freqz` settings can be set by
+    providing these as arguments to `compute_firwin_and_freqz()`.
 
     Args:
         Fs (float):
             The sampling frequency of the input signal in [Hz]. Each frequency
-            in `firwin_cutoff` must be between `0` and `Fs/2`.
+            in `firwin_cutoff` must be between 0 and `Fs/2`.
 
-            See :meth:`scipy.signal.firwin` for more details.
+            See `scipy.signal.firwin` for more details.
 
         block_size (int):
             The fixed number of samples of one incoming block of signal data.
@@ -117,13 +138,13 @@ class RingBuffer_FIR_Filter_Config:
             included in `firwin_cutoff`. These rules will get enforced for you
             when calling `compute_firwin_and_freqz()`.
 
-            See :meth:`scipy.signal.firwin` for more details.
+            See `scipy.signal.firwin` for more details.
 
         firwin_window (string or tuple of string and parameter values, optional):
             Desired window to use.
 
-            See :meth:`scipy.signal.get_window` for a list of windows and
-            required parameters.
+            See `scipy.signal.get_window` for a list of windows and required
+            parameters.
 
             Default: "hamming"
 
@@ -132,18 +153,20 @@ class RingBuffer_FIR_Filter_Config:
             If False, the DC gain is 0. Can also be a string argument for the
             desired filter type (equivalent to `btype` in IIR design functions).
 
-            See :meth:`scipy.signal.firwin` for more details.
+            See `scipy.signal.firwin` for more details.
 
             Default: True
 
         freqz_worN (int, optional):
-            See :meth:`scipy.signal.freqz` for more details.
+            See `scipy.signal.freqz` for more details.
 
             Default: 2 ** 18
 
         freqz_dB_floor (float, optional):
+            The lossy compressed amplitude response will get floored to the
+            supplied `freqz_dB_floor` value.
 
-            Default: -120
+            Default: -120.0
 
         use_CUDA (bool, optional):
             Use NVidia's CUDA acceleration for the 1D FFT convolution? You'll
@@ -370,8 +393,8 @@ class RingBuffer_FIR_Filter:
         also calculate a 'lossy compressed' dataset: `freq_Hz`, `ampl_dB`, and
         `phase_rad`, useful for faster and less-memory hungry plotting.
 
-        Note: Amplitude ratio in dB: 20 log_10(A1/A2)
-              Power     ratio in dB: 10 log_10(P1/P2)
+        Note: Amplitude ratio in dB: 20 log_10(A1/A2), with A2=1V -> units [dBV]
+              Power     ratio in dB: 10 log_10(P1/P2), with P2=1W -> units [dBW]
         """
         w, h = freqz(self._taps, worN=worN)
         Fs = self.config.Fs
