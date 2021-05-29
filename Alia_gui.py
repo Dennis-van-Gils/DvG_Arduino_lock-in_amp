@@ -354,7 +354,7 @@ class MainWindow(QtWid.QWidget):
         )
         self.qlbl_CPU_syst = QtWid.QLabel("CPU system : nan%")
         self.qlbl_CPU_proc = QtWid.QLabel("CPU process: nan%")
-        self.qlbl_DAQ_rate = QtWid.QLabel("Buffers/s: nan")
+        self.qlbl_DAQ_rate = QtWid.QLabel("Blocks/s: nan")
         self.qlbl_DAQ_rate.setMinimumWidth(100)
 
         vbox_left = QtWid.QVBoxLayout()
@@ -1578,10 +1578,10 @@ class MainWindow(QtWid.QWidget):
         self.qlbl_update_counter.setText("%i" % alia_qdev.update_counter_DAQ)
 
         if alia_qdev.worker_DAQ._paused:  # pylint: disable=protected-access
-            self.qlbl_DAQ_rate.setText("Buffers/s: paused")
+            self.qlbl_DAQ_rate.setText("Blocks/s: paused")
         else:
             self.qlbl_DAQ_rate.setText(
-                "Buffers/s: %.1f" % alia_qdev.obtained_DAQ_rate_Hz
+                "Blocks/s: %.1f" % alia_qdev.obtained_DAQ_rate_Hz
             )
 
         if np.isnan(alia_qdev.state.time[0]):
