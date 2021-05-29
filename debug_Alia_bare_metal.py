@@ -46,10 +46,10 @@ class State:
         self.block_size  = block_size
         self.N_blocks    = N_blocks
         self.rb_capacity = block_size * N_blocks
-        self.buffers_received = 0
+        self.blocks_received = 0
 
-        # Predefine arrays for clarity
-        # Keep .time as dtype=np.float64, because it can contain np.nan
+        # Arrays to hold the block data coming from the lock-in amplifier
+        # Keep `time` as `dtype=np.float64`, because it can contain `np.nan`
         self.time   = np.full(block_size, np.nan, dtype=np.float64) # [ms]
         self.ref_X  = np.full(block_size, np.nan, dtype=np.float64)
         self.ref_Y  = np.full(block_size, np.nan, dtype=np.float64)
@@ -79,21 +79,7 @@ class State:
         self.R_avg = np.nan
         self.T_avg = np.nan
 
-        """ Ring buffers needed for proper FIR filtering.
-        Each time a complete block of `block_size` samples is received from
-        the lock-in, it will extend the ring buffer array (FIFO).
-
-            i.e. N_blocks = 3
-                startup         : ringbuffer = [nan     ; nan     ; nan    ]
-                received block 1: ringbuffer = [block_1 ; nan     ; nan    ]
-                received block 2: ringbuffer = [block_1 ; block_2 ; nan    ]
-                received block 3: ringbuffer = [block_1 ; block_2 ; block_3]
-                received block 4: ringbuffer = [block_2 ; block_3 ; block_4]
-                received block 5: ringbuffer = [block_3 ; block_4 ; block_5]
-                etc...
-        """
-
-        # Create ring buffers
+        # Ring buffers (rb) for performing FIR filtering and power spectra
         _p = {'capacity': self.rb_capacity, 'dtype': np.float64}
 
         # Stage 0: unprocessed data
@@ -102,7 +88,7 @@ class State:
         self.rb_ref_Y  = RingBuffer(**_p)
         self.rb_sig_I  = RingBuffer(**_p)
 
-        # Stage 1: apply AC-coupling and band-stop filter and heterodyne mixing
+        # Stage 1: AC-coupling and band-stop filter and heterodyne mixing
         self.rb_time_1 = RingBuffer(**_p)
         self.rb_filt_I = RingBuffer(**_p)
         self.rb_mix_X  = RingBuffer(**_p)
@@ -137,6 +123,7 @@ if __name__ == "__main__":
         firwin_pass_zero=False,
         fftw_threads=fftw_threads,
     )
+
     firf_1_sig_I = RingBuffer_FIR_Filter(
         config=firf_1_config, name="firf_1_sig_I"
     )
@@ -152,9 +139,11 @@ if __name__ == "__main__":
         firwin_pass_zero=True,
         fftw_threads=fftw_threads,
     )
+
     firf_2_mix_X = RingBuffer_FIR_Filter(
         config=firf_2_config, name="firf_2_mix_X"
     )
+
     firf_2_mix_Y = RingBuffer_FIR_Filter(
         config=firf_2_config, name="firf_2_mix_Y"
     )
@@ -231,8 +220,8 @@ if __name__ == "__main__":
         state.ref_Y = ref_Y[sim_slice]
         state.sig_I = sig_I[sim_slice]
 
-        state.sig_I_min = np.max(state.sig_I)
-        state.sig_I_max = np.min(state.sig_I)
+        state.sig_I_min = np.min(state.sig_I)
+        state.sig_I_max = np.max(state.sig_I)
         state.sig_I_avg = np.mean(state.sig_I)
         state.sig_I_std = np.std(state.sig_I)
 
@@ -251,6 +240,7 @@ if __name__ == "__main__":
             # Retrieve the block of original data from the past that aligns with
             # the current filter output
             valid_slice = firf_1_sig_I.rb_valid_slice
+
             state.time_1 = state.rb_time[valid_slice]
             old_sig_I = state.rb_sig_I[valid_slice]
             old_ref_X = state.rb_ref_X[valid_slice]
@@ -270,8 +260,8 @@ if __name__ == "__main__":
             state.mix_X.fill(np.nan)
             state.mix_Y.fill(np.nan)
 
-        state.filt_I_min = np.max(state.filt_I)
-        state.filt_I_max = np.min(state.filt_I)
+        state.filt_I_min = np.min(state.filt_I)
+        state.filt_I_max = np.max(state.filt_I)
         state.filt_I_avg = np.mean(state.filt_I)
         state.filt_I_std = np.std(state.filt_I)
 
@@ -297,7 +287,7 @@ if __name__ == "__main__":
             np.sqrt(np.add(np.square(state.X), np.square(state.Y)), out=state.R)
 
             # NOTE: Because `mix_X` and `mix_Y` are both of type `numpy.ndarray`, a
-            # division by (mix_X = 0) is handled correctly due to `numpy.inf`.
+            # division by `mix_X = 0` is handled correctly due to `numpy.inf`.
             # Likewise, `numpy.arctan(numpy.inf)`` will result in pi/2. We suppress
             # the RuntimeWarning: divide by zero encountered in true_divide.
             np.seterr(divide="ignore")
