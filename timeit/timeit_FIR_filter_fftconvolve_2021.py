@@ -3,7 +3,7 @@
 Testing faster fftconvolve
 
 Dennis van Gils
-21-05-2021
+29-05-2021
 """
 # pylint: disable=invalid-name, wrong-import-position, import-error
 
@@ -22,8 +22,10 @@ sys.path.insert(0, parent_dir)
 
 from dvg_fftw_convolver import FFTW_Convolver_Valid1D
 
-TEST_SCIPY = False
+TEST_SCIPY = True
 TEST_CUDA = False
+
+FFTW_THREADS = 3
 
 
 def test_fftw():
@@ -83,7 +85,9 @@ if __name__ == "__main__":
         taps_cupy = cupy.array(taps[:, None])
 
     # Init
-    fftw_convolver = FFTW_Convolver_Valid1D(len(wave), len(taps))
+    fftw_convolver = FFTW_Convolver_Valid1D(
+        len(wave), len(taps), fftw_threads=FFTW_THREADS
+    )
     wave_out1 = np.empty(rb_capacity - N_taps + 1)
     wave_out2 = np.empty(rb_capacity - N_taps + 1)
     wave_out3 = np.empty(rb_capacity - N_taps + 1)
@@ -109,6 +113,8 @@ if __name__ == "__main__":
     report("Timeit: fftconvolve\n")
 
     uname = platform.uname()
+    report("Conda environment:")
+    report("  %s\n" % os.environ["CONDA_PREFIX"])
     report("Running on...")
     report("  node   : %s" % uname.node)
     report("  system : %s" % uname.system)
@@ -133,6 +139,7 @@ if __name__ == "__main__":
 
     result2 = np.array(timeit.repeat(test_fftw, **p)) / N * 1000
     report("\n#2  dvg_fftw_convolver.convolve:")
+    report("    FFTW_THREADS = %d" % FFTW_THREADS)
     for r in result2:
         report("%20.3f ms" % r)
 
