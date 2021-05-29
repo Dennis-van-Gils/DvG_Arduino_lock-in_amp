@@ -25,6 +25,9 @@ sys.path.insert(0, parentdir)
 from dvg_fftw_welchpowerspectrum import FFTW_WelchPowerSpectrum
 
 
+FFTW_THREADS = 5
+
+
 def test1():
     global freq1, Pxx1
     freq1, Pxx1 = signal.welch(
@@ -53,7 +56,9 @@ if __name__ == "__main__":
     wave += np.sin(2 * np.pi * f2 * t)
 
     # Init
-    fftw_welch = FFTW_WelchPowerSpectrum(len(wave), fs=Fs, nperseg=Fs)
+    fftw_welch = FFTW_WelchPowerSpectrum(
+        len(wave), fs=Fs, nperseg=Fs, fftw_threads=FFTW_THREADS
+    )
 
     freq1 = np.empty(Fs // 2 + 1)
     freq2 = fftw_welch.freqs
@@ -103,6 +108,7 @@ if __name__ == "__main__":
 
     result2 = np.array(timeit.repeat(test2, **p)) / N * 1000
     report("\ndvg_fftw_welchpowerspectrum:")
+    report("    FFTW_THREADS = %d" % FFTW_THREADS)
     for r in result2:
         report("%20.3f ms" % r)
 

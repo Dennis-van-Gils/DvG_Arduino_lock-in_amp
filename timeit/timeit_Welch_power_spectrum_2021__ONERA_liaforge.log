@@ -15,17 +15,18 @@ Running on...
 N = 1000, REPS = 5
 
 scipy.signal.welch:
-               1.125 ms
-               1.129 ms
-               1.117 ms
-               1.112 ms
-               1.113 ms
+               1.183 ms
+               1.152 ms
+               1.132 ms
+               1.126 ms
+               1.124 ms
 
 dvg_fftw_welchpowerspectrum:
-               0.278 ms
-               0.278 ms
-               0.277 ms
-               0.277 ms
-               0.278 ms
+    FFTW_THREADS = 5
+               0.289 ms
+               0.287 ms
+               0.284 ms
+               0.283 ms
+               0.282 ms
 
-Times faster: 4.01
+Times faster: 3.98
