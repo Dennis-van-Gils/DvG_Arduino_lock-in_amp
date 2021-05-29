@@ -18,9 +18,9 @@ GIL as well.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-signal-processing"
-__date__ = "28-05-2021"
+__date__ = "29-05-2021"
 __version__ = "1.0.0"
-# pylint: disable=invalid-name, missing-function-docstring
+# pylint: disable=invalid-name, missing-function-docstring, too-many-instance-attributes
 
 import sys
 import numpy as np
@@ -59,7 +59,7 @@ def fast_10log10(data: np.ndarray) -> np.ndarray:
 
 class FFTW_WelchPowerSpectrum:
     """Manages a power-spectrum calculation on 1D time series data `data` as
-    passed to methods `process()` or `process_dB()`.
+    passed to methods `compute_spectrum()` or `compute_spectrum_dBV()`.
 
     The input data array must always be of the same length as specified by
     argument `len_data`. When the length of the passed input array is not equal
@@ -79,7 +79,7 @@ class FFTW_WelchPowerSpectrum:
     Args:
         len_data (int):
             Full length of the upcoming input array `data` passed to methods
-            `process()` or `process_dB().
+            `compute_spectrum()` or `compute_spectrum_dBV().
 
         fs (float):
             Sampling frequency of the time series data [Hz].
@@ -96,7 +96,7 @@ class FFTW_WelchPowerSpectrum:
     Attributes:
         freqs (np.ndarray):
             The frequency table in [Hz] corresponding to the power spectrum
-            output of `process()` and `process_dB()`.
+            output of `compute_spectrum()` and `compute_spectrum_dBV()`.
     """
 
     def __init__(self, len_data: int, fs: float, nperseg: int, fftw_threads=5):
@@ -147,17 +147,17 @@ class FFTW_WelchPowerSpectrum:
         print(" done.")
 
     # --------------------------------------------------------------------------
-    #   process
+    #   compute_spectrum
     # --------------------------------------------------------------------------
 
-    def process(self, data: np.ndarray) -> np.ndarray:
+    def compute_spectrum(self, data: np.ndarray) -> np.ndarray:
         """Returns the power spectrum array of the passed 1D time series array
-        `data`. When `data` is in units [V], the output units are [V^2]. You
-        still have to apply `10*log10()` on the output to get the power ratio in
+        `data`. When `data` is in units [V], the output units are [V^2]. Use
+        `compute_spectrum_dBV()` to get the equivalent power ratio in units of
         [dBV].
 
         Returns:
-            The power spectrum array as a 1D numpy array.
+            The power spectrum array as a 1D numpy array in units of [V^2].
         """
         x = np.asarray(data)
 
@@ -202,9 +202,14 @@ class FFTW_WelchPowerSpectrum:
         return Pxx
 
     # --------------------------------------------------------------------------
-    #   process_dB
+    #   compute_spectrum_dBV
     # --------------------------------------------------------------------------
 
-    def process_dB(self, data: np.ndarray) -> np.ndarray:
-        """Like `process()`, but now output as the power ratio in [dBV]."""
-        return fast_10log10(self.process(data))
+    def compute_spectrum_dBV(self, data: np.ndarray) -> np.ndarray:
+        """Like `compute_spectrum()`, but now output as the power ratio in [dBV]
+        assuming `data` is in units of [V].
+
+        Returns:
+            The power spectrum array as a 1D numpy array in units of [dBV].
+        """
+        return fast_10log10(self.compute_spectrum(data))

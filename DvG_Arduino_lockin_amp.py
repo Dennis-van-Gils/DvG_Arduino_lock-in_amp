@@ -423,7 +423,10 @@ if __name__ == "__main__":
 
     # alia.begin()
     alia.begin(
-        freq=250, V_offset=1.5, V_ampl=1.417, waveform=Waveform.Cosine,
+        freq=250,
+        V_offset=1.5,
+        V_ampl=1.417,
+        waveform=Waveform.Cosine,
     )
 
     # Create workers and threads
@@ -494,7 +497,7 @@ if __name__ == "__main__":
         if window.pc_PS_sig_I.isVisible() and state.deque_sig_I.is_full:
             window.pc_PS_sig_I.setData(
                 alia_qdev.fftw_PS_sig_I.freqs,
-                alia_qdev.fftw_PS_sig_I.process_dB(state.deque_sig_I),
+                alia_qdev.fftw_PS_sig_I.compute_spectrum_dBV(state.deque_sig_I),
             )
 
     def calculate_PS_filt_I():
@@ -502,7 +505,9 @@ if __name__ == "__main__":
         if window.pc_PS_filt_I.isVisible() and state.deque_filt_I.is_full:
             window.pc_PS_filt_I.setData(
                 alia_qdev.fftw_PS_filt_I.freqs,
-                alia_qdev.fftw_PS_filt_I.process_dB(state.deque_filt_I),
+                alia_qdev.fftw_PS_filt_I.compute_spectrum_dBV(
+                    state.deque_filt_I
+                ),
             )
 
     def calculate_PS_mix_X():
@@ -510,7 +515,7 @@ if __name__ == "__main__":
         if window.pc_PS_mix_X.isVisible() and state.deque_mix_X.is_full:
             window.pc_PS_mix_X.setData(
                 alia_qdev.fftw_PS_mix_X.freqs,
-                alia_qdev.fftw_PS_mix_X.process_dB(state.deque_mix_X),
+                alia_qdev.fftw_PS_mix_X.compute_spectrum_dBV(state.deque_mix_X),
             )
 
     def calculate_PS_mix_Y():
@@ -518,7 +523,7 @@ if __name__ == "__main__":
         if window.pc_PS_mix_Y.isVisible() and state.deque_mix_Y.is_full:
             window.pc_PS_mix_Y.setData(
                 alia_qdev.fftw_PS_mix_Y.freqs,
-                alia_qdev.fftw_PS_mix_Y.process_dB(state.deque_mix_Y),
+                alia_qdev.fftw_PS_mix_Y.compute_spectrum_dBV(state.deque_mix_Y),
             )
 
     def calculate_PS_R():
@@ -526,7 +531,7 @@ if __name__ == "__main__":
         if window.pc_PS_R.isVisible() and state.deque_R.is_full:
             window.pc_PS_R.setData(
                 alia_qdev.fftw_PS_R.freqs,
-                alia_qdev.fftw_PS_R.process_dB(state.deque_R),
+                alia_qdev.fftw_PS_R.compute_spectrum_dBV(state.deque_R),
             )
 
     # Special cases where the lock-in is paused: Clicking the legend checkboxes
