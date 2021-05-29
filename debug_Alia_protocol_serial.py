@@ -125,7 +125,7 @@ if __name__ == "__main__":
                 np.min(dt),
                 np.max(dt),
             )
-            str_info2 = "N_buf = %d     %.2f buf/s" % (
+            str_info2 = "blocks received = %d     %.2f blocks/s" % (
                 blocks_received,
                 blocks_received / (Time.perf_counter() - tick),
             )
@@ -157,7 +157,7 @@ if __name__ == "__main__":
     f_log.close()
 
     print(
-        "Samples received per buffer: [min, max] = [%d, %d]"
+        "Samples received per block: [min, max] = [%d, %d]"
         % (np.min(samples_received), np.max(samples_received))
     )
 
