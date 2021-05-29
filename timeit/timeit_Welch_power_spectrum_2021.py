@@ -3,7 +3,7 @@
 Testing faster Welch power spectrum calculation
 
 Dennis van Gils
-24-05-2021
+29-05-2021
 """
 
 import os
