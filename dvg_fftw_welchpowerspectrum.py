@@ -214,7 +214,7 @@ class FFTW_WelchPowerSpectrum:
 
         Physics note:
         Technically, `data` should have units of power [W], hence the name
-        'power spectrum`. The output of this method will then have units of
+        'power spectrum'. The output of this method will then have units of
         [dBW]. However, if we measure a voltage, in order to calculate the
         power we should also know the impedance `Z` to get to the electrical
         power `P = V^2 / Z`. Because we don't always have access to the value
