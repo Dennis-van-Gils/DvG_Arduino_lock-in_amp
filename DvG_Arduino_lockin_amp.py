@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "24-05-2021"
+__date__ = "29-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -497,7 +497,7 @@ if __name__ == "__main__":
         if window.pc_PS_sig_I.isVisible() and state.deque_sig_I.is_full:
             window.pc_PS_sig_I.setData(
                 alia_qdev.fftw_PS_sig_I.freqs,
-                alia_qdev.fftw_PS_sig_I.compute_spectrum_dBV(state.deque_sig_I),
+                alia_qdev.fftw_PS_sig_I.compute_spectrum_dB(state.deque_sig_I),
             )
 
     def calculate_PS_filt_I():
@@ -505,7 +505,7 @@ if __name__ == "__main__":
         if window.pc_PS_filt_I.isVisible() and state.deque_filt_I.is_full:
             window.pc_PS_filt_I.setData(
                 alia_qdev.fftw_PS_filt_I.freqs,
-                alia_qdev.fftw_PS_filt_I.compute_spectrum_dBV(
+                alia_qdev.fftw_PS_filt_I.compute_spectrum_dB(
                     state.deque_filt_I
                 ),
             )
@@ -515,7 +515,7 @@ if __name__ == "__main__":
         if window.pc_PS_mix_X.isVisible() and state.deque_mix_X.is_full:
             window.pc_PS_mix_X.setData(
                 alia_qdev.fftw_PS_mix_X.freqs,
-                alia_qdev.fftw_PS_mix_X.compute_spectrum_dBV(state.deque_mix_X),
+                alia_qdev.fftw_PS_mix_X.compute_spectrum_dB(state.deque_mix_X),
             )
 
     def calculate_PS_mix_Y():
@@ -523,7 +523,7 @@ if __name__ == "__main__":
         if window.pc_PS_mix_Y.isVisible() and state.deque_mix_Y.is_full:
             window.pc_PS_mix_Y.setData(
                 alia_qdev.fftw_PS_mix_Y.freqs,
-                alia_qdev.fftw_PS_mix_Y.compute_spectrum_dBV(state.deque_mix_Y),
+                alia_qdev.fftw_PS_mix_Y.compute_spectrum_dB(state.deque_mix_Y),
             )
 
     def calculate_PS_R():
@@ -531,7 +531,7 @@ if __name__ == "__main__":
         if window.pc_PS_R.isVisible() and state.deque_R.is_full:
             window.pc_PS_R.setData(
                 alia_qdev.fftw_PS_R.freqs,
-                alia_qdev.fftw_PS_R.compute_spectrum_dBV(state.deque_R),
+                alia_qdev.fftw_PS_R.compute_spectrum_dB(state.deque_R),
             )
 
     # Special cases where the lock-in is paused: Clicking the legend checkboxes

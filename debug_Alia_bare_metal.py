@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Dennis van Gils
-28-05-2021
+29-05-2021
 """
 # pylint: disable=invalid-name, missing-function-docstring
 
@@ -325,19 +325,19 @@ if __name__ == "__main__":
         # -------------
         if TEST_POWERSPECTRA:
             if state.rb_sig_I.is_full:
-                fftw_PS_sig_I.compute_spectrum_dBV(state.rb_sig_I)
+                fftw_PS_sig_I.compute_spectrum_dB(state.rb_sig_I)
 
             if state.rb_filt_I.is_full:
-                fftw_PS_filt_I.compute_spectrum_dBV(state.rb_filt_I)
+                fftw_PS_filt_I.compute_spectrum_dB(state.rb_filt_I)
 
             if state.rb_mix_X.is_full:
-                fftw_PS_mix_X.compute_spectrum_dBV(state.rb_mix_X)
+                fftw_PS_mix_X.compute_spectrum_dB(state.rb_mix_X)
 
             if state.rb_mix_Y.is_full:
-                fftw_PS_mix_Y.compute_spectrum_dBV(state.rb_mix_Y)
+                fftw_PS_mix_Y.compute_spectrum_dB(state.rb_mix_Y)
 
             if state.rb_R.is_full:
-                fftw_PS_R.compute_spectrum_dBV(state.rb_R)
+                fftw_PS_R.compute_spectrum_dB(state.rb_R)
 
     if RUN_PYINSTRUMENT:
         profiler.stop()

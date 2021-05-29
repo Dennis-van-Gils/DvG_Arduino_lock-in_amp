@@ -59,7 +59,7 @@ def fast_10log10(data: np.ndarray) -> np.ndarray:
 
 class FFTW_WelchPowerSpectrum:
     """Manages a power-spectrum calculation on 1D time series data `data` as
-    passed to methods `compute_spectrum()` or `compute_spectrum_dBV()`.
+    passed to methods `compute_spectrum()` or `compute_spectrum_dB()`.
 
     The input data array must always be of the same length as specified by
     argument `len_data`. When the length of the passed input array is not equal
@@ -79,7 +79,7 @@ class FFTW_WelchPowerSpectrum:
     Args:
         len_data (int):
             Full length of the upcoming input array `data` passed to methods
-            `compute_spectrum()` or `compute_spectrum_dBV().
+            `compute_spectrum()` or `compute_spectrum_dB().
 
         fs (float):
             Sampling frequency of the time series data [Hz].
@@ -96,7 +96,7 @@ class FFTW_WelchPowerSpectrum:
     Attributes:
         freqs (np.ndarray):
             The frequency table in [Hz] corresponding to the power spectrum
-            output of `compute_spectrum()` and `compute_spectrum_dBV()`.
+            output of `compute_spectrum()` and `compute_spectrum_dB()`.
     """
 
     def __init__(self, len_data: int, fs: float, nperseg: int, fftw_threads=5):
@@ -153,7 +153,7 @@ class FFTW_WelchPowerSpectrum:
     def compute_spectrum(self, data: np.ndarray) -> np.ndarray:
         """Returns the power spectrum array of the passed 1D time series array
         `data`. When `data` is in units [V], the output units are [V^2]. Use
-        `compute_spectrum_dBV()` to get the equivalent power ratio in units of
+        `compute_spectrum_dB()` to get the equivalent power ratio in units of
         [dBV].
 
         Returns:
@@ -202,14 +202,14 @@ class FFTW_WelchPowerSpectrum:
         return Pxx
 
     # --------------------------------------------------------------------------
-    #   compute_spectrum_dBV
+    #   compute_spectrum_dB
     # --------------------------------------------------------------------------
 
-    def compute_spectrum_dBV(self, data: np.ndarray) -> np.ndarray:
-        """Like `compute_spectrum()`, but now output as the power ratio in [dBV]
-        assuming `data` is in units of [V].
+    def compute_spectrum_dB(self, data: np.ndarray) -> np.ndarray:
+        """Like `compute_spectrum()`, but now output as the power ratio in [dB].
+        When `data` is in units of [V], the output has units of [dBV].
 
         Returns:
-            The power spectrum array as a 1D numpy array in units of [dBV].
+            The power spectrum array as a 1D numpy array in units of [dB].
         """
         return fast_10log10(self.compute_spectrum(data))
