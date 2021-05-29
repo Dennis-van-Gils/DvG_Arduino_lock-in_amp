@@ -1,0 +1,37 @@
+Timeit: fftconvolve
+
+Conda environment:
+  /home/areno/anaconda3/envs/lia
+
+Running on...
+  node   : areno
+  system : Linux
+  release: 4.18.0-25-generic
+  version: #26~18.04.1-Ubuntu SMP Thu Jun 27 07:28:31 UTC 2019
+  machine: x86_64
+  proc   : x86_64
+  Python : 3.9.4
+
+N = 1000, REPS = 5
+
+block size = 2000
+N_blocks   = 21
+--> rb_capacity = 42000
+--> N_taps      = 40001
+
+#1  scipy.signal.fftconvolve:
+               2.106 ms
+               2.154 ms
+               2.123 ms
+               2.095 ms
+               2.102 ms
+
+#2  dvg_fftw_convolver.convolve:
+    FFTW_THREADS = 3
+               0.649 ms
+               0.640 ms
+               0.617 ms
+               0.650 ms
+               0.647 ms
+
+Times faster #1/#2: 3.40

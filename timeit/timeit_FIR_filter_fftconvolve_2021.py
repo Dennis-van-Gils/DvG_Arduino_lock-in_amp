@@ -25,7 +25,7 @@ from dvg_fftw_convolver import FFTW_Convolver_Valid1D
 TEST_SCIPY = True
 TEST_CUDA = False
 
-FFTW_THREADS = 3
+FFTW_THREADS = 2
 
 
 def test_fftw():
