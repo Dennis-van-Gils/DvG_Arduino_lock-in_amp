@@ -6,8 +6,13 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "19-05-2021"
+__date__ = "31-05-2021"
 __version__ = "2.0.0"
+
+# Quick and dirty toggle to either allow:
+# 1) SAMD21, Arduino M0 Zero Pro, with firmware v2.0 Microchip Studio
+# 2) SAMD51, Adafruit Feather M4 Express, with outdated firmware
+SAMD51 = True
 
 import sys
 import time as Time
@@ -20,7 +25,11 @@ import numpy as np
 from dvg_qdeviceio import QDeviceIO, DAQ_TRIGGER
 from dvg_pyqtgraph_threadsafe import HistoryChartCurve
 from dvg_debug_functions import dprint
-from Alia_protocol_serial import Alia, Waveform
+
+if SAMD51:
+    from Alia_protocol_serial_SAMD51 import Alia, Waveform
+else:
+    from Alia_protocol_serial import Alia, Waveform
 
 # Monkey-patch errors in pyqtgraph v0.10
 import dvg_monkeypatch_pyqtgraph as pgmp
@@ -230,7 +239,8 @@ class Alia_qdev(QDeviceIO):
         )
 
         self.create_worker_jobs(
-            jobs_function=self.jobs_function, debug=debug,
+            jobs_function=self.jobs_function,
+            debug=debug,
         )
 
     def turn_on(self):
@@ -334,7 +344,7 @@ if __name__ == "__main__":
     QtCore.QThread.currentThread().setObjectName("MAIN")  # For DEBUG info
 
     # Connect to Arduino
-    alia = Alia(baudrate=1.2e6, read_timeout=1)
+    alia = Alia(read_timeout=1)
     alia.auto_connect()
 
     if not alia.is_alive:

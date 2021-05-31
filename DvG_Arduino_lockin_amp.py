@@ -5,9 +5,14 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "29-05-2021"
+__date__ = "31-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
+
+# Quick and dirty toggle to either allow:
+# 1) SAMD21, Arduino M0 Zero Pro, with firmware v2.0 Microchip Studio
+# 2) SAMD51, Adafruit Feather M4 Express, with outdated firmware
+SAMD51 = True
 
 import os
 import sys
@@ -24,7 +29,10 @@ from dvg_pyqt_filelogger import FileLogger
 from dvg_debug_functions import dprint
 from dvg_fftw_welchpowerspectrum import FFTW_WelchPowerSpectrum
 
-from Alia_protocol_serial import Alia, Waveform
+if SAMD51:
+    from Alia_protocol_serial_SAMD51 import Alia, Waveform
+else:
+    from Alia_protocol_serial import Alia, Waveform
 from Alia_qdev import Alia_qdev
 from Alia_gui import MainWindow
 
@@ -416,19 +424,21 @@ if __name__ == "__main__":
     if DEBUG_TIMING:
         alia.tick = Time.perf_counter()
 
-    # alia.begin()
-    alia.begin(
-        freq=250,
-        V_offset=1.5,
-        V_ampl=1.417,
-        waveform=Waveform.Cosine,
-    )
+    if SAMD51:
+        alia.begin(freq=110, V_offset=1.7, V_ampl=1.414)
+    else:
+        alia.begin(
+            freq=250,
+            V_offset=1.5,
+            V_ampl=1.417,
+            waveform=Waveform.Cosine,
+        )
 
     # Create workers and threads
     alia_qdev = Alia_qdev(
         dev=alia,
         DAQ_function=lockin_DAQ_update,
-        N_blocks=21,
+        N_blocks=41 if SAMD51 else 21,
         use_CUDA=USE_CUDA,
         debug=DEBUG,
     )

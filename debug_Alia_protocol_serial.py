@@ -6,9 +6,14 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "29-05-2021"
+__date__ = "31-05-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
+
+# Quick and dirty toggle to either allow:
+# 1) SAMD21, Arduino M0 Zero Pro, with firmware v2.0 Microchip Studio
+# 2) SAMD51, Adafruit Feather M4 Express, with outdated firmware
+SAMD51 = True
 
 import os
 import sys
@@ -19,7 +24,10 @@ import psutil
 import numpy as np
 import matplotlib.pyplot as plt
 
-from Alia_protocol_serial import Alia, Waveform
+if SAMD51:
+    from Alia_protocol_serial_SAMD51 import Alia, Waveform
+else:
+    from Alia_protocol_serial import Alia, Waveform
 
 fn_log = "log.txt"
 fDrawPlot = True
@@ -29,7 +37,7 @@ if __name__ == "__main__":
     p = psutil.Process(os.getpid())
     p.nice(psutil.HIGH_PRIORITY_CLASS)
 
-    alia = Alia(baudrate=1.2e6)
+    alia = Alia()
     alia.auto_connect()
 
     if not alia.is_alive:
@@ -38,7 +46,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     alia.begin(
-        freq=2500,
+        freq=110 if SAMD51 else 2500,
         V_offset=1.65,
         V_ampl=1.65,
         waveform=Waveform.Cosine,
