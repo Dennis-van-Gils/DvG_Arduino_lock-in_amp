@@ -2,15 +2,9 @@
 
 * Investigate more numba.njit to speed up calculations
 
-* Make docstrings conform my other modules (Google hybrid style). Among others,
-  touch-up `dvg_fftw_convolver.py` and `dvg_ringbuffered_fir_filter.py`
-
 * Turn `dvg_fftw_convolver`, `dvg_ringbuffer_fir_filter` and
   `dvg_fftw_welchpowerspectrum.py` into new PyPi package called
   `dvg-signal-processing`
-  
-* Refactor `Alia_qdev` and co.: buffers should be called blocks and deque should
-  be called ring buffer
   
 * See `timeit_np_ufunc_more.py` and observe that param `out` speeds up
   calculations when using numpy.ufuncs like `np.multiply()` and `np.add()`
