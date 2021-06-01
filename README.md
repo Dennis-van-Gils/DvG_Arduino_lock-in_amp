@@ -1,5 +1,5 @@
 # DvG_Arduino_lock-in_amp
-A lock-in amplifier running on a SAMD21 (Arduino M0) or SAMD51 (Adafruit M4 Metro/Feather/ItsyBitsy Express) microcontroller board in combination with a PC running Python 3.7, confirmed to work in both Windows 10 and Ubuntu 18.04.2 (Linux).
+A lock-in amplifier running on a SAMD21 (Arduino M0) or SAMD51 (Adafruit M4 Metro/Feather/ItsyBitsy Express) microcontroller board in combination with a PC running Python 3.8 or 3.9, confirmed to work in both Windows 10 and Ubuntu 18.04.2 (Linux).
 
 The Arduino microcontroller board generates the reference signal REF_X and subsequently acquires the input signal SIG_I. This data is sent over USB to a PC running the main graphical user interface in Python. The Python program shows the waveform graphs of the signals in real-time, performs the heterodyne mixing and filtering of the signals similar to a lock-in amplifier, and provides logging to disk.
 
@@ -21,8 +21,8 @@ Current specs Python:
 - Tested under Windows 10 and Ubuntu 18.04.2 (Linux)
 
 ### Prerequisites
-Python 3.7\
-Preferred distribution: Anaconda full
+Python 3.8 or 3.9\
+Preferred distribution: Anaconda full or Miniconda
 - [PyQt5](https://www.riverbankcomputing.com/software/pyqt/intro) (comes with Anaconda)
 - [NumPy](http://www.numpy.org/) (comes with Anaconda)
 - [SciPy](http://www.scipy.org/) (comes with Anaconda)
@@ -42,7 +42,7 @@ conda install -c conda-forge --no-channel-priority -y fftw=3.3.9 pyfftw=0.12
 pip install -r requirements.txt --no-deps
 ```
 
-Precompiled firmware for an Adafruit M4 Feather Express is available at ![CURRENT.UF2](source_MCU_boards/pre-compiled_M4_feather/CURRENT.UF2).
+Precompiled firmware for an Adafruit M4 Feather Express is available at ![CURRENT.UF2](https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp/raw/master/source_MCU_boards/pre-compiled_M4_feather/CURRENT.UF2).
 You can copy over this firmware to the M4 board by using the FEATHERBOOT mount drive.
 
 ### Pin-out
@@ -52,4 +52,4 @@ A1: differential analog in, SIG_I+
 A2: differential analog in, SIG_I-
 ```
 
-###### Dennis van Gils, 08-05-2021
+###### Dennis van Gils, 01-06-2021
