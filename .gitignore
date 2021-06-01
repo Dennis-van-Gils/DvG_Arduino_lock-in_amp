@@ -1,3 +1,7 @@
+**/source_MCU_boards/.pio/
+**/source_MCU_boards/.pioenvs/
+**/source_MCU_boards/.piolibdeps/
+**/source_MCU_boards/.vscode/*
 **/__pycache__/
 .clang_complete
 .gcc-flags.json
