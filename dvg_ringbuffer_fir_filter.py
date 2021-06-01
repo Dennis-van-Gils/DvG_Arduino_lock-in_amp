@@ -47,7 +47,7 @@ known as a linear filter.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/python-dvg-signal-processing"
-__date__ = "29-05-2021"
+__date__ = "01-06-2021"
 __version__ = "1.0.0"
 # pylint: disable=invalid-name, too-many-instance-attributes, too-few-public-methods, too-many-arguments
 
@@ -438,7 +438,9 @@ class RingBuffer_FIR_Filter:
         #  Lossy compress curves for faster plotting
         # -------------------------------------------
         # Keep points on the curve with large absolute acceleration. Will in
-        # effect simplify a 'boring' region to a linear curve.
+        # effect simplify a 'boring' region to a linear curve, keeping just the
+        # begin and end points of each linear region and retaining all other
+        # `wildly` varying regions in full detail.
         dAdF_2_threshold = 1e-6
         dAdF_2 = np.abs(np.diff(ampl, 2))
         idx_keep = np.asarray(dAdF_2 > dAdF_2_threshold).nonzero()[0] + 1
