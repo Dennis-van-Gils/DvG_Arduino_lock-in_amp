@@ -1,0 +1,11 @@
+ipython=7.22.*
+pyserial=3.5.*
+pyqt=5.9.2
+pyqtgraph=0.11.0
+pyopengl=3.1.1a1
+scipy=1.6.2
+numba=0.53.1
+numpy=1.20.1
+mkl=2021.2.0
+psutil
+pip

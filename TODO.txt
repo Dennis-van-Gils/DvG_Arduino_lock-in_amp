@@ -1,0 +1,12 @@
+* Add support for HDF5 to allow writing log as binary file
+
+* Investigate more numba.njit to speed up calculations
+
+* Turn `dvg_fftw_convolver`, `dvg_ringbuffer_fir_filter` and
+  `dvg_fftw_welchpowerspectrum.py` into new PyPi package called
+  `dvg-signal-processing`
+  
+* See `timeit_np_ufunc_more.py` and observe that param `out` speeds up
+  calculations when using numpy.ufuncs like `np.multiply()` and `np.add()`
+
+* `Arduino_protocol_serial.listen_to_lockin_amp()` can be sped up by numpy ufuncs.

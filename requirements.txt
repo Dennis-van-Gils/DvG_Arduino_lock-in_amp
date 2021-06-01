@@ -1,0 +1,6 @@
+dvg-debug-functions ~= 2.1
+dvg-devices ~= 0.2
+dvg-pyqt-filelogger ~= 1.1
+dvg-qdeviceio ~= 0.4
+dvg-ringbuffer ~= 1.0
+dvg-pyqtgraph-threadsafe ~= 3.1

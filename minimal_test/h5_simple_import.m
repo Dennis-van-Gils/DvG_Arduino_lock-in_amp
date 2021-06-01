@@ -4,7 +4,7 @@ Attributes and Groups contained in the HDF5 file will be imported, not
 Links. All HDF5 Datasets will be read completely into memory.
 
 Dennis van Gils
-29-04-2019
+05-12-2019
 %}
 
 function h5_struct = h5_simple_import(filename, varargin)
@@ -25,6 +25,31 @@ function h5_struct = h5_simple_import(filename, varargin)
   Returns:
     h5_struct (struct): A structure mimicking the HDF5 structure tree.
   %}
+
+  fPrompt = 0;
+  if nargin == 0
+    fPrompt = 1;
+  else
+    if isempty(filename)
+      fPrompt = 1;
+    end
+  end
+
+  if fPrompt
+     % Prompt the user to browse to the file to read
+    [filename, pathname] = uigetfile({'*.h5'; '*.*'}, 'Select HDF5 file');
+
+    if filename == 0
+      disp('User pressed cancel.')
+      if nargout
+        h5_struct = 0;
+      end
+      return
+    else
+      filename = fullfile(pathname, filename);
+    end
+  end
+
   h5_info = h5info(filename);
   
   if nargin < 2

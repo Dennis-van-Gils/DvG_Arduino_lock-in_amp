@@ -18,7 +18,7 @@ scipy.signal.welch:
                1.382 ms
                1.386 ms
 
-DvG_FFTW_WelchPowerSpectrum:
+dvg_fftw_welchpowerspectrum:
                0.625 ms
                0.621 ms
                0.612 ms

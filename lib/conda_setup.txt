@@ -24,12 +24,12 @@ Download and install, e.g.: Anaconda3-2019.07-Windows-x86_64
 *******************************************************
 
 In Anaconda Prompt:
-> conda create -n lia -c anaconda python=3.7 numpy scipy numba pyqt cython matplotlib ipython pyserial pathlib2 psutil pyqtgraph
+> conda create -n lia -c anaconda python=3.7 numpy scipy numba pyqt cython matplotlib ipython pyserial psutil pyqtgraph
 > conda activate lia
 > conda install spyder
 > conda install h5py
 > pip install pyfftw
- 
+
 (
 Troubleshooting PyQt5 import fails:
 See folder /lib/Python3.6.8_AMD64_Qt5_dlls
@@ -38,7 +38,7 @@ Copy python3.dll and python36.dll to %USERPROFILE%\Anaconda3\envs\idp\Scripts
 
 Troubleshooting Spyder can't start kernel:
 spyder --reset
- 
+
 *******************************************************
 **
 **  4: PyOpenGL
@@ -87,6 +87,14 @@ Using Anaconda Python Distribution
 *******************************************************
 
 $ bash Anaconda3-2019.07-Linux-x86_64
+
+(
+After anaconda installation:
+$ source ~/.bashrc
+
+$ sudo chown -R <username> /home/<username>anaconda3/
+$ sudo env "PATH=$PATH" conda
+)
 
 *******************************************************
 **
@@ -139,7 +147,7 @@ In Ubuntu Software & Updates, go to tab page
 'Nouveau' to 'NVIDIA driver metapackage from
 nvidia-driver-390 (propietary, tested)'.
 
-2) 
+2)
 Download NVIDIA CUDA Toolkit:
 cuda-repo-ubuntu1804-10-1-local-10.1.168-418.67_1.0-1_amd64.deb
 Do not install yet!
@@ -195,7 +203,6 @@ $ conda install cudatoolkit
 [DO NOT] conda install numba pyculib          (NOTE: DEPRECATED. Will downgrade to Python 3.6 and break pyqt5. Use CuPy instead)
 $ pip install cupy-cuda101
 $ pip install sigpy
-
 
 
 
