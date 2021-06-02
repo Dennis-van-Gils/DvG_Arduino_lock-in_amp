@@ -9,3 +9,4 @@ mkl
 pyopengl
 psutil
 pip
+ipython
