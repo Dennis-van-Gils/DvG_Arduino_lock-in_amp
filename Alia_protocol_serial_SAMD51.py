@@ -19,7 +19,8 @@ import time as Time
 import serial
 import numpy as np
 
-from dvg_devices import Arduino_protocol_serial
+#from dvg_devices import Arduino_protocol_serial
+from dvg_devices import Arduino
 from dvg_debug_functions import dprint, print_fancy_traceback as pft
 
 
@@ -32,7 +33,8 @@ class Waveform(Enum):
     # fmt: on
 
 
-class Alia(Arduino_protocol_serial.Arduino):
+#class Alia(Arduino_protocol_serial.Arduino):
+class Alia(Arduino):
     """This class manages the serial protocol for an Arduino lock-in amplifier,
     aka `Alia`.
     """
