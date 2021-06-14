@@ -55,22 +55,12 @@ class Alia(Arduino_protocol_serial.Arduino):
     class Config:
         """Container for the hardware Arduino lock-in amplifier settings"""
 
-        """
-        def __init__(self):
-            print("Microcontroller")
-            print("───────────────\n")
-            success, ans_str = self.query("mcu?")
-            if success:
-                try:
-                    c.mcu_firmware, c.mcu_model, c.mcu_uid = ans_str.split("\t")
-                except Exception as err:
-                    pft(err)
-                    return False
-            else:
-                return False
-        """
-
         # fmt: off
+        # Microcontroller unit (mcu) info
+        mcu_firmware = None     # Firmware version
+        mcu_model    = None     # Chipset model
+        mcu_uid      = None     # Unique identifier of the chip (serial number)
+
         # Serial communication sentinels: start and end of message
         SOM = b"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80"
         EOM = b"\xff\x7f\x00\x00\xff\x7f\x00\x00\xff\x7f"
@@ -78,21 +68,20 @@ class Alia(Arduino_protocol_serial.Arduino):
         N_BYTES_EOM = len(EOM)
 
         # Data types to decode from binary streams
-        binary_type_counter   = "I"  # [uint32_t] TX_buffer header
-        binary_type_millis    = "I"  # [uint32_t] TX_buffer header
-        binary_type_micros    = "H"  # [uint16_t] TX_buffer header
-        binary_type_idx_phase = "H"  # [uint16_t] TX_buffer header
-        binary_type_sig_I     = "H"  # [uint16_t] TX_buffer body
+        binary_type_time      = None  # [Legacy]
+        binary_type_ref_X     = None  # [Legacy]
+        binary_type_sig_I     = None  # [Legacy and non-legacy]
+        binary_type_counter   = None  # [Non-legacy]
+        binary_type_millis    = None  # [Non-legacy]
+        binary_type_micros    = None  # [Non-legacy]
+        binary_type_idx_phase = None  # [Non-legacy]
+        binary_type_sig_I     = None  # [Non-legacy]
 
         # Return types
-        return_type_time   = np.float64  # Ensure signed to allow for flexible arithmetic
-        return_type_ref_XY = np.float64
-        return_type_sig_I  = np.float64
-
-        # Microcontroller unit (mcu) info
-        mcu_firmware = ""      # Firmware version
-        mcu_model    = ""      # Chipset model
-        mcu_uid      = ""      # Unique identifier of the chip (serial number)
+        return_type_time      = None  # [Legacy and non-legacy]
+        return_type_ref_X     = None  # [Legacy]
+        return_type_ref_XY    = None  # [Non-legacy]
+        return_type_sig_I     = None  # [Legacy and non-legacy]
 
         # Lock-in amplifier CONSTANTS
         SAMPLING_PERIOD   = 0  # [s]
@@ -112,6 +101,8 @@ class Alia(Arduino_protocol_serial.Arduino):
 
         # Waveform look-up table (LUT) settings
         N_LUT = 0              # Number of samples covering a full period
+
+        # [Non-legacy]
         is_LUT_dirty = False   # Is there a pending change on the LUT?
         LUT_wave = np.array([], dtype=np.uint16)
         """LUT_wave will contain a copy of the LUT array of the current
@@ -199,27 +190,60 @@ class Alia(Arduino_protocol_serial.Arduino):
         print("       UID  %s" % c.mcu_uid)
         print("")
 
+        # fmt: off
+        if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
+            # Legacy
+            c.binary_type_time      = "I"  # [uint32_t]
+            c.binary_type_ref_X     = "H"  # [uint16_t]
+            c.binary_type_sig_I     = "h"  # [int16_t]
+            c.return_type_time      = int  # Ensure signed to allow for flexible arithmetic
+            c.return_type_ref_X     = float
+            c.return_type_sig_I     = float
+        else:
+            c.binary_type_counter   = "I"  # [uint32_t] TX_buffer header
+            c.binary_type_millis    = "I"  # [uint32_t] TX_buffer header
+            c.binary_type_micros    = "H"  # [uint16_t] TX_buffer header
+            c.binary_type_idx_phase = "H"  # [uint16_t] TX_buffer header
+            c.binary_type_sig_I     = "H"  # [uint16_t] TX_buffer body
+            c.return_type_time      = np.float64
+            c.return_type_ref_XY    = np.float64
+            c.return_type_sig_I     = np.float64
+        # fmt: on
+
         print("Lock-in constants")
         print("─────────────────\n")
         success, ans_str = self.query("const?")
         if success:
             try:
                 ans_list = ans_str.split("\t")
-                # Round SAMPLING PERIOD to nanosecond resolution to
-                # prevent e.g. 1.0 being stored as 0.9999999999
-                # fmt: off
-                c.SAMPLING_PERIOD   = (round(float(ans_list[0])*1e-6, 9))
-                c.BLOCK_SIZE        = int(ans_list[1])
-                c.N_BYTES_TX_BUFFER = int(ans_list[2])
-                c.DAC_OUTPUT_BITS   = int(ans_list[3])
-                c.ADC_INPUT_BITS    = int(ans_list[4] )
-                c.A_REF             = float(ans_list[5])
-                c.MIN_N_LUT         = int(ans_list[6])
-                c.MAX_N_LUT         = int(ans_list[7])
-                # fmt: on
+                if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
+                    # fmt: off
+                    # Legacy
+                    c.SAMPLING_PERIOD   = float(ans_list[0]) * 1e-6
+                    c.BLOCK_SIZE        = int(ans_list[1])
+                    c.N_BYTES_TX_BUFFER = int(ans_list[2])
+                    c.N_LUT             = int(ans_list[3])
+                    c.DAC_OUTPUT_BITS   = int(ans_list[4])
+                    c.ADC_INPUT_BITS    = int(ans_list[5])
+                    c.A_REF             = float(ans_list[6])
+                    # fmt: on
+                else:
+                    # Round SAMPLING PERIOD to nanosecond resolution to
+                    # prevent e.g. 1.0 being stored as 0.9999999999
+                    # fmt: off
+                    c.SAMPLING_PERIOD   = (round(float(ans_list[0])*1e-6, 9))
+                    c.BLOCK_SIZE        = int(ans_list[1])
+                    c.N_BYTES_TX_BUFFER = int(ans_list[2])
+                    c.DAC_OUTPUT_BITS   = int(ans_list[3])
+                    c.ADC_INPUT_BITS    = int(ans_list[4] )
+                    c.A_REF             = float(ans_list[5])
+                    c.MIN_N_LUT         = int(ans_list[6])
+                    c.MAX_N_LUT         = int(ans_list[7])
+                    # fmt: on
+
             except Exception as err:
                 pft(err)
-                return False
+                sys.exit(1)
         else:
             return False
 
@@ -246,8 +270,12 @@ class Alia(Arduino_protocol_serial.Arduino):
         fancy("DAC output", c.DAC_OUTPUT_BITS, "{:>9d}", "bit")
         fancy("ADC input", c.ADC_INPUT_BITS, "{:>9d}", "bit")
         fancy("A_ref", c.A_REF, "{:>9.3f}", "V")
-        fancy("min N_LUT", c.MIN_N_LUT, "{:>9d}", "samples")
-        fancy("max N_LUT", c.MAX_N_LUT, "{:>9d}", "samples")
+        if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
+            # Legacy
+            pass
+        else:
+            fancy("min N_LUT", c.MIN_N_LUT, "{:>9d}", "samples")
+            fancy("max N_LUT", c.MAX_N_LUT, "{:>9d}", "samples")
 
         self.set_ref(freq, V_offset, V_ampl, waveform)
 
@@ -290,7 +318,11 @@ class Alia(Arduino_protocol_serial.Arduino):
         Returns:
             True if successful, False otherwise.
         """
-        success = self.write("_on" if reset_timer else "on")
+        if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
+            # Legacy
+            success = self.write("on")
+        else:
+            success = self.write("_on" if reset_timer else "on")
         if success:
             self.lockin_paused = False
             self.read_until_left_over_bytes = bytearray()
@@ -542,17 +574,22 @@ class Alia(Arduino_protocol_serial.Arduino):
             if not success:
                 return False
 
-        if waveform is not None:
-            success, _ans_str = self.query("_wave %i" % waveform.value)
-            if not success:
+        if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
+            # Legacy
+            if not self.query_ref():
                 return False
+        else:
+            if waveform is not None:
+                success, _ans_str = self.query("_wave %i" % waveform.value)
+                if not success:
+                    return False
 
-        if (
-            not self.compute_LUT()
-            or not self.query_LUT()
-            or not self.query_ref()
-        ):
-            return False
+            if (
+                not self.compute_LUT()
+                or not self.query_LUT()
+                or not self.query_ref()
+            ):
+                return False
 
         if not was_paused:
             self.turn_on()
@@ -706,98 +743,163 @@ class Alia(Arduino_protocol_serial.Arduino):
             )
             return failed
 
-        # fmt: off
-        ans_bytes = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM] # Remove sentinels
-        bytes_counter   = ans_bytes[0:4]    # Header
-        bytes_millis    = ans_bytes[4:8]    # Header
-        bytes_micros    = ans_bytes[8:10]   # Header
-        bytes_idx_phase = ans_bytes[10:12]  # Header
-        bytes_sig_I     = ans_bytes[12:]    # Body
-        # fmt: on
+        if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
+            # Legacy
+            # fmt: off
+            end_byte_time  = c.BLOCK_SIZE * struct.calcsize(c.binary_type_time)
+            end_byte_ref_X = end_byte_time + c.BLOCK_SIZE * struct.calcsize(
+                c.binary_type_ref_X
+            )
+            end_byte_sig_I = end_byte_ref_X + c.BLOCK_SIZE * struct.calcsize(
+                c.binary_type_sig_I
+            )
+            ans_bytes   = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM]
+            bytes_time  = ans_bytes[0:end_byte_time]
+            bytes_ref_X = ans_bytes[end_byte_time:end_byte_ref_X]
+            bytes_sig_I = ans_bytes[end_byte_ref_X:end_byte_sig_I]
+            # fmt: on
 
-        try:
-            counter = struct.unpack("<" + c.binary_type_counter, bytes_counter)
-            millis = struct.unpack("<" + c.binary_type_millis, bytes_millis)
-            micros = struct.unpack("<" + c.binary_type_micros, bytes_micros)
-            idx_phase = struct.unpack(
-                "<" + c.binary_type_idx_phase, bytes_idx_phase
+            try:
+                time = np.array(
+                    struct.unpack(
+                        "<" + c.binary_type_time * c.BLOCK_SIZE, bytes_time
+                    ),
+                    dtype=c.return_type_time,
+                )
+                ref_X_phase = np.array(
+                    struct.unpack(
+                        "<" + c.binary_type_ref_X * c.BLOCK_SIZE, bytes_ref_X
+                    ),
+                    dtype=c.return_type_ref_X,
+                )
+                sig_I = np.array(
+                    struct.unpack(
+                        "<" + c.binary_type_sig_I * c.BLOCK_SIZE, bytes_sig_I
+                    ),
+                    dtype=c.return_type_sig_I,
+                )
+            except:
+                dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
+                return failed
+
+            phi = 2 * np.pi * ref_X_phase / c.N_LUT
+
+            # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
+            """
+            if 0:
+                phase_delay_deg = 50
+                phi = np.unwrap(phi + phase_delay_deg / 180 * np.pi)
+            """
+
+            counter = np.nan
+            ref_X = (c.ref_V_offset + c.ref_V_ampl * np.cos(phi)).clip(
+                0, c.A_REF
+            )
+            ref_Y = (c.ref_V_offset + c.ref_V_ampl * np.sin(phi)).clip(
+                0, c.A_REF
+            )
+            sig_I = sig_I / (2 ** c.ADC_INPUT_BITS - 1) * c.A_REF
+            sig_I = sig_I * 2  # Compensate for differential mode of Arduino
+
+        else:
+            # fmt: off
+            ans_bytes = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM] # Remove sentinels
+            bytes_counter   = ans_bytes[0:4]    # Header
+            bytes_millis    = ans_bytes[4:8]    # Header
+            bytes_micros    = ans_bytes[8:10]   # Header
+            bytes_idx_phase = ans_bytes[10:12]  # Header
+            bytes_sig_I     = ans_bytes[12:]    # Body
+            # fmt: on
+
+            try:
+                counter = struct.unpack(
+                    "<" + c.binary_type_counter, bytes_counter
+                )
+                millis = struct.unpack("<" + c.binary_type_millis, bytes_millis)
+                micros = struct.unpack("<" + c.binary_type_micros, bytes_micros)
+                idx_phase = struct.unpack(
+                    "<" + c.binary_type_idx_phase, bytes_idx_phase
+                )
+
+                sig_I = np.array(
+                    struct.unpack(
+                        "<" + c.binary_type_sig_I * c.BLOCK_SIZE, bytes_sig_I
+                    ),
+                    dtype=c.return_type_sig_I,
+                )
+            except:
+                dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
+                return failed
+
+            # fmt: off
+            counter   = counter[0]
+            millis    = millis[0]
+            micros    = micros[0]
+            idx_phase = idx_phase[0]
+            # fmt: on
+
+            # dprint("%i %i" % (millis, micros))
+            t0 = millis * 1000 + micros
+            time = t0 + np.arange(0, c.BLOCK_SIZE) * c.SAMPLING_PERIOD * 1e6
+            time = np.asarray(time, dtype=c.return_type_time, order="C")
+
+            idxs_phase = np.arange(idx_phase, idx_phase + c.N_LUT) % c.N_LUT
+            phi = 2 * np.pi * idxs_phase / c.N_LUT
+
+            # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
+            """
+            if 0:
+                phase_delay_deg = 50
+                phi = np.unwrap(phi + phase_delay_deg / 180 * np.pi)
+            """
+
+            sig_I = sig_I * c.A_REF / (2 ** c.ADC_INPUT_BITS - 1)
+
+            if c.ref_waveform == Waveform.Cosine:
+                lut_X = 0.5 * (1 + np.cos(phi))
+                lut_Y = 0.5 * (1 + np.sin(phi))
+
+            elif c.ref_waveform == Waveform.Square:
+                lut_X = round_C_style(
+                    ((1.75 * c.N_LUT - idxs_phase) % c.N_LUT) / (c.N_LUT - 1)
+                )
+                # lut_Y = round_C_style(((1.50 * c.N_LUT - idxs_phase) % c.N_LUT) /
+                #                      (c.N_LUT - 1))
+                lut_Y = np.interp(
+                    np.arange(c.N_LUT) + c.N_LUT / 4,
+                    np.arange(c.N_LUT * 2),
+                    np.tile(lut_X, 2),
+                )
+
+            elif c.ref_waveform == Waveform.Triangle:
+                lut_X = 2 * np.abs(idxs_phase / c.N_LUT - 0.5)
+                lut_Y = 2 * np.abs(
+                    ((idxs_phase - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 0.5
+                )
+
+            elif c.ref_waveform == Waveform.Unknown:
+                lut_X = np.full(np.nan, c.N_LUT)
+                lut_Y = np.full(np.nan, c.N_LUT)
+
+            lut_X = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_X
+            lut_Y = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_Y
+            lut_X.clip(0, c.A_REF)
+            lut_Y.clip(0, c.A_REF)
+
+            ref_X_tiled = np.tile(lut_X, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
+            ref_Y_tiled = np.tile(lut_Y, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
+
+            ref_X = np.asarray(
+                ref_X_tiled[: c.BLOCK_SIZE],
+                dtype=c.return_type_ref_XY,
+                order="C",
             )
 
-            sig_I = np.array(
-                struct.unpack(
-                    "<" + c.binary_type_sig_I * c.BLOCK_SIZE, bytes_sig_I
-                ),
-                dtype=c.return_type_sig_I,
+            ref_Y = np.asarray(
+                ref_Y_tiled[: c.BLOCK_SIZE],
+                dtype=c.return_type_ref_XY,
+                order="C",
             )
-        except:
-            dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
-            return failed
-
-        # fmt: off
-        counter   = counter[0]
-        millis    = millis[0]
-        micros    = micros[0]
-        idx_phase = idx_phase[0]
-        # fmt: on
-
-        # dprint("%i %i" % (millis, micros))
-        t0 = millis * 1000 + micros
-        time = t0 + np.arange(0, c.BLOCK_SIZE) * c.SAMPLING_PERIOD * 1e6
-        time = np.asarray(time, dtype=c.return_type_time, order="C")
-
-        idxs_phase = np.arange(idx_phase, idx_phase + c.N_LUT) % c.N_LUT
-        phi = 2 * np.pi * idxs_phase / c.N_LUT
-
-        # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
-        """
-        if 0:
-            phase_delay_deg = 50
-            phi = np.unwrap(phi + phase_delay_deg / 180 * np.pi)
-        """
-
-        sig_I = sig_I * c.A_REF / (2 ** c.ADC_INPUT_BITS - 1)
-
-        if c.ref_waveform == Waveform.Cosine:
-            lut_X = 0.5 * (1 + np.cos(phi))
-            lut_Y = 0.5 * (1 + np.sin(phi))
-
-        elif c.ref_waveform == Waveform.Square:
-            lut_X = round_C_style(
-                ((1.75 * c.N_LUT - idxs_phase) % c.N_LUT) / (c.N_LUT - 1)
-            )
-            # lut_Y = round_C_style(((1.50 * c.N_LUT - idxs_phase) % c.N_LUT) /
-            #                      (c.N_LUT - 1))
-            lut_Y = np.interp(
-                np.arange(c.N_LUT) + c.N_LUT / 4,
-                np.arange(c.N_LUT * 2),
-                np.tile(lut_X, 2),
-            )
-
-        elif c.ref_waveform == Waveform.Triangle:
-            lut_X = 2 * np.abs(idxs_phase / c.N_LUT - 0.5)
-            lut_Y = 2 * np.abs(
-                ((idxs_phase - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 0.5
-            )
-
-        elif c.ref_waveform == Waveform.Unknown:
-            lut_X = np.full(np.nan, c.N_LUT)
-            lut_Y = np.full(np.nan, c.N_LUT)
-
-        lut_X = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_X
-        lut_Y = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_Y
-        lut_X.clip(0, c.A_REF)
-        lut_Y.clip(0, c.A_REF)
-
-        ref_X_tiled = np.tile(lut_X, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
-        ref_Y_tiled = np.tile(lut_Y, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
-
-        ref_X = np.asarray(
-            ref_X_tiled[: c.BLOCK_SIZE], dtype=c.return_type_ref_XY, order="C"
-        )
-
-        ref_Y = np.asarray(
-            ref_Y_tiled[: c.BLOCK_SIZE], dtype=c.return_type_ref_XY, order="C"
-        )
 
         return True, counter, time, ref_X, ref_Y, sig_I
 
