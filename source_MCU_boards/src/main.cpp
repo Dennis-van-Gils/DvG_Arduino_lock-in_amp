@@ -102,7 +102,7 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
       Both USB cables to programming port and native port
       --> Timestamp jitter +\- 4 usec
 */
-#define SERIAL_DATA_BAUDRATE 1.2e6  // Only used when '#define Ser_data Serial'
+#define SERIAL_DATA_BAUDRATE 1e6  // Only used when '#define Ser_data Serial'
 
 #if defined(ARDUINO_SAMD_ZERO)
   #define Ser_data    SerialUSB
@@ -622,7 +622,7 @@ void loop() {
 
           snprintf(str_buffer, sizeof(str_buffer), "%s\t%s\t%s\n",
                    FIRMWARE_VERSION, str_model, str_uid);
-          Ser_data.println(str_buffer);
+          Ser_data.print(str_buffer);
 
         } else if (strcmp(strCmd, "bias?") == 0) {
           #if defined (__SAMD51__)
@@ -638,7 +638,7 @@ void loop() {
             Ser_data.println(ADC0->GAINCORR.bit.GAINCORR);
           #endif
 
-        } else if (strcmp(strCmd, "config?") == 0) {
+        } else if (strcmp(strCmd, "const?") == 0) {
           Ser_data.print(ISR_CLOCK);
           Ser_data.print('\t');
           Ser_data.print(BUFFER_SIZE);
@@ -652,17 +652,24 @@ void loop() {
           Ser_data.print(ANALOG_READ_RESOLUTION);
           Ser_data.print('\t');
           Ser_data.print(A_REF);
-          Ser_data.print('\t');
-          Ser_data.print(ref_V_offset, 3);
-          Ser_data.print('\t');
-          Ser_data.print(ref_V_ampl, 3);
-          Ser_data.print('\t');
-          Ser_data.print(ref_freq, 2);
           Ser_data.print('\n');
 
           #ifdef DEBUG
             print_debug_info();
           #endif
+
+        } else if (strcmp(strCmd, "ref?") == 0 || strcmp(strCmd, "?") == 0) {
+          // Report reference signal settings
+          Ser_data.print(ref_freq, 3);
+          Ser_data.print('\t');
+          Ser_data.print(ref_V_offset, 3);
+          Ser_data.print('\t');
+          Ser_data.print(ref_V_ampl, 3);
+          Ser_data.print('\t');
+          Ser_data.print("Cosine");
+          Ser_data.print('\t');
+          Ser_data.print(N_LUT);
+          Ser_data.print('\n');
 
         } else if (strcmp(strCmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
@@ -688,18 +695,18 @@ void loop() {
             Ser_debug << "ON" << endl;
           # endif
 
-        } else if (strncmp(strCmd, "ref_freq", 8) == 0) {
+        } else if (strncmp(strCmd, "_freq", 5) == 0) {
           // Set frequency of the output reference signal [Hz]
-          ref_freq = parseFloatInString(strCmd, 8);
+          ref_freq = parseFloatInString(strCmd, 5);
           noInterrupts();
           LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
           T_period_micros_dbl = 1.0 / ref_freq * 1e6;
           interrupts();
           Ser_data.println(ref_freq, 2);
 
-        } else if (strncmp(strCmd, "ref_V_offset", 12) == 0) {
+        } else if (strncmp(strCmd, "_offs", 5) == 0) {
           // Set voltage offset of cosine reference signal [V]
-          ref_V_offset = parseFloatInString(strCmd, 12);
+          ref_V_offset = parseFloatInString(strCmd, 5);
           ref_V_offset = max(ref_V_offset, 0.0);
           ref_V_offset = min(ref_V_offset, A_REF);
           noInterrupts();
@@ -707,9 +714,9 @@ void loop() {
           interrupts();
           Ser_data.println(ref_V_offset, 3);
 
-        } else if (strncmp(strCmd, "ref_V_ampl", 10) == 0) {
+        } else if (strncmp(strCmd, "_ampl", 5) == 0) {
           // Set voltage amplitude of cosine reference signal [V]
-          ref_V_ampl = parseFloatInString(strCmd, 10);
+          ref_V_ampl = parseFloatInString(strCmd, 5);
           ref_V_ampl = max(ref_V_ampl, 0.0);
           ref_V_ampl = min(ref_V_ampl, A_REF);
           noInterrupts();
