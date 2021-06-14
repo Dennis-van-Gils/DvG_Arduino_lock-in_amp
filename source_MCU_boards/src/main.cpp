@@ -102,7 +102,7 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
       Both USB cables to programming port and native port
       --> Timestamp jitter +\- 4 usec
 */
-#define SERIAL_DATA_BAUDRATE 1e6  // Only used when '#define Ser_data Serial'
+#define SERIAL_DATA_BAUDRATE 1.2e6  // Only used when '#define Ser_data Serial'
 
 #if defined(ARDUINO_SAMD_ZERO)
   #define Ser_data    SerialUSB
