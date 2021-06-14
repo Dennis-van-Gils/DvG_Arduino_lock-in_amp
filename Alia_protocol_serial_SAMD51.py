@@ -84,7 +84,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         name="Alia",
         long_name="Arduino lock-in amplifier",
         connect_to_specific_ID="Alia",
-        baudrate=1e6,
+        baudrate=1.2e6,
         read_timeout=1,
         write_timeout=1,
     ):
