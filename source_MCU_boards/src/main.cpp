@@ -30,12 +30,14 @@ proper bindings to strncmpi
 "C_Cpp.intelliSenseEngineFallback": "Disabled"
 
 Dennis van Gils
-26-04-2019
+14-06-2021
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
 #include "DvG_SerialCommand.h"
 #include "Streaming.h"
+
+#define FIRMWARE_VERSION "ALIA v0.2.0 VSCODE"
 
 #if defined(__SAMD21G18A__) || \
     defined(__SAMD21E18A__)
@@ -171,6 +173,9 @@ volatile bool fSend_buffer_B = false;
   #define ANALOG_WRITE_RESOLUTION 12  // [bits] DAC
 #endif
 #define ANALOG_READ_RESOLUTION 12     // [bits] ADC
+
+// Microcontroller unit (mcu) unique identifier (uid) number
+uint8_t mcu_uid[16];
 
 /*------------------------------------------------------------------------------
     Cosine wave look-up table (LUT)
@@ -378,51 +383,38 @@ void isr_psd() {
 /*------------------------------------------------------------------------------
     mcu_get_uid
 ------------------------------------------------------------------------------*/
-#define MCU_UID_LENGTH 16
 
-void get_mcu_uid(uint8_t raw_uid[MCU_UID_LENGTH]) {
-  // Return the uid (serial number) of the microcontroller as a byte array.
-  // Mashed up from:
-  // https://github.com/adafruit/circuitpython/blob/master/ports/atmel-samd/common-hal/microcontroller/Processor.c
-  // https://github.com/adafruit/circuitpython/blob/master/shared-bindings/microcontroller/Processor.c
+void get_mcu_uid(uint8_t raw_uid[16]) {
+  // Return the 128-bits uid (serial number) of the micro controller as a byte
+  // array
 
-  #ifdef __SAMD21__
-  uint32_t* id_addresses[4] = {
-    (uint32_t *) 0x0080A00C, (uint32_t *) 0x0080A040,
-    (uint32_t *) 0x0080A044, (uint32_t *) 0x0080A048};
+  #ifdef _SAMD21_
+    // SAMD21 from section 9.3.3 of the datasheet
+	  #define SERIAL_NUMBER_WORD_0	*(volatile uint32_t*)(0x0080A00C)
+	  #define SERIAL_NUMBER_WORD_1	*(volatile uint32_t*)(0x0080A040)
+	  #define SERIAL_NUMBER_WORD_2	*(volatile uint32_t*)(0x0080A044)
+	  #define SERIAL_NUMBER_WORD_3	*(volatile uint32_t*)(0x0080A048)
   #endif
-  #ifdef __SAMD51__
-  uint32_t* id_addresses[4] = {
-    (uint32_t *) 0x008061FC, (uint32_t *) 0x00806010,
-    (uint32_t *) 0x00806014, (uint32_t *) 0x00806018};
+  #ifdef _SAMD51_
+    // SAMD51 from section 9.6 of the datasheet
+    #define SERIAL_NUMBER_WORD_0	*(volatile uint32_t*)(0x008061FC)
+    #define SERIAL_NUMBER_WORD_1	*(volatile uint32_t*)(0x00806010)
+    #define SERIAL_NUMBER_WORD_2	*(volatile uint32_t*)(0x00806014)
+    #define SERIAL_NUMBER_WORD_3	*(volatile uint32_t*)(0x00806018)
   #endif
 
-  for (int i = 0; i < 4; i++) {
-    for (int k = 0; k < 4; k++) {
-      raw_uid[4 * i + k] = (*(id_addresses[i]) >> k * 8) & 0xff;
-    }
-  }
-}
+  uint32_t pdwUniqueID[4];
+	pdwUniqueID[0] = SERIAL_NUMBER_WORD_0;
+	pdwUniqueID[1] = SERIAL_NUMBER_WORD_1;
+	pdwUniqueID[2] = SERIAL_NUMBER_WORD_2;
+	pdwUniqueID[3] = SERIAL_NUMBER_WORD_3;
 
-void print_hex_8(Stream& mySerial, uint8_t *data, uint8_t length) {
-  // Format 8-bit data to hex, while preserving leading 0's per uint8_t.
-  // Source: https://forum.arduino.cc/index.php?topic=38107.msg282342#msg282342
-  char tmp[length * 2 + 1];
-  byte b1;
-  byte b2;
-  for (int i = 0; i < length; i++) {
-    b1 = (data[i] >> 4) & 0x0f;
-    b2 = data[i] & 0x0f;
-    // Base for converting single digit numbers to ASCII is 48
-    // Base for 10-16 to become lower-case characters a-f is 87
-    // Note: difference is 39
-    tmp[i * 2]     = b1 + 48;
-    tmp[i * 2 + 1] = b2 + 48;
-    if (b1 > 9) tmp[i * 2]     += 39;
-    if (b2 > 9) tmp[i * 2 + 1] += 39;
-  }
-  tmp[length * 2] = 0;
-  mySerial.println(tmp);
+	for (int i = 0; i < 4; i++) {
+		raw_uid[i*4+0] = (uint8_t)(pdwUniqueID[i] >> 24);
+		raw_uid[i*4+1] = (uint8_t)(pdwUniqueID[i] >> 16);
+		raw_uid[i*4+2] = (uint8_t)(pdwUniqueID[i] >> 8);
+		raw_uid[i*4+3] = (uint8_t)(pdwUniqueID[i] >> 0);
+	}
 }
 
 /*------------------------------------------------------------------------------
@@ -443,6 +435,9 @@ void setup() {
   #else
     Ser_data.begin(9600);
   #endif
+
+  // Microcontroller unit (MCU) unique identifier (uid) number
+  get_mcu_uid(mcu_uid);
 
   // Use built-in LED to signal running state of lock-in amp
   pinMode(PIN_LED, OUTPUT);
@@ -594,33 +589,42 @@ void loop() {
         // -------------------
         strCmd = sc_data.getCmd();
 
-        if (strcmpi(strCmd, "id?") == 0) {
-          // Reply identity string
-          Ser_data.println("Arduino lock-in amp");
+        if (strcmp(strCmd, "id?") == 0) {
+          // Report identity string
+          Ser_data.println("Arduino, Alia");
 
-        } else if (strcmpi(strCmd, "mcu?") == 0) {
-          // Reply microcontroller type string
-          #if defined(__SAMD21G18A__)
-            Ser_data.println("SAMD21G18A");
-          #elif defined(__SAMD21E18A__)
-            Ser_data.println("SAMD21E18A");
-          #elif defined(__SAMD51P20A__)
-            Ser_data.println("SAMD51P20A");
-          #elif defined(__SAMD51J19A__)
-            Ser_data.println("SAMD51J19A");
-          #elif defined(__SAMD51G19A__)
-            Ser_data.println("SAMD51G19A");
-          #else
-            Ser_data.println("unknown MCU");
-          #endif
+        } else if (strcmp(strCmd, "mcu?") == 0) {
+          // Report microcontroller model, serial and firmware
+          char str_buffer[96];
+          char str_model[12];
+          char str_uid[33];
 
-        } else if (strcmpi(strCmd, "mcu_uid?") == 0) {
-          // Reply microcontroller unique identifier (serial) number
-          uint8_t mcu_uid[MCU_UID_LENGTH];
-          get_mcu_uid(mcu_uid);
-          print_hex_8(Ser_data, mcu_uid, MCU_UID_LENGTH);
-         
-        } else if (strcmpi(strCmd, "bias?") == 0) {
+          snprintf(str_model, sizeof(str_model),
+            #if defined(__SAMD21G18A__)
+              "SAMD21G18A"
+            #elif defined(__SAMD21E18A__)
+              "SAMD21E18A"
+            #elif defined(__SAMD51P20A__)
+              "SAMD51P20A"
+            #elif defined(__SAMD51J19A__)
+              "SAMD51J19A"
+            #elif defined(__SAMD51G19A__)
+              "SAMD51G19A"
+            #else
+              "unknown MCU");
+            #endif
+          );
+
+          // Format the uid byte-array to hex representation
+          str_uid[32] = 0;
+          for (uint8_t j = 0; j < 16; j++)
+          sprintf(&str_uid[2*j], "%02X", mcu_uid[j]);
+
+          snprintf(str_buffer, sizeof(str_buffer), "%s\t%s\t%s\n",
+                   FIRMWARE_VERSION, str_model, str_uid);
+          Ser_data.println(str_buffer);
+
+        } else if (strcmp(strCmd, "bias?") == 0) {
           #if defined (__SAMD51__)
             Ser_data.println(NVM_ADC0_BIASCOMP);
             Ser_data.println(NVM_ADC0_BIASREFBUF);
@@ -634,7 +638,7 @@ void loop() {
             Ser_data.println(ADC0->GAINCORR.bit.GAINCORR);
           #endif
 
-        } else if (strcmpi(strCmd, "config?") == 0) {
+        } else if (strcmp(strCmd, "config?") == 0) {
           Ser_data.print(ISR_CLOCK);
           Ser_data.print('\t');
           Ser_data.print(BUFFER_SIZE);
@@ -660,7 +664,7 @@ void loop() {
             print_debug_info();
           #endif
 
-        } else if (strcmpi(strCmd, "off") == 0) {
+        } else if (strcmp(strCmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
           Ser_data.print("already_off\n");
 
@@ -668,7 +672,7 @@ void loop() {
             Ser_debug << "Already OFF" << endl;
           # endif
 
-        } else if (strcmpi(strCmd, "on") == 0) {
+        } else if (strcmp(strCmd, "on") == 0) {
           // Start lock-in amp
           noInterrupts();
           fRunning = true;
@@ -684,7 +688,7 @@ void loop() {
             Ser_debug << "ON" << endl;
           # endif
 
-        } else if (strncmpi(strCmd, "ref_freq", 8) == 0) {
+        } else if (strncmp(strCmd, "ref_freq", 8) == 0) {
           // Set frequency of the output reference signal [Hz]
           ref_freq = parseFloatInString(strCmd, 8);
           noInterrupts();
@@ -693,7 +697,7 @@ void loop() {
           interrupts();
           Ser_data.println(ref_freq, 2);
 
-        } else if (strncmpi(strCmd, "ref_V_offset", 12) == 0) {
+        } else if (strncmp(strCmd, "ref_V_offset", 12) == 0) {
           // Set voltage offset of cosine reference signal [V]
           ref_V_offset = parseFloatInString(strCmd, 12);
           ref_V_offset = max(ref_V_offset, 0.0);
@@ -703,7 +707,7 @@ void loop() {
           interrupts();
           Ser_data.println(ref_V_offset, 3);
 
-        } else if (strncmpi(strCmd, "ref_V_ampl", 10) == 0) {
+        } else if (strncmp(strCmd, "ref_V_ampl", 10) == 0) {
           // Set voltage amplitude of cosine reference signal [V]
           ref_V_ampl = parseFloatInString(strCmd, 10);
           ref_V_ampl = max(ref_V_ampl, 0.0);
