@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "23-05-2021"
+__date__ = "14-06-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -53,6 +53,23 @@ class Alia(Arduino_protocol_serial.Arduino):
     """
 
     class Config:
+        """Container for the hardware Arduino lock-in amplifier settings"""
+
+        """
+        def __init__(self):
+            print("Microcontroller")
+            print("───────────────\n")
+            success, ans_str = self.query("mcu?")
+            if success:
+                try:
+                    c.mcu_firmware, c.mcu_model, c.mcu_uid = ans_str.split("\t")
+                except Exception as err:
+                    pft(err)
+                    return False
+            else:
+                return False
+        """
+
         # fmt: off
         # Serial communication sentinels: start and end of message
         SOM = b"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80"
@@ -149,7 +166,8 @@ class Alia(Arduino_protocol_serial.Arduino):
         V_ampl: Optional[float] = None,
         waveform: Optional[Waveform] = None,
     ) -> bool:
-        """Prepare the lock-in amp for operation. The default startup state is
+        """Determine the chipset and firmware of the Arduino lock-in amp and
+        prepare the lock-in amp for operation. The default startup state is
         off. If the optional parameters `freq`, `V_offset`, `V_ampl` or
         `ref_waveform` are not passed, the pre-existing values known to the
         Arduino will be used instead, i.e. it will pick up where it left.
@@ -806,7 +824,8 @@ if __name__ == "__main__":
         sys.exit(0)
 
     alia.begin(
-        freq=220, waveform=Waveform.Cosine,
+        freq=220,
+        waveform=Waveform.Cosine,
     )
     # alia.begin()
     alia.turn_on(reset_timer=True)

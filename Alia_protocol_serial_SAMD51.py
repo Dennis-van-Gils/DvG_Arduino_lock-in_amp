@@ -83,7 +83,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         self,
         name="Alia",
         long_name="Arduino lock-in amplifier",
-        connect_to_specific_ID=None,
+        connect_to_specific_ID="Alia",
         baudrate=1e6,
         read_timeout=1,
         write_timeout=1,
@@ -92,13 +92,6 @@ class Alia(Arduino_protocol_serial.Arduino):
             name=name,
             long_name=long_name,
             connect_to_specific_ID=connect_to_specific_ID,
-        )
-
-        # Hack to provide legacy support
-        self.set_ID_validation_query(
-            ID_validation_query=self.ID_validation_query,
-            valid_ID_broad="Arduino lock-in amp",
-            valid_ID_specific=None,
         )
 
         self.serial_settings = {
