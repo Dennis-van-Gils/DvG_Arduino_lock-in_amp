@@ -20,4 +20,6 @@
 * For the SSD practicum a less steep filter is asked for --> Reduce `N_blocks`,
   hence reducing `N_taps`.
   
-* Turn the quick-and-dirty boolean `SAMD51` into a command line argument.
+* Check for the alpha-version hardware firmware (i.e. the current
+  `SSD practicum` firmware) and notify the user to flash to the
+  latest firmware first in order to continue the main Python program.
