@@ -15,7 +15,7 @@ TODO: implement https://github.com/mpflaga/Arduino-MemoryFree
 #include <hpl_tcc_config.h>
 #include "DvG_serial_command_listener.h"
 
-#define FIRMWARE_VERSION "ALIA v0.2.0"
+#define FIRMWARE_VERSION "ALIA v1.0.0 MICROCHIPSTUDIO"
 #define VARIANT_MCK (48000000ul)     // Master clock frequency
 
 volatile bool is_running = false;    // Is the lock-in amplifier running?
