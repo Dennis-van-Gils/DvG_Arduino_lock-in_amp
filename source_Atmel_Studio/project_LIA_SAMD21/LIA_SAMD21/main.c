@@ -145,7 +145,7 @@ static uint8_t TX_buffer_B[N_BYTES_TX_BUFFER] = {};
 #define TX_BUFFER_OFFSET_SIG_I   (TX_BUFFER_OFFSET_PHASE   + N_BYTES_PHASE)
 
 // Outgoing serial string
-#define MAXLEN_STR_BUFFER 64
+#define MAXLEN_STR_BUFFER 96
 char str_buffer[MAXLEN_STR_BUFFER];
 char usb_buffer[MAXLEN_STR_BUFFER];
 struct io_descriptor* io;
@@ -276,53 +276,37 @@ static void cb_USART_err(const struct usart_async_descriptor *const io_descr) {
 ------------------------------------------------------------------------------*/
 
 void get_mcu_uid(uint8_t raw_uid[16]) {
-    // Return the 128-bits uid (serial number) of the micro controller as a byte
-    // array. Mashed up from:
-    // https://github.com/adafruit/circuitpython/blob/master/ports/atmel-samd/common-hal/microcontroller/Processor.c
-    // https://github.com/adafruit/circuitpython/blob/master/shared-bindings/microcontroller/Processor.c
+	// Return the 128-bits uid (serial number) of the micro controller as a byte
+	// array
 
-  #ifdef _SAMD21_
-    uint32_t* id_addr[4] = {(uint32_t *) 0x0080A00C, (uint32_t *) 0x0080A040,
-                            (uint32_t *) 0x0080A044, (uint32_t *) 0x0080A048};
-  #endif
-  #ifdef _SAMD51_
-    uint32_t* id_addr[4] = {(uint32_t *) 0x008061FC, (uint32_t *) 0x00806010,
-                            (uint32_t *) 0x00806014, (uint32_t *) 0x00806018};
-  #endif
+	#ifdef _SAMD21_
+	// SAMD21 from section 9.3.3 of the datasheet
+	#define SERIAL_NUMBER_WORD_0	*(volatile uint32_t*)(0x0080A00C)
+	#define SERIAL_NUMBER_WORD_1	*(volatile uint32_t*)(0x0080A040)
+	#define SERIAL_NUMBER_WORD_2	*(volatile uint32_t*)(0x0080A044)
+	#define SERIAL_NUMBER_WORD_3	*(volatile uint32_t*)(0x0080A048)
+	#endif
+	#ifdef _SAMD51_
+	// SAMD51 from section 9.6 of the datasheet
+	#define SERIAL_NUMBER_WORD_0	*(volatile uint32_t*)(0x008061FC)
+	#define SERIAL_NUMBER_WORD_1	*(volatile uint32_t*)(0x00806010)
+	#define SERIAL_NUMBER_WORD_2	*(volatile uint32_t*)(0x00806014)
+	#define SERIAL_NUMBER_WORD_3	*(volatile uint32_t*)(0x00806018)
+	#endif
 
-    for (int i = 0; i < 4; i++) {
-        for (int k = 0; k < 4; k++) {
-            raw_uid[4 * i + k] = (*(id_addr[i]) >> k * 8) & 0xff;
-        }
-    }
+	uint32_t pdwUniqueID[4];
+	pdwUniqueID[0] = SERIAL_NUMBER_WORD_0;
+	pdwUniqueID[1] = SERIAL_NUMBER_WORD_1;
+	pdwUniqueID[2] = SERIAL_NUMBER_WORD_2;
+	pdwUniqueID[3] = SERIAL_NUMBER_WORD_3;
+
+	for (int i = 0; i < 4; i++) {
+		raw_uid[i*4+0] = (uint8_t)(pdwUniqueID[i] >> 24);
+		raw_uid[i*4+1] = (uint8_t)(pdwUniqueID[i] >> 16);
+		raw_uid[i*4+2] = (uint8_t)(pdwUniqueID[i] >> 8);
+		raw_uid[i*4+3] = (uint8_t)(pdwUniqueID[i] >> 0);
+	}
 }
-
-void format_byte_array_as_hex8string(char *str_out,
-                                     uint8_t str_maxlen,
-                                     const uint8_t *byte_array) {
-    // Format a byte array to a C-string containing the hex representation,
-    // preserving leading 0's per uint8_t.
-    // Source: https://forum.arduino.cc/index.php?topic=38107.msg282342#msg282342
-    uint8_t n_bytes = sizeof(byte_array);
-    uint8_t str_len = min(2 * n_bytes + 1, str_maxlen);
-    uint8_t i_max = (uint8_t) floor(str_len - 1) / 2;
-
-    char b1;
-    char b2;
-    for (int i = 0; i < i_max; i++) {
-        b1 = (byte_array[i] >> 4) & 0x0f;
-        b2 = byte_array[i] & 0x0f;
-        // Base for converting single digit numbers to ASCII is 48
-        // Base for 10-16 to become lower-case characters a-f is 87
-        // Note: difference is 39
-        str_out[i * 2]     = b1 + 48;
-        str_out[i * 2 + 1] = b2 + 48;
-        if (b1 > 9) str_out[i * 2]     += 39;
-        if (b2 > 9) str_out[i * 2 + 1] += 39;
-    }
-    str_out[str_len - 1] = 0; // C-string termination character
-}
-
 
 
 /*------------------------------------------------------------------------------
@@ -760,7 +744,7 @@ int main(void) {
                     } else if (strcmp(str_cmd, "mcu?") == 0) {
                         // Report microcontroller model, serial and firmware
                         char str_model[12];
-                        char str_uid[9];
+                        char str_uid[33];
 
                         snprintf(str_model, sizeof(str_model),
                                  #if defined(__SAMD21G18A__)
@@ -777,9 +761,12 @@ int main(void) {
                                  "unknown MCU"
                                  #endif
                                  );
-                        format_byte_array_as_hex8string(str_uid,
-                                                        sizeof(str_uid),
-                                                        mcu_uid);
+
+						// Format the uid byte-array to hex representation
+						str_uid[32] = 0;
+						for (uint8_t j = 0; j < 16; j++)
+						sprintf(&str_uid[2*j], "%02X", mcu_uid[j]);
+
                         snprintf(str_buffer, MAXLEN_STR_BUFFER, "%s\t%s\t%s\n",
                                  FIRMWARE_VERSION, str_model, str_uid);
                         io_print(str_buffer);
