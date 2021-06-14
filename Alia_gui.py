@@ -5,14 +5,9 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "02-06-2021"
+__date__ = "14-06-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
-
-# Quick and dirty toggle to either allow:
-# 1) SAMD21, Arduino M0 Zero Pro, with firmware v2.0 Microchip Studio
-# 2) SAMD51, Adafruit Feather M4 Express, with outdated firmware
-SAMD51 = True
 
 import os
 import time as Time
@@ -518,7 +513,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(
             QtWid.QLabel(
                 "Input: sig_I\n" "  [-3.3, 3.3] V\n" "  pin A1(+), A2(-)"
-                if SAMD51
+                if self.alia.config.mcu_firmware == "ALIA v0.2.0 VSCODE"
                 else "Input: sig_I\n"
                 "  [ 0.0, %.1f] V\n"
                 "  pin A1 wrt GND" % alia.config.A_REF,

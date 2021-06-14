@@ -7,14 +7,9 @@ specific firmware to turn it into a lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "02-06-2021"
+__date__ = "14-06-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
-
-# Quick and dirty toggle to either allow:
-# 1) SAMD21, Arduino M0 Zero Pro, with firmware v2.0 Microchip Studio
-# 2) SAMD51, Adafruit Feather M4 Express, with outdated firmware
-SAMD51 = True
 
 import numpy as np
 from PyQt5 import QtCore
@@ -232,7 +227,9 @@ class Alia_qdev(QDeviceIO):
             Fs=dev.config.Fs,
             block_size=self.state.block_size,
             N_blocks=self.state.N_blocks,
-            firwin_cutoff=[1, 49, 51, 99, 101, 149, 151] if SAMD51 else [2],
+            firwin_cutoff=[1, 49, 51, 99, 101, 149, 151]
+            if dev.config.mcu_firmware == "ALIA v0.2.0 VSCODE"
+            else [2],
             firwin_window="blackmanharris",
             firwin_pass_zero=False,
             use_CUDA=use_CUDA,
