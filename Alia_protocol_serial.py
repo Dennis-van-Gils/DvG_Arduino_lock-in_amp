@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "14-06-2021"
+__date__ = "15-06-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -854,6 +854,9 @@ class Alia(Arduino_protocol_serial.Arduino):
             """
 
             sig_I = sig_I * c.A_REF / (2 ** c.ADC_INPUT_BITS - 1)
+            if c.mcu_model[:6] == "SAMD51":
+                # Compensate for differential mode of Arduino
+                sig_I *= 2
 
             if c.ref_waveform == Waveform.Cosine:
                 lut_X = 0.5 * (1 + np.cos(phi))
