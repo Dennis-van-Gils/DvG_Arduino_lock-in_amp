@@ -23,6 +23,9 @@ volatile bool is_serial_txc = false; // Is serial data sent out?
 volatile bool is_serial_rxc = false; // Is serial data received?
 volatile uint32_t millis = 0;        // Updated by SysTick, once every 1 ms
 
+// Microcontroller unit (mcu) unique identifier (uid) number
+uint8_t mcu_uid[16];
+
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
 // 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
 #define FOREACH_WAVEFORM(WAVEFORM) \
@@ -41,7 +44,11 @@ static const char *WAVEFORM_STRING[] = {
     FOREACH_WAVEFORM(GENERATE_STRING)
 };
 
-// LIA output reference signal parameters
+/*------------------------------------------------------------------------------
+    Waveform look-up table (LUT)
+------------------------------------------------------------------------------*/
+
+// Output reference signal parameters
 enum WAVEFORM_ENUM ref_waveform = Cosine;
 double ref_freq;    // [Hz] Obtained frequency of reference signal
 double ref_offs;    // [V]  Obtained voltage offset of reference signal
@@ -63,12 +70,6 @@ bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
   #define DAC_OUTPUT_BITS 12
 #endif
 #define MAX_DAC_OUTPUT_BITVAL ((uint16_t) (pow(2, DAC_OUTPUT_BITS) - 1))
-
-// The number of samples to acquire by the ADC and to subsequently send out
-// over serial as a single block of data
-//#define BLOCK_SIZE 2500     // 2500 [# samples], where 1 sample takes up 16 bits
-//#define BLOCK_SIZE 500     // 2500 [# samples], where 1 sample takes up 16 bits
-#define BLOCK_SIZE 2000      // 2500 [# samples], where 1 sample takes up 16 bits
 
 /*------------------------------------------------------------------------------
     TIMER_0
@@ -102,6 +103,10 @@ const double SAMPLING_RATE_Hz = (double) CONF_GCLK_TCC0_FREQUENCY /
 /*------------------------------------------------------------------------------
     Double buffer: TX_buffer_A & TX_buffer_B
 ------------------------------------------------------------------------------*/
+
+// The number of samples to acquire by the ADC and to subsequently send out
+// over serial as a single block of data
+#define BLOCK_SIZE 2000      // [# samples], where 1 sample takes up 16 bits
 
 // Serial transmission sentinels: start and end of message
 const char SOM[] = {0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80};
@@ -149,9 +154,6 @@ static uint8_t TX_buffer_B[N_BYTES_TX_BUFFER] = {};
 char str_buffer[MAXLEN_STR_BUFFER];
 char usb_buffer[MAXLEN_STR_BUFFER];
 struct io_descriptor* io;
-
-// Microcontroller unit (mcu) unique identifier (uid) number
-uint8_t mcu_uid[16];
 
 /*
 void memset32(void *dest, uint32_t value, uintptr_t size) {
