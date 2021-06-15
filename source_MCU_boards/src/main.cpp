@@ -80,7 +80,7 @@ double ref_ampl;  // [V]  Voltage amplitude reference signal
 
 // Look-up table (LUT) for fast DAC
 #define MIN_N_LUT 20       // Min. allowed number of samples for one full period
-#define MAX_N_LUT 9000     // Max. allowed number of samples for one full period
+#define MAX_N_LUT 1000     // Max. allowed number of samples for one full period
 uint16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
 uint16_t N_LUT;            // Current number of samples for one full period
 bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
@@ -132,7 +132,7 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
 //      min.  40 usec for only writing A0, no serial
 //      min.  50 usec for writing A0 and reading A1, no serial
 //      min.  80 usec for writing A0 and reading A1, with serial
-#define SAMPLING_PERIOD_us 200
+#define SAMPLING_PERIOD_us 100
 const double SAMPLING_RATE_Hz = (double) 1.0e6 / SAMPLING_PERIOD_us;
 
 /*------------------------------------------------------------------------------
@@ -145,7 +145,7 @@ const double SAMPLING_RATE_Hz = (double) 1.0e6 / SAMPLING_PERIOD_us;
 
 // The number of samples to acquire by the ADC and to subsequently send out
 // over serial as a single block of data
-#define BLOCK_SIZE 500   // [# samples], where 1 sample takes up 16 bits
+#define BLOCK_SIZE 1000   // [# samples], where 1 sample takes up 16 bits
 
 /* Tested settings Arduino M0 Pro (legacy notes)
 Case A: Turbo and stable on computer Onera, while only graphing and logging in
@@ -192,8 +192,8 @@ to be transmitted by DMAC
 
 volatile uint32_t TX_buffer_counter = 0;
 volatile bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
-static uint8_t TX_buffer_A[N_BYTES_TX_BUFFER] = {};
-static uint8_t TX_buffer_B[N_BYTES_TX_BUFFER] = {};
+static uint8_t TX_buffer_A[N_BYTES_TX_BUFFER] = {0};
+static uint8_t TX_buffer_B[N_BYTES_TX_BUFFER] = {0};
 volatile bool trigger_send_TX_buffer_A = false;
 volatile bool trigger_send_TX_buffer_B = false;
 
@@ -512,14 +512,19 @@ void isr_psd() {
   #endif
 
   // Store in buffers
-  if (using_TX_buffer_A) {
-    TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
-    TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
-  } else {
-    TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
-    TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
-  }
-  write_idx++;
+  //if (is_starting_up) {
+  //  is_starting_up = false;
+  //  write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A);
+  //} else {
+    if (using_TX_buffer_A) {
+      TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
+      TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
+    } else {
+      TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
+      TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
+    }
+    write_idx++;
+  //}
 
   // Output reference signal
   ref_X = LUT_wave[LUT_idx];
@@ -626,8 +631,13 @@ void setup() {
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, is_running);
 
-  // DEBUG: Trigger a dropped buffer by push-button on pin 5
-  //pinMode(5, INPUT_PULLUP);
+  // Prepare SOM and EOM
+  noInterrupts(); // Somehow, this is important. Otherwise, it won't store `sig_I` properly
+  memcpy(TX_buffer_A                         , SOM, N_BYTES_SOM);
+  memcpy(&TX_buffer_A[N_BYTES_TX_BUFFER - 10], EOM, N_BYTES_EOM);
+  memcpy(TX_buffer_B                         , SOM, N_BYTES_SOM);
+  memcpy(&TX_buffer_B[N_BYTES_TX_BUFFER - 10], EOM, N_BYTES_EOM);
+  interrupts();
 
   // DAC
   analogWriteResolution(DAC_OUTPUT_BITS);
@@ -959,19 +969,15 @@ void loop() {
 
   // Send buffers over the data channel
   if (is_running && (trigger_send_TX_buffer_A || trigger_send_TX_buffer_B)) {
-
-    // DEV NOTE TODO: SOM and EOM copy should better happen only once during
-    // init, not for every TX_buffer send.
+    /*
+    // DEBUG
     if (trigger_send_TX_buffer_A) {
-      memcpy(TX_buffer_A                         , SOM, N_BYTES_SOM);
-      memcpy(&TX_buffer_A[N_BYTES_TX_BUFFER - 10], EOM, N_BYTES_EOM);
-      //Ser_data.println("\nTX_buffer_A");
+      Ser_data.println("\nTX_buffer_A");
     } else {
-      memcpy(TX_buffer_B                         , SOM, N_BYTES_SOM);
-      memcpy(&TX_buffer_B[N_BYTES_TX_BUFFER - 10], EOM, N_BYTES_EOM);
-      //Ser_data.println("\nTX_buffer_B");
+      Ser_data.println("\nTX_buffer_B");
     }
-    //Ser_data.println(TX_buffer_counter);
+    Ser_data.println(TX_buffer_counter);
+    */
 
     // DEBUG: Trigger a dropped buffer by push-button on pin 5
     //if (digitalRead(5) == HIGH) {
