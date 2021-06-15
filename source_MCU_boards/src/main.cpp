@@ -451,11 +451,6 @@ void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
     TX_buffer[TX_BUFFER_OFFSET_PHASE   + 1] = LUT_idx >> 8;
 }
 
-#ifdef DEBUG
-  volatile uint16_t N_buffers_scheduled_to_be_sent = 0;
-  uint16_t N_sent_buffers = 0;
-#endif
-
 void isr_psd() {
   static bool is_running_prev = is_running;
   static bool is_starting_up = true;
@@ -517,16 +512,14 @@ void isr_psd() {
   #endif
 
   // Store in buffers
-  //if (!is_starting_up) {
-    if (using_TX_buffer_A) {
-      TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
-      TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
-    } else {
-      TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
-      TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
-    }
-    write_idx++;
-  //}
+  if (using_TX_buffer_A) {
+    TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
+    TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
+  } else {
+    TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
+    TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
+  }
+  write_idx++;
 
   // Output reference signal
   ref_X = LUT_wave[LUT_idx];
@@ -540,10 +533,6 @@ void isr_psd() {
 
   // Ready to send the buffer?
   if (write_idx == BLOCK_SIZE) {
-    #ifdef DEBUG
-      N_buffers_scheduled_to_be_sent++;
-    #endif
-
     if (using_TX_buffer_A) {
       trigger_send_TX_buffer_A = true;
       write_time_and_phase_stamp_to_TX_buffer(TX_buffer_B);
@@ -916,10 +905,6 @@ void loop() {
           // Start lock-in amp
           noInterrupts();
           is_running = true;
-          #ifdef DEBUG
-            N_buffers_scheduled_to_be_sent = 0;
-            N_sent_buffers = 0;
-          #endif
           trigger_send_TX_buffer_A = false;
           trigger_send_TX_buffer_B = false;
           interrupts();
