@@ -459,13 +459,13 @@ void isr_psd() {
   if (!is_running) {return;}
 
   if (is_starting_up) {
-    is_starting_up = false;
+    //is_starting_up = false;
     write_idx = 0;
-    LUT_idx = 0;
+    LUT_idx = N_LUT - 1;
     using_TX_buffer_A = true;
     trigger_send_TX_buffer_A = false;
     trigger_send_TX_buffer_B = false;
-    write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A, &LUT_idx);
+    //write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A, &LUT_idx);
   }/* else {
     LUT_idx++;
     if (LUT_idx == N_LUT) {
@@ -473,16 +473,6 @@ void isr_psd() {
     }
   }
   */
-
-  // Output reference signal
-  ref_X = LUT_wave[LUT_idx];
-  //syncDAC(); // DON'T ENABLE: causes timing jitter
-  #if defined(__SAMD21__)
-    DAC->DATA.reg = ref_X;
-  #elif defined(__SAMD51__)
-    DAC->DATA[0].reg = ref_X;
-  #endif
-  syncDAC();
 
   // Read input signal corresponding to the DAC output of the previous timestep.
   // This ensures that the previously set DAC output has had enough time to
@@ -503,7 +493,24 @@ void isr_psd() {
     syncADC();
     sig_I = ADC0->RESULT.reg;
   #endif
-  syncADC();
+  //syncADC();
+
+  // Output reference signal
+  ref_X = LUT_wave[LUT_idx];
+  //syncDAC(); // DON'T ENABLE: causes timing jitter
+  #if defined(__SAMD21__)
+    DAC->DATA.reg = ref_X;
+  #elif defined(__SAMD51__)
+    DAC->DATA[0].reg = ref_X;
+  #endif
+  syncDAC();
+
+  if (is_starting_up) {
+    is_starting_up = false;
+    write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A, &LUT_idx);
+    LUT_idx = 0;
+    return;
+  }
 
   // Store in buffers
   //if (is_starting_up) {
