@@ -24,13 +24,8 @@ M4 family
 - Adafruit Feather M4           SAMD51J19A   okay     ADAFRUIT_FEATHER_M4_EXPRESS
 - Adafruit ItsyBitsy M4         SAMD51G19A   okay     ADAFRUIT_ITSYBITSY_M4_EXPRESS
 
-When using Visual Studio Code as IDE set the following user settings to have
-proper bindings to strncmpi
-"C_Cpp.intelliSenseEngine": "Tag Parser"
-"C_Cpp.intelliSenseEngineFallback": "Disabled"
-
 Dennis van Gils
-14-06-2021
+18-06-2021
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>
@@ -164,15 +159,14 @@ Case B: Stable on computer Onera, while graphing, logging and FIR filtering in
 const char SOM[] = {0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80};
 const char EOM[] = {0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f};
 
-/* The serial transmit buffer will contain a single block of data:
+/* A sent-out serial transmit buffer will contain a single block of data:
  [SOM,                                              {size = 10 bytes}
-  (uint32_t) number of buffer being send            {size =  4 bytes}
+  (uint32_t) number of block being send             {size =  4 bytes}
   (uint32_t) millis timestamp at start of block     {size =  4 bytes}
   (uint16_t) micros part of timestamp               {size =  2 bytes}
   (uint16_t) phase index LUT_wave at start of block {size =  2 bytes}
   BLOCK_SIZE x (uint16_t) ADC readings 'sig_I'      {size = BLOCK_SIZE * 2 bytes}
   EOM]                                              {size = 10 bytes}
-to be transmitted by DMAC
 */
 #define N_BYTES_SOM     (sizeof(SOM))
 #define N_BYTES_COUNTER (4)
@@ -190,10 +184,9 @@ to be transmitted by DMAC
                            N_BYTES_SIG_I + \
                            N_BYTES_EOM)
 
-volatile uint32_t TX_buffer_counter = 0;
-volatile bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
 static uint8_t TX_buffer_A[N_BYTES_TX_BUFFER] = {0};
 static uint8_t TX_buffer_B[N_BYTES_TX_BUFFER] = {0};
+volatile uint32_t TX_buffer_counter = 0;
 volatile bool trigger_send_TX_buffer_A = false;
 volatile bool trigger_send_TX_buffer_B = false;
 
@@ -258,8 +251,9 @@ char str_buffer[96];
 ------------------------------------------------------------------------------*/
 
 void get_mcu_uid(uint8_t raw_uid[16]) {
-  // Return the 128-bits uid (serial number) of the micro controller as a byte
-  // array
+  /* Return the 128-bits uid (serial number) of the micro controller as a byte
+  array.
+  */
 
   #ifdef _SAMD21_
     // SAMD21 from section 9.3.3 of the datasheet
@@ -293,11 +287,11 @@ void get_mcu_uid(uint8_t raw_uid[16]) {
 /*------------------------------------------------------------------------------
     Waveform look-up table (LUT)
 ------------------------------------------------------------------------------*/
-/*
-In order to drive the DAC at high sampling speeds, we compute the reference
+/* In order to drive the DAC at high sampling speeds, we compute the reference
 waveform in advance by a look-up table (LUT). The LUT will contain the samples
 for one complete period of the waveform. The LUT is statically allocated and can
 fit up to 'MAX_N_LUT' number of samples.
+
 Because the 'SAMPLING_PERIOD_us' is fixed and the LUT can only have an integer
 number of samples 'N_LUT', the possible wave frequencies are discrete.
 That means that there is a distinction between the wanted frequency and the
@@ -372,28 +366,14 @@ void compute_LUT(uint16_t *LUT_array) {
 
 
 /*------------------------------------------------------------------------------
-    SYSTICK
+    Time keeping
 ------------------------------------------------------------------------------*/
-
-/* We use SYSTICK for time stamping at a microsecond resolution. The SYSTICK
-interrupt service routine is set to fire every 1 millisecond. Anything faster
-than this will result in a too heavy a burden on system resources and will
-deteriorate the timing accuracy. The microsecond part can be retrieved when
-needed, see 'get_systick_timestamp'.
-
-Note: The millis counter will roll over after 49.7 days.
-*/
-
-/*
-// NOT NECESSARY: We will rely on `millis()`
-void SysTick_Handler(void) {
-    millis++;
-}
-*/
 
 void get_systick_timestamp(uint32_t *stamp_millis,
                            uint16_t *stamp_micros_part) {
-    // Adapted from: https://github.com/arduino/ArduinoCore-samd/blob/master/cores/arduino/delay.c
+    /* Adapted from: https://github.com/arduino/ArduinoCore-samd/blob/master/cores/arduino/delay.c
+    Note: The millis counter will roll over after 49.7 days.
+    */
     uint32_t ticks, ticks2;
     uint32_t pend, pend2;
     uint32_t count, count2;
@@ -418,15 +398,9 @@ void get_systick_timestamp(uint32_t *stamp_millis,
                               (1048576 / (VARIANT_MCK/1000000)) ) >> 20);
 }
 
-
-/*------------------------------------------------------------------------------
-    Interrupt service routine (isr) for phase-sentive detection (psd)
-------------------------------------------------------------------------------*/
-
 void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
-    /*
-    Write timestamp and 'phase'-stamp of the first ADC sample of the buffer that
-    is about to be sent out over the serial port. We need to know which
+    /* Write timestamp and 'phase'-stamp of the first ADC sample of the block
+    that is about to be sent out over the serial port. We need to know which
     phase angle was output on the DAC, that corresponds in time to the first ADC
     sample of the TX_buffer. This is the essence of a phase-sensitive detector,
     which is the building block of a lock-in amplifier.
@@ -451,7 +425,13 @@ void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
     TX_buffer[TX_BUFFER_OFFSET_PHASE   + 1] = LUT_idx >> 8;
 }
 
+
+/*------------------------------------------------------------------------------
+    Interrupt service routine (isr) for phase-sentive detection (psd)
+------------------------------------------------------------------------------*/
+
 void isr_psd() {
+  static bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
   static bool is_running_prev = is_running;
   static bool is_starting_up = true;
   static uint16_t write_idx;        // Current write index in double buffer
@@ -632,7 +612,7 @@ void setup() {
   digitalWrite(PIN_LED, is_running);
 
   // Prepare SOM and EOM
-  noInterrupts(); // Somehow, this is important. Otherwise, it won't store `sig_I` properly
+  noInterrupts(); // This is important. Otherwise, it won't store `sig_I` properly later on
   memcpy(TX_buffer_A                         , SOM, N_BYTES_SOM);
   memcpy(&TX_buffer_A[N_BYTES_TX_BUFFER - 10], EOM, N_BYTES_EOM);
   memcpy(TX_buffer_B                         , SOM, N_BYTES_SOM);
@@ -727,7 +707,7 @@ void setup() {
   // Experimental: Output a pulse train on pin 9 to act as clock source for
   // a (future) variable anti-aliasing filter IC placed in front of the ADC
   // input ports.
-  TCC_pulse_train.startTimer(10);
+  //TCC_pulse_train.startTimer(10);
 }
 
 /*------------------------------------------------------------------------------
@@ -736,16 +716,16 @@ void setup() {
 
 void loop() {
   char* str_cmd; // Incoming serial command string
-  uint32_t prev_millis = 0;
+  uint32_t now = millis();
+  static uint32_t prev_millis = 0;
 
-  // Process commands on the data channel
-  // Deliberately slowed down to once every 1 ms to improve timing stability of
-  // 'isr_psd()'.
-  if ((millis() - prev_millis) > 1) {
-    prev_millis = millis();
+  // Process commands on the data channel every N milliseconds.
+  // Deliberately slowed down to improve timing stability of `isr_psd()`.
+  if ((now - prev_millis) > 20) {
+    prev_millis = now;
 
     if (sc_data.available()) {
-      if (is_running) {
+      if (is_running) { // Atomic read, `NoInterrupts()` not required here
         // -------------------
         //  Running
         // -------------------
@@ -971,28 +951,28 @@ void loop() {
   if (is_running && (trigger_send_TX_buffer_A || trigger_send_TX_buffer_B)) {
     /*
     // DEBUG
-    if (trigger_send_TX_buffer_A) {
-      Ser_data.println("\nTX_buffer_A");
-    } else {
-      Ser_data.println("\nTX_buffer_B");
-    }
     Ser_data.println(TX_buffer_counter);
+    Ser_data.println(
+      trigger_send_TX_buffer_A ? "\nTX_buffer_A" : "\nTX_buffer_B"
+    );
     */
 
-    // DEBUG: Trigger a dropped buffer by push-button on pin 5
-    //if (digitalRead(5) == HIGH) {
-
-    // Contrary to Arduino documentation, 'write' can return -1 as indication
-    // of an error, e.g. the receiving side being overrun with data.
-
+    // Note: `write()` can return -1 as indication of an error, e.g. the
+    // receiving side being overrun with data.
     size_t w;
     w = Ser_data.write(
       (uint8_t *) (trigger_send_TX_buffer_A ? TX_buffer_A : TX_buffer_B),
       N_BYTES_TX_BUFFER
     );
-    //Ser_data.println(w);
 
+    /*
+    // DEBUG
+    Ser_data.println(w);
+    */
+
+    //noInterrupts();
     if (trigger_send_TX_buffer_A) {trigger_send_TX_buffer_A = false;}
     if (trigger_send_TX_buffer_B) {trigger_send_TX_buffer_B = false;}
+    //interrupts();
   }
 }
