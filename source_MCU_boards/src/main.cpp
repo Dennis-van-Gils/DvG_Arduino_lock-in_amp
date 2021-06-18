@@ -42,7 +42,6 @@ Dennis van Gils
 #endif
 
 volatile bool is_running = false;    // Is the lock-in amplifier running?
-volatile uint16_t LUT_idx = 0;
 uint8_t mcu_uid[16]; // Microcontroller unit (mcu) unique identifier (uid) number
 
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
@@ -184,8 +183,8 @@ const char EOM[] = {0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f};
                            N_BYTES_SIG_I + \
                            N_BYTES_EOM)
 
-static uint8_t TX_buffer_A[N_BYTES_TX_BUFFER] = {0};
-static uint8_t TX_buffer_B[N_BYTES_TX_BUFFER] = {0};
+volatile static uint8_t TX_buffer_A[N_BYTES_TX_BUFFER] = {0};
+volatile static uint8_t TX_buffer_B[N_BYTES_TX_BUFFER] = {0};
 volatile uint32_t TX_buffer_counter = 0;
 volatile bool trigger_send_TX_buffer_A = false;
 volatile bool trigger_send_TX_buffer_B = false;
@@ -398,7 +397,9 @@ void get_systick_timestamp(uint32_t *stamp_millis,
                               (1048576 / (VARIANT_MCK/1000000)) ) >> 20);
 }
 
-void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
+void write_time_and_phase_stamp_to_TX_buffer(
+  volatile uint8_t *TX_buffer,
+  volatile uint16_t *LUT_idx) {
     /* Write timestamp and 'phase'-stamp of the first ADC sample of the block
     that is about to be sent out over the serial port. We need to know which
     phase angle was output on the DAC, that corresponds in time to the first ADC
@@ -421,8 +422,8 @@ void write_time_and_phase_stamp_to_TX_buffer(uint8_t *TX_buffer) {
     TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 3] = millis_copy >> 24;
     TX_buffer[TX_BUFFER_OFFSET_MICROS     ] = micros_part;
     TX_buffer[TX_BUFFER_OFFSET_MICROS  + 1] = micros_part >> 8;
-    TX_buffer[TX_BUFFER_OFFSET_PHASE      ] = LUT_idx;
-    TX_buffer[TX_BUFFER_OFFSET_PHASE   + 1] = LUT_idx >> 8;
+    TX_buffer[TX_BUFFER_OFFSET_PHASE      ] = *LUT_idx;
+    TX_buffer[TX_BUFFER_OFFSET_PHASE   + 1] = *LUT_idx >> 8;
 }
 
 
@@ -435,6 +436,7 @@ void isr_psd() {
   static bool is_running_prev = is_running;
   static bool is_starting_up = true;
   static uint16_t write_idx;        // Current write index in double buffer
+  volatile static uint16_t LUT_idx;
   uint16_t ref_X;
   int16_t  sig_I;
 
@@ -463,13 +465,24 @@ void isr_psd() {
     using_TX_buffer_A = true;
     trigger_send_TX_buffer_A = false;
     trigger_send_TX_buffer_B = false;
-    write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A);
-  } else {
+    write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A, &LUT_idx);
+  }/* else {
     LUT_idx++;
     if (LUT_idx == N_LUT) {
       LUT_idx = 0;
     }
   }
+  */
+
+  // Output reference signal
+  ref_X = LUT_wave[LUT_idx];
+  //syncDAC(); // DON'T ENABLE: causes timing jitter
+  #if defined(__SAMD21__)
+    DAC->DATA.reg = ref_X;
+  #elif defined(__SAMD51__)
+    DAC->DATA[0].reg = ref_X;
+  #endif
+  syncDAC();
 
   // Read input signal corresponding to the DAC output of the previous timestep.
   // This ensures that the previously set DAC output has had enough time to
@@ -490,6 +503,7 @@ void isr_psd() {
     syncADC();
     sig_I = ADC0->RESULT.reg;
   #endif
+  syncADC();
 
   // Store in buffers
   //if (is_starting_up) {
@@ -506,29 +520,27 @@ void isr_psd() {
     write_idx++;
   //}
 
-  // Output reference signal
-  ref_X = LUT_wave[LUT_idx];
-  syncDAC();
-  #if defined(__SAMD21__)
-    DAC->DATA.reg = ref_X;
-  #elif defined(__SAMD51__)
-    DAC->DATA[0].reg = ref_X;
-  #endif
-  syncDAC();
 
   // Ready to send the buffer?
   if (write_idx == BLOCK_SIZE) {
     if (using_TX_buffer_A) {
       trigger_send_TX_buffer_A = true;
-      write_time_and_phase_stamp_to_TX_buffer(TX_buffer_B);
+      write_time_and_phase_stamp_to_TX_buffer(TX_buffer_B, &LUT_idx);
     } else {
       trigger_send_TX_buffer_B = true;
-      write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A);
+      write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A, &LUT_idx);
     }
 
     using_TX_buffer_A = !using_TX_buffer_A;
     write_idx = 0;
   }
+
+  ///*
+  LUT_idx++;
+  if (LUT_idx == N_LUT) {
+    LUT_idx = 0;
+  }
+  //*/
 }
 
 /*------------------------------------------------------------------------------
@@ -612,12 +624,28 @@ void setup() {
   digitalWrite(PIN_LED, is_running);
 
   // Prepare SOM and EOM
+  ///*
+  noInterrupts();
+  for (uint8_t i = 0; i < N_BYTES_SOM; i++) {
+    TX_buffer_A[i] = SOM[i];
+    TX_buffer_B[i] = SOM[i];
+  }
+  for (uint8_t i = 0; i < N_BYTES_EOM; i++) {
+    TX_buffer_A[N_BYTES_TX_BUFFER - N_BYTES_EOM + i] = EOM[i];
+    TX_buffer_B[N_BYTES_TX_BUFFER - N_BYTES_EOM + i] = EOM[i];
+  }
+  interrupts();
+  //*/
+
+  /*
+  // Disabled because `memcpy` does not operate on volatiles
   noInterrupts(); // This is important. Otherwise, it won't store `sig_I` properly later on
   memcpy(TX_buffer_A                         , SOM, N_BYTES_SOM);
   memcpy(&TX_buffer_A[N_BYTES_TX_BUFFER - 10], EOM, N_BYTES_EOM);
   memcpy(TX_buffer_B                         , SOM, N_BYTES_SOM);
   memcpy(&TX_buffer_B[N_BYTES_TX_BUFFER - 10], EOM, N_BYTES_EOM);
   interrupts();
+  */
 
   // DAC
   analogWriteResolution(DAC_OUTPUT_BITS);
@@ -719,6 +747,9 @@ void loop() {
   uint32_t now = millis();
   static uint32_t prev_millis = 0;
 
+  // Copy of volatile
+  uint8_t _TX_buffer[N_BYTES_TX_BUFFER];
+
   // Process commands on the data channel every N milliseconds.
   // Deliberately slowed down to improve timing stability of `isr_psd()`.
   if ((now - prev_millis) > 20) {
@@ -738,9 +769,11 @@ void loop() {
            reply to occur.
         */
         noInterrupts();
+        //NVIC_DisableIRQ(TC3_IRQn);
         is_running = false;
         trigger_send_TX_buffer_A = false;
         trigger_send_TX_buffer_B = false;
+        //NVIC_EnableIRQ(TC3_IRQn);
         interrupts();
 
         // Flush out any binary buffer data scheduled for sending, potentially
@@ -894,10 +927,10 @@ void loop() {
                    strcmp(str_cmd, "_on") == 0) {
           // Start lock-in amp
           noInterrupts();
+          //NVIC_DisableIRQ(TC3_IRQn);
           is_running = true;
-          trigger_send_TX_buffer_A = false;
-          trigger_send_TX_buffer_B = false;
           interrupts();
+          //NVIC_EnableIRQ(TC3_IRQn);
 
           #ifdef DEBUG
             Ser_debug << "ON" << endl;
@@ -948,6 +981,7 @@ void loop() {
   }
 
   // Send buffers over the data channel
+  //noInterrupts();
   if (is_running && (trigger_send_TX_buffer_A || trigger_send_TX_buffer_B)) {
     /*
     // DEBUG
@@ -957,22 +991,34 @@ void loop() {
     );
     */
 
+    // Copy the volatile buffers
+    noInterrupts();
+    //NVIC_DisableIRQ(TC3_IRQn);
+    if (trigger_send_TX_buffer_A) {
+      trigger_send_TX_buffer_A = false;
+      //memcpy(_TX_buffer, TX_buffer_A, N_BYTES_TX_BUFFER);
+      for (int16_t i = N_BYTES_TX_BUFFER - 1; i >= 0; i--) {
+        _TX_buffer[i] = TX_buffer_A[i];
+      }
+    } else {
+      trigger_send_TX_buffer_B = false;
+      //memcpy(_TX_buffer, TX_buffer_B, N_BYTES_TX_BUFFER);
+      for (int16_t i = N_BYTES_TX_BUFFER - 1; i >= 0; i--) {
+        _TX_buffer[i] = TX_buffer_B[i];
+      }
+    }
+    interrupts();
+    //NVIC_EnableIRQ(TC3_IRQn);
+
     // Note: `write()` can return -1 as indication of an error, e.g. the
     // receiving side being overrun with data.
     size_t w;
-    w = Ser_data.write(
-      (uint8_t *) (trigger_send_TX_buffer_A ? TX_buffer_A : TX_buffer_B),
-      N_BYTES_TX_BUFFER
-    );
+    w = Ser_data.write((uint8_t *) _TX_buffer, N_BYTES_TX_BUFFER);
 
     /*
     // DEBUG
     Ser_data.println(w);
     */
-
-    //noInterrupts();
-    if (trigger_send_TX_buffer_A) {trigger_send_TX_buffer_A = false;}
-    if (trigger_send_TX_buffer_B) {trigger_send_TX_buffer_B = false;}
-    //interrupts();
   }
+  //interrupts();
 }
