@@ -38,7 +38,23 @@ Dennis van Gils
 // Note: The board needs a second serial port to be used besides the main serial
 // port which is assigned to sending buffers of lock-in amp data.
 #if defined(ARDUINO_SAMD_ZERO)
-  #define DEBUG
+  //#define DEBUG
+#endif
+
+// Interrupt timers
+#if defined(__SAMD21G18A__) || \
+    defined(__SAMD21E18A__)
+  #ifndef __SAMD21__
+    #define __SAMD21__
+  #endif
+  #include "ZeroTimer.h"
+#elif defined(__SAMD51P20A__) || \
+      defined(__SAMD51J19A__) || \
+      defined(__SAMD51G19A__)
+  #ifndef __SAMD51__
+    #define __SAMD51__
+  #endif
+  #include "SAMD51_InterruptTimer.h"
 #endif
 
 volatile bool is_running = false;    // Is the lock-in amplifier running?
@@ -102,22 +118,6 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
 #elif defined(__SAMD51__)
   static void syncDAC() {while (DAC->STATUS.bit.EOC0 == 1);}
   static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1);}
-#endif
-
-// Interrupt timers
-#if defined(__SAMD21G18A__) || \
-    defined(__SAMD21E18A__)
-  #ifndef __SAMD21__
-    #define __SAMD21__
-  #endif
-  #include "ZeroTimer.h"
-#elif defined(__SAMD51P20A__) || \
-      defined(__SAMD51J19A__) || \
-      defined(__SAMD51G19A__)
-  #ifndef __SAMD51__
-    #define __SAMD51__
-  #endif
-  #include "SAMD51_InterruptTimer.h"
 #endif
 
 // Interrupt service routine clock
@@ -471,10 +471,10 @@ void isr_psd() {
   // stabilize.
   syncADC();
   #if defined(__SAMD21__)
-    ADC->SWTRIG.bit.START = 1;
-    while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
-    syncADC();
-    sig_I = ADC->RESULT.reg;
+    //ADC->SWTRIG.bit.START = 1;
+    //while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
+    //syncADC();
+    //sig_I = ADC->RESULT.reg;
     ADC->SWTRIG.bit.START = 1;
     while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
     syncADC();
