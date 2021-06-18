@@ -397,7 +397,7 @@ void get_systick_timestamp(uint32_t *stamp_millis,
                               (1048576 / (VARIANT_MCK/1000000)) ) >> 20);
 }
 
-void write_time_and_phase_stamp_to_TX_buffer(
+void stamp_TX_buffer(
   volatile uint8_t *TX_buffer,
   volatile uint16_t *LUT_idx) {
     /* Write timestamp and 'phase'-stamp of the first ADC sample of the block
@@ -432,11 +432,11 @@ void write_time_and_phase_stamp_to_TX_buffer(
 ------------------------------------------------------------------------------*/
 
 void isr_psd() {
-  static bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
   static bool is_running_prev = is_running;
   static bool is_starting_up = true;
-  static uint16_t write_idx;        // Current write index in double buffer
-  volatile static uint16_t LUT_idx;
+  static bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
+  static uint16_t write_idx;            // Current write index of TX_buffer
+  volatile static uint16_t LUT_idx;     // Current read index of LUT
   uint16_t ref_X;
   int16_t  sig_I;
 
@@ -459,20 +459,12 @@ void isr_psd() {
   if (!is_running) {return;}
 
   if (is_starting_up) {
-    //is_starting_up = false;
     write_idx = 0;
     LUT_idx = N_LUT - 1;
     using_TX_buffer_A = true;
     trigger_send_TX_buffer_A = false;
     trigger_send_TX_buffer_B = false;
-    //write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A, &LUT_idx);
-  }/* else {
-    LUT_idx++;
-    if (LUT_idx == N_LUT) {
-      LUT_idx = 0;
-    }
   }
-  */
 
   // Read input signal corresponding to the DAC output of the previous timestep.
   // This ensures that the previously set DAC output has had enough time to
@@ -493,7 +485,7 @@ void isr_psd() {
     syncADC();
     sig_I = ADC0->RESULT.reg;
   #endif
-  //syncADC();
+  //syncADC(); // NOT NECESSARY
 
   // Output reference signal
   ref_X = LUT_wave[LUT_idx];
@@ -506,48 +498,42 @@ void isr_psd() {
   syncDAC();
 
   if (is_starting_up) {
+    // No valid input signal yet, hence return. Next timestep it will be valid.
     is_starting_up = false;
-    write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A, &LUT_idx);
+    stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     LUT_idx = 0;
     return;
   }
 
-  // Store in buffers
-  //if (is_starting_up) {
-  //  is_starting_up = false;
-  //  write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A);
-  //} else {
-    if (using_TX_buffer_A) {
-      TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
-      TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
-    } else {
-      TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
-      TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
-    }
-    write_idx++;
-  //}
-
+  // Store the input signal
+  if (using_TX_buffer_A) {
+    TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
+    TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
+  } else {
+    TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
+    TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
+  }
+  write_idx++;
 
   // Ready to send the buffer?
   if (write_idx == BLOCK_SIZE) {
     if (using_TX_buffer_A) {
       trigger_send_TX_buffer_A = true;
-      write_time_and_phase_stamp_to_TX_buffer(TX_buffer_B, &LUT_idx);
+      stamp_TX_buffer(TX_buffer_B, &LUT_idx);
     } else {
       trigger_send_TX_buffer_B = true;
-      write_time_and_phase_stamp_to_TX_buffer(TX_buffer_A, &LUT_idx);
+      stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     }
 
     using_TX_buffer_A = !using_TX_buffer_A;
     write_idx = 0;
   }
 
-  ///*
+  // Advance the reference signal waveform
   LUT_idx++;
   if (LUT_idx == N_LUT) {
     LUT_idx = 0;
   }
-  //*/
 }
 
 /*------------------------------------------------------------------------------
