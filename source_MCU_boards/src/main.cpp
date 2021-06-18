@@ -489,7 +489,7 @@ void isr_psd() {
 
   // Output reference signal
   ref_X = LUT_wave[LUT_idx];
-  //syncDAC(); // DON'T ENABLE: causes timing jitter
+  //syncDAC(); // DON'T ENABLE: Causes timing jitter in the output waveform
   #if defined(__SAMD21__)
     DAC->DATA.reg = ref_X;
   #elif defined(__SAMD51__)
@@ -617,7 +617,6 @@ void setup() {
   digitalWrite(PIN_LED, is_running);
 
   // Prepare SOM and EOM
-  ///*
   noInterrupts();
   for (uint8_t i = 0; i < N_BYTES_SOM; i++) {
     TX_buffer_A[i] = SOM[i];
@@ -628,11 +627,10 @@ void setup() {
     TX_buffer_B[N_BYTES_TX_BUFFER - N_BYTES_EOM + i] = EOM[i];
   }
   interrupts();
-  //*/
 
   /*
   // Disabled because `memcpy` does not operate on volatiles
-  noInterrupts(); // This is important. Otherwise, it won't store `sig_I` properly later on
+  noInterrupts();
   memcpy(TX_buffer_A                         , SOM, N_BYTES_SOM);
   memcpy(&TX_buffer_A[N_BYTES_TX_BUFFER - 10], EOM, N_BYTES_EOM);
   memcpy(TX_buffer_B                         , SOM, N_BYTES_SOM);
@@ -749,7 +747,7 @@ void loop() {
     prev_millis = now;
 
     if (sc_data.available()) {
-      if (is_running) { // Atomic read, `NoInterrupts()` not required here
+      if (is_running) { // Atomic read, `noInterrupts()` not required here
         // -------------------
         //  Running
         // -------------------
@@ -762,11 +760,9 @@ void loop() {
            reply to occur.
         */
         noInterrupts();
-        //NVIC_DisableIRQ(TC3_IRQn);
         is_running = false;
         trigger_send_TX_buffer_A = false;
         trigger_send_TX_buffer_B = false;
-        //NVIC_EnableIRQ(TC3_IRQn);
         interrupts();
 
         // Flush out any binary buffer data scheduled for sending, potentially
@@ -974,7 +970,6 @@ void loop() {
   }
 
   // Send buffers over the data channel
-  //noInterrupts();
   if (is_running && (trigger_send_TX_buffer_A || trigger_send_TX_buffer_B)) {
     /*
     // DEBUG
@@ -986,7 +981,6 @@ void loop() {
 
     // Copy the volatile buffers
     noInterrupts();
-    //NVIC_DisableIRQ(TC3_IRQn);
     if (trigger_send_TX_buffer_A) {
       trigger_send_TX_buffer_A = false;
       //memcpy(_TX_buffer, TX_buffer_A, N_BYTES_TX_BUFFER);
@@ -1001,7 +995,6 @@ void loop() {
       }
     }
     interrupts();
-    //NVIC_EnableIRQ(TC3_IRQn);
 
     // Note: `write()` can return -1 as indication of an error, e.g. the
     // receiving side being overrun with data.
@@ -1013,5 +1006,4 @@ void loop() {
     Ser_data.println(w);
     */
   }
-  //interrupts();
 }
