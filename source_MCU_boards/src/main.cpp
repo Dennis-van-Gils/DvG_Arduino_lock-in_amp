@@ -57,6 +57,9 @@ Dennis van Gils
   #include "SAMD51_InterruptTimer.h"
 #endif
 
+// No-operation, to burn cycles inside the interrupt service routine
+#define NOP __asm("nop");
+
 volatile bool is_running = false;    // Is the lock-in amplifier running?
 uint8_t mcu_uid[16]; // Microcontroller unit (mcu) unique identifier (uid) number
 
@@ -433,7 +436,7 @@ void stamp_TX_buffer(
 
 void isr_psd() {
   static bool is_running_prev = is_running;
-  static bool is_starting_up = true;
+  static uint8_t startup_counter = 0;
   static bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
   static uint16_t write_idx;            // Current write index of TX_buffer
   volatile static uint16_t LUT_idx;     // Current read index of LUT
@@ -444,7 +447,7 @@ void isr_psd() {
     is_running_prev = is_running;
     if (is_running) {
       digitalWrite(PIN_LED, HIGH);  // Indicate lock-in amp is running
-      is_starting_up = true;
+      startup_counter = 0;
     } else {
       digitalWrite(PIN_LED, LOW);   // Indicate lock-in amp is off
       syncDAC();
@@ -458,12 +461,24 @@ void isr_psd() {
   }
   if (!is_running) {return;}
 
-  if (is_starting_up) {
+  if (startup_counter == 0) {
     write_idx = 0;
     LUT_idx = N_LUT - 1;
     using_TX_buffer_A = true;
     trigger_send_TX_buffer_A = false;
     trigger_send_TX_buffer_B = false;
+
+    // Nudge DAC and ADC somewhat into synchronization
+    uint16_t nop_delay_us = 1; // [us]
+    uint32_t nop_cycles_us = SystemCoreClock / 1.0e6 * nop_delay_us;
+    syncDAC();
+    for (uint32_t i = 0; i < 1 * nop_cycles_us; i++) {
+      NOP;
+    }
+    syncADC();
+    for (uint32_t i = 0; i < 2 * nop_cycles_us; i++) {
+      NOP;
+    }
   }
 
   // Read input signal corresponding to the DAC output of the previous timestep.
@@ -497,9 +512,13 @@ void isr_psd() {
   #endif
   syncDAC();
 
-  if (is_starting_up) {
+  if (startup_counter == 0) {
     // No valid input signal yet, hence return. Next timestep it will be valid.
-    is_starting_up = false;
+    startup_counter++;
+    return;
+  } else if (startup_counter == 1) {
+    // DAC and ADC should have become finally synchronized in this step
+    startup_counter++;
     stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     LUT_idx = 0;
     return;
@@ -902,6 +921,13 @@ void loop() {
 
           get_systick_timestamp(&millis_copy, &micros_part);
           sprintf(buf, "%lu %03u\n", millis_copy, micros_part);
+          Ser_data.print(buf);
+
+        } else if (strcmp(str_cmd, "fcpu?") == 0) {
+          // Report processor clock frequency
+          static char buf[16];
+
+          sprintf(buf, "%lu Hz\n", SystemCoreClock);
           Ser_data.print(buf);
 
         } else if (strcmp(str_cmd, "off") == 0) {
