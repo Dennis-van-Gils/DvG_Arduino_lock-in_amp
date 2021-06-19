@@ -39,8 +39,8 @@ if __name__ == "__main__":
 
     alia.begin(
         freq=250,
-        V_offset=1.65,
-        V_ampl=1.65,
+        V_offset=1.5,
+        V_ampl=1,
         waveform=Waveform.Cosine,
     )
 
