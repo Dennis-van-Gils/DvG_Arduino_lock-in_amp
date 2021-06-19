@@ -196,23 +196,29 @@ class Alia(Arduino_protocol_serial.Arduino):
             c.binary_type_time      = "I"  # [uint32_t]
             c.binary_type_ref_X     = "H"  # [uint16_t]
             c.binary_type_sig_I     = "h"  # [int16_t]  NOTE: SIGNED!
+
             c.return_type_time      = int  # Ensure signed to allow for flexible arithmetic
             c.return_type_ref_X     = float
             c.return_type_sig_I     = float
+
         elif c.mcu_firmware == "ALIA v0.3.0 VSCODE":
             c.binary_type_counter   = "I"  # [uint32_t] TX_buffer header
             c.binary_type_millis    = "I"  # [uint32_t] TX_buffer header
             c.binary_type_micros    = "H"  # [uint16_t] TX_buffer header
             c.binary_type_idx_phase = "H"  # [uint16_t] TX_buffer header
             c.binary_type_sig_I     = "h"  # [int16_t]  NOTE: SIGNED! TX_buffer body
+
+            c.return_type_time      = np.float64
             c.return_type_ref_XY    = np.float64
             c.return_type_sig_I     = np.float64
-        else:
+
+        elif c.mcu_firmware == "ALIA v1.0.0 MICROCHIPSTUDIO":
             c.binary_type_counter   = "I"  # [uint32_t] TX_buffer header
             c.binary_type_millis    = "I"  # [uint32_t] TX_buffer header
             c.binary_type_micros    = "H"  # [uint16_t] TX_buffer header
             c.binary_type_idx_phase = "H"  # [uint16_t] TX_buffer header
             c.binary_type_sig_I     = "H"  # [uint16_t] TX_buffer body
+
             c.return_type_time      = np.float64
             c.return_type_ref_XY    = np.float64
             c.return_type_sig_I     = np.float64
