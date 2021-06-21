@@ -119,7 +119,7 @@ bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 //      min.  40 usec for only writing A0, no serial
 //      min.  50 usec for writing A0 and reading A1, no serial
 //      min.  80 usec for writing A0 and reading A1, with serial
-#define SAMPLING_PERIOD_us 100
+#define SAMPLING_PERIOD_us 50
 const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
 
 /*------------------------------------------------------------------------------
@@ -132,7 +132,7 @@ const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
 
 // The number of samples to acquire by the ADC and to subsequently send out
 // over serial as a single block of data
-#define BLOCK_SIZE 1000 // [# samples], where 1 sample takes up 16 bits
+#define BLOCK_SIZE 2000 // [# samples], where 1 sample takes up 16 bits
 
 /* Tested settings Arduino M0 Pro (legacy notes)
 Case A: Turbo and stable on computer Onera, while only graphing and logging in
@@ -434,13 +434,13 @@ void isr_psd() {
       startup_counter = 0;
     } else {
       digitalWrite(PIN_LED, LOW); // Indicate lock-in amp is off
-      syncDAC();
+      //syncDAC();  // NOT NECESSARY
 #if defined(_SAMD21_)
       DAC->DATA.reg = 0; // Set output voltage to 0
 #elif defined(__SAMD51__)
       DAC->DATA[0].reg = 0; // Set output voltage to 0
 #endif
-      syncDAC();
+      //syncDAC();  // NOT NECESSARY
     }
   }
   if (!is_running) {
@@ -455,6 +455,7 @@ void isr_psd() {
     trigger_send_TX_buffer_B = false;
 
     // Nudge DAC and ADC somewhat into synchronization
+    /*
     uint16_t nop_delay_us = 1; // [us]
     uint32_t nop_cycles_us = SystemCoreClock / 1.0e6 * nop_delay_us;
     syncDAC();
@@ -465,12 +466,13 @@ void isr_psd() {
     for (uint32_t i = 0; i < 2 * nop_cycles_us; i++) {
       NOP;
     }
+    */
   }
 
   // Read input signal corresponding to the DAC output of the previous timestep.
   // This ensures that the previously set DAC output has had enough time to
   // stabilize.
-  syncADC();
+  syncADC();  // NECESSARY
 #if defined(_SAMD21_)
   // ADC->SWTRIG.bit.START = 1;
   // while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
@@ -479,26 +481,26 @@ void isr_psd() {
   ADC->SWTRIG.bit.START = 1;
   while (ADC->INTFLAG.bit.RESRDY == 0)
     ; // Wait for conversion to complete
-  syncADC();
+  syncADC();  // NECESSARY
   sig_I = ADC->RESULT.reg;
 #elif defined(__SAMD51__)
   ADC0->SWTRIG.bit.START = 1;
   while (ADC0->INTFLAG.bit.RESRDY == 0)
     ; // Wait for conversion to complete
-  syncADC();
+  syncADC();  // NECESSARY
   sig_I = ADC0->RESULT.reg;
 #endif
   // syncADC(); // NOT NECESSARY
 
   // Output reference signal
   ref_X = LUT_wave[LUT_idx];
-// syncDAC(); // DON'T ENABLE: Causes timing jitter in the output waveform
+  //syncDAC(); // DON'T ENABLE: Causes timing jitter in the output waveform
 #if defined(_SAMD21_)
   DAC->DATA.reg = ref_X;
 #elif defined(__SAMD51__)
   DAC->DATA[0].reg = ref_X;
 #endif
-  syncDAC();
+  //syncDAC(); // NOT NECESSARY
 
   if (startup_counter == 0) {
     // No valid input signal yet, hence return. Next timestep it will be valid.
@@ -747,7 +749,7 @@ void loop() {
 
   // Process commands on the data channel every N milliseconds.
   // Deliberately slowed down to improve timing stability of `isr_psd()`.
-  if ((now - prev_millis) > 20) {
+  if ((now - prev_millis) > 19) {
     prev_millis = now;
 
     if (sc_data.available()) {
@@ -948,8 +950,22 @@ void loop() {
     );
     */
 
+    /* NOTE 2021:
+    The mechanism of copying the volatile buffers `TX_buffer_A` and
+    `TX_buffer_B` into a non-volatile extra buffer is not necessary and actually
+    hurts performance, especially when it is encapsulated by a
+    `noInterrupts()` and `interrupts()` routine. The encapsulation results in
+    unstable DAC output, where a single sample gets duplicated intermittently as
+    seen on a oscilloscope, when the DAQ rate is very high (> 10kHz).
+
+    The double buffer technique already is sufficient to ensure that the
+    serial transmit has all the time to send out stream A, while the other
+    stream B gets written to by the ISR.
+    */
+
+    /*
     // Copy the volatile buffers
-    noInterrupts();
+    //noInterrupts();
     if (trigger_send_TX_buffer_A) {
       trigger_send_TX_buffer_A = false;
       // memcpy(_TX_buffer, TX_buffer_A, N_BYTES_TX_BUFFER);
@@ -963,12 +979,22 @@ void loop() {
         _TX_buffer[i] = TX_buffer_B[i];
       }
     }
-    interrupts();
+    //interrupts();
+    */
 
     // Note: `write()` can return -1 as indication of an error, e.g. the
     // receiving side being overrun with data.
-    size_t w;
-    w = Ser_data.write((uint8_t *)_TX_buffer, N_BYTES_TX_BUFFER);
+    //size_t w;
+
+    if (trigger_send_TX_buffer_A) {
+      trigger_send_TX_buffer_A = false;
+      // w =
+      Ser_data.write((uint8_t *) TX_buffer_A, N_BYTES_TX_BUFFER);
+    } else {
+      trigger_send_TX_buffer_B = false;
+      // w =
+      Ser_data.write((uint8_t *) TX_buffer_B, N_BYTES_TX_BUFFER);
+    }
 
     /*
     // DEBUG
