@@ -119,7 +119,7 @@ bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 //      min.  40 usec for only writing A0, no serial
 //      min.  50 usec for writing A0 and reading A1, no serial
 //      min.  80 usec for writing A0 and reading A1, with serial
-#define SAMPLING_PERIOD_us 50
+#define SAMPLING_PERIOD_us 40
 const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
 
 /*------------------------------------------------------------------------------
@@ -132,7 +132,7 @@ const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
 
 // The number of samples to acquire by the ADC and to subsequently send out
 // over serial as a single block of data
-#define BLOCK_SIZE 2000 // [# samples], where 1 sample takes up 16 bits
+#define BLOCK_SIZE 2500 // [# samples], where 1 sample takes up 16 bits
 
 /* Tested settings Arduino M0 Pro (legacy notes)
 Case A: Turbo and stable on computer Onera, while only graphing and logging in
@@ -650,16 +650,19 @@ void setup() {
   analogWrite(A0, 0);
 
   // ADC
-  // Increase the ADC clock by setting the divisor from default DIV128 to DIV16.
-  // Setting smaller divisors than DIV16 results in ADC errors.
+  // Increase the ADC clock by setting the divisor from default DIV128 to a
+  // smaller divisor. This is needed for DAQ rates larger than ~20 kHz.
+  // Setting smaller divisors than DIV32 results in ADC errors.
   // NOTE 2021: THIS MIGHT ACTUALLY CAUSE INTERMITTENT ADC FAILURE FROM BOOT UP
-  /*
+  // WHEN SET TOO LOW.
+  // Though, keep as large as possible to increase ADC accuracy.
+  ///*
   #if defined(_SAMD21_)
-    ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV16_Val;
+    ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV64_Val;
   #elif defined(__SAMD51__)
-    ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
+    ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV64_Val;
   #endif
-  */
+  //*/
   analogReadResolution(ADC_INPUT_BITS);
   analogRead(A1); // Differential +
   analogRead(A2); // Differential -
@@ -705,13 +708,16 @@ delay(10);
 #endif
 
   // Prepare for software-triggered acquisition
-  syncADC();
+  //syncADC();  // NOT NECESSARY
 #if defined(_SAMD21_)
   ADC->CTRLA.bit.ENABLE = 0x01;
 #elif defined(__SAMD51__)
   ADC0->CTRLA.bit.ENABLE = 0x01;
 #endif
   syncADC();
+
+/*
+// NOT NECESSARY
 #if defined(_SAMD21_)
   ADC->SWTRIG.bit.START = 1;
   ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
@@ -719,6 +725,7 @@ delay(10);
   ADC0->SWTRIG.bit.START = 1;
   ADC0->INTFLAG.reg = ADC_INTFLAG_RESRDY;
 #endif
+*/
 
   // LUT
   parse_freq("250.0"); // [Hz] Wanted startup frequency
