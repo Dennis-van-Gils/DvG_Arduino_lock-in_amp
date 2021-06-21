@@ -6,62 +6,71 @@ A0: output reference signal
 A1: input signal, differential +
 A2: input signal, differential -
 
-Boards                        | MCU        | tested | #define
------------------------------------------------------------------
+Boards                     | MCU        | tested | #define
+---------------------------------------------------------------------
 M0 family
-- Arduino M0                    SAMD21G18A            ARDUINO_SAMD_ZERO
-- Arduino M0 Pro                SAMD21G18A   okay     ARDUINO_SAMD_ZERO
-- Adafruit Metro M0             SAMD21G18A
-- Adafruit Feather M0           SAMD21G18A
-- Adafruit ItsyBitsy M0         SAMD21G18A
-- Adafruit Trinket M0           SAMD21E18A
-- Adafruit Gemma M0             SAMD21E18A
+- Arduino M0                 SAMD21G18A            ARDUINO_SAMD_ZERO
+- Arduino M0 Pro             SAMD21G18A   okay     ARDUINO_SAMD_ZERO
+- Adafruit Metro M0          SAMD21G18A
+- Adafruit Feather M0        SAMD21G18A
+- Adafruit ItsyBitsy M0      SAMD21G18A
+- Adafruit Trinket M0        SAMD21E18A
+- Adafruit Gemma M0          SAMD21E18A
 
 M4 family
-- Adafruit Grand Central M4     SAMD51P20A
-- Adafruit NeoTrellis M4        SAMD51J19A?
-- Adafruit Metro M4             SAMD51J19A            ADAFRUIT_METRO_M4_EXPRESS
-- Adafruit Feather M4           SAMD51J19A   okay ADAFRUIT_FEATHER_M4_EXPRESS
-- Adafruit ItsyBitsy M4         SAMD51G19A   okay ADAFRUIT_ITSYBITSY_M4_EXPRESS
+- Adafruit Grand Central M4  SAMD51P20A
+- Adafruit NeoTrellis M4     SAMD51J19A?
+- Adafruit Metro M4          SAMD51J19A            ADAFRUIT_METRO_M4_EXPRESS
+- Adafruit Feather M4        SAMD51J19A   okay     ADAFRUIT_FEATHER_M4_EXPRESS
+- Adafruit ItsyBitsy M4      SAMD51G19A   okay     ADAFRUIT_ITSYBITSY_M4_EXPRESS
 
 Dennis van Gils
-18-06-2021
+21-06-2021
 ------------------------------------------------------------------------------*/
 
 #include "DvG_SerialCommand.h"
 #include "Streaming.h"
 #include <Arduino.h>
 
-
 #define FIRMWARE_VERSION "ALIA v0.3.0 VSCODE"
 
-// Define for writing debugging info to the terminal of the second serial port.
-// Note: The board needs a second serial port to be used besides the main serial
-// port which is assigned to sending buffers of lock-in amp data.
-#if defined(ARDUINO_SAMD_ZERO)
-//#define DEBUG
+// Microcontroller unit (mcu)
+#if defined(__SAMD21G18A__)
+#define MCU_MODEL "SAMD21G18A"
+#elif defined(__SAMD21E18A__)
+#define MCU_MODEL "SAMD21E18A"
+#elif defined(__SAMD51P20A__)
+#define MCU_MODEL "SAMD51P20A"
+#elif defined(__SAMD51J19A__)
+#define MCU_MODEL "SAMD51J19A"
+#elif defined(__SAMD51G19A__)
+#define MCU_MODEL "SAMD51G19A"
 #endif
 
-// Interrupt timers
-#if defined(__SAMD21G18A__) || defined(__SAMD21E18A__)
-#ifndef __SAMD21__
-#define __SAMD21__
-#endif
+// Wait for synchronization of registers between the clock domains
+// clang-format off
+static __inline__ void syncDAC() __attribute__((always_inline, unused));
+static __inline__ void syncADC() __attribute__((always_inline, unused));
+
+#ifdef _SAMD21_
 #include "ZeroTimer.h"
-#elif defined(__SAMD51P20A__) || defined(__SAMD51J19A__) ||                    \
-    defined(__SAMD51G19A__)
-#ifndef __SAMD51__
-#define __SAMD51__
+static void syncDAC() {while (DAC->STATUS.bit.SYNCBUSY == 1) ;}
+static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1) ;}
+#define DAC_OUTPUT_BITS 10
+#define ADC_INPUT_BITS 12
 #endif
+
+#ifdef __SAMD51__
 #include "SAMD51_InterruptTimer.h"
+static void syncDAC() {while (DAC->STATUS.bit.EOC0 == 1) ;}
+static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1) ;}
+#define DAC_OUTPUT_BITS 12
+#define ADC_INPUT_BITS 12
 #endif
+// clang-format on
 
 // No-operation, to burn cycles inside the interrupt service routine
 #define NOP __asm("nop");
-
-volatile bool is_running = false; // Is the lock-in amplifier running?
-uint8_t
-    mcu_uid[16]; // Microcontroller unit (mcu) unique identifier (uid) number
 
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
 // 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
@@ -74,8 +83,10 @@ uint8_t
 #define GENERATE_STRING(STRING) #STRING,
 
 enum WAVEFORM_ENUM { FOREACH_WAVEFORM(GENERATE_ENUM) };
-
 static const char *WAVEFORM_STRING[] = {FOREACH_WAVEFORM(GENERATE_STRING)};
+
+volatile bool is_running = false; // Is the lock-in amplifier running?
+char mcu_uid[33]; // Microcontroller unit (mcu) unique identifier (uid)
 
 /*------------------------------------------------------------------------------
     Waveform look-up table (LUT)
@@ -96,40 +107,11 @@ bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 
 // Analog port
 #define A_REF 3.300 // [V] Analog voltage reference Arduino
-#define ADC_INPUT_BITS 12
-#if defined(__SAMD21__)
-#define DAC_OUTPUT_BITS 10
-#elif defined(__SAMD51__)
-#define DAC_OUTPUT_BITS 12
-#endif
 #define MAX_DAC_OUTPUT_BITVAL ((uint16_t)(pow(2, DAC_OUTPUT_BITS) - 1))
 
 /*------------------------------------------------------------------------------
     Timing
 ------------------------------------------------------------------------------*/
-
-// Wait for synchronization of registers between the clock domains
-static __inline__ void syncDAC() __attribute__((always_inline, unused));
-static __inline__ void syncADC() __attribute__((always_inline, unused));
-#if defined(__SAMD21__)
-static void syncDAC() {
-  while (DAC->STATUS.bit.SYNCBUSY == 1)
-    ;
-}
-static void syncADC() {
-  while (ADC->STATUS.bit.SYNCBUSY == 1)
-    ;
-}
-#elif defined(__SAMD51__)
-static void syncDAC() {
-  while (DAC->STATUS.bit.EOC0 == 1)
-    ;
-}
-static void syncADC() {
-  while (ADC0->STATUS.bit.ADCBUSY == 1)
-    ;
-}
-#endif
 
 // Interrupt service routine clock
 // Findings using Arduino M0 Pro (legacy notes):
@@ -189,12 +171,12 @@ const char EOM[] = {0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f};
 #define N_BYTES_SIG_I   (BLOCK_SIZE * 2)
 #define N_BYTES_EOM     (sizeof(EOM))
 
-#define N_BYTES_TX_BUFFER (N_BYTES_SOM + \
+#define N_BYTES_TX_BUFFER (N_BYTES_SOM     + \
                            N_BYTES_COUNTER + \
-                           N_BYTES_MILLIS + \
-                           N_BYTES_MICROS + \
-                           N_BYTES_PHASE + \
-                           N_BYTES_SIG_I + \
+                           N_BYTES_MILLIS  + \
+                           N_BYTES_MICROS  + \
+                           N_BYTES_PHASE   + \
+                           N_BYTES_SIG_I   + \
                            N_BYTES_EOM)
 
 volatile static uint8_t TX_buffer_A[N_BYTES_TX_BUFFER] = {0};
@@ -225,22 +207,18 @@ volatile bool trigger_send_TX_buffer_B = false;
    BAUDRATE             1e6 [only used when #define Ser_data Serial]
    (a)
       #define Ser_data Serial
-      Regardless of #define DEBUG
       Only connect USB cable to programming port
       --> Perfect timing. Timestamp jitter 0 usec
    (b)
       #define Ser_data Serial
-      Regardless of #define DEBUG
       Both USB cables to programming port and native port
       --> Timestamp jitter +\- 3 usec
    (c)
       #define Ser_data SerialUSB
-      Regardless of #define DEBUG
       Only connect USB cable to native port
       --> Timestamp jitter +\- 4 usec
    (d)
       #define Ser_data SerialUSB
-      Regardless of #define DEBUG
       Both USB cables to programming port and native port
       --> Timestamp jitter +\- 4 usec
 */
@@ -248,9 +226,6 @@ volatile bool trigger_send_TX_buffer_B = false;
 
 #if defined(ARDUINO_SAMD_ZERO)
 #define Ser_data SerialUSB
-#ifdef DEBUG
-#define Ser_debug Serial
-#endif
 #else
 #define Ser_data Serial
 #endif
@@ -258,16 +233,15 @@ volatile bool trigger_send_TX_buffer_B = false;
 // Instantiate serial command listeners
 DvG_SerialCommand sc_data(Ser_data);
 
-char str_buffer[96];
-
 /*------------------------------------------------------------------------------
     get_mcu_uid
 ------------------------------------------------------------------------------*/
 
-void get_mcu_uid(uint8_t raw_uid[16]) {
-/* Return the 128-bits uid (serial number) of the micro controller as a byte
-array.
-*/
+void get_mcu_uid(char mcu_uid_out[33]) {
+  /* Return the 128-bit uid (serial number) of the microcontroller as a hex
+  string
+  */
+  uint8_t raw_uid[16]; // uid as byte array
 
 #ifdef _SAMD21_
 // SAMD21 from section 9.3.3 of the datasheet
@@ -276,7 +250,7 @@ array.
 #define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x0080A044)
 #define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x0080A048)
 #endif
-#ifdef _SAMD51_
+#ifdef __SAMD51__
 // SAMD51 from section 9.6 of the datasheet
 #define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x008061FC)
 #define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x00806010)
@@ -284,18 +258,23 @@ array.
 #define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x00806018)
 #endif
 
-  uint32_t pdwUniqueID[4];
-  pdwUniqueID[0] = SERIAL_NUMBER_WORD_0;
-  pdwUniqueID[1] = SERIAL_NUMBER_WORD_1;
-  pdwUniqueID[2] = SERIAL_NUMBER_WORD_2;
-  pdwUniqueID[3] = SERIAL_NUMBER_WORD_3;
+  uint32_t pdw_uid[4];
+  pdw_uid[0] = SERIAL_NUMBER_WORD_0;
+  pdw_uid[1] = SERIAL_NUMBER_WORD_1;
+  pdw_uid[2] = SERIAL_NUMBER_WORD_2;
+  pdw_uid[3] = SERIAL_NUMBER_WORD_3;
 
   for (int i = 0; i < 4; i++) {
-    raw_uid[i * 4 + 0] = (uint8_t)(pdwUniqueID[i] >> 24);
-    raw_uid[i * 4 + 1] = (uint8_t)(pdwUniqueID[i] >> 16);
-    raw_uid[i * 4 + 2] = (uint8_t)(pdwUniqueID[i] >> 8);
-    raw_uid[i * 4 + 3] = (uint8_t)(pdwUniqueID[i] >> 0);
+    raw_uid[i * 4 + 0] = (uint8_t)(pdw_uid[i] >> 24);
+    raw_uid[i * 4 + 1] = (uint8_t)(pdw_uid[i] >> 16);
+    raw_uid[i * 4 + 2] = (uint8_t)(pdw_uid[i] >> 8);
+    raw_uid[i * 4 + 3] = (uint8_t)(pdw_uid[i] >> 0);
   }
+
+  for (int j = 0; j < 16; j++) {
+    sprintf(&mcu_uid_out[2 * j], "%02X", raw_uid[j]);
+  }
+  mcu_uid_out[32] = 0;
 }
 
 /*------------------------------------------------------------------------------
@@ -337,10 +316,6 @@ void compute_LUT(uint16_t *LUT_array) {
   double norm_ampl = ref_ampl / A_REF; // Normalized
   double wave;
 
-#ifdef DEBUG
-  Ser_debug << "Creating LUT...";
-#endif
-
   // Generate normalized waveform periods in the range [0, 1].
   for (int16_t i = 0; i < N_LUT; i++) {
     float j = i % N_LUT;
@@ -372,10 +347,6 @@ void compute_LUT(uint16_t *LUT_array) {
   }
 
   is_LUT_dirty = false;
-
-#ifdef DEBUG
-  Ser_debug << " done." << endl;
-#endif
 }
 
 /*------------------------------------------------------------------------------
@@ -464,7 +435,7 @@ void isr_psd() {
     } else {
       digitalWrite(PIN_LED, LOW); // Indicate lock-in amp is off
       syncDAC();
-#if defined(__SAMD21__)
+#if defined(_SAMD21_)
       DAC->DATA.reg = 0; // Set output voltage to 0
 #elif defined(__SAMD51__)
       DAC->DATA[0].reg = 0; // Set output voltage to 0
@@ -500,7 +471,7 @@ void isr_psd() {
   // This ensures that the previously set DAC output has had enough time to
   // stabilize.
   syncADC();
-#if defined(__SAMD21__)
+#if defined(_SAMD21_)
   // ADC->SWTRIG.bit.START = 1;
   // while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
   // syncADC();
@@ -522,7 +493,7 @@ void isr_psd() {
   // Output reference signal
   ref_X = LUT_wave[LUT_idx];
 // syncDAC(); // DON'T ENABLE: Causes timing jitter in the output waveform
-#if defined(__SAMD21__)
+#if defined(_SAMD21_)
   DAC->DATA.reg = ref_X;
 #elif defined(__SAMD51__)
   DAC->DATA[0].reg = ref_X;
@@ -578,36 +549,35 @@ void isr_psd() {
     Print debug information to the terminal
 ------------------------------------------------------------------------------*/
 
-#ifdef DEBUG
-#if defined(__SAMD21__)
 void print_debug_info() {
-  Ser_debug << "-------------------------------" << endl;
-  Ser_debug << "CTRLA" << endl;
-  Ser_debug << "  .RUNSTDBY   : " << _HEX(ADC->CTRLA.bit.RUNSTDBY) << endl;
-  Ser_debug << "  .ENABLE     : " << _HEX(ADC->CTRLA.bit.ENABLE) << endl;
-  Ser_debug << "  .SWRST      : " << _HEX(ADC->CTRLA.bit.SWRST) << endl;
-  Ser_debug << "REFCTRL" << endl;
-  Ser_debug << "  .REFCOMP    : " << _HEX(ADC->REFCTRL.bit.REFCOMP) << endl;
-  Ser_debug << "  .REFSEL     : " << _HEX(ADC->REFCTRL.bit.REFSEL) << endl;
-  Ser_debug << "AVGVTRL" << endl;
-  Ser_debug << "  .ADJRES     : " << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl;
-  Ser_debug << "  .SAMPLENUM  : " << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl;
-  Ser_debug << "SAMPCTRL" << endl;
-  Ser_debug << "  .SAMPLEN    : " << _HEX(ADC->SAMPCTRL.bit.SAMPLEN) << endl;
-  Ser_debug << "CTRLB" << endl;
-  Ser_debug << "  .PRESCALER  : " << _HEX(ADC->CTRLB.bit.PRESCALER) << endl;
-  Ser_debug << "  .RESSEL     : " << _HEX(ADC->CTRLB.bit.RESSEL) << endl;
-  Ser_debug << "  .CORREN     : " << _HEX(ADC->CTRLB.bit.CORREN) << endl;
-  Ser_debug << "  .FREERUN    : " << _HEX(ADC->CTRLB.bit.FREERUN) << endl;
-  Ser_debug << "  .LEFTADJ    : " << _HEX(ADC->CTRLB.bit.LEFTADJ) << endl;
-  Ser_debug << "  .DIFFMODE   : " << _HEX(ADC->CTRLB.bit.DIFFMODE) << endl;
-  Ser_debug << "INPUTCTRL" << endl;
-  Ser_debug << "  .GAIN       : " << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl;
-  Ser_debug << "  .INPUTOFFSET: " << _HEX(ADC->INPUTCTRL.bit.INPUTOFFSET)
-            << endl;
-  Ser_debug << "  .INPUTSCAN  : " << _HEX(ADC->INPUTCTRL.bit.INPUTSCAN) << endl;
-  Ser_debug << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
-  Ser_debug << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
+#if defined(_SAMD21_)
+  Ser_data << "-------------------------------" << endl;
+  Ser_data << "CTRLA" << endl;
+  Ser_data << "  .RUNSTDBY   : " << _HEX(ADC->CTRLA.bit.RUNSTDBY) << endl;
+  Ser_data << "  .ENABLE     : " << _HEX(ADC->CTRLA.bit.ENABLE) << endl;
+  Ser_data << "  .SWRST      : " << _HEX(ADC->CTRLA.bit.SWRST) << endl;
+  Ser_data << "REFCTRL" << endl;
+  Ser_data << "  .REFCOMP    : " << _HEX(ADC->REFCTRL.bit.REFCOMP) << endl;
+  Ser_data << "  .REFSEL     : " << _HEX(ADC->REFCTRL.bit.REFSEL) << endl;
+  Ser_data << "AVGVTRL" << endl;
+  Ser_data << "  .ADJRES     : " << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl;
+  Ser_data << "  .SAMPLENUM  : " << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl;
+  Ser_data << "SAMPCTRL" << endl;
+  Ser_data << "  .SAMPLEN    : " << _HEX(ADC->SAMPCTRL.bit.SAMPLEN) << endl;
+  Ser_data << "CTRLB" << endl;
+  Ser_data << "  .PRESCALER  : " << _HEX(ADC->CTRLB.bit.PRESCALER) << endl;
+  Ser_data << "  .RESSEL     : " << _HEX(ADC->CTRLB.bit.RESSEL) << endl;
+  Ser_data << "  .CORREN     : " << _HEX(ADC->CTRLB.bit.CORREN) << endl;
+  Ser_data << "  .FREERUN    : " << _HEX(ADC->CTRLB.bit.FREERUN) << endl;
+  Ser_data << "  .LEFTADJ    : " << _HEX(ADC->CTRLB.bit.LEFTADJ) << endl;
+  Ser_data << "  .DIFFMODE   : " << _HEX(ADC->CTRLB.bit.DIFFMODE) << endl;
+  Ser_data << "INPUTCTRL" << endl;
+  Ser_data << "  .GAIN       : " << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl;
+  Ser_data << "  .INPUTOFFSET: " << _HEX(ADC->INPUTCTRL.bit.INPUTOFFSET)
+           << endl;
+  Ser_data << "  .INPUTSCAN  : " << _HEX(ADC->INPUTCTRL.bit.INPUTSCAN) << endl;
+  Ser_data << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
+  Ser_data << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
 #elif defined(__SAMD51__)
 // TO DO
 #endif
@@ -616,18 +586,17 @@ void print_debug_info() {
   float block_rate = DAQ_rate / BLOCK_SIZE;
   // 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
   uint32_t baud = ceil(N_BYTES_TX_BUFFER * 10 * block_rate);
-  Ser_debug << "----------------------------------------" << endl;
-  Ser_debug << "DAQ rate     : " << _FLOAT(DAQ_rate, 2) << " Hz" << endl;
-  Ser_debug << "ISR clock    : " << SAMPLING_PERIOD_us << " usec" << endl;
-  Ser_debug << "Block size   : " << BLOCK_SIZE << " samples" << endl;
-  Ser_debug << "Transmit rate          : " << _FLOAT(block_rate, 2)
-            << " blocks/s" << endl;
-  Ser_debug << "Data bytes per transmit: " << N_BYTES_TX_BUFFER << " bytes"
-            << endl;
-  Ser_debug << "Lower bound baudrate   : " << baud << endl;
-  Ser_debug << "----------------------------------------" << endl;
+  Ser_data << "----------------------------------------" << endl;
+  Ser_data << "DAQ rate     : " << _FLOAT(DAQ_rate, 2) << " Hz" << endl;
+  Ser_data << "ISR clock    : " << SAMPLING_PERIOD_us << " usec" << endl;
+  Ser_data << "Block size   : " << BLOCK_SIZE << " samples" << endl;
+  Ser_data << "Transmit rate          : " << _FLOAT(block_rate, 2)
+           << " blocks/s" << endl;
+  Ser_data << "Data bytes per transmit: " << N_BYTES_TX_BUFFER << " bytes"
+           << endl;
+  Ser_data << "Lower bound baudrate   : " << baud << endl;
+  Ser_data << "----------------------------------------" << endl;
 }
-#endif
 
 /*------------------------------------------------------------------------------
     setup
@@ -638,9 +607,6 @@ uint8_t NVM_ADC0_BIASREFBUF = 0;
 uint8_t NVM_ADC0_BIASR2R = 0;
 
 void setup() {
-#ifdef DEBUG
-  Ser_debug.begin(9600);
-#endif
 
 #if Ser_data == Serial
   Ser_data.begin(SERIAL_DATA_BAUDRATE);
@@ -684,7 +650,7 @@ void setup() {
 // ADC
 // Increase the ADC clock by setting the divisor from default DIV128 to DIV16.
 // Setting smaller divisors than DIV16 results in ADC errors.
-#if defined(__SAMD21__)
+#if defined(_SAMD21_)
   ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV16_Val;
 #elif defined(__SAMD51__)
   ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
@@ -694,7 +660,7 @@ void setup() {
   analogRead(A2); // Differential -
 
 // Set differential mode on A1(+) and A2(-)
-#if defined(__SAMD21__)
+#if defined(_SAMD21_)
   ADC->CTRLB.bit.DIFFMODE = 1;
   ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
@@ -735,22 +701,18 @@ delay(10);
 
   // Prepare for software-triggered acquisition
   syncADC();
-#if defined(__SAMD21__)
+#if defined(_SAMD21_)
   ADC->CTRLA.bit.ENABLE = 0x01;
 #elif defined(__SAMD51__)
   ADC0->CTRLA.bit.ENABLE = 0x01;
 #endif
   syncADC();
-#if defined(__SAMD21__)
+#if defined(_SAMD21_)
   ADC->SWTRIG.bit.START = 1;
   ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
 #elif defined(__SAMD51__)
   ADC0->SWTRIG.bit.START = 1;
   ADC0->INTFLAG.reg = ADC_INTFLAG_RESRDY;
-#endif
-
-#ifdef DEBUG
-  print_debug_info();
 #endif
 
   // LUT
@@ -817,9 +779,6 @@ void loop() {
         // Flush out and ignore the command
         sc_data.getCmd();
 
-#ifdef DEBUG
-        Ser_debug << "OFF" << endl;
-#endif
       } else {
         // -------------------
         //  Not running
@@ -831,35 +790,9 @@ void loop() {
           Ser_data.println("Arduino, Alia");
 
         } else if (strcmp(str_cmd, "mcu?") == 0) {
-          // Report microcontroller model, serial and firmware
-          char str_buffer[96];
-          char str_model[12];
-          char str_uid[33];
-
-          snprintf(str_model, sizeof(str_model),
-#if defined(__SAMD21G18A__)
-                   "SAMD21G18A"
-#elif defined(__SAMD21E18A__)
-                   "SAMD21E18A"
-#elif defined(__SAMD51P20A__)
-                   "SAMD51P20A"
-#elif defined(__SAMD51J19A__)
-                   "SAMD51J19A"
-#elif defined(__SAMD51G19A__)
-                   "SAMD51G19A"
-#else
-                   "unknown MCU");
-#endif
-                   );
-
-          // Format the uid byte-array to hex representation
-          str_uid[32] = 0;
-          for (uint8_t j = 0; j < 16; j++)
-            sprintf(&str_uid[2 * j], "%02X", mcu_uid[j]);
-
-          snprintf(str_buffer, sizeof(str_buffer), "%s\t%s\t%s\n",
-                   FIRMWARE_VERSION, str_model, str_uid);
-          Ser_data.print(str_buffer);
+          // Report firmware, microcontroller model and serial number
+          Ser_data << FIRMWARE_VERSION << "\t" << MCU_MODEL << "\t" << mcu_uid
+                   << endl;
 
         } else if (strcmp(str_cmd, "bias?") == 0) {
 #if defined(__SAMD51__)
@@ -923,16 +856,13 @@ void loop() {
           // The reported LUT will start at phase = 0 deg.
           // Convenience function handy for debugging from a
           // serial console.
-          uint16_t i;
-
-          sprintf(str_buffer, "%u\t%i\n", N_LUT, is_LUT_dirty);
-          Ser_data.print(str_buffer);
-          for (i = 0; i < N_LUT; i++) {
-            sprintf(str_buffer, "%u\t", LUT_wave[i]);
-            Ser_data.print(str_buffer);
+          Ser_data << N_LUT << "\t" << is_LUT_dirty << endl;
+          for (uint16_t i = 0; i < N_LUT - 1; i++) {
+            Ser_data << LUT_wave[i] << "\t";
           }
+          Ser_data << LUT_wave[N_LUT - 1] << endl;
 
-        } else if (strcmp(str_cmd, "time?") == 0) {
+        } else if (strcmp(str_cmd, "t?") == 0) {
           // Report time in microseconds
           static char buf[16];
           uint32_t millis_copy;
@@ -953,21 +883,11 @@ void loop() {
           // Lock-in amp is already off and we reply with an acknowledgement
           Ser_data.print("already_off\n");
 
-#ifdef DEBUG
-          Ser_debug << "Already OFF" << endl;
-#endif
-
         } else if (strcmp(str_cmd, "on") == 0 || strcmp(str_cmd, "_on") == 0) {
           // Start lock-in amp
           noInterrupts();
-          // NVIC_DisableIRQ(TC3_IRQn);
           is_running = true;
           interrupts();
-// NVIC_EnableIRQ(TC3_IRQn);
-
-#ifdef DEBUG
-          Ser_debug << "ON" << endl;
-#endif
 
         } else if (strncmp(str_cmd, "_freq", 5) == 0) {
           // Set frequency of the reference signal [Hz].
