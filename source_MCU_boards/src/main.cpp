@@ -647,14 +647,17 @@ void setup() {
   analogWriteResolution(DAC_OUTPUT_BITS);
   analogWrite(A0, 0);
 
-// ADC
-// Increase the ADC clock by setting the divisor from default DIV128 to DIV16.
-// Setting smaller divisors than DIV16 results in ADC errors.
-#if defined(_SAMD21_)
-  ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV16_Val;
-#elif defined(__SAMD51__)
-  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
-#endif
+  // ADC
+  // Increase the ADC clock by setting the divisor from default DIV128 to DIV16.
+  // Setting smaller divisors than DIV16 results in ADC errors.
+  // NOTE 2021: THIS MIGHT ACTUALLY CAUSE INTERMITTENT ADC FAILURE FROM BOOT UP
+  /*
+  #if defined(_SAMD21_)
+    ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV16_Val;
+  #elif defined(__SAMD51__)
+    ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
+  #endif
+  */
   analogReadResolution(ADC_INPUT_BITS);
   analogRead(A1); // Differential +
   analogRead(A2); // Differential -
