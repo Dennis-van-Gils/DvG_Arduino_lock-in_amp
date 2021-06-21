@@ -151,18 +151,17 @@ Case B: Stable on computer Onera, while graphing, logging and FIR filtering in
 const char SOM[] = {0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80};
 const char EOM[] = {0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f};
 
+// clang-format off
 /* A sent-out serial transmit buffer will contain a single block of data:
  [SOM,                                              {size = 10 bytes}
   (uint32_t) number of block being send             {size =  4 bytes}
   (uint32_t) millis timestamp at start of block     {size =  4 bytes}
   (uint16_t) micros part of timestamp               {size =  2 bytes}
   (uint16_t) phase index LUT_wave at start of block {size =  2 bytes}
-  BLOCK_SIZE x (uint16_t) ADC readings 'sig_I'      {size = BLOCK_SIZE * 2
- bytes}
+  BLOCK_SIZE x (uint16_t) ADC readings 'sig_I'      {size = BLOCK_SIZE * 2 bytes}
   EOM]                                              {size = 10 bytes}
 */
 
-// clang-format off
 #define N_BYTES_SOM     (sizeof(SOM))
 #define N_BYTES_COUNTER (4)
 #define N_BYTES_MILLIS  (4)
