@@ -21,16 +21,17 @@ M4 family
 - Adafruit Grand Central M4     SAMD51P20A
 - Adafruit NeoTrellis M4        SAMD51J19A?
 - Adafruit Metro M4             SAMD51J19A            ADAFRUIT_METRO_M4_EXPRESS
-- Adafruit Feather M4           SAMD51J19A   okay     ADAFRUIT_FEATHER_M4_EXPRESS
-- Adafruit ItsyBitsy M4         SAMD51G19A   okay     ADAFRUIT_ITSYBITSY_M4_EXPRESS
+- Adafruit Feather M4           SAMD51J19A   okay ADAFRUIT_FEATHER_M4_EXPRESS
+- Adafruit ItsyBitsy M4         SAMD51G19A   okay ADAFRUIT_ITSYBITSY_M4_EXPRESS
 
 Dennis van Gils
 18-06-2021
 ------------------------------------------------------------------------------*/
 
-#include <Arduino.h>
 #include "DvG_SerialCommand.h"
 #include "Streaming.h"
+#include <Arduino.h>
+
 
 #define FIRMWARE_VERSION "ALIA v0.3.0 VSCODE"
 
@@ -38,48 +39,43 @@ Dennis van Gils
 // Note: The board needs a second serial port to be used besides the main serial
 // port which is assigned to sending buffers of lock-in amp data.
 #if defined(ARDUINO_SAMD_ZERO)
-  //#define DEBUG
+//#define DEBUG
 #endif
 
 // Interrupt timers
-#if defined(__SAMD21G18A__) || \
-    defined(__SAMD21E18A__)
-  #ifndef __SAMD21__
-    #define __SAMD21__
-  #endif
-  #include "ZeroTimer.h"
-#elif defined(__SAMD51P20A__) || \
-      defined(__SAMD51J19A__) || \
-      defined(__SAMD51G19A__)
-  #ifndef __SAMD51__
-    #define __SAMD51__
-  #endif
-  #include "SAMD51_InterruptTimer.h"
+#if defined(__SAMD21G18A__) || defined(__SAMD21E18A__)
+#ifndef __SAMD21__
+#define __SAMD21__
+#endif
+#include "ZeroTimer.h"
+#elif defined(__SAMD51P20A__) || defined(__SAMD51J19A__) ||                    \
+    defined(__SAMD51G19A__)
+#ifndef __SAMD51__
+#define __SAMD51__
+#endif
+#include "SAMD51_InterruptTimer.h"
 #endif
 
 // No-operation, to burn cycles inside the interrupt service routine
 #define NOP __asm("nop");
 
-volatile bool is_running = false;    // Is the lock-in amplifier running?
-uint8_t mcu_uid[16]; // Microcontroller unit (mcu) unique identifier (uid) number
+volatile bool is_running = false; // Is the lock-in amplifier running?
+uint8_t
+    mcu_uid[16]; // Microcontroller unit (mcu) unique identifier (uid) number
 
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
 // 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
-#define FOREACH_WAVEFORM(WAVEFORM) \
-        WAVEFORM(Cosine)    \
-        WAVEFORM(Square)    \
-        WAVEFORM(Triangle)  \
-        WAVEFORM(END_WAVEFORM_ENUM)
+#define FOREACH_WAVEFORM(WAVEFORM)                                             \
+  WAVEFORM(Cosine)                                                             \
+  WAVEFORM(Square)                                                             \
+  WAVEFORM(Triangle)                                                           \
+  WAVEFORM(END_WAVEFORM_ENUM)
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
-enum WAVEFORM_ENUM {
-    FOREACH_WAVEFORM(GENERATE_ENUM)
-};
+enum WAVEFORM_ENUM { FOREACH_WAVEFORM(GENERATE_ENUM) };
 
-static const char *WAVEFORM_STRING[] = {
-    FOREACH_WAVEFORM(GENERATE_STRING)
-};
+static const char *WAVEFORM_STRING[] = {FOREACH_WAVEFORM(GENERATE_STRING)};
 
 /*------------------------------------------------------------------------------
     Waveform look-up table (LUT)
@@ -87,26 +83,26 @@ static const char *WAVEFORM_STRING[] = {
 
 // Output reference signal parameters
 enum WAVEFORM_ENUM ref_waveform = Cosine;
-double ref_freq;  // [Hz] Obtained frequency of reference signal
-double ref_offs;  // [V]  Obtained voltage offset of reference signal
-double ref_ampl;  // [V]  Voltage amplitude reference signal
+double ref_freq; // [Hz] Obtained frequency of reference signal
+double ref_offs; // [V]  Obtained voltage offset of reference signal
+double ref_ampl; // [V]  Voltage amplitude reference signal
 
 // Look-up table (LUT) for fast DAC
-#define MIN_N_LUT 20       // Min. allowed number of samples for one full period
-#define MAX_N_LUT 1000     // Max. allowed number of samples for one full period
+#define MIN_N_LUT 20   // Min. allowed number of samples for one full period
+#define MAX_N_LUT 1000 // Max. allowed number of samples for one full period
 uint16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
 uint16_t N_LUT;            // Current number of samples for one full period
 bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 
 // Analog port
-#define A_REF 3.300        // [V] Analog voltage reference Arduino
+#define A_REF 3.300 // [V] Analog voltage reference Arduino
 #define ADC_INPUT_BITS 12
 #if defined(__SAMD21__)
-  #define DAC_OUTPUT_BITS 10
+#define DAC_OUTPUT_BITS 10
 #elif defined(__SAMD51__)
-  #define DAC_OUTPUT_BITS 12
+#define DAC_OUTPUT_BITS 12
 #endif
-#define MAX_DAC_OUTPUT_BITVAL ((uint16_t) (pow(2, DAC_OUTPUT_BITS) - 1))
+#define MAX_DAC_OUTPUT_BITVAL ((uint16_t)(pow(2, DAC_OUTPUT_BITS) - 1))
 
 /*------------------------------------------------------------------------------
     Timing
@@ -116,11 +112,23 @@ bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 static __inline__ void syncDAC() __attribute__((always_inline, unused));
 static __inline__ void syncADC() __attribute__((always_inline, unused));
 #if defined(__SAMD21__)
-  static void syncDAC() {while (DAC->STATUS.bit.SYNCBUSY == 1);}
-  static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1);}
+static void syncDAC() {
+  while (DAC->STATUS.bit.SYNCBUSY == 1)
+    ;
+}
+static void syncADC() {
+  while (ADC->STATUS.bit.SYNCBUSY == 1)
+    ;
+}
 #elif defined(__SAMD51__)
-  static void syncDAC() {while (DAC->STATUS.bit.EOC0 == 1);}
-  static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1);}
+static void syncDAC() {
+  while (DAC->STATUS.bit.EOC0 == 1)
+    ;
+}
+static void syncADC() {
+  while (ADC0->STATUS.bit.ADCBUSY == 1)
+    ;
+}
 #endif
 
 // Interrupt service routine clock
@@ -130,7 +138,7 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
 //      min.  50 usec for writing A0 and reading A1, no serial
 //      min.  80 usec for writing A0 and reading A1, with serial
 #define SAMPLING_PERIOD_us 100
-const double SAMPLING_RATE_Hz = (double) 1.0e6 / SAMPLING_PERIOD_us;
+const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
 
 /*------------------------------------------------------------------------------
     Double buffer: TX_buffer_A & TX_buffer_B
@@ -142,7 +150,7 @@ const double SAMPLING_RATE_Hz = (double) 1.0e6 / SAMPLING_PERIOD_us;
 
 // The number of samples to acquire by the ADC and to subsequently send out
 // over serial as a single block of data
-#define BLOCK_SIZE 1000   // [# samples], where 1 sample takes up 16 bits
+#define BLOCK_SIZE 1000 // [# samples], where 1 sample takes up 16 bits
 
 /* Tested settings Arduino M0 Pro (legacy notes)
 Case A: Turbo and stable on computer Onera, while only graphing and logging in
@@ -167,9 +175,12 @@ const char EOM[] = {0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f};
   (uint32_t) millis timestamp at start of block     {size =  4 bytes}
   (uint16_t) micros part of timestamp               {size =  2 bytes}
   (uint16_t) phase index LUT_wave at start of block {size =  2 bytes}
-  BLOCK_SIZE x (uint16_t) ADC readings 'sig_I'      {size = BLOCK_SIZE * 2 bytes}
+  BLOCK_SIZE x (uint16_t) ADC readings 'sig_I'      {size = BLOCK_SIZE * 2
+ bytes}
   EOM]                                              {size = 10 bytes}
 */
+
+// clang-format off
 #define N_BYTES_SOM     (sizeof(SOM))
 #define N_BYTES_COUNTER (4)
 #define N_BYTES_MILLIS  (4)
@@ -197,6 +208,7 @@ volatile bool trigger_send_TX_buffer_B = false;
 #define TX_BUFFER_OFFSET_MICROS  (TX_BUFFER_OFFSET_MILLIS  + N_BYTES_MILLIS)
 #define TX_BUFFER_OFFSET_PHASE   (TX_BUFFER_OFFSET_MICROS  + N_BYTES_MICROS)
 #define TX_BUFFER_OFFSET_SIG_I   (TX_BUFFER_OFFSET_PHASE   + N_BYTES_PHASE)
+// clang-format on
 
 /*------------------------------------------------------------------------------
     Serial
@@ -232,15 +244,15 @@ volatile bool trigger_send_TX_buffer_B = false;
       Both USB cables to programming port and native port
       --> Timestamp jitter +\- 4 usec
 */
-#define SERIAL_DATA_BAUDRATE 1e6  // Only used when '#define Ser_data Serial'
+#define SERIAL_DATA_BAUDRATE 1e6 // Only used when '#define Ser_data Serial'
 
 #if defined(ARDUINO_SAMD_ZERO)
-  #define Ser_data    SerialUSB
-  #ifdef DEBUG
-    #define Ser_debug Serial
-  #endif
+#define Ser_data SerialUSB
+#ifdef DEBUG
+#define Ser_debug Serial
+#endif
 #else
-  #define Ser_data    Serial
+#define Ser_data Serial
 #endif
 
 // Instantiate serial command listeners
@@ -253,37 +265,37 @@ char str_buffer[96];
 ------------------------------------------------------------------------------*/
 
 void get_mcu_uid(uint8_t raw_uid[16]) {
-  /* Return the 128-bits uid (serial number) of the micro controller as a byte
-  array.
-  */
+/* Return the 128-bits uid (serial number) of the micro controller as a byte
+array.
+*/
 
-  #ifdef _SAMD21_
-    // SAMD21 from section 9.3.3 of the datasheet
-	  #define SERIAL_NUMBER_WORD_0	*(volatile uint32_t*)(0x0080A00C)
-	  #define SERIAL_NUMBER_WORD_1	*(volatile uint32_t*)(0x0080A040)
-	  #define SERIAL_NUMBER_WORD_2	*(volatile uint32_t*)(0x0080A044)
-	  #define SERIAL_NUMBER_WORD_3	*(volatile uint32_t*)(0x0080A048)
-  #endif
-  #ifdef _SAMD51_
-    // SAMD51 from section 9.6 of the datasheet
-    #define SERIAL_NUMBER_WORD_0	*(volatile uint32_t*)(0x008061FC)
-    #define SERIAL_NUMBER_WORD_1	*(volatile uint32_t*)(0x00806010)
-    #define SERIAL_NUMBER_WORD_2	*(volatile uint32_t*)(0x00806014)
-    #define SERIAL_NUMBER_WORD_3	*(volatile uint32_t*)(0x00806018)
-  #endif
+#ifdef _SAMD21_
+// SAMD21 from section 9.3.3 of the datasheet
+#define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x0080A00C)
+#define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x0080A040)
+#define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x0080A044)
+#define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x0080A048)
+#endif
+#ifdef _SAMD51_
+// SAMD51 from section 9.6 of the datasheet
+#define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x008061FC)
+#define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x00806010)
+#define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x00806014)
+#define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x00806018)
+#endif
 
   uint32_t pdwUniqueID[4];
-	pdwUniqueID[0] = SERIAL_NUMBER_WORD_0;
-	pdwUniqueID[1] = SERIAL_NUMBER_WORD_1;
-	pdwUniqueID[2] = SERIAL_NUMBER_WORD_2;
-	pdwUniqueID[3] = SERIAL_NUMBER_WORD_3;
+  pdwUniqueID[0] = SERIAL_NUMBER_WORD_0;
+  pdwUniqueID[1] = SERIAL_NUMBER_WORD_1;
+  pdwUniqueID[2] = SERIAL_NUMBER_WORD_2;
+  pdwUniqueID[3] = SERIAL_NUMBER_WORD_3;
 
-	for (int i = 0; i < 4; i++) {
-		raw_uid[i*4+0] = (uint8_t)(pdwUniqueID[i] >> 24);
-		raw_uid[i*4+1] = (uint8_t)(pdwUniqueID[i] >> 16);
-		raw_uid[i*4+2] = (uint8_t)(pdwUniqueID[i] >> 8);
-		raw_uid[i*4+3] = (uint8_t)(pdwUniqueID[i] >> 0);
-	}
+  for (int i = 0; i < 4; i++) {
+    raw_uid[i * 4 + 0] = (uint8_t)(pdwUniqueID[i] >> 24);
+    raw_uid[i * 4 + 1] = (uint8_t)(pdwUniqueID[i] >> 16);
+    raw_uid[i * 4 + 2] = (uint8_t)(pdwUniqueID[i] >> 8);
+    raw_uid[i * 4 + 3] = (uint8_t)(pdwUniqueID[i] >> 0);
+  }
 }
 
 /*------------------------------------------------------------------------------
@@ -301,71 +313,70 @@ obtained frequency 'ref_freq'.
 */
 
 void parse_freq(const char *str_value) {
-    ref_freq = atof(str_value);
-    N_LUT = (uint16_t) round(SAMPLING_RATE_Hz / ref_freq);
-    N_LUT = max(N_LUT, MIN_N_LUT);
-    N_LUT = min(N_LUT, MAX_N_LUT);
-    ref_freq = SAMPLING_RATE_Hz / N_LUT;
+  ref_freq = atof(str_value);
+  N_LUT = (uint16_t)round(SAMPLING_RATE_Hz / ref_freq);
+  N_LUT = max(N_LUT, MIN_N_LUT);
+  N_LUT = min(N_LUT, MAX_N_LUT);
+  ref_freq = SAMPLING_RATE_Hz / N_LUT;
 }
 
 void parse_offs(const char *str_value) {
-    ref_offs = atof(str_value);
-    ref_offs = max(ref_offs, 0.0);
-    ref_offs = min(ref_offs, A_REF);
+  ref_offs = atof(str_value);
+  ref_offs = max(ref_offs, 0.0);
+  ref_offs = min(ref_offs, A_REF);
 }
 
 void parse_ampl(const char *str_value) {
-    ref_ampl = atof(str_value);
-    ref_ampl = max(ref_ampl, 0.0);
-    ref_ampl = min(ref_ampl, A_REF);
+  ref_ampl = atof(str_value);
+  ref_ampl = max(ref_ampl, 0.0);
+  ref_ampl = min(ref_ampl, A_REF);
 }
 
 void compute_LUT(uint16_t *LUT_array) {
-    double norm_offs = ref_offs / A_REF;    // Normalized
-    double norm_ampl = ref_ampl / A_REF;    // Normalized
-    double wave;
+  double norm_offs = ref_offs / A_REF; // Normalized
+  double norm_ampl = ref_ampl / A_REF; // Normalized
+  double wave;
 
-    #ifdef DEBUG
-      Ser_debug << "Creating LUT...";
-    #endif
+#ifdef DEBUG
+  Ser_debug << "Creating LUT...";
+#endif
 
-    // Generate normalized waveform periods in the range [0, 1].
-    for (int16_t i = 0; i < N_LUT; i++) {
-        float j = i % N_LUT;
+  // Generate normalized waveform periods in the range [0, 1].
+  for (int16_t i = 0; i < N_LUT; i++) {
+    float j = i % N_LUT;
 
-        switch (ref_waveform) {
-            default:
-            case Cosine:
-                // N_LUT even: extrema [ 0, 1]
-                // N_LUT odd : extrema [>0, 1]
-                wave = .5 * (1 + cos(M_TWOPI * j / N_LUT));
-                break;
+    switch (ref_waveform) {
+    default:
+    case Cosine:
+      // N_LUT even: extrema [ 0, 1]
+      // N_LUT odd : extrema [>0, 1]
+      wave = .5 * (1 + cos(M_TWOPI * j / N_LUT));
+      break;
 
-            case Square:
-                // Extrema guaranteed  [ 0, 1]
-                wave = round(fmod(1.75 * N_LUT - j, N_LUT) / (N_LUT - 1));
-                break;
+    case Square:
+      // Extrema guaranteed  [ 0, 1]
+      wave = round(fmod(1.75 * N_LUT - j, N_LUT) / (N_LUT - 1));
+      break;
 
-            case Triangle:
-                // N_LUT even: extrema [ 0, 1]
-                // N_LUT odd : extrema [>0, 1]
-                wave = 2 * fabs(j / N_LUT - .5);
-                break;
-        }
-
-        wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
-        wave = max(wave, 0.0);
-        wave = min(wave, 1.0);
-        LUT_array[i] = (uint16_t) round(MAX_DAC_OUTPUT_BITVAL * wave);
+    case Triangle:
+      // N_LUT even: extrema [ 0, 1]
+      // N_LUT odd : extrema [>0, 1]
+      wave = 2 * fabs(j / N_LUT - .5);
+      break;
     }
 
-    is_LUT_dirty = false;
+    wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
+    wave = max(wave, 0.0);
+    wave = min(wave, 1.0);
+    LUT_array[i] = (uint16_t)round(MAX_DAC_OUTPUT_BITVAL * wave);
+  }
 
-    #ifdef DEBUG
-      Ser_debug << " done." << endl;
-    #endif
+  is_LUT_dirty = false;
+
+#ifdef DEBUG
+  Ser_debug << " done." << endl;
+#endif
 }
-
 
 /*------------------------------------------------------------------------------
     Time keeping
@@ -373,62 +384,64 @@ void compute_LUT(uint16_t *LUT_array) {
 
 void get_systick_timestamp(uint32_t *stamp_millis,
                            uint16_t *stamp_micros_part) {
-    /* Adapted from: https://github.com/arduino/ArduinoCore-samd/blob/master/cores/arduino/delay.c
-    Note: The millis counter will roll over after 49.7 days.
-    */
-    uint32_t ticks, ticks2;
-    uint32_t pend, pend2;
-    uint32_t count, count2;
-    uint32_t _ulTickCount = millis();
+  /* Adapted from:
+  https://github.com/arduino/ArduinoCore-samd/blob/master/cores/arduino/delay.c
+  Note: The millis counter will roll over after 49.7 days.
+  */
+  uint32_t ticks, ticks2;
+  uint32_t pend, pend2;
+  uint32_t count, count2;
+  uint32_t _ulTickCount = millis();
 
+  ticks2 = SysTick->VAL;
+  pend2 = !!(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk);
+  count2 = _ulTickCount;
+
+  do {
+    ticks = ticks2;
+    pend = pend2;
+    count = count2;
     ticks2 = SysTick->VAL;
-    pend2  = !!(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk)  ;
-    count2 = _ulTickCount ;
+    pend2 = !!(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk);
+    count2 = _ulTickCount;
+  } while ((pend != pend2) || (count != count2) || (ticks < ticks2));
 
-    do {
-        ticks  = ticks2;
-        pend   = pend2;
-        count  = count2;
-        ticks2 = SysTick->VAL;
-        pend2  = !!(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk)  ;
-        count2 = _ulTickCount;
-    } while ((pend != pend2) || (count != count2) || (ticks < ticks2));
-
-    (*stamp_millis) = count2;
-    if (pend) {(*stamp_millis)++;}
-    (*stamp_micros_part) = (( (SysTick->LOAD - ticks) *
-                              (1048576 / (VARIANT_MCK/1000000)) ) >> 20);
+  (*stamp_millis) = count2;
+  if (pend) {
+    (*stamp_millis)++;
+  }
+  (*stamp_micros_part) =
+      (((SysTick->LOAD - ticks) * (1048576 / (VARIANT_MCK / 1000000))) >> 20);
 }
 
-void stamp_TX_buffer(
-  volatile uint8_t *TX_buffer,
-  volatile uint16_t *LUT_idx) {
-    /* Write timestamp and 'phase'-stamp of the first ADC sample of the block
-    that is about to be sent out over the serial port. We need to know which
-    phase angle was output on the DAC, that corresponds in time to the first ADC
-    sample of the TX_buffer. This is the essence of a phase-sensitive detector,
-    which is the building block of a lock-in amplifier.
-    */
+void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
+  /* Write timestamp and 'phase'-stamp of the first ADC sample of the block
+  that is about to be sent out over the serial port. We need to know which
+  phase angle was output on the DAC, that corresponds in time to the first ADC
+  sample of the TX_buffer. This is the essence of a phase-sensitive detector,
+  which is the building block of a lock-in amplifier.
+  */
 
-    uint32_t millis_copy;
-    uint16_t micros_part;
-    get_systick_timestamp(&millis_copy, &micros_part);
+  uint32_t millis_copy;
+  uint16_t micros_part;
+  get_systick_timestamp(&millis_copy, &micros_part);
 
-    TX_buffer_counter++;
-    TX_buffer[TX_BUFFER_OFFSET_COUNTER    ] = TX_buffer_counter;
-    TX_buffer[TX_BUFFER_OFFSET_COUNTER + 1] = TX_buffer_counter >> 8;
-    TX_buffer[TX_BUFFER_OFFSET_COUNTER + 2] = TX_buffer_counter >> 16;
-    TX_buffer[TX_BUFFER_OFFSET_COUNTER + 3] = TX_buffer_counter >> 24;
-    TX_buffer[TX_BUFFER_OFFSET_MILLIS     ] = millis_copy;
-    TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 1] = millis_copy >> 8;
-    TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 2] = millis_copy >> 16;
-    TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 3] = millis_copy >> 24;
-    TX_buffer[TX_BUFFER_OFFSET_MICROS     ] = micros_part;
-    TX_buffer[TX_BUFFER_OFFSET_MICROS  + 1] = micros_part >> 8;
-    TX_buffer[TX_BUFFER_OFFSET_PHASE      ] = *LUT_idx;
-    TX_buffer[TX_BUFFER_OFFSET_PHASE   + 1] = *LUT_idx >> 8;
+  // clang-format off
+  TX_buffer_counter++;
+  TX_buffer[TX_BUFFER_OFFSET_COUNTER    ] = TX_buffer_counter;
+  TX_buffer[TX_BUFFER_OFFSET_COUNTER + 1] = TX_buffer_counter >> 8;
+  TX_buffer[TX_BUFFER_OFFSET_COUNTER + 2] = TX_buffer_counter >> 16;
+  TX_buffer[TX_BUFFER_OFFSET_COUNTER + 3] = TX_buffer_counter >> 24;
+  TX_buffer[TX_BUFFER_OFFSET_MILLIS     ] = millis_copy;
+  TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 1] = millis_copy >> 8;
+  TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 2] = millis_copy >> 16;
+  TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 3] = millis_copy >> 24;
+  TX_buffer[TX_BUFFER_OFFSET_MICROS     ] = micros_part;
+  TX_buffer[TX_BUFFER_OFFSET_MICROS  + 1] = micros_part >> 8;
+  TX_buffer[TX_BUFFER_OFFSET_PHASE      ] = *LUT_idx;
+  TX_buffer[TX_BUFFER_OFFSET_PHASE   + 1] = *LUT_idx >> 8;
+  // clang-format on
 }
-
 
 /*------------------------------------------------------------------------------
     Interrupt service routine (isr) for phase-sentive detection (psd)
@@ -441,25 +454,27 @@ void isr_psd() {
   static uint16_t write_idx;            // Current write index of TX_buffer
   volatile static uint16_t LUT_idx;     // Current read index of LUT
   uint16_t ref_X;
-  int16_t  sig_I;
+  int16_t sig_I;
 
   if (is_running != is_running_prev) {
     is_running_prev = is_running;
     if (is_running) {
-      digitalWrite(PIN_LED, HIGH);  // Indicate lock-in amp is running
+      digitalWrite(PIN_LED, HIGH); // Indicate lock-in amp is running
       startup_counter = 0;
     } else {
-      digitalWrite(PIN_LED, LOW);   // Indicate lock-in amp is off
+      digitalWrite(PIN_LED, LOW); // Indicate lock-in amp is off
       syncDAC();
-      #if defined(__SAMD21__)
-        DAC->DATA.reg = 0;          // Set output voltage to 0
-      #elif defined(__SAMD51__)
-        DAC->DATA[0].reg = 0;       // Set output voltage to 0
-      #endif
+#if defined(__SAMD21__)
+      DAC->DATA.reg = 0; // Set output voltage to 0
+#elif defined(__SAMD51__)
+      DAC->DATA[0].reg = 0; // Set output voltage to 0
+#endif
       syncDAC();
     }
   }
-  if (!is_running) {return;}
+  if (!is_running) {
+    return;
+  }
 
   if (startup_counter == 0) {
     write_idx = 0;
@@ -485,31 +500,33 @@ void isr_psd() {
   // This ensures that the previously set DAC output has had enough time to
   // stabilize.
   syncADC();
-  #if defined(__SAMD21__)
-    //ADC->SWTRIG.bit.START = 1;
-    //while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
-    //syncADC();
-    //sig_I = ADC->RESULT.reg;
-    ADC->SWTRIG.bit.START = 1;
-    while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
-    syncADC();
-    sig_I = ADC->RESULT.reg;
-  #elif defined(__SAMD51__)
-    ADC0->SWTRIG.bit.START = 1;
-    while (ADC0->INTFLAG.bit.RESRDY == 0);  // Wait for conversion to complete
-    syncADC();
-    sig_I = ADC0->RESULT.reg;
-  #endif
-  //syncADC(); // NOT NECESSARY
+#if defined(__SAMD21__)
+  // ADC->SWTRIG.bit.START = 1;
+  // while (ADC->INTFLAG.bit.RESRDY == 0);   // Wait for conversion to complete
+  // syncADC();
+  // sig_I = ADC->RESULT.reg;
+  ADC->SWTRIG.bit.START = 1;
+  while (ADC->INTFLAG.bit.RESRDY == 0)
+    ; // Wait for conversion to complete
+  syncADC();
+  sig_I = ADC->RESULT.reg;
+#elif defined(__SAMD51__)
+  ADC0->SWTRIG.bit.START = 1;
+  while (ADC0->INTFLAG.bit.RESRDY == 0)
+    ; // Wait for conversion to complete
+  syncADC();
+  sig_I = ADC0->RESULT.reg;
+#endif
+  // syncADC(); // NOT NECESSARY
 
   // Output reference signal
   ref_X = LUT_wave[LUT_idx];
-  //syncDAC(); // DON'T ENABLE: Causes timing jitter in the output waveform
-  #if defined(__SAMD21__)
-    DAC->DATA.reg = ref_X;
-  #elif defined(__SAMD51__)
-    DAC->DATA[0].reg = ref_X;
-  #endif
+// syncDAC(); // DON'T ENABLE: Causes timing jitter in the output waveform
+#if defined(__SAMD21__)
+  DAC->DATA.reg = ref_X;
+#elif defined(__SAMD51__)
+  DAC->DATA[0].reg = ref_X;
+#endif
   syncDAC();
 
   if (startup_counter == 0) {
@@ -525,6 +542,7 @@ void isr_psd() {
   }
 
   // Store the input signal
+  // clang-format off
   if (using_TX_buffer_A) {
     TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
     TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
@@ -533,6 +551,7 @@ void isr_psd() {
     TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
   }
   write_idx++;
+  // clang-format on
 
   // Ready to send the buffer?
   if (write_idx == BLOCK_SIZE) {
@@ -560,53 +579,54 @@ void isr_psd() {
 ------------------------------------------------------------------------------*/
 
 #ifdef DEBUG
-  #if defined(__SAMD21__)
-    void print_debug_info() {
-        Ser_debug << "-------------------------------" << endl;
-        Ser_debug << "CTRLA" << endl;
-        Ser_debug << "  .RUNSTDBY   : " << _HEX(ADC->CTRLA.bit.RUNSTDBY) << endl;
-        Ser_debug << "  .ENABLE     : " << _HEX(ADC->CTRLA.bit.ENABLE) << endl;
-        Ser_debug << "  .SWRST      : " << _HEX(ADC->CTRLA.bit.SWRST) << endl;
-        Ser_debug << "REFCTRL" << endl;
-        Ser_debug << "  .REFCOMP    : " << _HEX(ADC->REFCTRL.bit.REFCOMP) << endl;
-        Ser_debug << "  .REFSEL     : " << _HEX(ADC->REFCTRL.bit.REFSEL) << endl;
-        Ser_debug << "AVGVTRL" << endl;
-        Ser_debug << "  .ADJRES     : " << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl;
-        Ser_debug << "  .SAMPLENUM  : " << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl;
-        Ser_debug << "SAMPCTRL" << endl;
-        Ser_debug << "  .SAMPLEN    : " << _HEX(ADC->SAMPCTRL.bit.SAMPLEN) << endl;
-        Ser_debug << "CTRLB" << endl;
-        Ser_debug << "  .PRESCALER  : " << _HEX(ADC->CTRLB.bit.PRESCALER) << endl;
-        Ser_debug << "  .RESSEL     : " << _HEX(ADC->CTRLB.bit.RESSEL) << endl;
-        Ser_debug << "  .CORREN     : " << _HEX(ADC->CTRLB.bit.CORREN) << endl;
-        Ser_debug << "  .FREERUN    : " << _HEX(ADC->CTRLB.bit.FREERUN) << endl;
-        Ser_debug << "  .LEFTADJ    : " << _HEX(ADC->CTRLB.bit.LEFTADJ) << endl;
-        Ser_debug << "  .DIFFMODE   : " << _HEX(ADC->CTRLB.bit.DIFFMODE) << endl;
-        Ser_debug << "INPUTCTRL" << endl;
-        Ser_debug << "  .GAIN       : " << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl;
-        Ser_debug << "  .INPUTOFFSET: " << _HEX(ADC->INPUTCTRL.bit.INPUTOFFSET) << endl;
-        Ser_debug << "  .INPUTSCAN  : " << _HEX(ADC->INPUTCTRL.bit.INPUTSCAN) << endl;
-        Ser_debug << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
-        Ser_debug << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
-      #elif defined (__SAMD51__)
-      // TO DO
-      #endif
+#if defined(__SAMD21__)
+void print_debug_info() {
+  Ser_debug << "-------------------------------" << endl;
+  Ser_debug << "CTRLA" << endl;
+  Ser_debug << "  .RUNSTDBY   : " << _HEX(ADC->CTRLA.bit.RUNSTDBY) << endl;
+  Ser_debug << "  .ENABLE     : " << _HEX(ADC->CTRLA.bit.ENABLE) << endl;
+  Ser_debug << "  .SWRST      : " << _HEX(ADC->CTRLA.bit.SWRST) << endl;
+  Ser_debug << "REFCTRL" << endl;
+  Ser_debug << "  .REFCOMP    : " << _HEX(ADC->REFCTRL.bit.REFCOMP) << endl;
+  Ser_debug << "  .REFSEL     : " << _HEX(ADC->REFCTRL.bit.REFSEL) << endl;
+  Ser_debug << "AVGVTRL" << endl;
+  Ser_debug << "  .ADJRES     : " << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl;
+  Ser_debug << "  .SAMPLENUM  : " << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl;
+  Ser_debug << "SAMPCTRL" << endl;
+  Ser_debug << "  .SAMPLEN    : " << _HEX(ADC->SAMPCTRL.bit.SAMPLEN) << endl;
+  Ser_debug << "CTRLB" << endl;
+  Ser_debug << "  .PRESCALER  : " << _HEX(ADC->CTRLB.bit.PRESCALER) << endl;
+  Ser_debug << "  .RESSEL     : " << _HEX(ADC->CTRLB.bit.RESSEL) << endl;
+  Ser_debug << "  .CORREN     : " << _HEX(ADC->CTRLB.bit.CORREN) << endl;
+  Ser_debug << "  .FREERUN    : " << _HEX(ADC->CTRLB.bit.FREERUN) << endl;
+  Ser_debug << "  .LEFTADJ    : " << _HEX(ADC->CTRLB.bit.LEFTADJ) << endl;
+  Ser_debug << "  .DIFFMODE   : " << _HEX(ADC->CTRLB.bit.DIFFMODE) << endl;
+  Ser_debug << "INPUTCTRL" << endl;
+  Ser_debug << "  .GAIN       : " << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl;
+  Ser_debug << "  .INPUTOFFSET: " << _HEX(ADC->INPUTCTRL.bit.INPUTOFFSET)
+            << endl;
+  Ser_debug << "  .INPUTSCAN  : " << _HEX(ADC->INPUTCTRL.bit.INPUTSCAN) << endl;
+  Ser_debug << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
+  Ser_debug << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
+#elif defined(__SAMD51__)
+// TO DO
+#endif
 
-      float DAQ_rate = 1.0e6 / SAMPLING_PERIOD_us;
-      float block_rate = DAQ_rate / BLOCK_SIZE;
-      // 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
-      uint32_t baud = ceil(N_BYTES_TX_BUFFER * 10 * block_rate);
-      Ser_debug << "----------------------------------------" << endl;
-      Ser_debug << "DAQ rate     : " << _FLOAT(DAQ_rate, 2) << " Hz" << endl;
-      Ser_debug << "ISR clock    : " << SAMPLING_PERIOD_us << " usec" << endl;
-      Ser_debug << "Block size   : " << BLOCK_SIZE << " samples" << endl;
-      Ser_debug << "Transmit rate          : " << _FLOAT(block_rate, 2)
-                << " blocks/s" << endl;
-      Ser_debug << "Data bytes per transmit: " << N_BYTES_TX_BUFFER
-                << " bytes" << endl;
-      Ser_debug << "Lower bound baudrate   : " << baud << endl;
-      Ser_debug << "----------------------------------------" << endl;
-  }
+  float DAQ_rate = 1.0e6 / SAMPLING_PERIOD_us;
+  float block_rate = DAQ_rate / BLOCK_SIZE;
+  // 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
+  uint32_t baud = ceil(N_BYTES_TX_BUFFER * 10 * block_rate);
+  Ser_debug << "----------------------------------------" << endl;
+  Ser_debug << "DAQ rate     : " << _FLOAT(DAQ_rate, 2) << " Hz" << endl;
+  Ser_debug << "ISR clock    : " << SAMPLING_PERIOD_us << " usec" << endl;
+  Ser_debug << "Block size   : " << BLOCK_SIZE << " samples" << endl;
+  Ser_debug << "Transmit rate          : " << _FLOAT(block_rate, 2)
+            << " blocks/s" << endl;
+  Ser_debug << "Data bytes per transmit: " << N_BYTES_TX_BUFFER << " bytes"
+            << endl;
+  Ser_debug << "Lower bound baudrate   : " << baud << endl;
+  Ser_debug << "----------------------------------------" << endl;
+}
 #endif
 
 /*------------------------------------------------------------------------------
@@ -618,15 +638,15 @@ uint8_t NVM_ADC0_BIASREFBUF = 0;
 uint8_t NVM_ADC0_BIASR2R = 0;
 
 void setup() {
-  #ifdef DEBUG
-    Ser_debug.begin(9600);
-  #endif
+#ifdef DEBUG
+  Ser_debug.begin(9600);
+#endif
 
-  #if Ser_data == Serial
-    Ser_data.begin(SERIAL_DATA_BAUDRATE);
-  #else
-    Ser_data.begin(9600);
-  #endif
+#if Ser_data == Serial
+  Ser_data.begin(SERIAL_DATA_BAUDRATE);
+#else
+  Ser_data.begin(9600);
+#endif
 
   // Microcontroller unit (MCU) unique identifier (uid) number
   get_mcu_uid(mcu_uid);
@@ -661,82 +681,82 @@ void setup() {
   analogWriteResolution(DAC_OUTPUT_BITS);
   analogWrite(A0, 0);
 
-  // ADC
-  // Increase the ADC clock by setting the divisor from default DIV128 to DIV16.
-  // Setting smaller divisors than DIV16 results in ADC errors.
-  #if defined(__SAMD21__)
-    ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV16_Val;
-  #elif defined(__SAMD51__)
-    ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
-  #endif
+// ADC
+// Increase the ADC clock by setting the divisor from default DIV128 to DIV16.
+// Setting smaller divisors than DIV16 results in ADC errors.
+#if defined(__SAMD21__)
+  ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV16_Val;
+#elif defined(__SAMD51__)
+  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
+#endif
   analogReadResolution(ADC_INPUT_BITS);
   analogRead(A1); // Differential +
   analogRead(A2); // Differential -
 
-  // Set differential mode on A1(+) and A2(-)
-  #if defined (__SAMD21__)
-    ADC->CTRLB.bit.DIFFMODE = 1;
-    ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
-    ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
-    ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
-    ADC->REFCTRL.bit.REFSEL = 2;  // 2: INTVCC1 on SAMD21 = 1/2 VDDANA
-  #elif defined(__SAMD51__)
-    /*
-    ADC0->CTRLA.bit.ENABLE = 0;
-    delay(10);
+// Set differential mode on A1(+) and A2(-)
+#if defined(__SAMD21__)
+  ADC->CTRLB.bit.DIFFMODE = 1;
+  ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
+  ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
+  ADC->REFCTRL.bit.REFSEL = 2; // 2: INTVCC1 on SAMD21 = 1/2 VDDANA
+#elif defined(__SAMD51__)
+  /*
+  ADC0->CTRLA.bit.ENABLE = 0;
+  delay(10);
 
-    // NVM Software Calibration Area: address 0x00800080
-    uint16_t *NVM_SCA = NULL;
-    NVM_SCA = (uint16_t*) 0x00800080ul;
-    NVM_ADC0_BIASCOMP = (*NVM_SCA & 0x1c) >> 2;
-    NVM_ADC0_BIASREFBUF = (*NVM_SCA & 0xe0) >> 5;
-    NVM_ADC0_BIASR2R = (*NVM_SCA & 0x700) >> 8;
-    ADC0->CALIB.bit.BIASCOMP   = NVM_ADC0_BIASCOMP;
-    ADC0->CALIB.bit.BIASREFBUF = NVM_ADC0_BIASREFBUF;
-    ADC0->CALIB.bit.BIASR2R    = NVM_ADC0_BIASR2R;
-    delay(10);
-    */
+  // NVM Software Calibration Area: address 0x00800080
+  uint16_t *NVM_SCA = NULL;
+  NVM_SCA = (uint16_t*) 0x00800080ul;
+  NVM_ADC0_BIASCOMP = (*NVM_SCA & 0x1c) >> 2;
+  NVM_ADC0_BIASREFBUF = (*NVM_SCA & 0xe0) >> 5;
+  NVM_ADC0_BIASR2R = (*NVM_SCA & 0x700) >> 8;
+  ADC0->CALIB.bit.BIASCOMP   = NVM_ADC0_BIASCOMP;
+  ADC0->CALIB.bit.BIASREFBUF = NVM_ADC0_BIASREFBUF;
+  ADC0->CALIB.bit.BIASR2R    = NVM_ADC0_BIASR2R;
+  delay(10);
+  */
 
-    ADC0->INPUTCTRL.bit.DIFFMODE = 1;
-    ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
-    ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
-    // ADC0->INPUTCTRL.bit.GAIN does not exist on SAMD51
-    ADC0->REFCTRL.bit.REFSEL = 3; // 3: INTVCC1 on SAMD51 = VDDANA
+  ADC0->INPUTCTRL.bit.DIFFMODE = 1;
+  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
+  // ADC0->INPUTCTRL.bit.GAIN does not exist on SAMD51
+  ADC0->REFCTRL.bit.REFSEL = 3; // 3: INTVCC1 on SAMD51 = VDDANA
 
-    /*
-    ADC0->OFFSETCORR.bit.OFFSETCORR = ADC_OFFSETCORR_OFFSETCORR(50);
-    ADC0->GAINCORR.bit.GAINCORR = ADC_GAINCORR_GAINCORR(2065);
-    ADC0->CTRLB.bit.CORREN = 1;   // Enable offset and gain correction
+/*
+ADC0->OFFSETCORR.bit.OFFSETCORR = ADC_OFFSETCORR_OFFSETCORR(50);
+ADC0->GAINCORR.bit.GAINCORR = ADC_GAINCORR_GAINCORR(2065);
+ADC0->CTRLB.bit.CORREN = 1;   // Enable offset and gain correction
 
-    ADC0->CTRLA.bit.ENABLE = 1;
-    delay(10);
-    */
-  #endif
+ADC0->CTRLA.bit.ENABLE = 1;
+delay(10);
+*/
+#endif
 
   // Prepare for software-triggered acquisition
   syncADC();
-  #if defined (__SAMD21__)
-    ADC->CTRLA.bit.ENABLE = 0x01;
-  #elif defined(__SAMD51__)
-    ADC0->CTRLA.bit.ENABLE = 0x01;
-  #endif
+#if defined(__SAMD21__)
+  ADC->CTRLA.bit.ENABLE = 0x01;
+#elif defined(__SAMD51__)
+  ADC0->CTRLA.bit.ENABLE = 0x01;
+#endif
   syncADC();
-  #if defined (__SAMD21__)
-    ADC->SWTRIG.bit.START = 1;
-    ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
-  #elif defined(__SAMD51__)
-    ADC0->SWTRIG.bit.START = 1;
-    ADC0->INTFLAG.reg = ADC_INTFLAG_RESRDY;
-  #endif
+#if defined(__SAMD21__)
+  ADC->SWTRIG.bit.START = 1;
+  ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
+#elif defined(__SAMD51__)
+  ADC0->SWTRIG.bit.START = 1;
+  ADC0->INTFLAG.reg = ADC_INTFLAG_RESRDY;
+#endif
 
-  #ifdef DEBUG
-    print_debug_info();
-  #endif
+#ifdef DEBUG
+  print_debug_info();
+#endif
 
   // LUT
-  parse_freq("250.0");    // [Hz] Wanted startup frequency
-  parse_offs("1.7");      // [V]  Wanted startup offset
-  parse_ampl("1.414");    // [V]  Wanted startup amplitude
+  parse_freq("250.0"); // [Hz] Wanted startup frequency
+  parse_offs("1.7");   // [V]  Wanted startup offset
+  parse_ampl("1.414"); // [V]  Wanted startup amplitude
   compute_LUT(LUT_wave);
 
   // Start the interrupt timer
@@ -745,7 +765,7 @@ void setup() {
   // Experimental: Output a pulse train on pin 9 to act as clock source for
   // a (future) variable anti-aliasing filter IC placed in front of the ADC
   // input ports.
-  //TCC_pulse_train.startTimer(10);
+  // TCC_pulse_train.startTimer(10);
 }
 
 /*------------------------------------------------------------------------------
@@ -753,7 +773,7 @@ void setup() {
 ------------------------------------------------------------------------------*/
 
 void loop() {
-  char* str_cmd; // Incoming serial command string
+  char *str_cmd; // Incoming serial command string
   uint32_t now = millis();
   static uint32_t prev_millis = 0;
 
@@ -797,9 +817,9 @@ void loop() {
         // Flush out and ignore the command
         sc_data.getCmd();
 
-        #ifdef DEBUG
-          Ser_debug << "OFF" << endl;
-        #endif
+#ifdef DEBUG
+        Ser_debug << "OFF" << endl;
+#endif
       } else {
         // -------------------
         //  Not running
@@ -817,43 +837,43 @@ void loop() {
           char str_uid[33];
 
           snprintf(str_model, sizeof(str_model),
-            #if defined(__SAMD21G18A__)
-              "SAMD21G18A"
-            #elif defined(__SAMD21E18A__)
-              "SAMD21E18A"
-            #elif defined(__SAMD51P20A__)
-              "SAMD51P20A"
-            #elif defined(__SAMD51J19A__)
-              "SAMD51J19A"
-            #elif defined(__SAMD51G19A__)
-              "SAMD51G19A"
-            #else
-              "unknown MCU");
-            #endif
-          );
+#if defined(__SAMD21G18A__)
+                   "SAMD21G18A"
+#elif defined(__SAMD21E18A__)
+                   "SAMD21E18A"
+#elif defined(__SAMD51P20A__)
+                   "SAMD51P20A"
+#elif defined(__SAMD51J19A__)
+                   "SAMD51J19A"
+#elif defined(__SAMD51G19A__)
+                   "SAMD51G19A"
+#else
+                   "unknown MCU");
+#endif
+                   );
 
           // Format the uid byte-array to hex representation
           str_uid[32] = 0;
           for (uint8_t j = 0; j < 16; j++)
-          sprintf(&str_uid[2*j], "%02X", mcu_uid[j]);
+            sprintf(&str_uid[2 * j], "%02X", mcu_uid[j]);
 
           snprintf(str_buffer, sizeof(str_buffer), "%s\t%s\t%s\n",
                    FIRMWARE_VERSION, str_model, str_uid);
           Ser_data.print(str_buffer);
 
         } else if (strcmp(str_cmd, "bias?") == 0) {
-          #if defined (__SAMD51__)
-            Ser_data.println(NVM_ADC0_BIASCOMP);
-            Ser_data.println(NVM_ADC0_BIASREFBUF);
-            Ser_data.println(NVM_ADC0_BIASR2R);
+#if defined(__SAMD51__)
+          Ser_data.println(NVM_ADC0_BIASCOMP);
+          Ser_data.println(NVM_ADC0_BIASREFBUF);
+          Ser_data.println(NVM_ADC0_BIASR2R);
 
-            Ser_data.println(ADC0->CALIB.bit.BIASCOMP);
-            Ser_data.println(ADC0->CALIB.bit.BIASREFBUF);
-            Ser_data.println(ADC0->CALIB.bit.BIASR2R);
+          Ser_data.println(ADC0->CALIB.bit.BIASCOMP);
+          Ser_data.println(ADC0->CALIB.bit.BIASREFBUF);
+          Ser_data.println(ADC0->CALIB.bit.BIASR2R);
 
-            Ser_data.println(ADC0->OFFSETCORR.bit.OFFSETCORR);
-            Ser_data.println(ADC0->GAINCORR.bit.GAINCORR);
-          #endif
+          Ser_data.println(ADC0->OFFSETCORR.bit.OFFSETCORR);
+          Ser_data.println(ADC0->GAINCORR.bit.GAINCORR);
+#endif
 
         } else if (strcmp(str_cmd, "const?") == 0) {
           Ser_data.print(SAMPLING_PERIOD_us);
@@ -873,9 +893,9 @@ void loop() {
           Ser_data.print(MAX_N_LUT);
           Ser_data.print('\n');
 
-          #ifdef DEBUG
-            print_debug_info();
-          #endif
+#ifdef DEBUG
+          print_debug_info();
+#endif
 
         } else if (strcmp(str_cmd, "ref?") == 0 || strcmp(str_cmd, "?") == 0) {
           // Report reference signal settings
@@ -890,13 +910,12 @@ void loop() {
           Ser_data.print(N_LUT);
           Ser_data.print('\n');
 
-        } else if (strcmp(str_cmd, "lut?") == 0 ||
-                   strcmp(str_cmd, "l?") == 0) {
+        } else if (strcmp(str_cmd, "lut?") == 0 || strcmp(str_cmd, "l?") == 0) {
           // Report the LUT as a binary stream.
           // The reported LUT will start at phase = 0 deg.
-          Ser_data.write((uint8_t *) &N_LUT, 2);
-          Ser_data.write((uint8_t *) &is_LUT_dirty, 1);
-          Ser_data.write((uint8_t *) LUT_wave, N_LUT * 2);
+          Ser_data.write((uint8_t *)&N_LUT, 2);
+          Ser_data.write((uint8_t *)&is_LUT_dirty, 1);
+          Ser_data.write((uint8_t *)LUT_wave, N_LUT * 2);
 
         } else if (strcmp(str_cmd, "lut_ascii?") == 0 ||
                    strcmp(str_cmd, "la?") == 0) {
@@ -908,9 +927,9 @@ void loop() {
 
           sprintf(str_buffer, "%u\t%i\n", N_LUT, is_LUT_dirty);
           Ser_data.print(str_buffer);
-          for (i = 0; i < N_LUT ; i++) {
-              sprintf(str_buffer, "%u\t", LUT_wave[i]);
-              Ser_data.print(str_buffer);
+          for (i = 0; i < N_LUT; i++) {
+            sprintf(str_buffer, "%u\t", LUT_wave[i]);
+            Ser_data.print(str_buffer);
           }
 
         } else if (strcmp(str_cmd, "time?") == 0) {
@@ -934,22 +953,21 @@ void loop() {
           // Lock-in amp is already off and we reply with an acknowledgement
           Ser_data.print("already_off\n");
 
-          #ifdef DEBUG
-            Ser_debug << "Already OFF" << endl;
-          # endif
+#ifdef DEBUG
+          Ser_debug << "Already OFF" << endl;
+#endif
 
-        } else if (strcmp(str_cmd, "on") == 0 ||
-                   strcmp(str_cmd, "_on") == 0) {
+        } else if (strcmp(str_cmd, "on") == 0 || strcmp(str_cmd, "_on") == 0) {
           // Start lock-in amp
           noInterrupts();
-          //NVIC_DisableIRQ(TC3_IRQn);
+          // NVIC_DisableIRQ(TC3_IRQn);
           is_running = true;
           interrupts();
-          //NVIC_EnableIRQ(TC3_IRQn);
+// NVIC_EnableIRQ(TC3_IRQn);
 
-          #ifdef DEBUG
-            Ser_debug << "ON" << endl;
-          # endif
+#ifdef DEBUG
+          Ser_debug << "ON" << endl;
+#endif
 
         } else if (strncmp(str_cmd, "_freq", 5) == 0) {
           // Set frequency of the reference signal [Hz].
@@ -981,15 +999,17 @@ void loop() {
           // to become effective.
           ref_waveform = static_cast<WAVEFORM_ENUM>(atoi(&str_cmd[5]));
           ref_waveform = static_cast<WAVEFORM_ENUM>(max(ref_waveform, 0));
-          ref_waveform = static_cast<WAVEFORM_ENUM>(min(ref_waveform, END_WAVEFORM_ENUM - 1));
+          ref_waveform = static_cast<WAVEFORM_ENUM>(
+              min(ref_waveform, END_WAVEFORM_ENUM - 1));
           is_LUT_dirty = true;
           Ser_data.println(WAVEFORM_STRING[ref_waveform]);
 
-        } else if (strcmp(str_cmd, "compute_lut") == 0 || strcmp(str_cmd, "c") == 0) {
-            // (Re)compute the LUT based on the following settings:
-            // ref_freq, ref_offs, ref_ampl, ref_waveform.
-            compute_LUT(LUT_wave);
-            Ser_data.println("!");    // Reply with OK '!'
+        } else if (strcmp(str_cmd, "compute_lut") == 0 ||
+                   strcmp(str_cmd, "c") == 0) {
+          // (Re)compute the LUT based on the following settings:
+          // ref_freq, ref_offs, ref_ampl, ref_waveform.
+          compute_LUT(LUT_wave);
+          Ser_data.println("!"); // Reply with OK '!'
         }
       }
     }
@@ -1009,13 +1029,13 @@ void loop() {
     noInterrupts();
     if (trigger_send_TX_buffer_A) {
       trigger_send_TX_buffer_A = false;
-      //memcpy(_TX_buffer, TX_buffer_A, N_BYTES_TX_BUFFER);
+      // memcpy(_TX_buffer, TX_buffer_A, N_BYTES_TX_BUFFER);
       for (int16_t i = N_BYTES_TX_BUFFER - 1; i >= 0; i--) {
         _TX_buffer[i] = TX_buffer_A[i];
       }
     } else {
       trigger_send_TX_buffer_B = false;
-      //memcpy(_TX_buffer, TX_buffer_B, N_BYTES_TX_BUFFER);
+      // memcpy(_TX_buffer, TX_buffer_B, N_BYTES_TX_BUFFER);
       for (int16_t i = N_BYTES_TX_BUFFER - 1; i >= 0; i--) {
         _TX_buffer[i] = TX_buffer_B[i];
       }
@@ -1025,7 +1045,7 @@ void loop() {
     // Note: `write()` can return -1 as indication of an error, e.g. the
     // receiving side being overrun with data.
     size_t w;
-    w = Ser_data.write((uint8_t *) _TX_buffer, N_BYTES_TX_BUFFER);
+    w = Ser_data.write((uint8_t *)_TX_buffer, N_BYTES_TX_BUFFER);
 
     /*
     // DEBUG
