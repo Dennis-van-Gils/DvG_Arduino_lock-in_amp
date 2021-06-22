@@ -8,7 +8,7 @@ A2: input signal, differential -
 
 Boards                     | MCU        | tested | #define
 ---------------------------------------------------------------------
-M0 family
+M0 family, SAMD21
 - Arduino M0                 SAMD21G18A            ARDUINO_SAMD_ZERO
 - Arduino M0 Pro             SAMD21G18A   okay     ARDUINO_SAMD_ZERO
 - Adafruit Metro M0          SAMD21G18A
@@ -17,7 +17,7 @@ M0 family
 - Adafruit Trinket M0        SAMD21E18A
 - Adafruit Gemma M0          SAMD21E18A
 
-M4 family
+M4 family, SAMD51
 - Adafruit Grand Central M4  SAMD51P20A
 - Adafruit NeoTrellis M4     SAMD51J19A?
 - Adafruit Metro M4          SAMD51J19A            ADAFRUIT_METRO_M4_EXPRESS
@@ -209,35 +209,17 @@ bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 
 /*------------------------------------------------------------------------------
     Serial
-------------------------------------------------------------------------------*/
+--------------------------------------------------------------------------------
 
-// Arduino M0 Pro
-// Serial   : Programming USB port (UART).
-// SerialUSB: Native USB port (USART). Baudrate setting gets ignored and is
-//            always as fast as possible.
-/*
-   *** Tested scenarios (legacy notes)
-   SAMPLING_PERIOD_us   200 [usec]
-   BLOCK_SIZE           500 [samples]
-   BAUDRATE             1e6 [only used when #define Ser_data Serial]
-   (a)
-      #define Ser_data Serial
-      Only connect USB cable to programming port
-      --> Perfect timing. Timestamp jitter 0 usec
-   (b)
-      #define Ser_data Serial
-      Both USB cables to programming port and native port
-      --> Timestamp jitter +\- 3 usec
-   (c)
-      #define Ser_data SerialUSB
-      Only connect USB cable to native port
-      --> Timestamp jitter +\- 4 usec
-   (d)
-      #define Ser_data SerialUSB
-      Both USB cables to programming port and native port
-      --> Timestamp jitter +\- 4 usec
+  Arduino M0 Pro
+    Serial    : UART , Programming USB port
+    SerialUSB : USART, Native USB port
+
+  Adafruit Feather M4 Express
+    Serial    : USART
 */
-#define SERIAL_DATA_BAUDRATE 1.2e6 // Only used when '#define Ser_data Serial'
+
+#define SERIAL_DATA_BAUDRATE 1.2e6 // Only used when Serial is UART
 
 #ifdef ARDUINO_SAMD_ZERO
 #define Ser_data Serial
@@ -766,14 +748,13 @@ void loop() {
         // Simply end the serial connection which directly clears the underlying
         // TX (and RX) ringbuffer. `Flush()` on the other hand, would first send
         // out the full TX buffer and wait for the operation to complete.
-        // NOTE: Arduino M0 Pro debugging port is
+        // NOTE: Only works on Arduino M0 Pro debugging port
         Ser_data.end();
         Ser_data.begin(SERIAL_DATA_BAUDRATE);
 #else
         // Flush out any binary buffer data scheduled for sending, potentially
-        // flooding the receiving buffer at the PC side if 'is_running' was not
-        // switched to false fast enough.
-        // NOTE: Adafruit Feather M4 Express serial port is CDC
+        // flooding the receiving buffer at the PC side if `is_running` was not
+        // switched to `false` fast enough.
         Ser_data.flush();
 #endif
 
