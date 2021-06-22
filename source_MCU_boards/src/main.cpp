@@ -1,31 +1,31 @@
 /*------------------------------------------------------------------------------
-Arduino lock-in amplifier
+  Arduino lock-in amplifier
 
-Pins:
-A0: output reference signal
-A1: input signal, differential +
-A2: input signal, differential -
+  Pins:
+  A0: output reference signal
+  A1: input signal, differential +
+  A2: input signal, differential -
 
-Boards                     | MCU        | tested | #define
----------------------------------------------------------------------
-M0 family, SAMD21
-- Arduino M0                 SAMD21G18A            ARDUINO_SAMD_ZERO
-- Arduino M0 Pro             SAMD21G18A   okay     ARDUINO_SAMD_ZERO
-- Adafruit Metro M0          SAMD21G18A
-- Adafruit Feather M0        SAMD21G18A
-- Adafruit ItsyBitsy M0      SAMD21G18A
-- Adafruit Trinket M0        SAMD21E18A
-- Adafruit Gemma M0          SAMD21E18A
+  Boards                     | MCU        | test | #define
+  ---------------------------------------------------------------------
+  M0 family, SAMD21
+  - Arduino M0                 SAMD21G18A          ARDUINO_SAMD_ZERO
+  - Arduino M0 Pro             SAMD21G18A   okay   ARDUINO_SAMD_ZERO
+  - Adafruit Metro M0          SAMD21G18A
+  - Adafruit Feather M0        SAMD21G18A
+  - Adafruit ItsyBitsy M0      SAMD21G18A
+  - Adafruit Trinket M0        SAMD21E18A
+  - Adafruit Gemma M0          SAMD21E18A
 
-M4 family, SAMD51
-- Adafruit Grand Central M4  SAMD51P20A
-- Adafruit NeoTrellis M4     SAMD51J19A?
-- Adafruit Metro M4          SAMD51J19A            ADAFRUIT_METRO_M4_EXPRESS
-- Adafruit Feather M4        SAMD51J19A   okay     ADAFRUIT_FEATHER_M4_EXPRESS
-- Adafruit ItsyBitsy M4      SAMD51G19A   okay     ADAFRUIT_ITSYBITSY_M4_EXPRESS
+  M4 family, SAMD51
+  - Adafruit Grand Central M4  SAMD51P20A
+  - Adafruit NeoTrellis M4     SAMD51J19A?
+  - Adafruit Metro M4          SAMD51J19A          ADAFRUIT_METRO_M4_EXPRESS
+  - Adafruit Feather M4        SAMD51J19A   okay   ADAFRUIT_FEATHER_M4_EXPRESS
+  - Adafruit ItsyBitsy M4      SAMD51G19A   okay   ADAFRUIT_ITSYBITSY_M4_EXPRESS
 
-Dennis van Gils
-22-06-2021
+  Dennis van Gils
+  22-06-2021
 ------------------------------------------------------------------------------*/
 
 #include "DvG_SerialCommand.h"
@@ -82,10 +82,10 @@ static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1) ;}
 
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
 // 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
-#define FOREACH_WAVEFORM(WAVEFORM)                                             \
-  WAVEFORM(Cosine)                                                             \
-  WAVEFORM(Square)                                                             \
-  WAVEFORM(Triangle)                                                           \
+#define FOREACH_WAVEFORM(WAVEFORM) \
+  WAVEFORM(Cosine)                 \
+  WAVEFORM(Square)                 \
+  WAVEFORM(Triangle)               \
   WAVEFORM(END_WAVEFORM_ENUM)
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -93,70 +93,62 @@ static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1) ;}
 enum WAVEFORM_ENUM { FOREACH_WAVEFORM(GENERATE_ENUM) };
 static const char *WAVEFORM_STRING[] = {FOREACH_WAVEFORM(GENERATE_STRING)};
 
-/*------------------------------------------------------------------------------
-    Timing
-------------------------------------------------------------------------------*/
-
+// Others
 volatile bool is_running = false; // Is the lock-in amplifier running?
-char mcu_uid[33]; // Microcontroller unit (mcu) unique identifier (uid)
+char mcu_uid[33];                 // Serial number
 
-// Interrupt service routine clock
-// Findings using Arduino M0 Pro (legacy notes):
-//   SAMPLING_PERIOD_us:
-//      min.  40 usec for only writing A0, no serial
-//      min.  50 usec for writing A0 and reading A1, no serial
-//      min.  80 usec for writing A0 and reading A1, with serial
+/*------------------------------------------------------------------------------
+  Sampling period
+--------------------------------------------------------------------------------
+
+  * Interrupt service routine
+
+    The interrupt service routine will periodically request samples to be read
+    by the ADC and send out a new value to the DAC. I.e., it acquires analog
+    signal `sig_I` and outputs a new analog signal `ref_X` per timestep
+    `SAMPLING_PERIOD_us` in microseconds.
+
+  * Double buffer: TX_buffer_A & TX_buffer_B
+
+    Each acquired `sig_I` sample will get written to a buffer to be transmitted
+    over serial once the buffer is full. There are two of these buffers:
+    `TX_buffer_A` and `TX_buffer_B`.
+
+    The buffer that will be send each transmission is `BLOCK_SIZE` input samples
+    long. We employ a double buffer technique, where alternatingly `TX_buffer_A`
+    is being written to and `TX_buffer_B` is being sent, and vice-versa.
+
+    A full transmit buffer will contain a single block of data:
+
+    [
+      SOM,                                                {size = 10 bytes}
+      (uint32_t) number of block being send               {size =  4 bytes}
+      (uint32_t) millis timestamp at start of block       {size =  4 bytes}
+      (uint16_t) micros part of timestamp                 {size =  2 bytes}
+      (uint16_t) phase index `LUT_wave` at start of block {size =  2 bytes}
+      BLOCK_SIZE x (uint16_t) ADC readings `sig_I`        {size = BLOCK_SIZE * 2 bytes}
+      EOM                                                 {size = 10 bytes}
+    ]
+*/
+
+// Hint: Maintaining `SAMPLING_PERIOD_us x BLOCK_SIZE` = 0.1 seconds long will
+// result in a serial transmit rate of 10 blocks / s, which acts nicely with
+// the Python GUI.
 #ifdef __SAMD21__
 #define SAMPLING_PERIOD_us 80
-#else
-#define SAMPLING_PERIOD_us 40
-#endif
-const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
-
-/*------------------------------------------------------------------------------
-    Double buffer: TX_buffer_A & TX_buffer_B
-------------------------------------------------------------------------------*/
-
-// The buffer that will be send each transmission is BLOCK_SIZE samples long.
-// Double the amount of memory is reserved to employ a double buffer technique,
-// where alternatingly buffer A is being written to and buffer B is being sent.
-
-// The number of samples to acquire by the ADC and to subsequently send out
-// over serial as a single block of data
-#ifdef __SAMD21__
 #define BLOCK_SIZE 1250
 #else
+#define SAMPLING_PERIOD_us 40
 #define BLOCK_SIZE 2500
 #endif
 
-/* Tested settings Arduino M0 Pro (legacy notes)
-Case A: Turbo and stable on computer Onera, while only graphing and logging in
-        Python without FIR filtering
-            SAMPLING_PERIOD_us   80
-            BLOCK_SIZE          625
-            DAQ --> 12500 Hz
-Case B: Stable on computer Onera, while graphing, logging and FIR filtering in
-        Python
-            SAMPLING_PERIOD_us  200
-            BLOCK_SIZE          500
-            DAQ --> 5000 Hz
-*/
+const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
 
 // Serial transmission sentinels: start and end of message
 const char SOM[] = {0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80};
 const char EOM[] = {0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f};
 
 // clang-format off
-/* A sent-out serial transmit buffer will contain a single block of data:
- [SOM,                                              {size = 10 bytes}
-  (uint32_t) number of block being send             {size =  4 bytes}
-  (uint32_t) millis timestamp at start of block     {size =  4 bytes}
-  (uint16_t) micros part of timestamp               {size =  2 bytes}
-  (uint16_t) phase index LUT_wave at start of block {size =  2 bytes}
-  BLOCK_SIZE x (uint16_t) ADC readings 'sig_I'      {size = BLOCK_SIZE * 2 bytes}
-  EOM]                                              {size = 10 bytes}
-*/
-
 #define N_BYTES_SOM     (sizeof(SOM))
 #define N_BYTES_COUNTER (4)
 #define N_BYTES_MILLIS  (4)
@@ -187,28 +179,28 @@ volatile bool trigger_send_TX_buffer_B = false;
 // clang-format on
 
 /*------------------------------------------------------------------------------
-    Waveform look-up table (LUT)
+  Waveform look-up table (LUT)
 ------------------------------------------------------------------------------*/
 
-// Output reference signal parameters
+// Output reference signal `ref_X` parameters
 enum WAVEFORM_ENUM ref_waveform = Cosine;
 double ref_freq; // [Hz] Obtained frequency of reference signal
 double ref_offs; // [V]  Obtained voltage offset of reference signal
 double ref_ampl; // [V]  Voltage amplitude reference signal
 
 // Look-up table (LUT) for fast DAC
-#define MIN_N_LUT 20   // Min. allowed number of samples for one full period
-#define MAX_N_LUT 1000 // Max. allowed number of samples for one full period
+#define MIN_N_LUT 20                // Min. allowed number of samples for one full period
+#define MAX_N_LUT 1000              // Max. allowed number of samples for one full period
 uint16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
-uint16_t N_LUT;            // Current number of samples for one full period
-bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
+uint16_t N_LUT;                     // Current number of samples for one full period
+bool is_LUT_dirty = false;          // Does the LUT have to be updated with new settings?
 
 // Analog port
 #define A_REF 3.300 // [V] Analog voltage reference Arduino
 #define MAX_DAC_OUTPUT_BITVAL ((uint16_t)(pow(2, DAC_OUTPUT_BITS) - 1))
 
 /*------------------------------------------------------------------------------
-    Serial
+  Serial
 --------------------------------------------------------------------------------
 
   Arduino M0 Pro
@@ -222,34 +214,31 @@ bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 #define SERIAL_DATA_BAUDRATE 1.2e6 // Only used when Serial is UART
 
 #ifdef ARDUINO_SAMD_ZERO
-#define Ser_data Serial
-//#define Ser_data SerialUSB
+#define Ser_data Serial // Serial or SerialUSB
 #else
-#define Ser_data Serial
+#define Ser_data Serial // Only Serial
 #endif
 
 // Instantiate serial command listeners
 DvG_SerialCommand sc_data(Ser_data);
 
 /*------------------------------------------------------------------------------
-    get_mcu_uid
+  get_mcu_uid
 ------------------------------------------------------------------------------*/
 
 void get_mcu_uid(char mcu_uid_out[33]) {
-  /* Return the 128-bit uid (serial number) of the microcontroller as a hex
-  string
+  /* Return the 128-bit unique identifier (uid) of the microcontroller unit
+  (mcu) as a hex string. Aka, the serial number.
   */
   uint8_t raw_uid[16]; // uid as byte array
 
-#ifdef __SAMD21__
-// SAMD21 from section 9.3.3 of the datasheet
+#ifdef __SAMD21__ // SAMD21 from section 9.3.3 of the datasheet
 #define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x0080A00C)
 #define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x0080A040)
 #define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x0080A044)
 #define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x0080A048)
 #endif
-#ifdef __SAMD51__
-// SAMD51 from section 9.6 of the datasheet
+#ifdef __SAMD51__ // SAMD51 from section 9.6 of the datasheet
 #define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x008061FC)
 #define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x00806010)
 #define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x00806014)
@@ -276,17 +265,18 @@ void get_mcu_uid(char mcu_uid_out[33]) {
 }
 
 /*------------------------------------------------------------------------------
-    Waveform look-up table (LUT)
-------------------------------------------------------------------------------*/
-/* In order to drive the DAC at high sampling speeds, we compute the reference
-waveform in advance by a look-up table (LUT). The LUT will contain the samples
-for one complete period of the waveform. The LUT is statically allocated and can
-fit up to 'MAX_N_LUT' number of samples.
+  Waveform look-up table (LUT)
+--------------------------------------------------------------------------------
 
-Because the 'SAMPLING_PERIOD_us' is fixed and the LUT can only have an integer
-number of samples 'N_LUT', the possible wave frequencies are discrete.
-That means that there is a distinction between the wanted frequency and the
-obtained frequency 'ref_freq'.
+  In order to drive the DAC at high sampling rates, we compute the reference
+  waveform in advance by a look-up table (LUT). The LUT will contain the samples
+  for one complete period of the waveform. The LUT is statically allocated and
+  can fit up to `MAX_N_LUT` number of samples.
+
+  Because the `SAMPLING_PERIOD_us` is fixed and the LUT can only have an integer
+  number of samples `N_LUT`, the possible wave frequencies are discrete. That
+  means that there is a distinction between the wanted frequency and the
+  obtained frequency `ref_freq`.
 */
 
 void parse_freq(const char *str_value) {
@@ -314,28 +304,28 @@ void compute_LUT(uint16_t *LUT_array) {
   double norm_ampl = ref_ampl / A_REF; // Normalized
   double wave;
 
-  // Generate normalized waveform periods in the range [0, 1].
+  // Generate normalized waveform periods in the range [0, 1]
   for (int16_t i = 0; i < N_LUT; i++) {
     float j = i % N_LUT;
 
     switch (ref_waveform) {
-    default:
-    case Cosine:
-      // N_LUT even: extrema [ 0, 1]
-      // N_LUT odd : extrema [>0, 1]
-      wave = .5 * (1 + cos(M_TWOPI * j / N_LUT));
-      break;
+      default:
+      case Cosine:
+        // N_LUT even: extrema [ 0, 1]
+        // N_LUT odd : extrema [>0, 1]
+        wave = .5 * (1 + cos(M_TWOPI * j / N_LUT));
+        break;
 
-    case Square:
-      // Extrema guaranteed  [ 0, 1]
-      wave = round(fmod(1.75 * N_LUT - j, N_LUT) / (N_LUT - 1));
-      break;
+      case Square:
+        // Extrema guaranteed  [ 0, 1]
+        wave = round(fmod(1.75 * N_LUT - j, N_LUT) / (N_LUT - 1));
+        break;
 
-    case Triangle:
-      // N_LUT even: extrema [ 0, 1]
-      // N_LUT odd : extrema [>0, 1]
-      wave = 2 * fabs(j / N_LUT - .5);
-      break;
+      case Triangle:
+        // N_LUT even: extrema [ 0, 1]
+        // N_LUT odd : extrema [>0, 1]
+        wave = 2 * fabs(j / N_LUT - .5);
+        break;
     }
 
     wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
@@ -348,14 +338,16 @@ void compute_LUT(uint16_t *LUT_array) {
 }
 
 /*------------------------------------------------------------------------------
-    Time keeping
+  Time keeping
 ------------------------------------------------------------------------------*/
 
 void get_systick_timestamp(uint32_t *stamp_millis,
                            uint16_t *stamp_micros_part) {
   /* Adapted from:
   https://github.com/arduino/ArduinoCore-samd/blob/master/cores/arduino/delay.c
-  Note: The millis counter will roll over after 49.7 days.
+
+  Note:
+    The millis counter will roll over after 49.7 days.
   */
   uint32_t ticks, ticks2;
   uint32_t pend, pend2;
@@ -384,10 +376,10 @@ void get_systick_timestamp(uint32_t *stamp_millis,
 }
 
 void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
-  /* Write timestamp and 'phase'-stamp of the first ADC sample of the block
+  /* Write timestamp and `phase`-stamp of the first ADC sample of the block
   that is about to be sent out over the serial port. We need to know which
   phase angle was output on the DAC, that corresponds in time to the first ADC
-  sample of the TX_buffer. This is the essence of a phase-sensitive detector,
+  sample of the `TX_buffer`. This is the essence of a phase-sensitive detector,
   which is the building block of a lock-in amplifier.
   */
 
@@ -413,7 +405,7 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
 }
 
 /*------------------------------------------------------------------------------
-    Interrupt service routine (isr) for phase-sentive detection (psd)
+  Interrupt service routine (isr) for phase-sentive detection (psd)
 ------------------------------------------------------------------------------*/
 
 void isr_psd() {
@@ -437,19 +429,20 @@ void isr_psd() {
 #elif defined(__SAMD51__)
       DAC->DATA[0].reg = 0; // Set output voltage to 0
 #endif
-      // syncDAC();  // NOT NECESSARY
+      // syncDAC(); // NOT NECESSARY
     }
   }
+
   if (!is_running) {
     return;
   }
 
   if (starting_up) {
-    write_idx = 0;
-    LUT_idx = 0;
-    using_TX_buffer_A = true;
     trigger_send_TX_buffer_A = false;
     trigger_send_TX_buffer_B = false;
+    using_TX_buffer_A = true;
+    write_idx = 0;
+    LUT_idx = 0;
   }
 
   // Read input signal corresponding to the DAC output of the previous timestep.
@@ -523,7 +516,7 @@ void isr_psd() {
 }
 
 /*------------------------------------------------------------------------------
-    Print debug information to the terminal
+  print_debug_info
 ------------------------------------------------------------------------------*/
 
 void print_debug_info() {
@@ -550,8 +543,7 @@ void print_debug_info() {
   Ser_data << "  .DIFFMODE   : " << _HEX(ADC->CTRLB.bit.DIFFMODE) << endl;
   Ser_data << "INPUTCTRL" << endl;
   Ser_data << "  .GAIN       : " << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl;
-  Ser_data << "  .INPUTOFFSET: " << _HEX(ADC->INPUTCTRL.bit.INPUTOFFSET)
-           << endl;
+  Ser_data << "  .INPUTOFFSET: " << _HEX(ADC->INPUTCTRL.bit.INPUTOFFSET) << endl;
   Ser_data << "  .INPUTSCAN  : " << _HEX(ADC->INPUTCTRL.bit.INPUTSCAN) << endl;
   Ser_data << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
   Ser_data << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
@@ -559,35 +551,33 @@ void print_debug_info() {
 // TO DO
 #endif
 
-  float DAQ_rate = 1.0e6 / SAMPLING_PERIOD_us;
-  float block_rate = DAQ_rate / BLOCK_SIZE;
-  // 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
-  uint32_t baud = ceil(N_BYTES_TX_BUFFER * 10 * block_rate);
+  float block_rate = SAMPLING_RATE_Hz / BLOCK_SIZE;
+  uint32_t baudrate = ceil(N_BYTES_TX_BUFFER * 10 * block_rate);
+  // baudrate: 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
   Ser_data << "----------------------------------------" << endl;
-  Ser_data << "DAQ rate     : " << _FLOAT(DAQ_rate, 2) << " Hz" << endl;
+  Ser_data << "DAQ rate     : " << _FLOAT(SAMPLING_RATE_Hz, 2) << " Hz" << endl;
   Ser_data << "ISR clock    : " << SAMPLING_PERIOD_us << " usec" << endl;
   Ser_data << "Block size   : " << BLOCK_SIZE << " samples" << endl;
-  Ser_data << "Transmit rate          : " << _FLOAT(block_rate, 2)
-           << " blocks/s" << endl;
-  Ser_data << "Data bytes per transmit: " << N_BYTES_TX_BUFFER << " bytes"
-           << endl;
-  Ser_data << "Lower bound baudrate   : " << baud << endl;
+  Ser_data << "Transmit rate          : "
+           << _FLOAT(block_rate, 2) << " blocks/s" << endl;
+  Ser_data << "Data bytes per transmit: "
+           << N_BYTES_TX_BUFFER << " bytes" << endl;
+  Ser_data << "Lower-bound baudrate   : "
+           << baudrate << endl;
   Ser_data << "----------------------------------------" << endl;
 }
 
 /*------------------------------------------------------------------------------
-    setup
+  setup
 ------------------------------------------------------------------------------*/
 
+// Future support
 uint8_t NVM_ADC0_BIASCOMP = 0;
 uint8_t NVM_ADC0_BIASREFBUF = 0;
 uint8_t NVM_ADC0_BIASR2R = 0;
 
 void setup() {
-  // Establish serial connection
   Ser_data.begin(SERIAL_DATA_BAUDRATE);
-
-  // Microcontroller unit (MCU) unique identifier (uid) number
   get_mcu_uid(mcu_uid);
 
   // Use built-in LED to signal running state of lock-in amp
@@ -607,7 +597,7 @@ void setup() {
   interrupts();
 
   /*
-  // Disabled because `memcpy` does not operate on volatiles
+  // NOTE: Disabled because `memcpy` does not operate on volatiles
   noInterrupts();
   memcpy(TX_buffer_A                         , SOM, N_BYTES_SOM);
   memcpy(&TX_buffer_A[N_BYTES_TX_BUFFER - 10], EOM, N_BYTES_EOM);
@@ -620,13 +610,12 @@ void setup() {
   analogWriteResolution(DAC_OUTPUT_BITS);
   analogWrite(A0, 0);
 
-// ADC
-// Increase the ADC clock by setting the divisor from default DIV128 to a
-// smaller divisor. This is needed for DAQ rates larger than ~20 kHz.
-// Setting smaller divisors than DIV32 results in ADC errors.
-// NOTE 2021: THIS MIGHT ACTUALLY CAUSE INTERMITTENT ADC FAILURE FROM BOOT UP
-// WHEN SET TOO LOW.
-// Though, keep as large as possible to increase ADC accuracy.
+  // ADC
+  // Increase the ADC clock by setting the divisor from default DIV128 to a
+  // smaller divisor. This is needed for DAQ rates larger than ~20 kHz on SAMD51
+  // and DAQ rates larger than ~10 kHz on SAMD21. Setting too small divisors
+  // will result in ADC errors. Keep as large as possible to increase ADC
+  // accuracy.
 #if defined(__SAMD21__)
   ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV32_Val;
 #elif defined(__SAMD51__)
@@ -636,7 +625,7 @@ void setup() {
   analogRead(A1); // Differential +
   analogRead(A2); // Differential -
 
-// Set differential mode on A1(+) and A2(-)
+  // Set differential mode on A1(+) and A2(-)
 #if defined(__SAMD21__)
   ADC->CTRLB.bit.DIFFMODE = 1;
   ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
@@ -666,18 +655,18 @@ void setup() {
   // ADC0->INPUTCTRL.bit.GAIN does not exist on SAMD51
   ADC0->REFCTRL.bit.REFSEL = 3; // 3: INTVCC1 on SAMD51 = VDDANA
 
-/*
-ADC0->OFFSETCORR.bit.OFFSETCORR = ADC_OFFSETCORR_OFFSETCORR(50);
-ADC0->GAINCORR.bit.GAINCORR = ADC_GAINCORR_GAINCORR(2065);
-ADC0->CTRLB.bit.CORREN = 1;   // Enable offset and gain correction
+  /*
+  ADC0->OFFSETCORR.bit.OFFSETCORR = ADC_OFFSETCORR_OFFSETCORR(50);
+  ADC0->GAINCORR.bit.GAINCORR = ADC_GAINCORR_GAINCORR(2065);
+  ADC0->CTRLB.bit.CORREN = 1;   // Enable offset and gain correction
 
-ADC0->CTRLA.bit.ENABLE = 1;
-delay(10);
-*/
+  ADC0->CTRLA.bit.ENABLE = 1;
+  delay(10);
+  */
 #endif
 
-// Prepare for software-triggered acquisition
-// syncADC();  // NOT NECESSARY
+  // Prepare for software-triggered acquisition
+  // syncADC(); // NOT NECESSARY
 #if defined(__SAMD21__)
   ADC->CTRLA.bit.ENABLE = 0x01;
 #elif defined(__SAMD51__)
@@ -712,7 +701,7 @@ delay(10);
 }
 
 /*------------------------------------------------------------------------------
-    loop
+  loop
 ------------------------------------------------------------------------------*/
 
 void loop() {
@@ -720,23 +709,23 @@ void loop() {
   uint32_t now = millis();
   static uint32_t prev_millis = 0;
 
-  // Process commands on the data channel every N milliseconds.
+  // Process incoming serial commands every N milliseconds.
   // Deliberately slowed down to improve timing stability of `isr_psd()`.
   if ((now - prev_millis) > 19) {
     prev_millis = now;
 
     if (sc_data.available()) {
       if (is_running) { // Atomic read, `noInterrupts()` not required here
-        // -------------------
-        //  Running
-        // -------------------
-        /* Any command received while running will switch the lock-in amp off.
-           The command string will not be checked in advance, because this
-           causes a lot of overhead, during which time the Arduino's serial-out
-           buffer could potentially flood the serial-in buffer at the PC side.
-           This will happen when the PC is not reading (and depleting) the
-           in-buffer as fast as possible because it is now waiting for the 'off'
-           reply to occur.
+        /*--------------
+          Running
+        ----------------
+          Any command received while running will switch the lock-in amp off.
+          The command string will not be checked in advance, because this
+          causes a lot of overhead, during which time the Arduino's serial-out
+          buffer could potentially flood the serial-in buffer at the PC side.
+          This will happen when the PC is not reading (and depleting) the
+          in-buffer as fast as possible because it is now waiting for the 'off'
+          reply to occur.
         */
         noInterrupts();
         is_running = false;
@@ -758,7 +747,7 @@ void loop() {
         Ser_data.flush();
 #endif
 
-        // Confirm at the PC side that the lock-in amp is off and is not longer
+        // Confirm at the PC side that the lock-in amp is off and is no longer
         // sending binary data. The 'off' message might still be preceded with
         // some left-over binary data when being read at the PC side.
         Ser_data.print("off\n");
@@ -767,9 +756,11 @@ void loop() {
         sc_data.getCmd();
 
       } else {
-        // -------------------
-        //  Not running
-        // -------------------
+        /*-------------
+          Not running
+        ---------------
+          We are ready to process any incoming commands.
+        */
         str_cmd = sc_data.getCmd();
 
         if (strcmp(str_cmd, "id?") == 0) {
@@ -782,6 +773,7 @@ void loop() {
                    << endl;
 
         } else if (strcmp(str_cmd, "bias?") == 0) {
+          // Report ADC bias and correction information
 #if defined(__SAMD51__)
           Ser_data.println(NVM_ADC0_BIASCOMP);
           Ser_data.println(NVM_ADC0_BIASREFBUF);
@@ -795,7 +787,12 @@ void loop() {
           Ser_data.println(ADC0->GAINCORR.bit.GAINCORR);
 #endif
 
+        } else if (strcmp(str_cmd, "debug?") == 0) {
+          // Report debug information
+          print_debug_info();
+
         } else if (strcmp(str_cmd, "const?") == 0) {
+          // Report lock-in amplifier constants
           Ser_data.print(SAMPLING_PERIOD_us);
           Ser_data.print('\t');
           Ser_data.print(BLOCK_SIZE);
@@ -813,12 +810,8 @@ void loop() {
           Ser_data.print(MAX_N_LUT);
           Ser_data.print('\n');
 
-#ifdef DEBUG
-          print_debug_info();
-#endif
-
         } else if (strcmp(str_cmd, "ref?") == 0 || strcmp(str_cmd, "?") == 0) {
-          // Report reference signal settings
+          // Report reference signal `ref_X` settings
           Ser_data.print(ref_freq, 3);
           Ser_data.print('\t');
           Ser_data.print(ref_offs, 3);
@@ -831,17 +824,16 @@ void loop() {
           Ser_data.print('\n');
 
         } else if (strcmp(str_cmd, "lut?") == 0 || strcmp(str_cmd, "l?") == 0) {
-          // Report the LUT as a binary stream.
-          // The reported LUT will start at phase = 0 deg.
+          // Report the LUT as a binary stream. The reported LUT will start at
+          // phase = 0 deg.
           Ser_data.write((uint8_t *)&N_LUT, 2);
           Ser_data.write((uint8_t *)&is_LUT_dirty, 1);
           Ser_data.write((uint8_t *)LUT_wave, N_LUT * 2);
 
         } else if (strcmp(str_cmd, "lut_ascii?") == 0 ||
                    strcmp(str_cmd, "la?") == 0) {
-          // Report the LUT as tab-delimited ASCII.
-          // The reported LUT will start at phase = 0 deg.
-          // Convenience function handy for debugging from a
+          // Report the LUT as tab-delimited ASCII. The reported LUT will start
+          // at phase = 0 deg. Convenience function handy for debugging from a
           // serial console.
           Ser_data << N_LUT << "\t" << is_LUT_dirty << endl;
           for (uint16_t i = 0; i < N_LUT - 1; i++) {
@@ -861,10 +853,7 @@ void loop() {
 
         } else if (strcmp(str_cmd, "fcpu?") == 0) {
           // Report processor clock frequency
-          static char buf[16];
-
-          sprintf(buf, "%lu Hz\n", SystemCoreClock);
-          Ser_data.print(buf);
+          Ser_data << SystemCoreClock << " Hz" << endl;
 
         } else if (strcmp(str_cmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
@@ -878,32 +867,28 @@ void loop() {
 
         } else if (strncmp(str_cmd, "_freq", 5) == 0) {
           // Set frequency of the reference signal [Hz].
-          // You still have to call 'compute_LUT(LUT_wave)' for it
-          // to become effective.
+          // Call 'compute_LUT(LUT_wave)' for it to become effective.
           parse_freq(&str_cmd[5]);
           is_LUT_dirty = true;
           Ser_data.println(ref_freq, 3);
 
         } else if (strncmp(str_cmd, "_offs", 5) == 0) {
           // Set offset of the reference signal [V].
-          // You still have to call 'compute_LUT(LUT_wave)' for it
-          // to become effective.
+          // Call 'compute_LUT(LUT_wave)' for it to become effective.
           parse_offs(&str_cmd[5]);
           is_LUT_dirty = true;
           Ser_data.println(ref_offs, 3);
 
         } else if (strncmp(str_cmd, "_ampl", 5) == 0) {
           // Set amplitude of the reference signal [V].
-          // You still have to call 'compute_LUT(LUT_wave)' for it
-          // to become effective.
+          // Call 'compute_LUT(LUT_wave)' for it to become effective.
           parse_ampl(&str_cmd[5]);
           is_LUT_dirty = true;
           Ser_data.println(ref_ampl, 3);
 
         } else if (strncmp(str_cmd, "_wave", 5) == 0) {
           // Set the waveform type of the reference signal.
-          // You still have to call 'compute_LUT(LUT_wave)' for it
-          // to become effective.
+          // Call 'compute_LUT(LUT_wave)' for it to become effective.
           ref_waveform = static_cast<WAVEFORM_ENUM>(atoi(&str_cmd[5]));
           ref_waveform = static_cast<WAVEFORM_ENUM>(max(ref_waveform, 0));
           ref_waveform = static_cast<WAVEFORM_ENUM>(
@@ -913,7 +898,7 @@ void loop() {
 
         } else if (strcmp(str_cmd, "compute_lut") == 0 ||
                    strcmp(str_cmd, "c") == 0) {
-          // (Re)compute the LUT based on the following settings:
+          // (Re)compute the LUT based on the following known settings:
           // ref_freq, ref_offs, ref_ampl, ref_waveform.
           compute_LUT(LUT_wave);
           Ser_data.println("!"); // Reply with OK '!'
@@ -922,8 +907,21 @@ void loop() {
     }
   }
 
-  // Send buffers over the data channel
-  // uint8_t _TX_buffer[N_BYTES_TX_BUFFER]; // Copy of volatile buffers
+  // Send buffer out over the serial connection
+
+  /* NOTE:
+    Copying the volatile buffers `TX_buffer_A` and `TX_buffer_B` into a
+    non-volatile extra buffer is not necessary and actually hurts performance,
+    especially when it is encapsulated by a `noInterrupts()` and
+    `interrupts()` routine. The encapsulation results in unstable DAC output,
+    where a single sample gets duplicated intermittently as seen on a
+    oscilloscope, when the DAQ rate is very high (> 10kHz).
+
+    The employed double-buffer technique already is sufficient to ensure that
+    the serial transmit has all the time to send out stream A, while the other
+    stream B gets written to by the ISR.
+  */
+  // uint8_t _TX_buffer[N_BYTES_TX_BUFFER]; // Will hold copy of volatile buffer
 
   if (is_running && (trigger_send_TX_buffer_A || trigger_send_TX_buffer_B)) {
     /*
@@ -934,22 +932,9 @@ void loop() {
     );
     */
 
-    /* NOTE 2021:
-    The mechanism of copying the volatile buffers `TX_buffer_A` and
-    `TX_buffer_B` into a non-volatile extra buffer is not necessary and actually
-    hurts performance, especially when it is encapsulated by a
-    `noInterrupts()` and `interrupts()` routine. The encapsulation results in
-    unstable DAC output, where a single sample gets duplicated intermittently as
-    seen on a oscilloscope, when the DAQ rate is very high (> 10kHz).
-
-    The double buffer technique already is sufficient to ensure that the
-    serial transmit has all the time to send out stream A, while the other
-    stream B gets written to by the ISR.
-    */
-
     /*
-    // Copy the volatile buffers
-    //noInterrupts();
+    // Copy the volatile buffer
+    noInterrupts();
     if (trigger_send_TX_buffer_A) {
       trigger_send_TX_buffer_A = false;
       // memcpy(_TX_buffer, TX_buffer_A, N_BYTES_TX_BUFFER);
@@ -963,10 +948,10 @@ void loop() {
         _TX_buffer[i] = TX_buffer_B[i];
       }
     }
-    //interrupts();
+    interrupts();
     */
 
-    // Note: `write()` can return -1 as indication of an error, e.g. the
+    // NOTE: `write()` can return -1 as indication of an error, e.g. the
     // receiving side being overrun with data.
     // size_t w;
 
