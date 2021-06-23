@@ -1,3 +1,5 @@
+PYTHON
+
 * Add support for HDF5 to allow writing log as binary file
 
 * Investigate more numba.njit to speed up calculations
@@ -24,4 +26,10 @@
   `SSD practicum` firmware) and notify the user to flash to the
   latest firmware first in order to continue the main Python program.
 
+FIRMWARE
+
 * Make SAMD51 reset the ISR timer to 0 when (re)starting the lock-in amp.
+
+* Implement factory-stored calibration corrections on the ADC
+
+* Perhaps implement an auto-calibration routine in 'short-circuit' mode
