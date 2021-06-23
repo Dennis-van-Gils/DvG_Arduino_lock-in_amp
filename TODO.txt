@@ -28,8 +28,6 @@ PYTHON
 
 FIRMWARE
 
-* Make SAMD51 reset the ISR timer to 0 when (re)starting the lock-in amp.
-
 * Implement factory-stored calibration corrections on the ADC
 
 * Perhaps implement an auto-calibration routine in 'short-circuit' mode

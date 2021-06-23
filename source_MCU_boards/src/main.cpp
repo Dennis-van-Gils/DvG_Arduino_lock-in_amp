@@ -127,8 +127,9 @@ enum WAVEFORM_ENUM { FOREACH_WAVEFORM(GENERATE_ENUM) };
 static const char *WAVEFORM_STRING[] = {FOREACH_WAVEFORM(GENERATE_STRING)};
 
 // Others
-volatile bool is_running = false; // Is the lock-in amplifier running?
-char mcu_uid[33];                 // Serial number
+volatile bool is_running = false;     // Is the lock-in amplifier running?
+volatile uint32_t startup_millis = 0; // Time when lock-in amp got turned on
+char mcu_uid[33];                     // Serial number
 
 /*------------------------------------------------------------------------------
   Sampling
@@ -420,6 +421,7 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
 
   // clang-format off
   TX_buffer_counter++;
+  millis_copy -= startup_millis;
   TX_buffer[TX_BUFFER_OFFSET_COUNTER    ] = TX_buffer_counter;
   TX_buffer[TX_BUFFER_OFFSET_COUNTER + 1] = TX_buffer_counter >> 8;
   TX_buffer[TX_BUFFER_OFFSET_COUNTER + 2] = TX_buffer_counter >> 16;
@@ -524,6 +526,7 @@ void isr_psd() {
     return;
   } else if (startup_counter == 3) {
     startup_counter++;
+    startup_millis = millis();
     stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     LUT_idx++;
     return;
