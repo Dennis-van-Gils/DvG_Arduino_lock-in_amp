@@ -126,7 +126,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         name="Alia",
         long_name="Arduino lock-in amplifier",
         connect_to_specific_ID="Alia",
-        baudrate=1.2e6,
+        baudrate=1e6,
         read_timeout=1,
         write_timeout=1,
     ):
@@ -943,8 +943,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     alia.begin(
-        freq=220,
-        waveform=Waveform.Cosine,
+        freq=220, waveform=Waveform.Cosine,
     )
     # alia.begin()
     alia.turn_on(reset_timer=True)

@@ -135,8 +135,8 @@ char mcu_uid[33];                 // Serial number
 // result in a serial transmit rate of 10 blocks / s, which acts nicely with
 // the Python GUI.
 #ifdef __SAMD21__
-#define SAMPLING_PERIOD_us 80
-#define BLOCK_SIZE 1250
+#define SAMPLING_PERIOD_us 100
+#define BLOCK_SIZE 1000
 #else
 #define SAMPLING_PERIOD_us 40
 #define BLOCK_SIZE 2500
@@ -211,10 +211,10 @@ bool is_LUT_dirty = false;          // Does the LUT have to be updated with new 
     Serial    : USART
 */
 
-#define SERIAL_DATA_BAUDRATE 1.2e6 // Only used when Serial is UART
+#define SERIAL_DATA_BAUDRATE 1e6 // Only used when Serial is UART
 
 #ifdef ARDUINO_SAMD_ZERO
-#define Ser_data Serial // Serial or SerialUSB
+#define Ser_data SerialUSB // Serial or SerialUSB
 #else
 #define Ser_data Serial // Only Serial
 #endif
