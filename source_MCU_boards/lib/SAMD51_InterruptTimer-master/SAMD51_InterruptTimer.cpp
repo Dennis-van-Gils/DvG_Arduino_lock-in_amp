@@ -8,13 +8,19 @@
   See https://github.com/EHbtj/ZeroTimer for the SAMD21 library.
 
   Dennis van Gils
-  02-05-2019
+  11-02-2019
 */
 
 #include "Arduino.h"
 #include "SAMD51_InterruptTimer.h"
 
-#define CPU_HZ 48000000
+// Adafruit M4 code (cores/arduino/startup.c) configures these clock generators:
+// 120MHz - GCLK0
+// 100MHz - GCLK2
+// 48MHz  - GCLK1
+// 12MHz  - GCLK4
+
+#define GCLK1_HZ 48000000
 #define TIMER_PRESCALER_DIV 1024
 
 void (*func1)();
@@ -24,33 +30,9 @@ static inline void TC3_wait_for_sync() {
 }
 
 void TC_Timer::startTimer(unsigned long period, void (*f)()) {
-  // Activate timer TC3
-  // CLK_TC3_APB
-  MCLK->APBBMASK.reg |= MCLK_APBBMASK_TC3;
-
-  // Set up the generic clock
-  GCLK->GENCTRL[1].reg =
-      // Divide clock source by divisor 1
-      GCLK_GENCTRL_DIV(1) |
-      // Set the duty cycle to 50/50 HIGH/LOW
-      GCLK_GENCTRL_IDC |
-      // Enable GCLK7
-      GCLK_GENCTRL_GENEN |
-      // Select 48MHz DFLL clock source
-      GCLK_GENCTRL_SRC_DFLL;
-      // Select 100MHz DPLL clock source
-      //GCLK_GENCTRL_SRC_DPLL1;
-      // Select 120MHz DPLL clock source
-      //GCLK_GENCTRL_SRC_DPLL0;
-  // Wait for synchronization
-  while (GCLK->SYNCBUSY.bit.GENCTRL1);
-
-  // Enable the TC bus clock
-  GCLK->PCHCTRL[TC3_GCLK_ID].reg =
-      // Enable the TC3 peripheral channel
-      GCLK_PCHCTRL_CHEN |
-      // Connect generic clock to TC3
-      GCLK_PCHCTRL_GEN_GCLK1;
+  // Enable the TC bus clock, use clock generator 1
+  GCLK->PCHCTRL[TC3_GCLK_ID].reg = GCLK_PCHCTRL_GEN_GCLK1_Val |
+                                   (1 << GCLK_PCHCTRL_CHEN_Pos);
   while (GCLK->SYNCBUSY.reg > 0);
 
   TC3->COUNT16.CTRLA.bit.ENABLE = 0;
@@ -68,6 +50,33 @@ void TC_Timer::startTimer(unsigned long period, void (*f)()) {
   NVIC_EnableIRQ(TC3_IRQn);
 
   func1 = f;
+
+  setPeriod(period);
+}
+
+void TC_Timer::stopTimer() {
+  TC3->COUNT16.CTRLA.bit.ENABLE = 0;
+}
+
+void TC_Timer::restartTimer(unsigned long period) {
+  // Enable the TC bus clock, use clock generator 1
+  GCLK->PCHCTRL[TC3_GCLK_ID].reg = GCLK_PCHCTRL_GEN_GCLK1_Val |
+                                   (1 << GCLK_PCHCTRL_CHEN_Pos);
+  while (GCLK->SYNCBUSY.reg > 0);
+
+  TC3->COUNT16.CTRLA.bit.ENABLE = 0;
+  
+  // Use match mode so that the timer counter resets when the count matches the
+  // compare register
+  TC3->COUNT16.WAVE.bit.WAVEGEN = TC_WAVE_WAVEGEN_MFRQ;
+  TC3_wait_for_sync();
+  
+   // Enable the compare interrupt
+  TC3->COUNT16.INTENSET.reg = 0;
+  TC3->COUNT16.INTENSET.bit.MC0 = 1;
+
+  // Enable IRQ
+  NVIC_EnableIRQ(TC3_IRQn);
 
   setPeriod(period);
 }
@@ -121,7 +130,7 @@ void TC_Timer::setPeriod(unsigned long period) {
   TC3->COUNT16.CTRLA.reg |= TC_CTRLA_PRESCALER_DIVN;
   TC3_wait_for_sync();
 
-  int compareValue = (int)(CPU_HZ / (prescaler/((float)period / 1000000))) - 1;
+  int compareValue = (int)(GCLK1_HZ / (prescaler/((float)period / 1000000))) - 1;
 
   // Make sure the count is in a proportional position to where it was
   // to prevent any jitter or disconnect when changing the compare value.
@@ -256,7 +265,7 @@ void TCC_Timer_Pulse_Train::setPeriod(unsigned long period) {
   TCC1->CTRLA.reg |= TCC_CTRLA_PRESCALER_DIVN;
   TCC1_wait_for_sync();
 
-  int compareValue = (int)(CPU_HZ / (prescaler/((float)period / 1000000))) - 1;
+  int compareValue = (int)(GCLK1_HZ / (prescaler/((float)period / 1000000))) - 1;
 
   // Make sure the count is in a proportional position to where it was
   // to prevent any jitter or disconnect when changing the compare value.

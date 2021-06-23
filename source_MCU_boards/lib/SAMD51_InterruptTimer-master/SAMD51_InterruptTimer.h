@@ -8,7 +8,7 @@
   See https://github.com/EHbtj/ZeroTimer for the SAMD21 library.
 
   Dennis van Gils
-  02-05-2019
+  11-02-2019
 */
 
 #ifndef SAMD51_ISR_Timer_h
@@ -17,6 +17,8 @@
 class TC_Timer {
   public:
     void startTimer(unsigned long period, void (*f)());
+    void stopTimer();
+    void restartTimer(unsigned long period);
     void setPeriod(unsigned long period);
 };
 
