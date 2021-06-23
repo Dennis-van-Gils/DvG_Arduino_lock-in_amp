@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "19-06-2021"
+__date__ = "23-06-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -59,6 +59,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         # Microcontroller unit (mcu) info
         mcu_firmware = None     # Firmware version
         mcu_model    = None     # Chipset model
+        mcu_fcpu     = None     # Clock frequency
         mcu_uid      = None     # Unique identifier of the chip (serial number)
 
         # Serial communication sentinels: start and end of message
@@ -178,7 +179,13 @@ class Alia(Arduino_protocol_serial.Arduino):
         success, ans_str = self.query("mcu?")
         if success:
             try:
-                c.mcu_firmware, c.mcu_model, c.mcu_uid = ans_str.split("\t")
+                (
+                    c.mcu_firmware,
+                    c.mcu_model,
+                    c.mcu_fcpu,
+                    c.mcu_uid,
+                ) = ans_str.split("\t")
+                c.mcu_fcpu = int(c.mcu_fcpu)
             except Exception as err:
                 pft(err)
                 return False
@@ -187,6 +194,7 @@ class Alia(Arduino_protocol_serial.Arduino):
 
         print("  firmware  %s" % c.mcu_firmware)
         print("     model  %s" % c.mcu_model)
+        print("      fcpu  %.0f MHz" % (c.mcu_fcpu / 1e6))
         print("       UID  %s" % c.mcu_uid)
         print("")
 
@@ -201,7 +209,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             c.return_type_ref_X     = float
             c.return_type_sig_I     = float
 
-        elif c.mcu_firmware == "ALIA v0.3.0 VSCODE":
+        elif c.mcu_firmware == "ALIA v1.0.0 VSCODE":
             c.binary_type_counter   = "I"  # [uint32_t] TX_buffer header
             c.binary_type_millis    = "I"  # [uint32_t] TX_buffer header
             c.binary_type_micros    = "H"  # [uint16_t] TX_buffer header
