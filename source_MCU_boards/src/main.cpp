@@ -63,6 +63,29 @@
 #  define MCU_MODEL "SAMD51G19A"
 #endif
 
+// Use built-in LED to signal running state of lock-in amp
+static __inline__ void LED_off() __attribute__((always_inline, unused));
+static __inline__ void LED_on() __attribute__((always_inline, unused));
+
+// clang-format off
+#ifdef ADAFRUIT_FEATHER_M4_EXPRESS
+#  include "Adafruit_NeoPixel.h"
+  Adafruit_NeoPixel strip = Adafruit_NeoPixel(1, PIN_NEOPIXEL, NEO_GRB +
+                                              NEO_KHZ800);
+  static void LED_off() {
+    strip.setPixelColor(0, strip.Color(0, 0, 255));
+    strip.show();
+  }
+  static void LED_on() {
+  strip.setPixelColor(0, strip.Color(0, 255, 0));
+  strip.show();
+}
+#else
+  static void LED_off() {digitalWrite(PIN_LED, LOW);}
+  static void LED_on()  {digitalWrite(PIN_LED, HIGH);}
+#endif
+// clang-format on
+
 // Wait for synchronization of registers between the clock domains
 static __inline__ void syncDAC() __attribute__((always_inline, unused));
 static __inline__ void syncADC() __attribute__((always_inline, unused));
@@ -413,12 +436,12 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
 }
 
 /*------------------------------------------------------------------------------
-  Interrupt service routine (isr) for phase-sentive detection (psd)
+  Interrupt service routine (ISR) for phase-sentive detection (PSD)
 ------------------------------------------------------------------------------*/
 
 void isr_psd() {
   static bool is_running_prev = is_running;
-  static bool starting_up = true;
+  static uint8_t startup_counter = 0;
   static bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
   static uint16_t write_idx;            // Current write index of TX_buffer
   volatile static uint16_t LUT_idx;     // Current read index of LUT
@@ -427,17 +450,19 @@ void isr_psd() {
 
   if (is_running != is_running_prev) {
     is_running_prev = is_running;
+
     if (is_running) {
-      digitalWrite(PIN_LED, HIGH); // Indicate lock-in amp is running
-      starting_up = true;
+      startup_counter = 0;
+      LED_on();
     } else {
-      digitalWrite(PIN_LED, LOW); // Indicate lock-in amp is off
+      // Set output voltage to 0
 #if defined __SAMD21__
-      DAC->DATA.reg = 0; // Set output voltage to 0
+      DAC->DATA.reg = 0;
 #elif defined __SAMD51__
-      DAC->DATA[0].reg = 0; // Set output voltage to 0
+      DAC->DATA[0].reg = 0;
 #endif
       // syncDAC(); // NOT NECESSARY
+      LED_off();
     }
   }
 
@@ -445,7 +470,7 @@ void isr_psd() {
     return;
   }
 
-  if (starting_up) {
+  if (startup_counter == 0) {
     trigger_send_TX_buffer_A = false;
     trigger_send_TX_buffer_B = false;
     using_TX_buffer_A = true;
@@ -482,9 +507,23 @@ void isr_psd() {
 #endif
   // syncDAC(); // NOT NECESSARY
 
-  if (starting_up) {
-    // No valid input signal yet, hence return. Next timestep it will be valid.
-    starting_up = false;
+  /*
+    startup_counter == 0:
+      No valid input signal yet, hence return. Next timestep it will be valid.
+
+    startup_counter < 3:
+      `LED_on()` using the NeoPixel library takes over the SysTick timer to
+      control the LED. This interferes with the timing stability of the ISR for
+      a few iterations. We simply wait them out.
+
+    startup_counter == 3:
+      Timing, DAC output and ADC input are stable. Time to stamp the buffer.
+  */
+  if (startup_counter < 3) {
+    startup_counter++;
+    return;
+  } else if (startup_counter == 3) {
+    startup_counter++;
     stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     LUT_idx++;
     return;
@@ -589,8 +628,13 @@ void setup() {
   get_mcu_uid(mcu_uid);
 
   // Use built-in LED to signal running state of lock-in amp
+#ifdef ADAFRUIT_FEATHER_M4_EXPRESS
+  strip.begin();
+  strip.setBrightness(3);
+#else
   pinMode(PIN_LED, OUTPUT);
-  digitalWrite(PIN_LED, is_running);
+#endif
+  LED_off();
 
   // Prepare SOM and EOM
   noInterrupts();
