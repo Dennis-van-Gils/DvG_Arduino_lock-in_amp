@@ -23,3 +23,5 @@
 * Check for the alpha-version hardware firmware (i.e. the current
   `SSD practicum` firmware) and notify the user to flash to the
   latest firmware first in order to continue the main Python program.
+
+* Make SAMD51 reset the ISR timer to 0 when (re)starting the lock-in amp.
