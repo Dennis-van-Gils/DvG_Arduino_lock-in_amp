@@ -2,9 +2,18 @@
   Arduino lock-in amplifier
 
   Pins:
-  A0: output reference signal
-  A1: input signal, differential +
-  A2: input signal, differential -
+    A0: Output reference signal `ref_X`, single-ended with respect to GND
+
+    When `DIFFERENTIAL_ADC` = 0 or not defined
+    ------------------------------------------
+    A1: Input signal `sig_I`, single-ended with respect to GND
+    A2: Not used
+
+    When `DIFFERENTIAL_ADC` = 1
+    ------------------------------------------
+    A1: Input signal `sig_I`, differential +
+    A2: Input signal `sig_I`, differential -
+
 
   Boards                     | MCU        | test | #define
   ---------------------------------------------------------------------
@@ -33,6 +42,7 @@
 #include "Streaming.h"
 
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
+#define DIFFERENTIAL_ADC 0
 
 // Microcontroller unit (mcu)
 #if defined __SAMD21G18A__
@@ -98,7 +108,7 @@ volatile bool is_running = false; // Is the lock-in amplifier running?
 char mcu_uid[33];                 // Serial number
 
 /*------------------------------------------------------------------------------
-  Sampling period
+  Sampling
 --------------------------------------------------------------------------------
 
   * Interrupt service routine
@@ -179,27 +189,6 @@ volatile bool trigger_send_TX_buffer_B = false;
 // clang-format on
 
 /*------------------------------------------------------------------------------
-  Waveform look-up table (LUT)
-------------------------------------------------------------------------------*/
-
-// Output reference signal `ref_X` parameters
-enum WAVEFORM_ENUM ref_waveform = Cosine;
-double ref_freq; // [Hz] Obtained frequency of reference signal
-double ref_offs; // [V]  Obtained voltage offset of reference signal
-double ref_ampl; // [V]  Voltage amplitude reference signal
-
-// Look-up table (LUT) for fast DAC
-#define MIN_N_LUT 20                // Min. allowed number of samples for one full period
-#define MAX_N_LUT 1000              // Max. allowed number of samples for one full period
-uint16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
-uint16_t N_LUT;                     // Current number of samples for one full period
-bool is_LUT_dirty = false;          // Does the LUT have to be updated with new settings?
-
-// Analog port
-#define A_REF 3.300 // [V] Analog voltage reference Arduino
-#define MAX_DAC_OUTPUT_BITVAL ((uint16_t)(pow(2, DAC_OUTPUT_BITS) - 1))
-
-/*------------------------------------------------------------------------------
   Serial
 --------------------------------------------------------------------------------
 
@@ -223,50 +212,6 @@ bool is_LUT_dirty = false;          // Does the LUT have to be updated with new 
 DvG_SerialCommand sc_data(Ser_data);
 
 /*------------------------------------------------------------------------------
-  get_mcu_uid
-------------------------------------------------------------------------------*/
-
-void get_mcu_uid(char mcu_uid_out[33]) {
-  /* Return the 128-bit unique identifier (uid) of the microcontroller unit
-  (mcu) as a hex string. Aka, the serial number.
-  */
-  uint8_t raw_uid[16]; // uid as byte array
-
-// SAMD21 from section 9.3.3 of the datasheet
-#ifdef __SAMD21__
-#  define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x0080A00C)
-#  define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x0080A040)
-#  define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x0080A044)
-#  define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x0080A048)
-#endif
-// SAMD51 from section 9.6 of the datasheet
-#ifdef __SAMD51__
-#  define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x008061FC)
-#  define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x00806010)
-#  define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x00806014)
-#  define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x00806018)
-#endif
-
-  uint32_t pdw_uid[4];
-  pdw_uid[0] = SERIAL_NUMBER_WORD_0;
-  pdw_uid[1] = SERIAL_NUMBER_WORD_1;
-  pdw_uid[2] = SERIAL_NUMBER_WORD_2;
-  pdw_uid[3] = SERIAL_NUMBER_WORD_3;
-
-  for (int i = 0; i < 4; i++) {
-    raw_uid[i * 4 + 0] = (uint8_t)(pdw_uid[i] >> 24);
-    raw_uid[i * 4 + 1] = (uint8_t)(pdw_uid[i] >> 16);
-    raw_uid[i * 4 + 2] = (uint8_t)(pdw_uid[i] >> 8);
-    raw_uid[i * 4 + 3] = (uint8_t)(pdw_uid[i] >> 0);
-  }
-
-  for (int j = 0; j < 16; j++) {
-    sprintf(&mcu_uid_out[2 * j], "%02X", raw_uid[j]);
-  }
-  mcu_uid_out[32] = 0;
-}
-
-/*------------------------------------------------------------------------------
   Waveform look-up table (LUT)
 --------------------------------------------------------------------------------
 
@@ -280,6 +225,23 @@ void get_mcu_uid(char mcu_uid_out[33]) {
   means that there is a distinction between the wanted frequency and the
   obtained frequency `ref_freq`.
 */
+
+// Output reference signal `ref_X` parameters
+enum WAVEFORM_ENUM ref_waveform = Cosine;
+double ref_freq; // [Hz] Obtained frequency of reference signal
+double ref_offs; // [V]  Obtained voltage offset of reference signal
+double ref_ampl; // [V]  Voltage amplitude reference signal
+
+// Look-up table (LUT) for fast DAC
+#define MIN_N_LUT 20                // Min. allowed number of samples for one full period
+#define MAX_N_LUT 1000              // Max. allowed number of samples for one full period
+uint16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
+uint16_t N_LUT;                     // Current number of samples for one full period
+bool is_LUT_dirty = false;          // Does the LUT have to be updated with new settings?
+
+// Analog port
+#define A_REF 3.300 // [V] Analog voltage reference Arduino
+#define MAX_DAC_OUTPUT_BITVAL ((uint16_t)(pow(2, DAC_OUTPUT_BITS) - 1))
 
 void parse_freq(const char *str_value) {
   ref_freq = atof(str_value);
@@ -337,6 +299,50 @@ void compute_LUT(uint16_t *LUT_array) {
   }
 
   is_LUT_dirty = false;
+}
+
+/*------------------------------------------------------------------------------
+  get_mcu_uid
+------------------------------------------------------------------------------*/
+
+void get_mcu_uid(char mcu_uid_out[33]) {
+  /* Return the 128-bit unique identifier (uid) of the microcontroller unit
+  (mcu) as a hex string. Aka, the serial number.
+  */
+  uint8_t raw_uid[16]; // uid as byte array
+
+// SAMD21 from section 9.3.3 of the datasheet
+#ifdef __SAMD21__
+#  define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x0080A00C)
+#  define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x0080A040)
+#  define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x0080A044)
+#  define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x0080A048)
+#endif
+// SAMD51 from section 9.6 of the datasheet
+#ifdef __SAMD51__
+#  define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x008061FC)
+#  define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x00806010)
+#  define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x00806014)
+#  define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x00806018)
+#endif
+
+  uint32_t pdw_uid[4];
+  pdw_uid[0] = SERIAL_NUMBER_WORD_0;
+  pdw_uid[1] = SERIAL_NUMBER_WORD_1;
+  pdw_uid[2] = SERIAL_NUMBER_WORD_2;
+  pdw_uid[3] = SERIAL_NUMBER_WORD_3;
+
+  for (int i = 0; i < 4; i++) {
+    raw_uid[i * 4 + 0] = (uint8_t)(pdw_uid[i] >> 24);
+    raw_uid[i * 4 + 1] = (uint8_t)(pdw_uid[i] >> 16);
+    raw_uid[i * 4 + 2] = (uint8_t)(pdw_uid[i] >> 8);
+    raw_uid[i * 4 + 3] = (uint8_t)(pdw_uid[i] >> 0);
+  }
+
+  for (int j = 0; j < 16; j++) {
+    sprintf(&mcu_uid_out[2 * j], "%02X", raw_uid[j]);
+  }
+  mcu_uid_out[32] = 0;
 }
 
 /*------------------------------------------------------------------------------
