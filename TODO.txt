@@ -33,3 +33,5 @@ FIRMWARE
 * Implement factory-stored calibration corrections on the ADC
 
 * Perhaps implement an auto-calibration routine in 'short-circuit' mode
+
+* Merge `SAMD51_InterruptTimer` from GitHub repo with source_MCU_boards\lib\
