@@ -25,32 +25,32 @@
   - Adafruit ItsyBitsy M4      SAMD51G19A   okay   ADAFRUIT_ITSYBITSY_M4_EXPRESS
 
   Dennis van Gils
-  22-06-2021
+  23-06-2021
 ------------------------------------------------------------------------------*/
 
+#include "Arduino.h"
 #include "DvG_SerialCommand.h"
 #include "Streaming.h"
-#include <Arduino.h>
 
-#define FIRMWARE_VERSION "ALIA v0.3.0 VSCODE"
+#define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
 
 // Microcontroller unit (mcu)
-#if defined(__SAMD21G18A__)
-#define MCU_MODEL "SAMD21G18A"
-#ifndef __SAMD21__
-#define __SAMD21__
-#endif
-#elif defined(__SAMD21E18A__)
-#define MCU_MODEL "SAMD21E18A"
-#ifndef __SAMD21__
-#define __SAMD21__
-#endif
-#elif defined(__SAMD51P20A__)
-#define MCU_MODEL "SAMD51P20A"
-#elif defined(__SAMD51J19A__)
-#define MCU_MODEL "SAMD51J19A"
-#elif defined(__SAMD51G19A__)
-#define MCU_MODEL "SAMD51G19A"
+#if defined __SAMD21G18A__
+#  define MCU_MODEL "SAMD21G18A"
+#  ifndef __SAMD21__
+#    define __SAMD21__
+#  endif
+#elif defined __SAMD21E18A__
+#  define MCU_MODEL "SAMD21E18A"
+#  ifndef __SAMD21__
+#    define __SAMD21__
+#  endif
+#elif defined __SAMD51P20A__
+#  define MCU_MODEL "SAMD51P20A"
+#elif defined __SAMD51J19A__
+#  define MCU_MODEL "SAMD51J19A"
+#elif defined __SAMD51G19A__
+#  define MCU_MODEL "SAMD51G19A"
 #endif
 
 // Wait for synchronization of registers between the clock domains
@@ -58,23 +58,23 @@ static __inline__ void syncDAC() __attribute__((always_inline, unused));
 static __inline__ void syncADC() __attribute__((always_inline, unused));
 
 #ifdef __SAMD21__
-#include "ZeroTimer.h"
+#  include "ZeroTimer.h"
 // clang-format off
-static void syncDAC() {while (DAC->STATUS.bit.SYNCBUSY == 1) ;}
-static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1) ;}
+  static void syncDAC() {while (DAC->STATUS.bit.SYNCBUSY == 1) ;}
+  static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1) ;}
 // clang-format on
-#define DAC_OUTPUT_BITS 10
-#define ADC_INPUT_BITS 12
+#  define DAC_OUTPUT_BITS 10
+#  define ADC_INPUT_BITS 12
 #endif
 
 #ifdef __SAMD51__
-#include "SAMD51_InterruptTimer.h"
+#  include "SAMD51_InterruptTimer.h"
 // clang-format off
-static void syncDAC() {while (DAC->STATUS.bit.EOC0 == 1) ;}
-static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1) ;}
+  static void syncDAC() {while (DAC->STATUS.bit.EOC0 == 1) ;}
+  static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1) ;}
 // clang-format on
-#define DAC_OUTPUT_BITS 12
-#define ADC_INPUT_BITS 12
+#  define DAC_OUTPUT_BITS 12
+#  define ADC_INPUT_BITS 12
 #endif
 
 // No-operation, to burn clock cycles
@@ -135,11 +135,11 @@ char mcu_uid[33];                 // Serial number
 // result in a serial transmit rate of 10 blocks / s, which acts nicely with
 // the Python GUI.
 #ifdef __SAMD21__
-#define SAMPLING_PERIOD_us 100
-#define BLOCK_SIZE 1000
+#  define SAMPLING_PERIOD_us 100
+#  define BLOCK_SIZE 1000
 #else
-#define SAMPLING_PERIOD_us 40
-#define BLOCK_SIZE 2500
+#  define SAMPLING_PERIOD_us 40
+#  define BLOCK_SIZE 2500
 #endif
 
 const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
@@ -214,9 +214,9 @@ bool is_LUT_dirty = false;          // Does the LUT have to be updated with new 
 #define SERIAL_DATA_BAUDRATE 1e6 // Only used when Serial is UART
 
 #ifdef ARDUINO_SAMD_ZERO
-#define Ser_data SerialUSB // Serial or SerialUSB
+#  define Ser_data SerialUSB // Serial or SerialUSB
 #else
-#define Ser_data Serial // Only Serial
+#  define Ser_data Serial // Only Serial
 #endif
 
 // Instantiate serial command listeners
@@ -232,17 +232,19 @@ void get_mcu_uid(char mcu_uid_out[33]) {
   */
   uint8_t raw_uid[16]; // uid as byte array
 
-#ifdef __SAMD21__ // SAMD21 from section 9.3.3 of the datasheet
-#define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x0080A00C)
-#define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x0080A040)
-#define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x0080A044)
-#define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x0080A048)
+// SAMD21 from section 9.3.3 of the datasheet
+#ifdef __SAMD21__
+#  define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x0080A00C)
+#  define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x0080A040)
+#  define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x0080A044)
+#  define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x0080A048)
 #endif
-#ifdef __SAMD51__ // SAMD51 from section 9.6 of the datasheet
-#define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x008061FC)
-#define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x00806010)
-#define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x00806014)
-#define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x00806018)
+// SAMD51 from section 9.6 of the datasheet
+#ifdef __SAMD51__
+#  define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x008061FC)
+#  define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x00806010)
+#  define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x00806014)
+#  define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x00806018)
 #endif
 
   uint32_t pdw_uid[4];
@@ -424,9 +426,9 @@ void isr_psd() {
       starting_up = true;
     } else {
       digitalWrite(PIN_LED, LOW); // Indicate lock-in amp is off
-#if defined(__SAMD21__)
+#if defined __SAMD21__
       DAC->DATA.reg = 0; // Set output voltage to 0
-#elif defined(__SAMD51__)
+#elif defined __SAMD51__
       DAC->DATA[0].reg = 0; // Set output voltage to 0
 #endif
       // syncDAC(); // NOT NECESSARY
@@ -450,12 +452,12 @@ void isr_psd() {
   // stabilize.
   // clang-format off
   syncADC(); // NECESSARY
-#if defined(__SAMD21__)
+#if defined __SAMD21__
   ADC->SWTRIG.bit.START = 1;
   while (ADC->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
   syncADC(); // NECESSARY
   sig_I = ADC->RESULT.reg;
-#elif defined(__SAMD51__)
+#elif defined __SAMD51__
   ADC0->SWTRIG.bit.START = 1;
   while (ADC0->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
   syncADC(); // NECESSARY
@@ -467,9 +469,9 @@ void isr_psd() {
   // Output reference signal
   ref_X = LUT_wave[LUT_idx];
   // syncDAC(); // DON'T ENABLE: Causes timing jitter in the output waveform
-#if defined(__SAMD21__)
+#if defined __SAMD21__
   DAC->DATA.reg = ref_X;
-#elif defined(__SAMD51__)
+#elif defined __SAMD51__
   DAC->DATA[0].reg = ref_X;
 #endif
   // syncDAC(); // NOT NECESSARY
@@ -520,7 +522,7 @@ void isr_psd() {
 ------------------------------------------------------------------------------*/
 
 void print_debug_info() {
-#if defined(__SAMD21__)
+#if defined __SAMD21__
   Ser_data << "-------------------------------" << endl;
   Ser_data << "CTRLA" << endl;
   Ser_data << "  .RUNSTDBY   : " << _HEX(ADC->CTRLA.bit.RUNSTDBY) << endl;
@@ -547,7 +549,7 @@ void print_debug_info() {
   Ser_data << "  .INPUTSCAN  : " << _HEX(ADC->INPUTCTRL.bit.INPUTSCAN) << endl;
   Ser_data << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
   Ser_data << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
-#elif defined(__SAMD51__)
+#elif defined __SAMD51__
 // TO DO
 #endif
 
@@ -616,9 +618,9 @@ void setup() {
   // and DAQ rates larger than ~10 kHz on SAMD21. Setting too small divisors
   // will result in ADC errors. Keep as large as possible to increase ADC
   // accuracy.
-#if defined(__SAMD21__)
+#if defined __SAMD21__
   ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV32_Val;
-#elif defined(__SAMD51__)
+#elif defined __SAMD51__
   ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV64_Val;
 #endif
   analogReadResolution(ADC_INPUT_BITS);
@@ -626,13 +628,13 @@ void setup() {
   analogRead(A2); // Differential -
 
   // Set differential mode on A1(+) and A2(-)
-#if defined(__SAMD21__)
+#if defined __SAMD21__
   ADC->CTRLB.bit.DIFFMODE = 1;
   ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
   ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
   ADC->REFCTRL.bit.REFSEL = 2; // 2: INTVCC1 on SAMD21 = 1/2 VDDANA
-#elif defined(__SAMD51__)
+#elif defined __SAMD51__
   /*
   ADC0->CTRLA.bit.ENABLE = 0;
   delay(10);
@@ -667,19 +669,19 @@ void setup() {
 
   // Prepare for software-triggered acquisition
   // syncADC(); // NOT NECESSARY
-#if defined(__SAMD21__)
+#if defined __SAMD21__
   ADC->CTRLA.bit.ENABLE = 0x01;
-#elif defined(__SAMD51__)
+#elif defined __SAMD51__
   ADC0->CTRLA.bit.ENABLE = 0x01;
 #endif
   syncADC();
 
   /*
   // NOT NECESSARY
-  #if defined(__SAMD21__)
+  #if defined __SAMD21__
     ADC->SWTRIG.bit.START = 1;
     ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
-  #elif defined(__SAMD51__)
+  #elif defined __SAMD51__
     ADC0->SWTRIG.bit.START = 1;
     ADC0->INTFLAG.reg = ADC_INTFLAG_RESRDY;
   #endif
@@ -733,7 +735,7 @@ void loop() {
         trigger_send_TX_buffer_B = false;
         interrupts();
 
-#if defined(ARDUINO_SAMD_ZERO) && Ser_data == Serial
+#if defined ARDUINO_SAMD_ZERO && Ser_data == Serial
         // Simply end the serial connection which directly clears the underlying
         // TX (and RX) ringbuffer. `Flush()` on the other hand, would first send
         // out the full TX buffer and wait for the operation to complete.
@@ -751,6 +753,12 @@ void loop() {
         // sending binary data. The 'off' message might still be preceded with
         // some left-over binary data when being read at the PC side.
         Ser_data.print("off\n");
+        /* NOTE:
+           Do not use the streaming library to send the 'off', like:
+             Ser_data << "off" << endl;
+           For some unknown reason this will add a ~1 second delay before the
+           serial port actually sends out 'off'.
+        */
 
         // Flush out and ignore the command
         sc_data.getCmd();
@@ -765,26 +773,27 @@ void loop() {
 
         if (strcmp(str_cmd, "id?") == 0) {
           // Report identity string
-          Ser_data.println("Arduino, Alia");
+          Ser_data << "Arduino, Alia" << endl;
 
         } else if (strcmp(str_cmd, "mcu?") == 0) {
-          // Report firmware, microcontroller model and serial number
-          Ser_data << FIRMWARE_VERSION << "\t" << MCU_MODEL << "\t" << mcu_uid
+          // Report microcontroller information
+          Ser_data << FIRMWARE_VERSION << "\t"
+                   << MCU_MODEL << "\t"
+                   << SystemCoreClock << "\t"
+                   << mcu_uid << "\t"
                    << endl;
 
         } else if (strcmp(str_cmd, "bias?") == 0) {
           // Report ADC bias and correction information
-#if defined(__SAMD51__)
-          Ser_data.println(NVM_ADC0_BIASCOMP);
-          Ser_data.println(NVM_ADC0_BIASREFBUF);
-          Ser_data.println(NVM_ADC0_BIASR2R);
-
-          Ser_data.println(ADC0->CALIB.bit.BIASCOMP);
-          Ser_data.println(ADC0->CALIB.bit.BIASREFBUF);
-          Ser_data.println(ADC0->CALIB.bit.BIASR2R);
-
-          Ser_data.println(ADC0->OFFSETCORR.bit.OFFSETCORR);
-          Ser_data.println(ADC0->GAINCORR.bit.GAINCORR);
+#if defined __SAMD51__
+          Ser_data << NVM_ADC0_BIASCOMP << endl
+                   << NVM_ADC0_BIASREFBUF << endl
+                   << NVM_ADC0_BIASR2R << endl
+                   << _DEC(ADC0->CALIB.bit.BIASCOMP) << endl
+                   << _DEC(ADC0->CALIB.bit.BIASREFBUF) << endl
+                   << _DEC(ADC0->CALIB.bit.BIASR2R) << endl
+                   << _DEC(ADC0->OFFSETCORR.bit.OFFSETCORR) << endl
+                   << _DEC(ADC0->GAINCORR.bit.GAINCORR) << endl;
 #endif
 
         } else if (strcmp(str_cmd, "debug?") == 0) {
@@ -793,35 +802,22 @@ void loop() {
 
         } else if (strcmp(str_cmd, "const?") == 0) {
           // Report lock-in amplifier constants
-          Ser_data.print(SAMPLING_PERIOD_us);
-          Ser_data.print('\t');
-          Ser_data.print(BLOCK_SIZE);
-          Ser_data.print('\t');
-          Ser_data.print(N_BYTES_TX_BUFFER);
-          Ser_data.print('\t');
-          Ser_data.print(DAC_OUTPUT_BITS);
-          Ser_data.print('\t');
-          Ser_data.print(ADC_INPUT_BITS);
-          Ser_data.print('\t');
-          Ser_data.print(A_REF);
-          Ser_data.print('\t');
-          Ser_data.print(MIN_N_LUT);
-          Ser_data.print('\t');
-          Ser_data.print(MAX_N_LUT);
-          Ser_data.print('\n');
+          Ser_data << SAMPLING_PERIOD_us << "\t"
+                   << BLOCK_SIZE << "\t"
+                   << N_BYTES_TX_BUFFER << "\t"
+                   << DAC_OUTPUT_BITS << "\t"
+                   << ADC_INPUT_BITS << "\t"
+                   << A_REF << "\t"
+                   << MIN_N_LUT << "\t"
+                   << MAX_N_LUT << endl;
 
         } else if (strcmp(str_cmd, "ref?") == 0 || strcmp(str_cmd, "?") == 0) {
           // Report reference signal `ref_X` settings
-          Ser_data.print(ref_freq, 3);
-          Ser_data.print('\t');
-          Ser_data.print(ref_offs, 3);
-          Ser_data.print('\t');
-          Ser_data.print(ref_ampl, 3);
-          Ser_data.print('\t');
-          Ser_data.print(WAVEFORM_STRING[ref_waveform]);
-          Ser_data.print('\t');
-          Ser_data.print(N_LUT);
-          Ser_data.print('\n');
+          Ser_data << _FLOAT(ref_freq, 3) << "\t"
+                   << _FLOAT(ref_offs, 3) << "\t"
+                   << _FLOAT(ref_ampl, 3) << "\t"
+                   << WAVEFORM_STRING[ref_waveform] << "\t"
+                   << N_LUT << endl;
 
         } else if (strcmp(str_cmd, "lut?") == 0 || strcmp(str_cmd, "l?") == 0) {
           // Report the LUT as a binary stream. The reported LUT will start at
@@ -842,22 +838,16 @@ void loop() {
           Ser_data << LUT_wave[N_LUT - 1] << endl;
 
         } else if (strcmp(str_cmd, "t?") == 0) {
-          // Report time in microseconds
-          static char buf[16];
+          // Report time
           uint32_t millis_copy;
           uint16_t micros_part;
 
           get_systick_timestamp(&millis_copy, &micros_part);
-          sprintf(buf, "%lu %03u\n", millis_copy, micros_part);
-          Ser_data.print(buf);
-
-        } else if (strcmp(str_cmd, "fcpu?") == 0) {
-          // Report processor clock frequency
-          Ser_data << SystemCoreClock << " Hz" << endl;
+          Ser_data << millis_copy << "." << _WIDTHZ(micros_part, 3) << endl;
 
         } else if (strcmp(str_cmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
-          Ser_data.print("already_off\n");
+          Ser_data << "already_off" << endl;
 
         } else if (strcmp(str_cmd, "on") == 0 || strcmp(str_cmd, "_on") == 0) {
           // Start lock-in amp
@@ -868,40 +858,40 @@ void loop() {
         } else if (strncmp(str_cmd, "_freq", 5) == 0) {
           // Set frequency of the reference signal [Hz].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
-          parse_freq(&str_cmd[5]);
           is_LUT_dirty = true;
-          Ser_data.println(ref_freq, 3);
+          parse_freq(&str_cmd[5]);
+          Ser_data << _FLOAT(ref_freq, 3) << endl;
 
         } else if (strncmp(str_cmd, "_offs", 5) == 0) {
           // Set offset of the reference signal [V].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
-          parse_offs(&str_cmd[5]);
           is_LUT_dirty = true;
-          Ser_data.println(ref_offs, 3);
+          parse_offs(&str_cmd[5]);
+          Ser_data << _FLOAT(ref_offs, 3) << endl;
 
         } else if (strncmp(str_cmd, "_ampl", 5) == 0) {
           // Set amplitude of the reference signal [V].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
-          parse_ampl(&str_cmd[5]);
           is_LUT_dirty = true;
-          Ser_data.println(ref_ampl, 3);
+          parse_ampl(&str_cmd[5]);
+          Ser_data << _FLOAT(ref_ampl, 3) << endl;
 
         } else if (strncmp(str_cmd, "_wave", 5) == 0) {
           // Set the waveform type of the reference signal.
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
+          is_LUT_dirty = true;
           ref_waveform = static_cast<WAVEFORM_ENUM>(atoi(&str_cmd[5]));
           ref_waveform = static_cast<WAVEFORM_ENUM>(max(ref_waveform, 0));
           ref_waveform = static_cast<WAVEFORM_ENUM>(
               min(ref_waveform, END_WAVEFORM_ENUM - 1));
-          is_LUT_dirty = true;
-          Ser_data.println(WAVEFORM_STRING[ref_waveform]);
+          Ser_data << WAVEFORM_STRING[ref_waveform] << endl;
 
         } else if (strcmp(str_cmd, "compute_lut") == 0 ||
                    strcmp(str_cmd, "c") == 0) {
           // (Re)compute the LUT based on the following known settings:
           // ref_freq, ref_offs, ref_ampl, ref_waveform.
           compute_LUT(LUT_wave);
-          Ser_data.println("!"); // Reply with OK '!'
+          Ser_data << "!" << endl; // Reply with OKAY character '!'
         }
       }
     }
