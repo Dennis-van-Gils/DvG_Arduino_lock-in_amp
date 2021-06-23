@@ -4,15 +4,15 @@
   Pins:
     A0: Output reference signal `ref_X`, single-ended with respect to GND
 
-    When `DIFFERENTIAL_ADC` = 0 or not defined
+    When `ADC_DIFFERENTIAL` = 0
     ------------------------------------------
     A1: Input signal `sig_I`, single-ended with respect to GND
     A2: Not used
 
-    When `DIFFERENTIAL_ADC` = 1
+    When `ADC_DIFFERENTIAL` = 1
     ------------------------------------------
-    A1: Input signal `sig_I`, differential +
-    A2: Input signal `sig_I`, differential -
+    A1: Input signal `sig_I`, differential(+)
+    A2: Input signal `sig_I`, differential(-)
 
 
   Boards                     | MCU        | test | #define
@@ -42,7 +42,7 @@
 #include "Streaming.h"
 
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
-#define DIFFERENTIAL_ADC 0
+#define ADC_DIFFERENTIAL 0
 
 // Microcontroller unit (mcu)
 #if defined __SAMD21G18A__
@@ -630,22 +630,43 @@ void setup() {
   ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV64_Val;
 #endif
   analogReadResolution(ADC_INPUT_BITS);
-  analogRead(A1); // Differential +
-  analogRead(A2); // Differential -
+  analogRead(A1); // Differential(+) or single-ended
+  analogRead(A2); // Differential(-) or not used
 
-  // Set differential mode on A1(+) and A2(-)
+  // Set single-ended or differential mode
 #if defined __SAMD21__
+
+#  if ADC_DIFFERENTIAL == 1
   ADC->CTRLB.bit.DIFFMODE = 1;
   ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
+#  else
+  ADC->CTRLB.bit.DIFFMODE = 0;
+  ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  ADC->INPUTCTRL.bit.MUXNEG = ADC_INPUTCTRL_MUXNEG_GND_Val;
+#  endif
   ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
-  ADC->REFCTRL.bit.REFSEL = 2; // 2: INTVCC1 on SAMD21 = 1/2 VDDANA
+  ADC->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // 1/2 VDDANA
+
 #elif defined __SAMD51__
+
+#  if ADC_DIFFERENTIAL == 1
+  ADC0->INPUTCTRL.bit.DIFFMODE = 1;
+  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
+#  else
+  ADC0->INPUTCTRL.bit.DIFFMODE = 0;
+  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  ADC0->INPUTCTRL.bit.MUXNEG = ADC_INPUTCTRL_MUXNEG_GND_Val;
+#  endif
+  ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // VDDANA
+
   /*
   ADC0->CTRLA.bit.ENABLE = 0;
   delay(10);
 
   // NVM Software Calibration Area: address 0x00800080
+  // See https://blog.thea.codes/reading-analog-values-with-the-samd-adc/
   uint16_t *NVM_SCA = NULL;
   NVM_SCA = (uint16_t*) 0x00800080ul;
   NVM_ADC0_BIASCOMP = (*NVM_SCA & 0x1c) >> 2;
@@ -656,12 +677,6 @@ void setup() {
   ADC0->CALIB.bit.BIASR2R    = NVM_ADC0_BIASR2R;
   delay(10);
   */
-
-  ADC0->INPUTCTRL.bit.DIFFMODE = 1;
-  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
-  ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
-  // ADC0->INPUTCTRL.bit.GAIN does not exist on SAMD51
-  ADC0->REFCTRL.bit.REFSEL = 3; // 3: INTVCC1 on SAMD51 = VDDANA
 
   /*
   ADC0->OFFSETCORR.bit.OFFSETCORR = ADC_OFFSETCORR_OFFSETCORR(50);
@@ -813,6 +828,7 @@ void loop() {
                    << N_BYTES_TX_BUFFER << "\t"
                    << DAC_OUTPUT_BITS << "\t"
                    << ADC_INPUT_BITS << "\t"
+                   << ADC_DIFFERENTIAL << "\t"
                    << A_REF << "\t"
                    << MIN_N_LUT << "\t"
                    << MAX_N_LUT << endl;

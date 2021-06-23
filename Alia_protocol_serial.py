@@ -91,6 +91,7 @@ class Alia(Arduino_protocol_serial.Arduino):
                                # correctly received TX_buffer from the Arduino
         DAC_OUTPUT_BITS   = 0  # [bits]
         ADC_INPUT_BITS    = 0  # [bits]
+        ADC_DIFFERENTIAL  = 0  # [bool]
         A_REF             = 0  # [V] Analog voltage reference of the Arduino
         MIN_N_LUT         = 0  # Minimum allowed number of LUT samples
         MAX_N_LUT         = 0  # Maximum allowed number of LUT samples
@@ -195,7 +196,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         print("  firmware  %s" % c.mcu_firmware)
         print("     model  %s" % c.mcu_model)
         print("      fcpu  %.0f MHz" % (c.mcu_fcpu / 1e6))
-        print("       UID  %s" % c.mcu_uid)
+        print("    serial  %s" % c.mcu_uid)
         print("")
 
         # fmt: off
@@ -257,10 +258,11 @@ class Alia(Arduino_protocol_serial.Arduino):
                     c.BLOCK_SIZE        = int(ans_list[1])
                     c.N_BYTES_TX_BUFFER = int(ans_list[2])
                     c.DAC_OUTPUT_BITS   = int(ans_list[3])
-                    c.ADC_INPUT_BITS    = int(ans_list[4] )
-                    c.A_REF             = float(ans_list[5])
-                    c.MIN_N_LUT         = int(ans_list[6])
-                    c.MAX_N_LUT         = int(ans_list[7])
+                    c.ADC_INPUT_BITS    = int(ans_list[4])
+                    c.ADC_DIFFERENTIAL  = bool(int(ans_list[5]))
+                    c.A_REF             = float(ans_list[6])
+                    c.MIN_N_LUT         = int(ans_list[7])
+                    c.MAX_N_LUT         = int(ans_list[8])
                     # fmt: on
 
             except Exception as err:
@@ -277,27 +279,32 @@ class Alia(Arduino_protocol_serial.Arduino):
             format_str = "{:>16s}  %s  {:<s}" % value_format
             print(format_str.format(name, value, unit))
 
-        fancy("Fs", c.Fs, "{:>9,.2f}", "Hz")
-        fancy("F_Nyquist", c.F_Nyquist, "{:>9,.2f}", "Hz")
-        fancy("sampling period", c.SAMPLING_PERIOD * 1e6, "{:>9.3f}", "us")
-        fancy("block size", c.BLOCK_SIZE, "{:>9d}", "samples")
-        fancy("TX buffer", c.N_BYTES_TX_BUFFER, "{:>9d}", "bytes")
-        fancy("TX buffer", c.T_SPAN_TX_BUFFER, "{:>9.3f}", "s")
+        fancy("Fs", c.Fs, "{:>12,.2f}", "Hz")
+        fancy("F_Nyquist", c.F_Nyquist, "{:>12,.2f}", "Hz")
+        fancy("sampling period", c.SAMPLING_PERIOD * 1e6, "{:>12.3f}", "us")
+        fancy("block size", c.BLOCK_SIZE, "{:>12d}", "samples")
+        fancy("TX buffer", c.N_BYTES_TX_BUFFER, "{:>12d}", "bytes")
+        fancy("TX buffer", c.T_SPAN_TX_BUFFER, "{:>12.3f}", "s")
         fancy(
             "TX data rate",
             c.N_BYTES_TX_BUFFER * c.Fs / c.BLOCK_SIZE / 1024,
-            "{:>9,.1f}",
+            "{:>12,.1f}",
             "kb/s",
         )
-        fancy("DAC output", c.DAC_OUTPUT_BITS, "{:>9d}", "bit")
-        fancy("ADC input", c.ADC_INPUT_BITS, "{:>9d}", "bit")
-        fancy("A_ref", c.A_REF, "{:>9.3f}", "V")
+        fancy("DAC output", c.DAC_OUTPUT_BITS, "{:>12d}", "bit")
+        fancy("ADC input", c.ADC_INPUT_BITS, "{:>12d}", "bit")
+        fancy(
+            "ADC input",
+            "differential" if c.ADC_DIFFERENTIAL else "single-ended",
+            "{:s}",
+        )
+        fancy("A_ref", c.A_REF, "{:>12.3f}", "V")
         if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
             # Legacy
             pass
         else:
-            fancy("min N_LUT", c.MIN_N_LUT, "{:>9d}", "samples")
-            fancy("max N_LUT", c.MAX_N_LUT, "{:>9d}", "samples")
+            fancy("min N_LUT", c.MIN_N_LUT, "{:>12d}", "samples")
+            fancy("max N_LUT", c.MAX_N_LUT, "{:>12d}", "samples")
 
         self.set_ref(freq, V_offset, V_ampl, waveform)
 
@@ -876,8 +883,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             """
 
             sig_I = sig_I * c.A_REF / (2 ** c.ADC_INPUT_BITS - 1)
-            if c.mcu_model[:6] == "SAMD51":
-                # Compensate for differential mode of Arduino
+            if c.ADC_DIFFERENTIAL:
                 sig_I *= 2
 
             if c.ref_waveform == Waveform.Cosine:

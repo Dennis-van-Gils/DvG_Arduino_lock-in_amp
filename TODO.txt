@@ -23,6 +23,3 @@
 * Check for the alpha-version hardware firmware (i.e. the current
   `SSD practicum` firmware) and notify the user to flash to the
   latest firmware first in order to continue the main Python program.
-
-* Add member `DIFFERENTIAL` to alia.config denoting input signal signed vs
-  unsigned.

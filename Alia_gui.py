@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "14-06-2021"
+__date__ = "23-06-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -513,7 +513,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(
             QtWid.QLabel(
                 "Input: sig_I\n" "  [-3.3, 3.3] V\n" "  pin A1(+), A2(-)"
-                if self.alia.config.mcu_firmware == "ALIA v0.2.0 VSCODE"
+                if self.alia.config.ADC_DIFFERENTIAL
                 else "Input: sig_I\n"
                 "  [ 0.0, %.1f] V\n"
                 "  pin A1 wrt GND" % alia.config.A_REF,
@@ -607,7 +607,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig.setXRange(
             -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
             0,
-            padding=0.01,
+            padding=0,
         )
         self.pi_refsig.setYRange(0.0, 3.3, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
@@ -617,8 +617,8 @@ class MainWindow(QtWid.QWidget):
             * alia.config.SAMPLING_PERIOD
             * 1e3,
             xMax=0,
-            yMin=-0.1,
-            yMax=3.4,
+            yMin=-3.465 if alia.config.ADC_DIFFERENTIAL else -0.165,
+            yMax=3.465,
         )
 
         self.hcc_ref_X = HistoryChartCurve(
@@ -725,7 +725,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_XR.setXRange(
             -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
             0,
-            padding=0.01,
+            padding=0,
         )
         self.pi_XR.setYRange(0, 5, padding=0.05)
         self.pi_XR.setAutoVisible(x=True, y=True)
@@ -741,7 +741,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_YT.setXRange(
             -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
             0,
-            padding=0.01,
+            padding=0,
         )
         self.pi_YT.setYRange(-90, 90, padding=0.1)
         self.pi_YT.setAutoVisible(x=True, y=True)
@@ -889,9 +889,9 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_1.setXRange(
             -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
             0,
-            padding=0.01,
+            padding=0,
         )
-        self.pi_filt_1.setYRange(-5, 5, padding=0.05)
+        self.pi_filt_1.setYRange(-3.3, 3.3, padding=0.025)
         self.pi_filt_1.setAutoVisible(x=True, y=True)
         self.pi_filt_1.setClipToView(True)
         self.pi_filt_1.setLimits(
@@ -899,8 +899,8 @@ class MainWindow(QtWid.QWidget):
             * alia.config.SAMPLING_PERIOD
             * 1e3,
             xMax=0,
-            yMin=-5.25,
-            yMax=5.25,
+            yMin=-3.465,
+            yMax=3.465,
         )
 
         self.hcc_filt_1_in = HistoryChartCurve(
@@ -984,9 +984,9 @@ class MainWindow(QtWid.QWidget):
         self.pi_mixer.setXRange(
             -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
             0,
-            padding=0.01,
+            padding=0,
         )
-        self.pi_mixer.setYRange(-5, 5, padding=0.05)
+        self.pi_mixer.setYRange(-5, 5, padding=0.025)
         self.pi_mixer.setAutoVisible(x=True, y=True)
         self.pi_mixer.setClipToView(True)
         self.pi_mixer.setLimits(
@@ -1069,7 +1069,7 @@ class MainWindow(QtWid.QWidget):
             "power (dBV)",
         )
         self.pi_PS.setAutoVisible(x=True, y=True)
-        self.pi_PS.setXRange(0, self.alia.config.F_Nyquist, padding=0.02)
+        self.pi_PS.setXRange(0, self.alia.config.F_Nyquist, padding=0)
         self.pi_PS.setYRange(-110, 0, padding=0.02)
         self.pi_PS.setClipToView(True)
         self.pi_PS.setLimits(
@@ -1737,8 +1737,10 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def process_qpbt_fullrange_xy(self):
         self.process_qpbt_autorange_x()
-        self.pi_refsig.setYRange(0.0, 3.3, padding=0.05)
-        self.pi_filt_1.setYRange(-3.3, 3.3, padding=0.05)
+        self.pi_refsig.setYRange(
+            -3.3 if self.alia.config.ADC_DIFFERENTIAL else 0, 3.3, padding=0.05
+        )
+        self.pi_filt_1.setYRange(-3.3, 3.3, padding=0.025)
         self.pi_mixer.setYRange(-5, 5, padding=0.05)
 
         if self.qrbt_XR_X.isChecked():
@@ -1771,7 +1773,7 @@ class MainWindow(QtWid.QWidget):
                 * self.alia.config.SAMPLING_PERIOD
                 * 1e3,
                 0,
-                padding=0.01,
+                padding=0,
             )
 
     @QtCore.pyqtSlot()
@@ -1924,9 +1926,7 @@ class MainWindow(QtWid.QWidget):
     def plot_zoom_ROI_filt_1(self):
         freqz = self.alia_qdev.firf_1_sig_I.freqz
         self.pi_filt_1_resp.setXRange(
-            freqz.freq_Hz__ROI_start,
-            freqz.freq_Hz__ROI_end,
-            padding=0.01,
+            freqz.freq_Hz__ROI_start, freqz.freq_Hz__ROI_end, padding=0.02,
         )
         self.pi_filt_1_resp.enableAutoRange("y", True)
         self.pi_filt_1_resp.enableAutoRange("y", False)
@@ -1935,9 +1935,7 @@ class MainWindow(QtWid.QWidget):
     def plot_zoom_ROI_filt_2(self):
         freqz = self.alia_qdev.firf_2_mix_X.freqz
         self.pi_filt_2_resp.setXRange(
-            freqz.freq_Hz__ROI_start,
-            freqz.freq_Hz__ROI_end,
-            padding=0.01,
+            freqz.freq_Hz__ROI_start, freqz.freq_Hz__ROI_end, padding=0.02,
         )
         self.pi_filt_2_resp.enableAutoRange("y", True)
         self.pi_filt_2_resp.enableAutoRange("y", False)
