@@ -108,6 +108,31 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
 // clang-format on
 #  define DAC_OUTPUT_BITS 12
 #  define ADC_INPUT_BITS 12
+
+// Taken from MicrochipStudio `hri_adc_d51.h`
+static inline void hri_adc_write_CALIB_BIASREFBUF_bf(const void *const hw, uint16_t data) {
+  uint16_t tmp;
+  tmp = ((Adc *)hw)->CALIB.reg;
+  tmp &= ~ADC_CALIB_BIASREFBUF_Msk;
+  tmp |= ADC_CALIB_BIASREFBUF(data);
+  ((Adc *)hw)->CALIB.reg = tmp;
+}
+
+static inline void hri_adc_write_CALIB_BIASR2R_bf(const void *const hw, uint16_t data) {
+  uint16_t tmp;
+  tmp = ((Adc *)hw)->CALIB.reg;
+  tmp &= ~ADC_CALIB_BIASR2R_Msk;
+  tmp |= ADC_CALIB_BIASR2R(data);
+  ((Adc *)hw)->CALIB.reg = tmp;
+}
+
+static inline void hri_adc_write_CALIB_BIASCOMP_bf(const void *const hw, uint16_t data) {
+  uint16_t tmp;
+  tmp = ((Adc *)hw)->CALIB.reg;
+  tmp &= ~ADC_CALIB_BIASCOMP_Msk;
+  tmp |= ADC_CALIB_BIASCOMP(data);
+  ((Adc *)hw)->CALIB.reg = tmp;
+}
 #endif
 
 // No-operation, to burn clock cycles
@@ -496,6 +521,7 @@ void isr_psd() {
   while (ADC0->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
   syncADC(); // NECESSARY
   sig_I = ADC0->RESULT.reg;
+  sig_I /= 2;
 #endif
   // syncADC(); // NOT NECESSARY
   // clang-format on
@@ -678,11 +704,11 @@ void setup() {
 #if defined __SAMD21__
   ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV32_Val;
 #elif defined __SAMD51__
-  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV64_Val;
+  //ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV64_Val;
 #endif
-  analogReadResolution(ADC_INPUT_BITS);
-  analogRead(A1); // Differential(+) or single-ended
-  analogRead(A2); // Differential(-) or not used
+  //analogReadResolution(ADC_INPUT_BITS);
+  //analogRead(A1); // Differential(+) or single-ended
+  //analogRead(A2); // Differential(-) or not used
 
   // Set single-ended or differential mode
 #if defined __SAMD21__
@@ -701,6 +727,44 @@ void setup() {
 
 #elif defined __SAMD51__
 
+  ///*
+  ADC0->CTRLA.reg = 0;
+
+  // SAMD51 has a CALIB register but doesn't have documented fuses for them.
+  // https://github.com/tuupola/circuitpython/blob/master/ports/atmel-samd/common-hal/analogio/AnalogIn.c
+  NVM_ADC0_BIASREFBUF = ((*(uint32_t *)ADC0_FUSES_BIASREFBUF_ADDR) & ADC0_FUSES_BIASREFBUF_Msk) >> ADC0_FUSES_BIASREFBUF_Pos;
+  NVM_ADC0_BIASR2R = ((*(uint32_t *)ADC0_FUSES_BIASR2R_ADDR) & ADC0_FUSES_BIASR2R_Msk) >> ADC0_FUSES_BIASR2R_Pos;
+  NVM_ADC0_BIASCOMP = ((*(uint32_t *)ADC0_FUSES_BIASCOMP_ADDR) & ADC0_FUSES_BIASCOMP_Msk) >> ADC0_FUSES_BIASCOMP_Pos;
+  //syncADC();
+  hri_adc_write_CALIB_BIASREFBUF_bf(ADC0, NVM_ADC0_BIASREFBUF);
+  //syncADC();
+  hri_adc_write_CALIB_BIASR2R_bf(ADC0, NVM_ADC0_BIASR2R);
+  //syncADC();
+  hri_adc_write_CALIB_BIASCOMP_bf(ADC0, NVM_ADC0_BIASCOMP);
+  //syncADC();
+
+  //*/
+
+  //analogRead(A1);
+
+  //syncADC();
+  //ADC0->CTRLA.reg = 0;
+
+  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV32_Val;
+
+  // AnalogRead resolution
+  //analogReadResolution(ADC_INPUT_BITS);
+  ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_16BIT_Val;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
+    ;
+  } //wait for sync
+
+  // Sample averaging
+  ADC0->AVGCTRL.reg = 0x1;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
+    ;
+  } //wait for sync
+
 #  if ADC_DIFFERENTIAL == 1
   ADC0->INPUTCTRL.bit.DIFFMODE = 1;
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
@@ -711,6 +775,12 @@ void setup() {
   ADC0->INPUTCTRL.bit.MUXNEG = ADC_INPUTCTRL_MUXNEG_GND_Val;
 #  endif
   ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // VDDANA
+
+  /*
+  ADC0->GAINCORR.reg = (1 << 11) - 8;
+  ADC0->OFFSETCORR.reg = 18;
+  ADC0->CTRLB.bit.CORREN = 1;
+  */
 
   /*
   ADC0->CTRLA.bit.ENABLE = 0;
