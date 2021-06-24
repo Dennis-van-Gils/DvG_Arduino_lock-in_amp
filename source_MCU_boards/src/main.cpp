@@ -129,7 +129,8 @@ static const char *WAVEFORM_STRING[] = {FOREACH_WAVEFORM(GENERATE_STRING)};
 // Others
 volatile bool is_running = false;     // Is the lock-in amplifier running?
 volatile uint32_t startup_millis = 0; // Time when lock-in amp got turned on
-char mcu_uid[33];                     // Serial number
+volatile bool trigger_millis_reset = false;
+char mcu_uid[33]; // Serial number
 
 /*------------------------------------------------------------------------------
   Sampling
@@ -526,7 +527,10 @@ void isr_psd() {
     return;
   } else if (startup_counter == 3) {
     startup_counter++;
-    startup_millis = millis();
+    if (trigger_millis_reset) {
+      trigger_millis_reset = false;
+      startup_millis = millis();
+    }
     stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     LUT_idx++;
     return;
@@ -918,9 +922,16 @@ void loop() {
           // Lock-in amp is already off and we reply with an acknowledgement
           Ser_data << "already_off" << endl;
 
-        } else if (strcmp(str_cmd, "on") == 0 || strcmp(str_cmd, "_on") == 0) {
+        } else if (strcmp(str_cmd, "on") == 0) {
           // Start lock-in amp
           noInterrupts();
+          is_running = true;
+          interrupts();
+
+        } else if (strcmp(str_cmd, "_on") == 0) {
+          // Start lock-in amp and reset the millis counter
+          noInterrupts();
+          trigger_millis_reset = true;
           is_running = true;
           interrupts();
 
