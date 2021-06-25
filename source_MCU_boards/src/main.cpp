@@ -778,7 +778,7 @@ void setup() {
   ADC0->INPUTCTRL.bit.DIFFMODE = 1;
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
-  ADC0->CTRLA.bit.R2R = 0;
+  ADC0->CTRLA.bit.R2R = 1;                                   // Rail-2-rail operation, needed for proper diffmode
 #  else
   ADC0->INPUTCTRL.bit.DIFFMODE = 0;
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
