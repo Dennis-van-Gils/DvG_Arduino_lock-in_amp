@@ -42,7 +42,9 @@
 #include "Streaming.h"
 
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
-#define ADC_DIFFERENTIAL 1
+
+// OBSERVATION: single-ended has half the noise compared to differential
+#define ADC_DIFFERENTIAL 0
 
 // Microcontroller unit (mcu)
 #if defined __SAMD21G18A__
@@ -521,7 +523,7 @@ void isr_psd() {
   while (ADC0->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
   syncADC(); // NECESSARY
   sig_I = ADC0->RESULT.reg;
-  //sig_I /= 2;
+  sig_I /= 4;
 #endif
   // syncADC(); // NOT NECESSARY
   // clang-format on
@@ -750,25 +752,25 @@ void setup() {
   //syncADC();
   //ADC0->CTRLA.reg = 0;
 
-  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV32_Val;
+  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
 
   // AnalogRead resolution
   //analogReadResolution(ADC_INPUT_BITS);
-  //ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_16BIT_Val;
-  ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
+  ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_16BIT_Val;
+  //ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
     ;
   } //wait for sync
 
   // Sample averaging
-  ADC0->AVGCTRL.bit.SAMPLENUM = 0x0;
+  ADC0->AVGCTRL.bit.SAMPLENUM = 0x2;
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
     ;
   } //wait for sync
 
   // Sampling length, larger means increased max input impedance
   ///*
-  ADC0->SAMPCTRL.bit.SAMPLEN = 31;
+  ADC0->SAMPCTRL.bit.SAMPLEN = 15; // default 5, stable 15 @ DIV16 & SAMPLENUM 0x02
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
     ;
   } //wait for sync
