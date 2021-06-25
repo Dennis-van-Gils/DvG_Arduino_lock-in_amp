@@ -42,7 +42,7 @@
 #include "Streaming.h"
 
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
-#define ADC_DIFFERENTIAL 0
+#define ADC_DIFFERENTIAL 1
 
 // Microcontroller unit (mcu)
 #if defined __SAMD21G18A__
@@ -474,7 +474,7 @@ void isr_psd() {
   static uint16_t write_idx;            // Current write index of TX_buffer
   volatile static uint16_t LUT_idx;     // Current read index of LUT
   uint16_t ref_X;
-  int16_t sig_I;
+  uint16_t sig_I;
 
   if (is_running != is_running_prev) {
     is_running_prev = is_running;
@@ -521,7 +521,7 @@ void isr_psd() {
   while (ADC0->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
   syncADC(); // NECESSARY
   sig_I = ADC0->RESULT.reg;
-  sig_I /= 2;
+  //sig_I /= 2;
 #endif
   // syncADC(); // NOT NECESSARY
   // clang-format on
@@ -745,7 +745,7 @@ void setup() {
 
   //*/
 
-  //analogRead(A1);
+  analogRead(A1);
 
   //syncADC();
   //ADC0->CTRLA.reg = 0;
@@ -754,21 +754,31 @@ void setup() {
 
   // AnalogRead resolution
   //analogReadResolution(ADC_INPUT_BITS);
-  ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_16BIT_Val;
+  //ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_16BIT_Val;
+  ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
     ;
   } //wait for sync
 
   // Sample averaging
-  ADC0->AVGCTRL.reg = 0x1;
+  ADC0->AVGCTRL.bit.SAMPLENUM = 0x0;
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
     ;
   } //wait for sync
+
+  // Sampling length, larger means increased max input impedance
+  ///*
+  ADC0->SAMPCTRL.bit.SAMPLEN = 31;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
+    ;
+  } //wait for sync
+  //*/
 
 #  if ADC_DIFFERENTIAL == 1
   ADC0->INPUTCTRL.bit.DIFFMODE = 1;
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
+  ADC0->CTRLA.bit.R2R = 0;
 #  else
   ADC0->INPUTCTRL.bit.DIFFMODE = 0;
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
@@ -780,32 +790,6 @@ void setup() {
   ADC0->GAINCORR.reg = (1 << 11) - 8;
   ADC0->OFFSETCORR.reg = 18;
   ADC0->CTRLB.bit.CORREN = 1;
-  */
-
-  /*
-  ADC0->CTRLA.bit.ENABLE = 0;
-  delay(10);
-
-  // NVM Software Calibration Area: address 0x00800080
-  // See https://blog.thea.codes/reading-analog-values-with-the-samd-adc/
-  uint16_t *NVM_SCA = NULL;
-  NVM_SCA = (uint16_t*) 0x00800080ul;
-  NVM_ADC0_BIASCOMP = (*NVM_SCA & 0x1c) >> 2;
-  NVM_ADC0_BIASREFBUF = (*NVM_SCA & 0xe0) >> 5;
-  NVM_ADC0_BIASR2R = (*NVM_SCA & 0x700) >> 8;
-  ADC0->CALIB.bit.BIASCOMP   = NVM_ADC0_BIASCOMP;
-  ADC0->CALIB.bit.BIASREFBUF = NVM_ADC0_BIASREFBUF;
-  ADC0->CALIB.bit.BIASR2R    = NVM_ADC0_BIASR2R;
-  delay(10);
-  */
-
-  /*
-  ADC0->OFFSETCORR.bit.OFFSETCORR = ADC_OFFSETCORR_OFFSETCORR(50);
-  ADC0->GAINCORR.bit.GAINCORR = ADC_GAINCORR_GAINCORR(2065);
-  ADC0->CTRLB.bit.CORREN = 1;   // Enable offset and gain correction
-
-  ADC0->CTRLA.bit.ENABLE = 1;
-  delay(10);
   */
 #endif
 
@@ -924,6 +908,20 @@ void loop() {
                    << SystemCoreClock << "\t"
                    << mcu_uid << "\t"
                    << endl;
+
+        } else if (strcmp(str_cmd, "adc?") == 0) {
+          // Report ADC bias and correction information
+#if defined __SAMD51__
+          Ser_data << "CTRLB.RESSEL       " << _DEC(ADC0->CTRLB.bit.RESSEL) << endl
+                   << "SAMPCTRL.SAMPLEN   " << _DEC(ADC0->SAMPCTRL.bit.SAMPLEN) << endl
+                   << "AVGCTRL.SAMPLENUM  " << _DEC(ADC0->AVGCTRL.bit.SAMPLENUM) << endl
+                   << endl
+                   << "CALIB.BIASCOMP     " << _DEC(ADC0->CALIB.bit.BIASCOMP) << endl
+                   << "CALIB.BIASREFBUF   " << _DEC(ADC0->CALIB.bit.BIASREFBUF) << endl
+                   << "CALIB.BIASR2R      " << _DEC(ADC0->CALIB.bit.BIASR2R) << endl
+                   << "OFFSETCORR         " << _DEC(ADC0->OFFSETCORR.bit.OFFSETCORR) << endl
+                   << "GAINCORR           " << _DEC(ADC0->GAINCORR.bit.GAINCORR) << endl;
+#endif
 
         } else if (strcmp(str_cmd, "bias?") == 0) {
           // Report ADC bias and correction information
