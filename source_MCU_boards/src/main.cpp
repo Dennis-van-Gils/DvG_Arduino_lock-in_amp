@@ -154,9 +154,8 @@ enum WAVEFORM_ENUM { FOREACH_WAVEFORM(GENERATE_ENUM) };
 static const char *WAVEFORM_STRING[] = {FOREACH_WAVEFORM(GENERATE_STRING)};
 
 // Others
-volatile bool is_running = false;     // Is the lock-in amplifier running?
-volatile uint32_t startup_millis = 0; // Time when lock-in amp got turned on
-volatile bool trigger_millis_reset = false;
+volatile bool is_running = false; // Is the lock-in amplifier running?
+volatile bool trigger_reset_time = false;
 char mcu_uid[33]; // Serial number
 
 /*------------------------------------------------------------------------------
@@ -443,13 +442,28 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
   which is the building block of a lock-in amplifier.
   */
 
+  static uint32_t startup_millis = 0; // Time when lock-in amp got turned on
+  static uint16_t startup_micros = 0; // Time when lock-in amp got turned on
   uint32_t millis_copy;
   uint16_t micros_part;
+
   get_systick_timestamp(&millis_copy, &micros_part);
+
+  if (trigger_reset_time) {
+    trigger_reset_time = false;
+    startup_millis = millis_copy;
+    startup_micros = micros_part;
+  }
 
   // clang-format off
   TX_buffer_counter++;
   millis_copy -= startup_millis;
+  if (micros_part >= startup_micros) {
+    micros_part -= startup_micros;
+  } else {
+    micros_part = micros_part + 1000 - startup_micros;
+    millis_copy -= 1;
+  }
   TX_buffer[TX_BUFFER_OFFSET_COUNTER    ] = TX_buffer_counter;
   TX_buffer[TX_BUFFER_OFFSET_COUNTER + 1] = TX_buffer_counter >> 8;
   TX_buffer[TX_BUFFER_OFFSET_COUNTER + 2] = TX_buffer_counter >> 16;
@@ -483,6 +497,10 @@ void isr_psd() {
 
     if (is_running) {
       startup_counter = 0;
+      // Note: Turning on the LED will mess up the ISR timing momentarily
+      // because of the NeoPixel library taking over the SysTick timer. Hence,
+      // we will wait with writing to the TX_buffer for a few iterations, see
+      // the upcoming code in this `isr_psd()` routine.
       LED_on();
     } else {
       // Set output voltage to 0
@@ -512,21 +530,23 @@ void isr_psd() {
   // This ensures that the previously set DAC output has had enough time to
   // stabilize.
   // clang-format off
-  syncADC(); // NECESSARY
+  if (startup_counter >= 4) {
+    syncADC(); // NECESSARY
 #if defined __SAMD21__
-  ADC->SWTRIG.bit.START = 1;
-  while (ADC->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
-  syncADC(); // NECESSARY
-  sig_I = ADC->RESULT.reg;
+    ADC->SWTRIG.bit.START = 1;
+    while (ADC->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
+    syncADC(); // NECESSARY
+    sig_I = ADC->RESULT.reg;
 #elif defined __SAMD51__
-  ADC0->SWTRIG.bit.START = 1;
-  while (ADC0->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
-  syncADC(); // NECESSARY
-  sig_I = ADC0->RESULT.reg;
-  sig_I /= 4;
+    ADC0->SWTRIG.bit.START = 1;
+    while (ADC0->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
+    syncADC(); // NECESSARY
+    sig_I = ADC0->RESULT.reg;
+    sig_I /= 4; // Must match ADC0->AVGCTRL.bit.SAMPLENUM
 #endif
-  // syncADC(); // NOT NECESSARY
-  // clang-format on
+    // syncADC(); // NOT NECESSARY
+    // clang-format on
+  }
 
   // Output reference signal
   ref_X = LUT_wave[LUT_idx];
@@ -542,23 +562,19 @@ void isr_psd() {
     startup_counter == 0:
       No valid input signal yet, hence return. Next timestep it will be valid.
 
-    startup_counter < 3:
+    startup_counter < 4:
       `LED_on()` using the NeoPixel library takes over the SysTick timer to
       control the LED. This interferes with the timing stability of the ISR for
       a few iterations. We simply wait them out.
 
-    startup_counter == 3:
+    startup_counter == 4:
       Timing, DAC output and ADC input are stable. Time to stamp the buffer.
   */
-  if (startup_counter < 3) {
+  if (startup_counter < 4) {
     startup_counter++;
     return;
-  } else if (startup_counter == 3) {
+  } else if (startup_counter == 4) {
     startup_counter++;
-    if (trigger_millis_reset) {
-      trigger_millis_reset = false;
-      startup_millis = millis();
-    }
     stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     LUT_idx++;
     return;
@@ -763,14 +779,14 @@ void setup() {
   } //wait for sync
 
   // Sample averaging
-  ADC0->AVGCTRL.bit.SAMPLENUM = 0x2;
+  ADC0->AVGCTRL.bit.SAMPLENUM = ADC_AVGCTRL_SAMPLENUM_4_Val;
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
     ;
   } //wait for sync
 
   // Sampling length, larger means increased max input impedance
   ///*
-  ADC0->SAMPCTRL.bit.SAMPLEN = 15; // default 5, stable 15 @ DIV16 & SAMPLENUM 0x02
+  ADC0->SAMPCTRL.bit.SAMPLEN = 15; // default 5, stable 15 @ DIV16 & SAMPLENUM_4
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
     ;
   } //wait for sync
@@ -788,11 +804,11 @@ void setup() {
 #  endif
   ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // VDDANA
 
-  /*
+  //*
   ADC0->GAINCORR.reg = (1 << 11) - 8;
   ADC0->OFFSETCORR.reg = 18;
   ADC0->CTRLB.bit.CORREN = 1;
-  */
+  //*/
 #endif
 
   // Prepare for software-triggered acquisition
@@ -1001,7 +1017,7 @@ void loop() {
         } else if (strcmp(str_cmd, "_on") == 0) {
           // Start lock-in amp and reset the millis counter
           noInterrupts();
-          trigger_millis_reset = true;
+          trigger_reset_time = true;
           is_running = true;
           interrupts();
 
