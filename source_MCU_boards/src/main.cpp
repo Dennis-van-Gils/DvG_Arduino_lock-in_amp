@@ -95,8 +95,8 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
 #ifdef __SAMD21__
 #  include "ZeroTimer.h"
 // clang-format off
-  static void syncDAC() {while (DAC->STATUS.bit.SYNCBUSY == 1) ;}
-  static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1) ;}
+  static void syncDAC() {while (DAC->STATUS.bit.SYNCBUSY == 1) {}}
+  static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1) {}}
 // clang-format on
 #  define DAC_OUTPUT_BITS 10
 #  define ADC_INPUT_BITS 12
@@ -105,8 +105,8 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
 #ifdef __SAMD51__
 #  include "SAMD51_InterruptTimer.h"
 // clang-format off
-  static void syncDAC() {while (DAC->STATUS.bit.EOC0 == 1) ;}
-  static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1) ;}
+  static void syncDAC() {while (DAC->STATUS.bit.EOC0 == 1) {}}
+  static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1) {}}
 // clang-format on
 #  define DAC_OUTPUT_BITS 12
 #  define ADC_INPUT_BITS 12
@@ -529,23 +529,21 @@ void isr_psd() {
   // Read input signal corresponding to the DAC output of the previous timestep.
   // This ensures that the previously set DAC output has had enough time to
   // stabilize.
-  // clang-format off
   if (startup_counter >= 4) {
     syncADC(); // NECESSARY
 #if defined __SAMD21__
     ADC->SWTRIG.bit.START = 1;
-    while (ADC->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
-    syncADC(); // NECESSARY
+    while (ADC->INTFLAG.bit.RESRDY == 0) {} // Wait for conversion to complete
+    syncADC();                              // NECESSARY
     sig_I = ADC->RESULT.reg;
 #elif defined __SAMD51__
     ADC0->SWTRIG.bit.START = 1;
-    while (ADC0->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
-    syncADC(); // NECESSARY
+    while (ADC0->INTFLAG.bit.RESRDY == 0) {} // Wait for conversion to complete
+    syncADC();                               // NECESSARY
     sig_I = ADC0->RESULT.reg;
     sig_I /= 4; // Must match ADC0->AVGCTRL.bit.SAMPLENUM
 #endif
     // syncADC(); // NOT NECESSARY
-    // clang-format on
   }
 
   // Output reference signal
@@ -745,58 +743,44 @@ void setup() {
 
 #elif defined __SAMD51__
 
-  ///*
   ADC0->CTRLA.reg = 0;
 
   // SAMD51 has a CALIB register but doesn't have documented fuses for them.
   // https://github.com/tuupola/circuitpython/blob/master/ports/atmel-samd/common-hal/analogio/AnalogIn.c
+  // Load the factory calibration
   NVM_ADC0_BIASREFBUF = ((*(uint32_t *)ADC0_FUSES_BIASREFBUF_ADDR) & ADC0_FUSES_BIASREFBUF_Msk) >> ADC0_FUSES_BIASREFBUF_Pos;
   NVM_ADC0_BIASR2R = ((*(uint32_t *)ADC0_FUSES_BIASR2R_ADDR) & ADC0_FUSES_BIASR2R_Msk) >> ADC0_FUSES_BIASR2R_Pos;
   NVM_ADC0_BIASCOMP = ((*(uint32_t *)ADC0_FUSES_BIASCOMP_ADDR) & ADC0_FUSES_BIASCOMP_Msk) >> ADC0_FUSES_BIASCOMP_Pos;
-  //syncADC();
   hri_adc_write_CALIB_BIASREFBUF_bf(ADC0, NVM_ADC0_BIASREFBUF);
-  //syncADC();
   hri_adc_write_CALIB_BIASR2R_bf(ADC0, NVM_ADC0_BIASR2R);
-  //syncADC();
   hri_adc_write_CALIB_BIASCOMP_bf(ADC0, NVM_ADC0_BIASCOMP);
-  //syncADC();
-
-  //*/
 
   analogRead(A1);
 
   //syncADC();
-  //ADC0->CTRLA.reg = 0;
 
   ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
 
   // AnalogRead resolution
-  //analogReadResolution(ADC_INPUT_BITS);
+  analogReadResolution(ADC_INPUT_BITS);
   ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_16BIT_Val;
-  //ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
-    ;
-  } //wait for sync
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {} //wait for sync
 
   // Sample averaging
   ADC0->AVGCTRL.bit.SAMPLENUM = ADC_AVGCTRL_SAMPLENUM_4_Val;
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
-    ;
-  } //wait for sync
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {} //wait for sync
 
   // Sampling length, larger means increased max input impedance
-  ///*
-  ADC0->SAMPCTRL.bit.SAMPLEN = 15; // default 5, stable 15 @ DIV16 & SAMPLENUM_4
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {
-    ;
-  } //wait for sync
-  //*/
+  // default 5, stable 15 @ DIV16 & SAMPLENUM_4
+  ADC0->SAMPCTRL.bit.SAMPLEN = 15;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {} //wait for sync
 
 #  if ADC_DIFFERENTIAL == 1
   ADC0->INPUTCTRL.bit.DIFFMODE = 1;
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
-  ADC0->CTRLA.bit.R2R = 1;                                   // Rail-2-rail operation, needed for proper diffmode
+  // Rail-2-rail operation, needed for proper diffmode
+  ADC0->CTRLA.bit.R2R = 1;
 #  else
   ADC0->INPUTCTRL.bit.DIFFMODE = 0;
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
@@ -804,11 +788,12 @@ void setup() {
 #  endif
   ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // VDDANA
 
-  //*
+  /*
   ADC0->GAINCORR.reg = (1 << 11) - 8;
   ADC0->OFFSETCORR.reg = 18;
   ADC0->CTRLB.bit.CORREN = 1;
-  //*/
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {} //wait for sync
+  */
 #endif
 
   // Prepare for software-triggered acquisition
