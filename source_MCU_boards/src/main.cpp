@@ -705,14 +705,13 @@ void setup() {
   syncADC(ADC0, ADC_SYNCBUSY_SWRST | ADC_SYNCBUSY_ENABLE);
 
   // Load the factory calibration
-  // TODO: test uint32_t instead of uint8_t
-  uint32_t NVM_ADC0_BIASREFBUF =
+  uint8_t NVM_ADC0_BIASREFBUF =
       ((*(uint32_t *)ADC0_FUSES_BIASREFBUF_ADDR) & ADC0_FUSES_BIASREFBUF_Msk) >>
       ADC0_FUSES_BIASREFBUF_Pos;
-  uint32_t NVM_ADC0_BIASR2R =
+  uint8_t NVM_ADC0_BIASR2R =
       ((*(uint32_t *)ADC0_FUSES_BIASR2R_ADDR) & ADC0_FUSES_BIASR2R_Msk) >>
       ADC0_FUSES_BIASR2R_Pos;
-  uint32_t NVM_ADC0_BIASCOMP =
+  uint8_t NVM_ADC0_BIASCOMP =
       ((*(uint32_t *)ADC0_FUSES_BIASCOMP_ADDR) & ADC0_FUSES_BIASCOMP_Msk) >>
       ADC0_FUSES_BIASCOMP_Pos;
 
