@@ -515,9 +515,7 @@ void isr_psd() {
     while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {
     } // Based on `hri_adc_d51.h`
     sig_I = ADC0->RESULT.reg;
-    // sig_I /= 4; // Must match ADC0->AVGCTRL.bit.SAMPLENUM
 #endif
-    // syncADC(); // NOT NECESSARY
   }
 
   // Output reference signal
@@ -663,7 +661,6 @@ void setup() {
   ADC0->CTRLA.reg = 0;
   while (ADC0->SYNCBUSY.reg & (ADC_SYNCBUSY_SWRST | ADC_SYNCBUSY_ENABLE)) {
   } // Based on `hri_adc_d51.h`
-  // syncADC();
 
   // Load the factory calibration.
   // SAMD51 has a CALIB register but doesn't have documented fuses for them.
@@ -696,6 +693,10 @@ void setup() {
   ADC0->AVGCTRL.bit.SAMPLENUM = ADC_AVGCTRL_SAMPLENUM_4_Val;
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 
+  ADC0->AVGCTRL.bit.ADJRES =
+      2; // Power of 2, must match `ADC0->AVGCTRL.bit.SAMPLENUM`
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
+
   // Sampling length, larger means increased max input impedance
   // default 5, stable 15 @ DIV16 & SAMPLENUM_4
   ADC0->SAMPCTRL.bit.SAMPLEN = 15;
@@ -703,7 +704,9 @@ void setup() {
 
 #  if ADC_DIFFERENTIAL == 1
   ADC0->INPUTCTRL.bit.DIFFMODE = 1;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
   ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 
@@ -712,12 +715,17 @@ void setup() {
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 #  else
   ADC0->INPUTCTRL.bit.DIFFMODE = 0;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
   ADC0->INPUTCTRL.bit.MUXNEG = ADC_INPUTCTRL_MUXNEG_GND_Val;
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 #  endif
 
   ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // VDDANA
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
+
+  ADC0->REFCTRL.bit.REFCOMP = 1;
   while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 
   /*
@@ -735,23 +743,12 @@ void setup() {
   // Prepare for software-triggered acquisition
 #if defined __SAMD21__
   ADC->CTRLA.bit.ENABLE = 1;
+  // syncADC();
 #elif defined __SAMD51__
   ADC0->CTRLA.bit.ENABLE = 1;
   while (ADC0->SYNCBUSY.reg & (ADC_SYNCBUSY_SWRST | ADC_SYNCBUSY_ENABLE)) {
   } // Based on `hri_adc_d51.h`
 #endif
-  // syncADC();
-
-  /*
-  // NOT NECESSARY
-  #if defined __SAMD21__
-    ADC->SWTRIG.bit.START = 1;
-    ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
-  #elif defined __SAMD51__
-    ADC0->SWTRIG.bit.START = 1;
-    ADC0->INTFLAG.reg = ADC_INTFLAG_RESRDY;
-  #endif
-  */
 
   // LUT
   parse_freq("250.0"); // [Hz] Wanted startup frequency
