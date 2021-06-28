@@ -110,34 +110,6 @@ static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1) {}}
 // clang-format on
 #  define DAC_OUTPUT_BITS 12
 #  define ADC_INPUT_BITS 12
-
-// Taken from MicrochipStudio `hri_adc_d51.h`
-static inline void hri_adc_write_CALIB_BIASREFBUF_bf(const void *const hw,
-                                                     uint16_t data) {
-  uint16_t tmp;
-  tmp = ((Adc *)hw)->CALIB.reg;
-  tmp &= ~ADC_CALIB_BIASREFBUF_Msk;
-  tmp |= ADC_CALIB_BIASREFBUF(data);
-  ((Adc *)hw)->CALIB.reg = tmp;
-}
-
-static inline void hri_adc_write_CALIB_BIASR2R_bf(const void *const hw,
-                                                  uint16_t data) {
-  uint16_t tmp;
-  tmp = ((Adc *)hw)->CALIB.reg;
-  tmp &= ~ADC_CALIB_BIASR2R_Msk;
-  tmp |= ADC_CALIB_BIASR2R(data);
-  ((Adc *)hw)->CALIB.reg = tmp;
-}
-
-static inline void hri_adc_write_CALIB_BIASCOMP_bf(const void *const hw,
-                                                   uint16_t data) {
-  uint16_t tmp;
-  tmp = ((Adc *)hw)->CALIB.reg;
-  tmp &= ~ADC_CALIB_BIASCOMP_Msk;
-  tmp |= ADC_CALIB_BIASCOMP(data);
-  ((Adc *)hw)->CALIB.reg = tmp;
-}
 #endif
 
 // No-operation, to burn clock cycles
@@ -510,8 +482,6 @@ void isr_psd() {
 #if defined __SAMD21__
       DAC->DATA.reg = 0;
 #elif defined __SAMD51__
-      while (!DAC->STATUS.bit.READY0) {}
-      while (DAC->SYNCBUSY.bit.DATA0) {}
       DAC->DATA[0].reg = 0;
 #endif
       // syncDAC(); // NOT NECESSARY
@@ -531,12 +501,10 @@ void isr_psd() {
     LUT_idx = 0;
   }
 
-  /*
   // Read input signal corresponding to the DAC output of the previous timestep.
   // This ensures that the previously set DAC output has had enough time to
   // stabilize.
   if (startup_counter >= 4) {
-    syncADC(); // NECESSARY
 #if defined __SAMD21__
     ADC->SWTRIG.bit.START = 1;
     while (ADC->INTFLAG.bit.RESRDY == 0) {} // Wait for conversion to complete
@@ -544,14 +512,13 @@ void isr_psd() {
     sig_I = ADC->RESULT.reg;
 #elif defined __SAMD51__
     ADC0->SWTRIG.bit.START = 1;
-    while (ADC0->INTFLAG.bit.RESRDY == 0) {} // Wait for conversion to complete
-    syncADC();                               // NECESSARY
+    while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {
+    } // Based on `hri_adc_d51.h`
     sig_I = ADC0->RESULT.reg;
-    sig_I /= 4; // Must match ADC0->AVGCTRL.bit.SAMPLENUM
+    // sig_I /= 4; // Must match ADC0->AVGCTRL.bit.SAMPLENUM
 #endif
     // syncADC(); // NOT NECESSARY
   }
-  */
 
   // Output reference signal
   ref_X = LUT_wave[LUT_idx];
@@ -559,8 +526,6 @@ void isr_psd() {
 #if defined __SAMD21__
   DAC->DATA.reg = ref_X;
 #elif defined __SAMD51__
-  while (!DAC->STATUS.bit.READY0) {}
-  while (DAC->SYNCBUSY.bit.DATA0) {}
   DAC->DATA[0].reg = ref_X;
 #endif
   // syncDAC(); // NOT NECESSARY
@@ -696,12 +661,13 @@ void setup() {
 #elif defined __SAMD51__
 
   ADC0->CTRLA.reg = 0;
-  syncADC();
-  /*
+  while (ADC0->SYNCBUSY.reg & (ADC_SYNCBUSY_SWRST | ADC_SYNCBUSY_ENABLE)) {
+  } // Based on `hri_adc_d51.h`
+  // syncADC();
+
   // Load the factory calibration.
   // SAMD51 has a CALIB register but doesn't have documented fuses for them.
-  //
-https://github.com/tuupola/circuitpython/blob/master/ports/atmel-samd/common-hal/analogio/AnalogIn.c
+  // https://github.com/tuupola/circuitpython/blob/master/ports/atmel-samd/common-hal/analogio/AnalogIn.c
   uint8_t NVM_ADC0_BIASREFBUF =
       ((*(uint32_t *)ADC0_FUSES_BIASREFBUF_ADDR) & ADC0_FUSES_BIASREFBUF_Msk) >>
       ADC0_FUSES_BIASREFBUF_Pos;
@@ -712,53 +678,57 @@ https://github.com/tuupola/circuitpython/blob/master/ports/atmel-samd/common-hal
       ((*(uint32_t *)ADC0_FUSES_BIASCOMP_ADDR) & ADC0_FUSES_BIASCOMP_Msk) >>
       ADC0_FUSES_BIASCOMP_Pos;
 
-  hri_adc_write_CALIB_BIASREFBUF_bf(ADC0, NVM_ADC0_BIASREFBUF);
-  hri_adc_write_CALIB_BIASR2R_bf(ADC0, NVM_ADC0_BIASR2R);
-  hri_adc_write_CALIB_BIASCOMP_bf(ADC0, NVM_ADC0_BIASCOMP);
+  ADC0->CALIB.bit.BIASREFBUF = NVM_ADC0_BIASREFBUF;
+  ADC0->CALIB.bit.BIASR2R = NVM_ADC0_BIASR2R;
+  ADC0->CALIB.bit.BIASCOMP = NVM_ADC0_BIASCOMP;
+  // No sync needed, based on `hri_adc_d51.h`
 
-  //analogRead(A1);
+  // analogRead(A1);
 
-  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV32_Val;
+  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 
   // AnalogRead resolution
-  // analogReadResolution(ADC_INPUT_BITS);
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {}
-  ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
+  ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_16BIT_Val;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 
   // Sample averaging
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_AVGCTRL) {}
-  ADC0->AVGCTRL.bit.SAMPLENUM = ADC_AVGCTRL_SAMPLENUM_1_Val;
+  ADC0->AVGCTRL.bit.SAMPLENUM = ADC_AVGCTRL_SAMPLENUM_4_Val;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 
   // Sampling length, larger means increased max input impedance
   // default 5, stable 15 @ DIV16 & SAMPLENUM_4
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_SAMPCTRL) {}
-  ADC0->SAMPCTRL.bit.SAMPLEN = 5;
+  ADC0->SAMPCTRL.bit.SAMPLEN = 15;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 
 #  if ADC_DIFFERENTIAL == 1
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_INPUTCTRL) {}
   ADC0->INPUTCTRL.bit.DIFFMODE = 1;
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 
   // Rail-2-rail operation, needed for proper diffmode
   ADC0->CTRLA.bit.R2R = 1;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 #  else
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_INPUTCTRL) {}
   ADC0->INPUTCTRL.bit.DIFFMODE = 0;
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   ADC0->INPUTCTRL.bit.MUXNEG = ADC_INPUTCTRL_MUXNEG_GND_Val;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
 #  endif
 
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_REFCTRL) {}
   ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // VDDANA
-  */
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
+
   /*
   ADC0->GAINCORR.reg = (1 << 11) - 8;
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_GAINCORR) {}
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_GAINCORR) {
+  } // Based on `hri_adc_d51.h`
   ADC0->OFFSETCORR.reg = 18;
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_OFFSET) {}
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_OFFSET) {
+  } // Based on `hri_adc_d51.h`
   ADC0->CTRLB.bit.CORREN = 1;
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {}
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_MASK) {} // Based on `hri_adc_d51.h`
   */
 #endif
 
@@ -766,9 +736,9 @@ https://github.com/tuupola/circuitpython/blob/master/ports/atmel-samd/common-hal
 #if defined __SAMD21__
   ADC->CTRLA.bit.ENABLE = 1;
 #elif defined __SAMD51__
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_ENABLE)
-    ;
-    // ADC0->CTRLA.bit.ENABLE = 1;
+  ADC0->CTRLA.bit.ENABLE = 1;
+  while (ADC0->SYNCBUSY.reg & (ADC_SYNCBUSY_SWRST | ADC_SYNCBUSY_ENABLE)) {
+  } // Based on `hri_adc_d51.h`
 #endif
   // syncADC();
 
