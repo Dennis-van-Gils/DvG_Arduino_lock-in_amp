@@ -95,8 +95,8 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
 #ifdef __SAMD21__
 #  include "ZeroTimer.h"
 // clang-format off
-  static void syncDAC() {while (DAC->STATUS.bit.SYNCBUSY == 1) {}}
-  static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1) {}}
+static void syncDAC() {while (DAC->STATUS.bit.SYNCBUSY == 1) {}}
+static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1) {}}
 // clang-format on
 #  define DAC_OUTPUT_BITS 10
 #  define ADC_INPUT_BITS 12
@@ -105,14 +105,15 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
 #ifdef __SAMD51__
 #  include "SAMD51_InterruptTimer.h"
 // clang-format off
-  static void syncDAC() {while (DAC->STATUS.bit.EOC0 == 1) {}}
-  static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1) {}}
+static void syncDAC() {while (DAC->STATUS.bit.EOC0 == 1) {}}
+static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1) {}}
 // clang-format on
 #  define DAC_OUTPUT_BITS 12
 #  define ADC_INPUT_BITS 12
 
 // Taken from MicrochipStudio `hri_adc_d51.h`
-static inline void hri_adc_write_CALIB_BIASREFBUF_bf(const void *const hw, uint16_t data) {
+static inline void hri_adc_write_CALIB_BIASREFBUF_bf(const void *const hw,
+                                                     uint16_t data) {
   uint16_t tmp;
   tmp = ((Adc *)hw)->CALIB.reg;
   tmp &= ~ADC_CALIB_BIASREFBUF_Msk;
@@ -120,7 +121,8 @@ static inline void hri_adc_write_CALIB_BIASREFBUF_bf(const void *const hw, uint1
   ((Adc *)hw)->CALIB.reg = tmp;
 }
 
-static inline void hri_adc_write_CALIB_BIASR2R_bf(const void *const hw, uint16_t data) {
+static inline void hri_adc_write_CALIB_BIASR2R_bf(const void *const hw,
+                                                  uint16_t data) {
   uint16_t tmp;
   tmp = ((Adc *)hw)->CALIB.reg;
   tmp &= ~ADC_CALIB_BIASR2R_Msk;
@@ -128,7 +130,8 @@ static inline void hri_adc_write_CALIB_BIASR2R_bf(const void *const hw, uint16_t
   ((Adc *)hw)->CALIB.reg = tmp;
 }
 
-static inline void hri_adc_write_CALIB_BIASCOMP_bf(const void *const hw, uint16_t data) {
+static inline void hri_adc_write_CALIB_BIASCOMP_bf(const void *const hw,
+                                                   uint16_t data) {
   uint16_t tmp;
   tmp = ((Adc *)hw)->CALIB.reg;
   tmp &= ~ADC_CALIB_BIASCOMP_Msk;
@@ -142,10 +145,10 @@ static inline void hri_adc_write_CALIB_BIASCOMP_bf(const void *const hw, uint16_
 
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
 // 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
-#define FOREACH_WAVEFORM(WAVEFORM) \
-  WAVEFORM(Cosine)                 \
-  WAVEFORM(Square)                 \
-  WAVEFORM(Triangle)               \
+#define FOREACH_WAVEFORM(WAVEFORM)                                             \
+  WAVEFORM(Cosine)                                                             \
+  WAVEFORM(Square)                                                             \
+  WAVEFORM(Triangle)                                                           \
   WAVEFORM(END_WAVEFORM_ENUM)
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -182,13 +185,13 @@ char mcu_uid[33]; // Serial number
     A full transmit buffer will contain a single block of data:
 
     [
-      SOM,                                                {size = 10 bytes}
-      (uint32_t) number of block being send               {size =  4 bytes}
-      (uint32_t) millis timestamp at start of block       {size =  4 bytes}
-      (uint16_t) micros part of timestamp                 {size =  2 bytes}
-      (uint16_t) phase index `LUT_wave` at start of block {size =  2 bytes}
-      BLOCK_SIZE x (uint16_t) ADC readings `sig_I`        {size = BLOCK_SIZE * 2 bytes}
-      EOM                                                 {size = 10 bytes}
+      SOM,                                              {10 bytes}
+      (uint32_t) number of block being send             { 4 bytes}
+      (uint32_t) millis timestamp at start of block     { 4 bytes}
+      (uint16_t) micros part of timestamp               { 2 bytes}
+      (uint16_t) `LUT_wave` index at start of block     { 2 bytes}
+      BLOCK_SIZE x (uint16_t) ADC readings `sig_I`      {BLOCK_SIZE * 2 bytes}
+      EOM                                               {10 bytes}
     ]
 */
 
@@ -284,11 +287,11 @@ double ref_offs; // [V]  Obtained voltage offset of reference signal
 double ref_ampl; // [V]  Voltage amplitude reference signal
 
 // Look-up table (LUT) for fast DAC
-#define MIN_N_LUT 20                // Min. allowed number of samples for one full period
-#define MAX_N_LUT 1000              // Max. allowed number of samples for one full period
+#define MIN_N_LUT 20   // Min. allowed number of samples for one full period
+#define MAX_N_LUT 1000 // Max. allowed number of samples for one full period
 uint16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
-uint16_t N_LUT;                     // Current number of samples for one full period
-bool is_LUT_dirty = false;          // Does the LUT have to be updated with new settings?
+uint16_t N_LUT;            // Current number of samples for one full period
+bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 
 // Analog port
 #define A_REF 3.300 // [V] Analog voltage reference Arduino
@@ -490,7 +493,7 @@ void isr_psd() {
   static uint16_t write_idx;            // Current write index of TX_buffer
   volatile static uint16_t LUT_idx;     // Current read index of LUT
   uint16_t ref_X;
-  uint16_t sig_I;
+  uint16_t sig_I = 0;
 
   if (is_running != is_running_prev) {
     is_running_prev = is_running;
@@ -507,6 +510,8 @@ void isr_psd() {
 #if defined __SAMD21__
       DAC->DATA.reg = 0;
 #elif defined __SAMD51__
+      while (!DAC->STATUS.bit.READY0) {}
+      while (DAC->SYNCBUSY.bit.DATA0) {}
       DAC->DATA[0].reg = 0;
 #endif
       // syncDAC(); // NOT NECESSARY
@@ -526,6 +531,7 @@ void isr_psd() {
     LUT_idx = 0;
   }
 
+  /*
   // Read input signal corresponding to the DAC output of the previous timestep.
   // This ensures that the previously set DAC output has had enough time to
   // stabilize.
@@ -545,6 +551,7 @@ void isr_psd() {
 #endif
     // syncADC(); // NOT NECESSARY
   }
+  */
 
   // Output reference signal
   ref_X = LUT_wave[LUT_idx];
@@ -552,6 +559,8 @@ void isr_psd() {
 #if defined __SAMD21__
   DAC->DATA.reg = ref_X;
 #elif defined __SAMD51__
+  while (!DAC->STATUS.bit.READY0) {}
+  while (DAC->SYNCBUSY.bit.DATA0) {}
   DAC->DATA[0].reg = ref_X;
 #endif
   // syncDAC(); // NOT NECESSARY
@@ -612,65 +621,8 @@ void isr_psd() {
 }
 
 /*------------------------------------------------------------------------------
-  print_debug_info
-------------------------------------------------------------------------------*/
-
-void print_debug_info() {
-#if defined __SAMD21__
-  Ser_data << "-------------------------------" << endl;
-  Ser_data << "CTRLA" << endl;
-  Ser_data << "  .RUNSTDBY   : " << _HEX(ADC->CTRLA.bit.RUNSTDBY) << endl;
-  Ser_data << "  .ENABLE     : " << _HEX(ADC->CTRLA.bit.ENABLE) << endl;
-  Ser_data << "  .SWRST      : " << _HEX(ADC->CTRLA.bit.SWRST) << endl;
-  Ser_data << "REFCTRL" << endl;
-  Ser_data << "  .REFCOMP    : " << _HEX(ADC->REFCTRL.bit.REFCOMP) << endl;
-  Ser_data << "  .REFSEL     : " << _HEX(ADC->REFCTRL.bit.REFSEL) << endl;
-  Ser_data << "AVGVTRL" << endl;
-  Ser_data << "  .ADJRES     : " << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl;
-  Ser_data << "  .SAMPLENUM  : " << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl;
-  Ser_data << "SAMPCTRL" << endl;
-  Ser_data << "  .SAMPLEN    : " << _HEX(ADC->SAMPCTRL.bit.SAMPLEN) << endl;
-  Ser_data << "CTRLB" << endl;
-  Ser_data << "  .PRESCALER  : " << _HEX(ADC->CTRLB.bit.PRESCALER) << endl;
-  Ser_data << "  .RESSEL     : " << _HEX(ADC->CTRLB.bit.RESSEL) << endl;
-  Ser_data << "  .CORREN     : " << _HEX(ADC->CTRLB.bit.CORREN) << endl;
-  Ser_data << "  .FREERUN    : " << _HEX(ADC->CTRLB.bit.FREERUN) << endl;
-  Ser_data << "  .LEFTADJ    : " << _HEX(ADC->CTRLB.bit.LEFTADJ) << endl;
-  Ser_data << "  .DIFFMODE   : " << _HEX(ADC->CTRLB.bit.DIFFMODE) << endl;
-  Ser_data << "INPUTCTRL" << endl;
-  Ser_data << "  .GAIN       : " << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl;
-  Ser_data << "  .INPUTOFFSET: " << _HEX(ADC->INPUTCTRL.bit.INPUTOFFSET) << endl;
-  Ser_data << "  .INPUTSCAN  : " << _HEX(ADC->INPUTCTRL.bit.INPUTSCAN) << endl;
-  Ser_data << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
-  Ser_data << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
-#elif defined __SAMD51__
-// TO DO
-#endif
-
-  float block_rate = SAMPLING_RATE_Hz / BLOCK_SIZE;
-  uint32_t baudrate = ceil(N_BYTES_TX_BUFFER * 10 * block_rate);
-  // baudrate: 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
-  Ser_data << "----------------------------------------" << endl;
-  Ser_data << "DAQ rate     : " << _FLOAT(SAMPLING_RATE_Hz, 2) << " Hz" << endl;
-  Ser_data << "ISR clock    : " << SAMPLING_PERIOD_us << " usec" << endl;
-  Ser_data << "Block size   : " << BLOCK_SIZE << " samples" << endl;
-  Ser_data << "Transmit rate          : "
-           << _FLOAT(block_rate, 2) << " blocks/s" << endl;
-  Ser_data << "Data bytes per transmit: "
-           << N_BYTES_TX_BUFFER << " bytes" << endl;
-  Ser_data << "Lower-bound baudrate   : "
-           << baudrate << endl;
-  Ser_data << "----------------------------------------" << endl;
-}
-
-/*------------------------------------------------------------------------------
   setup
 ------------------------------------------------------------------------------*/
-
-// Future support
-uint8_t NVM_ADC0_BIASCOMP = 0;
-uint8_t NVM_ADC0_BIASREFBUF = 0;
-uint8_t NVM_ADC0_BIASR2R = 0;
 
 void setup() {
   Ser_data.begin(SERIAL_DATA_BAUDRATE);
@@ -720,11 +672,11 @@ void setup() {
 #if defined __SAMD21__
   ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV32_Val;
 #elif defined __SAMD51__
-  //ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV64_Val;
+  // ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV64_Val;
 #endif
-  //analogReadResolution(ADC_INPUT_BITS);
-  //analogRead(A1); // Differential(+) or single-ended
-  //analogRead(A2); // Differential(-) or not used
+  // analogReadResolution(ADC_INPUT_BITS);
+  // analogRead(A1); // Differential(+) or single-ended
+  // analogRead(A2); // Differential(-) or not used
 
   // Set single-ended or differential mode
 #if defined __SAMD21__
@@ -744,66 +696,81 @@ void setup() {
 #elif defined __SAMD51__
 
   ADC0->CTRLA.reg = 0;
-
+  syncADC();
+  /*
+  // Load the factory calibration.
   // SAMD51 has a CALIB register but doesn't have documented fuses for them.
-  // https://github.com/tuupola/circuitpython/blob/master/ports/atmel-samd/common-hal/analogio/AnalogIn.c
-  // Load the factory calibration
-  NVM_ADC0_BIASREFBUF = ((*(uint32_t *)ADC0_FUSES_BIASREFBUF_ADDR) & ADC0_FUSES_BIASREFBUF_Msk) >> ADC0_FUSES_BIASREFBUF_Pos;
-  NVM_ADC0_BIASR2R = ((*(uint32_t *)ADC0_FUSES_BIASR2R_ADDR) & ADC0_FUSES_BIASR2R_Msk) >> ADC0_FUSES_BIASR2R_Pos;
-  NVM_ADC0_BIASCOMP = ((*(uint32_t *)ADC0_FUSES_BIASCOMP_ADDR) & ADC0_FUSES_BIASCOMP_Msk) >> ADC0_FUSES_BIASCOMP_Pos;
+  //
+https://github.com/tuupola/circuitpython/blob/master/ports/atmel-samd/common-hal/analogio/AnalogIn.c
+  uint8_t NVM_ADC0_BIASREFBUF =
+      ((*(uint32_t *)ADC0_FUSES_BIASREFBUF_ADDR) & ADC0_FUSES_BIASREFBUF_Msk) >>
+      ADC0_FUSES_BIASREFBUF_Pos;
+  uint8_t NVM_ADC0_BIASR2R =
+      ((*(uint32_t *)ADC0_FUSES_BIASR2R_ADDR) & ADC0_FUSES_BIASR2R_Msk) >>
+      ADC0_FUSES_BIASR2R_Pos;
+  uint8_t NVM_ADC0_BIASCOMP =
+      ((*(uint32_t *)ADC0_FUSES_BIASCOMP_ADDR) & ADC0_FUSES_BIASCOMP_Msk) >>
+      ADC0_FUSES_BIASCOMP_Pos;
+
   hri_adc_write_CALIB_BIASREFBUF_bf(ADC0, NVM_ADC0_BIASREFBUF);
   hri_adc_write_CALIB_BIASR2R_bf(ADC0, NVM_ADC0_BIASR2R);
   hri_adc_write_CALIB_BIASCOMP_bf(ADC0, NVM_ADC0_BIASCOMP);
 
-  analogRead(A1);
+  //analogRead(A1);
 
-  //syncADC();
-
-  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
+  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV32_Val;
 
   // AnalogRead resolution
-  analogReadResolution(ADC_INPUT_BITS);
-  ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_16BIT_Val;
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {} //wait for sync
+  // analogReadResolution(ADC_INPUT_BITS);
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {}
+  ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_12BIT_Val;
 
   // Sample averaging
-  ADC0->AVGCTRL.bit.SAMPLENUM = ADC_AVGCTRL_SAMPLENUM_4_Val;
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {} //wait for sync
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_AVGCTRL) {}
+  ADC0->AVGCTRL.bit.SAMPLENUM = ADC_AVGCTRL_SAMPLENUM_1_Val;
 
   // Sampling length, larger means increased max input impedance
   // default 5, stable 15 @ DIV16 & SAMPLENUM_4
-  ADC0->SAMPCTRL.bit.SAMPLEN = 15;
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {} //wait for sync
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_SAMPCTRL) {}
+  ADC0->SAMPCTRL.bit.SAMPLEN = 5;
 
 #  if ADC_DIFFERENTIAL == 1
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_INPUTCTRL) {}
   ADC0->INPUTCTRL.bit.DIFFMODE = 1;
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
+
   // Rail-2-rail operation, needed for proper diffmode
   ADC0->CTRLA.bit.R2R = 1;
 #  else
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_INPUTCTRL) {}
   ADC0->INPUTCTRL.bit.DIFFMODE = 0;
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   ADC0->INPUTCTRL.bit.MUXNEG = ADC_INPUTCTRL_MUXNEG_GND_Val;
 #  endif
-  ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // VDDANA
 
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_REFCTRL) {}
+  ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // VDDANA
+  */
   /*
   ADC0->GAINCORR.reg = (1 << 11) - 8;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_GAINCORR) {}
   ADC0->OFFSETCORR.reg = 18;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_OFFSET) {}
   ADC0->CTRLB.bit.CORREN = 1;
-  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {} //wait for sync
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_CTRLB) {}
   */
 #endif
 
   // Prepare for software-triggered acquisition
-  // syncADC(); // NOT NECESSARY
 #if defined __SAMD21__
-  ADC->CTRLA.bit.ENABLE = 0x01;
+  ADC->CTRLA.bit.ENABLE = 1;
 #elif defined __SAMD51__
-  ADC0->CTRLA.bit.ENABLE = 0x01;
+  while (ADC0->SYNCBUSY.reg & ADC_SYNCBUSY_ENABLE)
+    ;
+    // ADC0->CTRLA.bit.ENABLE = 1;
 #endif
-  syncADC();
+  // syncADC();
 
   /*
   // NOT NECESSARY
@@ -906,62 +873,123 @@ void loop() {
 
         } else if (strcmp(str_cmd, "mcu?") == 0) {
           // Report microcontroller information
-          Ser_data << FIRMWARE_VERSION << "\t"
-                   << MCU_MODEL << "\t"
-                   << SystemCoreClock << "\t"
-                   << mcu_uid << "\t"
-                   << endl;
+          // clang-format off
+          Ser_data << FIRMWARE_VERSION << '\t'
+                   << MCU_MODEL << '\t'
+                   << SystemCoreClock << '\t'
+                   << mcu_uid << endl;
+          // clang-format on
 
         } else if (strcmp(str_cmd, "adc?") == 0) {
-          // Report ADC bias and correction information
-#if defined __SAMD51__
-          Ser_data << "CTRLB.RESSEL       " << _DEC(ADC0->CTRLB.bit.RESSEL) << endl
-                   << "SAMPCTRL.SAMPLEN   " << _DEC(ADC0->SAMPCTRL.bit.SAMPLEN) << endl
-                   << "AVGCTRL.SAMPLENUM  " << _DEC(ADC0->AVGCTRL.bit.SAMPLENUM) << endl
-                   << endl
-                   << "CALIB.BIASCOMP     " << _DEC(ADC0->CALIB.bit.BIASCOMP) << endl
-                   << "CALIB.BIASREFBUF   " << _DEC(ADC0->CALIB.bit.BIASREFBUF) << endl
-                   << "CALIB.BIASR2R      " << _DEC(ADC0->CALIB.bit.BIASR2R) << endl
-                   << "OFFSETCORR         " << _DEC(ADC0->OFFSETCORR.bit.OFFSETCORR) << endl
-                   << "GAINCORR           " << _DEC(ADC0->GAINCORR.bit.GAINCORR) << endl;
+          // Report ADC registers
+          // clang-format off
+          uint8_t w = 15;
+          Ser_data << _PAD(40, '-') << endl
+#if defined __SAMD21__
+                   << "CTRLA" << endl
+                   << _WIDTH(".ENABLE", w) << "  F" << _DEC(ADC->CTRLA.bit.ENABLE) << endl
+                   << "INPUTCTRL" << endl
+                   << _WIDTH(".MUXPOS", w) << "  0x" << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl
+                   << _WIDTH(".MUXNEG", w) << "  0x" << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl
+                   << _WIDTH(".GAIN", w) << "  0x" << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl
+                   << "REFCTRL" << endl
+                   << _WIDTH(".REFCOMP", w) << "  F" << _DEC(ADC->REFCTRL.bit.REFCOMP) << endl
+                   << _WIDTH(".REFSEL", w) << "  0x" << _HEX(ADC->REFCTRL.bit.REFSEL) << endl
+                   << "AVGCTRL" << endl
+                   << _WIDTH(".ADJRES", w) << "  0x" << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl
+                   << _WIDTH(".SAMPLENUM", w) << "  0x" << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl
+                   << "SAMPCTRL" << endl
+                   << _WIDTH(".SAMPLEN", w) << "  " << _DEC(ADC->SAMPCTRL.bit.SAMPLEN) << endl
+                   << "CTRLB" << endl
+                   << _WIDTH(".RESSEL", w) << "  0x" << _HEX(ADC->CTRLB.bit.RESSEL) << endl
+                   << _WIDTH(".CORREN", w) << "  F" << _DEC(ADC->CTRLB.bit.CORREN) << endl
+                   << _WIDTH(".LEFTADJ", w) << "  F" <<  _DEC(ADC->CTRLB.bit.LEFTADJ) << endl
+                   << _WIDTH(".DIFFMODE", w) << "  F" << _DEC(ADC->CTRLB.bit.DIFFMODE) << endl
+                   << _WIDTH(".PRESCALER", w) << "  0x" << _HEX(ADC->CTRLB.bit.PRESCALER) << endl
+                   << "CALIB" << endl
+                   << _WIDTH(".LINEARITY_CAL", w) << "  " << _DEC(ADC->CALIB.bit.LINEARITY_CAL) << endl
+                   << _WIDTH(".BIAS_CAL", w) << "  " << _DEC(ADC->CALIB.bit.BIAS_CAL) << endl
+                   << "OFFSETCORR       " <<  _DEC(ADC->OFFSETCORR.bit.OFFSETCORR) << endl
+                   << "GAINCORR         " <<  _DEC(ADC->GAINCORR.bit.GAINCORR) << endl
+#elif defined __SAMD51__
+                   << "INPUTCTRL" << endl
+                   << _WIDTH(".DIFFMODE", w) << "  F" << _DEC(ADC0->INPUTCTRL.bit.DIFFMODE) << endl
+                   << _WIDTH(".MUXPOS", w) << "  0x" << _HEX(ADC0->INPUTCTRL.bit.MUXPOS) << endl
+                   << _WIDTH(".MUXNEG", w) << "  0x" << _HEX(ADC0->INPUTCTRL.bit.MUXNEG) << endl
+                   << "CTRLA" << endl
+                   << _WIDTH(".ENABLE", w) << "  F" << _DEC(ADC0->CTRLA.bit.ENABLE) << endl
+                   << _WIDTH(".PRESCALER", w) << "  0x" << _HEX(ADC0->CTRLA.bit.PRESCALER) << endl
+                   << _WIDTH(".R2R", w) << "  F" << _DEC(ADC0->CTRLA.bit.R2R) << endl
+                   << "CTRLB" << endl
+                   << _WIDTH(".RESSEL", w) << "  0x" << _HEX(ADC0->CTRLB.bit.RESSEL) << endl
+                   << _WIDTH(".CORREN", w) << "  F" << _DEC(ADC0->CTRLB.bit.CORREN) << endl
+                   << _WIDTH(".LEFTADJ", w) << "  F" <<  _DEC(ADC0->CTRLB.bit.LEFTADJ) << endl
+                   << "REFCTRL" << endl
+                   << _WIDTH(".REFCOMP", w) << "  F" << _DEC(ADC0->REFCTRL.bit.REFCOMP) << endl
+                   << _WIDTH(".REFSEL", w) << "  0x" << _HEX(ADC0->REFCTRL.bit.REFSEL) << endl
+                   << "AVGCTRL" << endl
+                   << _WIDTH(".ADJRES", w) << "  0x" << _HEX(ADC0->AVGCTRL.bit.ADJRES) << endl
+                   << _WIDTH(".SAMPLENUM", w) << "  0x" << _HEX(ADC0->AVGCTRL.bit.SAMPLENUM) << endl
+                   << "SAMPCTRL" << endl
+                   << _WIDTH(".OFFCOMP", w) << "  F" << _DEC(ADC0->SAMPCTRL.bit.OFFCOMP) << endl
+                   << _WIDTH(".SAMPLEN", w) << "  " << _DEC(ADC0->SAMPCTRL.bit.SAMPLEN) << endl
+                   << "CALIB" << endl
+                   << _WIDTH(".BIASCOMP", w) << "  " << _DEC(ADC0->CALIB.bit.BIASCOMP) << endl
+                   << _WIDTH(".BIASREFBUF", w) << "  " << _DEC(ADC0->CALIB.bit.BIASREFBUF) << endl
+                   << _WIDTH(".BIASR2R", w) << "  " << _DEC(ADC0->CALIB.bit.BIASR2R) << endl
+                   << "OFFSETCORR       " <<  _DEC(ADC0->OFFSETCORR.bit.OFFSETCORR) << endl
+                   << "GAINCORR         " <<  _DEC(ADC0->GAINCORR.bit.GAINCORR) << endl
 #endif
-
-        } else if (strcmp(str_cmd, "bias?") == 0) {
-          // Report ADC bias and correction information
-#if defined __SAMD51__
-          Ser_data << NVM_ADC0_BIASCOMP << endl
-                   << NVM_ADC0_BIASREFBUF << endl
-                   << NVM_ADC0_BIASR2R << endl
-                   << _DEC(ADC0->CALIB.bit.BIASCOMP) << endl
-                   << _DEC(ADC0->CALIB.bit.BIASREFBUF) << endl
-                   << _DEC(ADC0->CALIB.bit.BIASR2R) << endl
-                   << _DEC(ADC0->OFFSETCORR.bit.OFFSETCORR) << endl
-                   << _DEC(ADC0->GAINCORR.bit.GAINCORR) << endl;
-#endif
+                   << _PAD(40, '-') << endl;
+          // clang-format on
 
         } else if (strcmp(str_cmd, "debug?") == 0) {
           // Report debug information
-          print_debug_info();
+          float block_rate = SAMPLING_RATE_Hz / BLOCK_SIZE;
+          uint32_t baudrate = ceil(N_BYTES_TX_BUFFER * 10 * block_rate);
+          // 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
+          // clang-format off
+          uint8_t w1 = 15;
+          uint8_t w2 = 6;
+          Ser_data << _PAD(40, '-') << endl
+                   << _WIDTH("DAQ rate", w1) << ":  "
+                   << _FLOATW(SAMPLING_RATE_Hz, 0, w2) << "  Hz" << endl
+                   << _WIDTH("ISR clock", w1) << ":  "
+                   << _FLOATW(SAMPLING_PERIOD_us, 0, w2) << "  usec" << endl
+                   << _WIDTH("Block size", w1) << ":  "
+                   << _FLOATW(BLOCK_SIZE, 0, w2) << "  samples" << endl
+                   << _WIDTH("Block size", w1) << ":  "
+                   << _FLOATW(N_BYTES_TX_BUFFER, 0, w2) << "  bytes" << endl
+                   << _WIDTH("Transmit rate", w1) << ":  "
+                   << _FLOATW(block_rate, 2, w2) << "  blocks/s" << endl
+                   << _WIDTH("Baudrate", w1) << ":  "
+                   << _FLOATW(baudrate, 0, w2) << endl
+                   << _PAD(40, '-') << endl;
+          // clang-format on
 
         } else if (strcmp(str_cmd, "const?") == 0) {
           // Report lock-in amplifier constants
-          Ser_data << SAMPLING_PERIOD_us << "\t"
-                   << BLOCK_SIZE << "\t"
-                   << N_BYTES_TX_BUFFER << "\t"
-                   << DAC_OUTPUT_BITS << "\t"
-                   << ADC_INPUT_BITS << "\t"
-                   << ADC_DIFFERENTIAL << "\t"
-                   << A_REF << "\t"
-                   << MIN_N_LUT << "\t"
+          // clang-format off
+          Ser_data << SAMPLING_PERIOD_us << '\t'
+                   << BLOCK_SIZE << '\t'
+                   << N_BYTES_TX_BUFFER << '\t'
+                   << DAC_OUTPUT_BITS << '\t'
+                   << ADC_INPUT_BITS << '\t'
+                   << ADC_DIFFERENTIAL << '\t'
+                   << A_REF << '\t'
+                   << MIN_N_LUT << '\t'
                    << MAX_N_LUT << endl;
+          // clang-format on
 
         } else if (strcmp(str_cmd, "ref?") == 0 || strcmp(str_cmd, "?") == 0) {
           // Report reference signal `ref_X` settings
-          Ser_data << _FLOAT(ref_freq, 3) << "\t"
-                   << _FLOAT(ref_offs, 3) << "\t"
-                   << _FLOAT(ref_ampl, 3) << "\t"
-                   << WAVEFORM_STRING[ref_waveform] << "\t"
+          // clang-format off
+          Ser_data << _FLOAT(ref_freq, 3) << '\t'
+                   << _FLOAT(ref_offs, 3) << '\t'
+                   << _FLOAT(ref_ampl, 3) << '\t'
+                   << WAVEFORM_STRING[ref_waveform] << '\t'
                    << N_LUT << endl;
+          // clang-format on
 
         } else if (strcmp(str_cmd, "lut?") == 0 || strcmp(str_cmd, "l?") == 0) {
           // Report the LUT as a binary stream. The reported LUT will start at
@@ -975,9 +1003,9 @@ void loop() {
           // Report the LUT as tab-delimited ASCII. The reported LUT will start
           // at phase = 0 deg. Convenience function handy for debugging from a
           // serial console.
-          Ser_data << N_LUT << "\t" << is_LUT_dirty << endl;
+          Ser_data << N_LUT << '\t' << is_LUT_dirty << endl;
           for (uint16_t i = 0; i < N_LUT - 1; i++) {
-            Ser_data << LUT_wave[i] << "\t";
+            Ser_data << LUT_wave[i] << '\t';
           }
           Ser_data << LUT_wave[N_LUT - 1] << endl;
 
@@ -991,7 +1019,7 @@ void loop() {
 
         } else if (strcmp(str_cmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
-          Ser_data << "already_off" << endl;
+          Ser_data.print("already_off\n");
 
         } else if (strcmp(str_cmd, "on") == 0) {
           // Start lock-in amp
