@@ -33,6 +33,12 @@
   - Adafruit Feather M4        SAMD51J19A   okay   ADAFRUIT_FEATHER_M4_EXPRESS
   - Adafruit ItsyBitsy M4      SAMD51G19A   okay   ADAFRUIT_ITSYBITSY_M4_EXPRESS
 
+  For default hardware startup configuration, see
+  SAMD21:
+  \.platformio\packages\framework-arduino-samd\cores\arduino\startup.c
+  SAMD51:
+  \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
+
   Dennis van Gils
   29-06-2021
 ------------------------------------------------------------------------------*/
@@ -167,8 +173,8 @@ char mcu_uid[33]; // Serial number
 // result in a serial transmit rate of 10 blocks / s, which acts nicely with
 // the Python GUI.
 #ifdef __SAMD21__
-#  define SAMPLING_PERIOD_us 50
-#  define BLOCK_SIZE 2000
+#  define SAMPLING_PERIOD_us 100
+#  define BLOCK_SIZE 1000
 #else
 #  define SAMPLING_PERIOD_us 40
 #  define BLOCK_SIZE 2500
@@ -631,6 +637,11 @@ void setup() {
   // analogRead(A2); // Differential(-) or not used
 
 #ifdef __SAMD21__
+  // ADC source clock is default at 48 MHz (Generic Clock Generator 0)
+  // DAC source clock is default at 48 MHz (Generic Clock Generator 0)
+  // See
+  // \.platformio\packages\framework-arduino-samd\cores\arduino\wiring.c
+  //
   // Handy calculator:
   // https://blog.thea.codes/getting-the-most-out-of-the-samd21-adc/
 
@@ -649,10 +660,12 @@ void setup() {
                 ADC_FUSES_LINEARITY_1_Pos)
                << 5;
 
-  ADC->CALIB.bit.BIAS_CAL = bias;
-  ADC->CALIB.bit.LINEARITY_CAL = linearity;
+  ADC->CALIB.reg =
+      ADC_CALIB_BIAS_CAL(bias) | ADC_CALIB_LINEARITY_CAL(linearity);
   // No sync needed according to `hri_adc_d21.h`
 
+  // The ADC clock must remain below 2.1 MHz, see SAMD21 datasheet Table 37-24.
+  // Hence, don't go below DIV32 @ 48 MHz.
   ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV32_Val;
   syncADC();
 
@@ -700,26 +713,30 @@ void setup() {
   syncADC();
 
 #elif defined __SAMD51__
+  // ADC source clock is default at 48 MHz (Generic Clock Generator 1)
+  // DAC source clock is default at 12 MHz (Generic Clock Generator 4)
+  // See
+  // \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\wiring.c
 
   ADC0->CTRLA.reg = 0;
   syncADC(ADC0, ADC_SYNCBUSY_SWRST | ADC_SYNCBUSY_ENABLE);
 
   // Load the factory calibration
-  uint8_t NVM_ADC0_BIASREFBUF =
-      ((*(uint32_t *)ADC0_FUSES_BIASREFBUF_ADDR) & ADC0_FUSES_BIASREFBUF_Msk) >>
-      ADC0_FUSES_BIASREFBUF_Pos;
-  uint8_t NVM_ADC0_BIASR2R =
-      ((*(uint32_t *)ADC0_FUSES_BIASR2R_ADDR) & ADC0_FUSES_BIASR2R_Msk) >>
-      ADC0_FUSES_BIASR2R_Pos;
-  uint8_t NVM_ADC0_BIASCOMP =
-      ((*(uint32_t *)ADC0_FUSES_BIASCOMP_ADDR) & ADC0_FUSES_BIASCOMP_Msk) >>
+  uint32_t biascomp =
+      (*((uint32_t *)ADC0_FUSES_BIASCOMP_ADDR) & ADC0_FUSES_BIASCOMP_Msk) >>
       ADC0_FUSES_BIASCOMP_Pos;
+  uint32_t biasr2r =
+      (*((uint32_t *)ADC0_FUSES_BIASR2R_ADDR) & ADC0_FUSES_BIASR2R_Msk) >>
+      ADC0_FUSES_BIASR2R_Pos;
+  uint32_t biasref =
+      (*((uint32_t *)ADC0_FUSES_BIASREFBUF_ADDR) & ADC0_FUSES_BIASREFBUF_Msk) >>
+      ADC0_FUSES_BIASREFBUF_Pos;
 
-  ADC0->CALIB.bit.BIASREFBUF = NVM_ADC0_BIASREFBUF;
-  ADC0->CALIB.bit.BIASR2R = NVM_ADC0_BIASR2R;
-  ADC0->CALIB.bit.BIASCOMP = NVM_ADC0_BIASCOMP;
+  ADC0->CALIB.reg = ADC_CALIB_BIASREFBUF(biasref) | ADC_CALIB_BIASR2R(biasr2r) |
+                    ADC_CALIB_BIASCOMP(biascomp);
   // No sync needed according to `hri_adc_d51.h`
 
+  // The ADC clock must remain below 12 MHz, see SAMD51 datasheet Table 54-28.
   ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
   syncADC(ADC0, ADC_SYNCBUSY_MASK);
 
