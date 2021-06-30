@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "23-06-2021"
+__date__ = "26-06-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -311,7 +311,7 @@ class MainWindow(QtWid.QWidget):
         self.proc = psutil.Process(os.getpid())
         self.cpu_count = psutil.cpu_count()
         self.prev_time_CPU_load = QDateTime.currentDateTime()
-        self.boost_fps_graphing = False
+        self.boost_fps_graphing = USING_OPENGL
 
         # Collect all upcoming graphs and curves into a list
         self.all_graphs = list()
@@ -1455,7 +1455,7 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
 
         self.qchk_boost_fps_graphing = QtWid.QCheckBox(
-            "Boost fps graphing", checked=self.boost_fps_graphing
+            "Boost graphing", checked=self.boost_fps_graphing
         )
         self.qchk_boost_fps_graphing.clicked.connect(
             self.process_qchk_boost_fps_graphing
@@ -1466,16 +1466,14 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.qchk_boost_fps_graphing, 0, 0)
         grid.addWidget(
             QtWid.QLabel(
-                "Check to favor more frames per<br>"
-                "second for graphing at the expense<br>"
-                "of a higher CPU load and possibly<br>"
-                "dropped samples."
+                "Improves the graphing framerate<br>"
+                "at the expense of a higher CPU load."
             ), 1, 0,
         )
         grid.addWidget(
             QtWid.QLabel(
                 "Uncheck whenever you encounter<br>"
-                "reccuring dropped samples."
+                "dropped samples."
             ), 2, 0,
         )
         # fmt: on

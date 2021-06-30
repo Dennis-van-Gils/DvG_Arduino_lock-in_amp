@@ -33,8 +33,14 @@
   - Adafruit Feather M4        SAMD51J19A   okay   ADAFRUIT_FEATHER_M4_EXPRESS
   - Adafruit ItsyBitsy M4      SAMD51G19A   okay   ADAFRUIT_ITSYBITSY_M4_EXPRESS
 
+  For default hardware startup configuration, see
+  SAMD21:
+  \.platformio\packages\framework-arduino-samd\cores\arduino\startup.c
+  SAMD51:
+  \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
+
   Dennis van Gils
-  23-06-2021
+  29-06-2021
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -42,6 +48,8 @@
 #include "Streaming.h"
 
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
+
+// OBSERVATION: single-ended has half the noise compared to differential
 #define ADC_DIFFERENTIAL 0
 
 // Microcontroller unit (mcu)
@@ -86,28 +94,24 @@ static __inline__ void LED_on() __attribute__((always_inline, unused));
 #endif
 // clang-format on
 
-// Wait for synchronization of registers between the clock domains
-static __inline__ void syncDAC() __attribute__((always_inline, unused));
-static __inline__ void syncADC() __attribute__((always_inline, unused));
-
 #ifdef __SAMD21__
-#  include "ZeroTimer.h"
-// clang-format off
-  static void syncDAC() {while (DAC->STATUS.bit.SYNCBUSY == 1) ;}
-  static void syncADC() {while (ADC->STATUS.bit.SYNCBUSY == 1) ;}
-// clang-format on
+static inline void syncADC() {
+  // Taken from `hri_adc_d21.h`
+  while (ADC->STATUS.bit.SYNCBUSY == 1) {}
+}
 #  define DAC_OUTPUT_BITS 10
 #  define ADC_INPUT_BITS 12
+#  include "ZeroTimer.h"
 #endif
 
 #ifdef __SAMD51__
-#  include "SAMD51_InterruptTimer.h"
-// clang-format off
-  static void syncDAC() {while (DAC->STATUS.bit.EOC0 == 1) ;}
-  static void syncADC() {while (ADC0->STATUS.bit.ADCBUSY == 1) ;}
-// clang-format on
+static inline void syncADC(const Adc *hw, uint32_t reg) {
+  // Taken from `hri_adc_d51.h`
+  while (((Adc *)hw)->SYNCBUSY.reg & reg) {}
+}
 #  define DAC_OUTPUT_BITS 12
 #  define ADC_INPUT_BITS 12
+#  include "SAMD51_InterruptTimer.h"
 #endif
 
 // No-operation, to burn clock cycles
@@ -115,10 +119,10 @@ static __inline__ void syncADC() __attribute__((always_inline, unused));
 
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
 // 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
-#define FOREACH_WAVEFORM(WAVEFORM) \
-  WAVEFORM(Cosine)                 \
-  WAVEFORM(Square)                 \
-  WAVEFORM(Triangle)               \
+#define FOREACH_WAVEFORM(WAVEFORM)                                             \
+  WAVEFORM(Cosine)                                                             \
+  WAVEFORM(Square)                                                             \
+  WAVEFORM(Triangle)                                                           \
   WAVEFORM(END_WAVEFORM_ENUM)
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -127,9 +131,8 @@ enum WAVEFORM_ENUM { FOREACH_WAVEFORM(GENERATE_ENUM) };
 static const char *WAVEFORM_STRING[] = {FOREACH_WAVEFORM(GENERATE_STRING)};
 
 // Others
-volatile bool is_running = false;     // Is the lock-in amplifier running?
-volatile uint32_t startup_millis = 0; // Time when lock-in amp got turned on
-volatile bool trigger_millis_reset = false;
+volatile bool is_running = false; // Is the lock-in amplifier running?
+volatile bool trigger_reset_time = false;
 char mcu_uid[33]; // Serial number
 
 /*------------------------------------------------------------------------------
@@ -156,13 +159,13 @@ char mcu_uid[33]; // Serial number
     A full transmit buffer will contain a single block of data:
 
     [
-      SOM,                                                {size = 10 bytes}
-      (uint32_t) number of block being send               {size =  4 bytes}
-      (uint32_t) millis timestamp at start of block       {size =  4 bytes}
-      (uint16_t) micros part of timestamp                 {size =  2 bytes}
-      (uint16_t) phase index `LUT_wave` at start of block {size =  2 bytes}
-      BLOCK_SIZE x (uint16_t) ADC readings `sig_I`        {size = BLOCK_SIZE * 2 bytes}
-      EOM                                                 {size = 10 bytes}
+      SOM,                                              {10 bytes}
+      (uint32_t) number of block being send             { 4 bytes}
+      (uint32_t) millis timestamp at start of block     { 4 bytes}
+      (uint16_t) micros part of timestamp               { 2 bytes}
+      (uint16_t) `LUT_wave` index at start of block     { 2 bytes}
+      BLOCK_SIZE x (uint16_t) ADC readings `sig_I`      {BLOCK_SIZE * 2 bytes}
+      EOM                                               {10 bytes}
     ]
 */
 
@@ -258,11 +261,11 @@ double ref_offs; // [V]  Obtained voltage offset of reference signal
 double ref_ampl; // [V]  Voltage amplitude reference signal
 
 // Look-up table (LUT) for fast DAC
-#define MIN_N_LUT 20                // Min. allowed number of samples for one full period
-#define MAX_N_LUT 1000              // Max. allowed number of samples for one full period
+#define MIN_N_LUT 20   // Min. allowed number of samples for one full period
+#define MAX_N_LUT 1000 // Max. allowed number of samples for one full period
 uint16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
-uint16_t N_LUT;                     // Current number of samples for one full period
-bool is_LUT_dirty = false;          // Does the LUT have to be updated with new settings?
+uint16_t N_LUT;            // Current number of samples for one full period
+bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 
 // Analog port
 #define A_REF 3.300 // [V] Analog voltage reference Arduino
@@ -416,13 +419,28 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
   which is the building block of a lock-in amplifier.
   */
 
+  static uint32_t startup_millis = 0; // Time when lock-in amp got turned on
+  static uint16_t startup_micros = 0; // Time when lock-in amp got turned on
   uint32_t millis_copy;
   uint16_t micros_part;
+
   get_systick_timestamp(&millis_copy, &micros_part);
+
+  if (trigger_reset_time) {
+    trigger_reset_time = false;
+    startup_millis = millis_copy;
+    startup_micros = micros_part;
+  }
 
   // clang-format off
   TX_buffer_counter++;
   millis_copy -= startup_millis;
+  if (micros_part >= startup_micros) {
+    micros_part -= startup_micros;
+  } else {
+    micros_part = micros_part + 1000 - startup_micros;
+    millis_copy -= 1;
+  }
   TX_buffer[TX_BUFFER_OFFSET_COUNTER    ] = TX_buffer_counter;
   TX_buffer[TX_BUFFER_OFFSET_COUNTER + 1] = TX_buffer_counter >> 8;
   TX_buffer[TX_BUFFER_OFFSET_COUNTER + 2] = TX_buffer_counter >> 16;
@@ -449,13 +467,17 @@ void isr_psd() {
   static uint16_t write_idx;            // Current write index of TX_buffer
   volatile static uint16_t LUT_idx;     // Current read index of LUT
   uint16_t ref_X;
-  int16_t sig_I;
+  uint16_t sig_I = 0;
 
   if (is_running != is_running_prev) {
     is_running_prev = is_running;
 
     if (is_running) {
       startup_counter = 0;
+      // Note: Turning on the LED will mess up the ISR timing momentarily
+      // because of the NeoPixel library taking over the SysTick timer. Hence,
+      // we will wait with writing to the TX_buffer for a few iterations, see
+      // the upcoming code in this `isr_psd()` routine.
       LED_on();
     } else {
       // Set output voltage to 0
@@ -464,7 +486,6 @@ void isr_psd() {
 #elif defined __SAMD51__
       DAC->DATA[0].reg = 0;
 #endif
-      // syncDAC(); // NOT NECESSARY
       LED_off();
     }
   }
@@ -484,53 +505,45 @@ void isr_psd() {
   // Read input signal corresponding to the DAC output of the previous timestep.
   // This ensures that the previously set DAC output has had enough time to
   // stabilize.
-  // clang-format off
-  syncADC(); // NECESSARY
-#if defined __SAMD21__
-  ADC->SWTRIG.bit.START = 1;
-  while (ADC->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
-  syncADC(); // NECESSARY
-  sig_I = ADC->RESULT.reg;
+  if (startup_counter >= 4) {
+#ifdef __SAMD21__
+    ADC->SWTRIG.bit.START = 1;
+    syncADC();
+    sig_I = ADC->RESULT.reg;
 #elif defined __SAMD51__
-  ADC0->SWTRIG.bit.START = 1;
-  while (ADC0->INTFLAG.bit.RESRDY == 0) {;} // Wait for conversion to complete
-  syncADC(); // NECESSARY
-  sig_I = ADC0->RESULT.reg;
+    ADC0->SWTRIG.bit.START = 1;
+    syncADC(ADC0, ADC_SYNCBUSY_MASK);
+    sig_I = ADC0->RESULT.reg;
 #endif
-  // syncADC(); // NOT NECESSARY
-  // clang-format on
+  }
 
   // Output reference signal
+  // We don't have to worry about syncing, because the ISR is slow enough for
+  // the DAC output to get effective every ISR call
   ref_X = LUT_wave[LUT_idx];
-  // syncDAC(); // DON'T ENABLE: Causes timing jitter in the output waveform
-#if defined __SAMD21__
+#ifdef __SAMD21__
   DAC->DATA.reg = ref_X;
 #elif defined __SAMD51__
   DAC->DATA[0].reg = ref_X;
 #endif
-  // syncDAC(); // NOT NECESSARY
 
   /*
     startup_counter == 0:
       No valid input signal yet, hence return. Next timestep it will be valid.
 
-    startup_counter < 3:
+    startup_counter < 4:
       `LED_on()` using the NeoPixel library takes over the SysTick timer to
       control the LED. This interferes with the timing stability of the ISR for
       a few iterations. We simply wait them out.
 
-    startup_counter == 3:
+    startup_counter == 4:
       Timing, DAC output and ADC input are stable. Time to stamp the buffer.
   */
-  if (startup_counter < 3) {
+  if (startup_counter < 4) {
     startup_counter++;
     return;
-  } else if (startup_counter == 3) {
+  } else if (startup_counter == 4) {
     startup_counter++;
-    if (trigger_millis_reset) {
-      trigger_millis_reset = false;
-      startup_millis = millis();
-    }
     stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     LUT_idx++;
     return;
@@ -570,65 +583,8 @@ void isr_psd() {
 }
 
 /*------------------------------------------------------------------------------
-  print_debug_info
-------------------------------------------------------------------------------*/
-
-void print_debug_info() {
-#if defined __SAMD21__
-  Ser_data << "-------------------------------" << endl;
-  Ser_data << "CTRLA" << endl;
-  Ser_data << "  .RUNSTDBY   : " << _HEX(ADC->CTRLA.bit.RUNSTDBY) << endl;
-  Ser_data << "  .ENABLE     : " << _HEX(ADC->CTRLA.bit.ENABLE) << endl;
-  Ser_data << "  .SWRST      : " << _HEX(ADC->CTRLA.bit.SWRST) << endl;
-  Ser_data << "REFCTRL" << endl;
-  Ser_data << "  .REFCOMP    : " << _HEX(ADC->REFCTRL.bit.REFCOMP) << endl;
-  Ser_data << "  .REFSEL     : " << _HEX(ADC->REFCTRL.bit.REFSEL) << endl;
-  Ser_data << "AVGVTRL" << endl;
-  Ser_data << "  .ADJRES     : " << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl;
-  Ser_data << "  .SAMPLENUM  : " << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl;
-  Ser_data << "SAMPCTRL" << endl;
-  Ser_data << "  .SAMPLEN    : " << _HEX(ADC->SAMPCTRL.bit.SAMPLEN) << endl;
-  Ser_data << "CTRLB" << endl;
-  Ser_data << "  .PRESCALER  : " << _HEX(ADC->CTRLB.bit.PRESCALER) << endl;
-  Ser_data << "  .RESSEL     : " << _HEX(ADC->CTRLB.bit.RESSEL) << endl;
-  Ser_data << "  .CORREN     : " << _HEX(ADC->CTRLB.bit.CORREN) << endl;
-  Ser_data << "  .FREERUN    : " << _HEX(ADC->CTRLB.bit.FREERUN) << endl;
-  Ser_data << "  .LEFTADJ    : " << _HEX(ADC->CTRLB.bit.LEFTADJ) << endl;
-  Ser_data << "  .DIFFMODE   : " << _HEX(ADC->CTRLB.bit.DIFFMODE) << endl;
-  Ser_data << "INPUTCTRL" << endl;
-  Ser_data << "  .GAIN       : " << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl;
-  Ser_data << "  .INPUTOFFSET: " << _HEX(ADC->INPUTCTRL.bit.INPUTOFFSET) << endl;
-  Ser_data << "  .INPUTSCAN  : " << _HEX(ADC->INPUTCTRL.bit.INPUTSCAN) << endl;
-  Ser_data << "  .MUXNEG     : " << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl;
-  Ser_data << "  .MUXPOS     : " << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl;
-#elif defined __SAMD51__
-// TO DO
-#endif
-
-  float block_rate = SAMPLING_RATE_Hz / BLOCK_SIZE;
-  uint32_t baudrate = ceil(N_BYTES_TX_BUFFER * 10 * block_rate);
-  // baudrate: 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
-  Ser_data << "----------------------------------------" << endl;
-  Ser_data << "DAQ rate     : " << _FLOAT(SAMPLING_RATE_Hz, 2) << " Hz" << endl;
-  Ser_data << "ISR clock    : " << SAMPLING_PERIOD_us << " usec" << endl;
-  Ser_data << "Block size   : " << BLOCK_SIZE << " samples" << endl;
-  Ser_data << "Transmit rate          : "
-           << _FLOAT(block_rate, 2) << " blocks/s" << endl;
-  Ser_data << "Data bytes per transmit: "
-           << N_BYTES_TX_BUFFER << " bytes" << endl;
-  Ser_data << "Lower-bound baudrate   : "
-           << baudrate << endl;
-  Ser_data << "----------------------------------------" << endl;
-}
-
-/*------------------------------------------------------------------------------
   setup
 ------------------------------------------------------------------------------*/
-
-// Future support
-uint8_t NVM_ADC0_BIASCOMP = 0;
-uint8_t NVM_ADC0_BIASREFBUF = 0;
-uint8_t NVM_ADC0_BIASR2R = 0;
 
 void setup() {
   Ser_data.begin(SERIAL_DATA_BAUDRATE);
@@ -670,94 +626,174 @@ void setup() {
   analogWrite(A0, 0);
 
   // ADC
-  // Increase the ADC clock by setting the divisor from default DIV128 to a
+  // Increase the ADC clock by setting the PRESCALER from default DIV128 to a
   // smaller divisor. This is needed for DAQ rates larger than ~20 kHz on SAMD51
   // and DAQ rates larger than ~10 kHz on SAMD21. Setting too small divisors
   // will result in ADC errors. Keep as large as possible to increase ADC
   // accuracy.
-#if defined __SAMD21__
-  ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV32_Val;
-#elif defined __SAMD51__
-  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV64_Val;
-#endif
-  analogReadResolution(ADC_INPUT_BITS);
-  analogRead(A1); // Differential(+) or single-ended
-  analogRead(A2); // Differential(-) or not used
 
-  // Set single-ended or differential mode
-#if defined __SAMD21__
+  // analogReadResolution(ADC_INPUT_BITS);
+  // analogRead(A1); // Differential(+) or single-ended
+  // analogRead(A2); // Differential(-) or not used
+
+#ifdef __SAMD21__
+  // ADC source clock is default at 48 MHz (Generic Clock Generator 0)
+  // DAC source clock is default at 48 MHz (Generic Clock Generator 0)
+  // See
+  // \.platformio\packages\framework-arduino-samd\cores\arduino\wiring.c
+  //
+  // Handy calculator:
+  // https://blog.thea.codes/getting-the-most-out-of-the-samd21-adc/
+
+  ADC->CTRLA.reg = 0;
+  syncADC();
+
+  // Load the factory calibration
+  uint32_t bias =
+      (*((uint32_t *)ADC_FUSES_BIASCAL_ADDR) & ADC_FUSES_BIASCAL_Msk) >>
+      ADC_FUSES_BIASCAL_Pos;
+  uint32_t linearity =
+      (*((uint32_t *)ADC_FUSES_LINEARITY_0_ADDR) & ADC_FUSES_LINEARITY_0_Msk) >>
+      ADC_FUSES_LINEARITY_0_Pos;
+  linearity |= ((*((uint32_t *)ADC_FUSES_LINEARITY_1_ADDR) &
+                 ADC_FUSES_LINEARITY_1_Msk) >>
+                ADC_FUSES_LINEARITY_1_Pos)
+               << 5;
+
+  ADC->CALIB.reg =
+      ADC_CALIB_BIAS_CAL(bias) | ADC_CALIB_LINEARITY_CAL(linearity);
+  // No sync needed according to `hri_adc_d21.h`
+
+  // The ADC clock must remain below 2.1 MHz, see SAMD21 datasheet Table 37-24.
+  // Hence, don't go below DIV32 @ 48 MHz.
+  ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV32_Val;
+  syncADC();
+
+  // AnalogRead resolution
+  ADC->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_16BIT_Val;
+  syncADC();
+
+  // Sample averaging
+  ADC->AVGCTRL.bit.SAMPLENUM = ADC_AVGCTRL_SAMPLENUM_4_Val;
+  // No sync needed according to `hri_adc_d21.h`
+  ADC->AVGCTRL.bit.ADJRES = 2; // 2^N, must match `ADC0->AVGCTRL.bit.SAMPLENUM`
+  // No sync needed according to `hri_adc_d21.h`
+
+  // Sampling length, larger means increased max input impedance
+  // default 63, stable 15 @ DIV32 & SAMPLENUM_4
+  ADC->SAMPCTRL.bit.SAMPLEN = 15;
+  // No sync needed according to `hri_adc_d21.h`
 
 #  if ADC_DIFFERENTIAL == 1
   ADC->CTRLB.bit.DIFFMODE = 1;
+  syncADC();
   ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  syncADC();
   ADC->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
+  syncADC();
 #  else
   ADC->CTRLB.bit.DIFFMODE = 0;
+  syncADC();
   ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  syncADC();
   ADC->INPUTCTRL.bit.MUXNEG = ADC_INPUTCTRL_MUXNEG_GND_Val;
+  syncADC();
 #  endif
-  ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
+
   ADC->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // 1/2 VDDANA
+  // No sync needed according to `hri_adc_d21.h`
+  ADC->REFCTRL.bit.REFCOMP = 0;
+  // No sync needed according to `hri_adc_d21.h`
+
+  ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
+  syncADC();
+
+  // Prepare for software-triggered acquisition
+  ADC->CTRLA.bit.ENABLE = 1;
+  syncADC();
 
 #elif defined __SAMD51__
+  // ADC source clock is default at 48 MHz (Generic Clock Generator 1)
+  // DAC source clock is default at 12 MHz (Generic Clock Generator 4)
+  // See
+  // \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\wiring.c
+
+  ADC0->CTRLA.reg = 0;
+  syncADC(ADC0, ADC_SYNCBUSY_SWRST | ADC_SYNCBUSY_ENABLE);
+
+  // Load the factory calibration
+  uint32_t biascomp =
+      (*((uint32_t *)ADC0_FUSES_BIASCOMP_ADDR) & ADC0_FUSES_BIASCOMP_Msk) >>
+      ADC0_FUSES_BIASCOMP_Pos;
+  uint32_t biasr2r =
+      (*((uint32_t *)ADC0_FUSES_BIASR2R_ADDR) & ADC0_FUSES_BIASR2R_Msk) >>
+      ADC0_FUSES_BIASR2R_Pos;
+  uint32_t biasref =
+      (*((uint32_t *)ADC0_FUSES_BIASREFBUF_ADDR) & ADC0_FUSES_BIASREFBUF_Msk) >>
+      ADC0_FUSES_BIASREFBUF_Pos;
+
+  ADC0->CALIB.reg = ADC_CALIB_BIASREFBUF(biasref) | ADC_CALIB_BIASR2R(biasr2r) |
+                    ADC_CALIB_BIASCOMP(biascomp);
+  // No sync needed according to `hri_adc_d51.h`
+
+  // The ADC clock must remain below 12 MHz, see SAMD51 datasheet Table 54-28.
+  ADC0->CTRLA.bit.PRESCALER = ADC_CTRLA_PRESCALER_DIV16_Val;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+
+  // AnalogRead resolution
+  ADC0->CTRLB.bit.RESSEL = ADC_CTRLB_RESSEL_16BIT_Val;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+
+  // Sample averaging
+  ADC0->AVGCTRL.bit.SAMPLENUM = ADC_AVGCTRL_SAMPLENUM_4_Val;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+  ADC0->AVGCTRL.bit.ADJRES = 2; // 2^N, must match `ADC0->AVGCTRL.bit.SAMPLENUM`
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+
+  // Sampling length, larger means increased max input impedance
+  // default 5, stable 15 @ DIV16 & SAMPLENUM_4
+  ADC0->SAMPCTRL.bit.SAMPLEN = 15;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
 
 #  if ADC_DIFFERENTIAL == 1
   ADC0->INPUTCTRL.bit.DIFFMODE = 1;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
   ADC0->INPUTCTRL.bit.MUXNEG = g_APinDescription[A2].ulADCChannelNumber;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+
+  // Rail-2-rail operation, needed for proper diffmode
+  ADC0->CTRLA.bit.R2R = 1;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
 #  else
   ADC0->INPUTCTRL.bit.DIFFMODE = 0;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
   ADC0->INPUTCTRL.bit.MUXNEG = ADC_INPUTCTRL_MUXNEG_GND_Val;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
 #  endif
+
   ADC0->REFCTRL.bit.REFSEL = ADC_REFCTRL_REFSEL_INTVCC1_Val; // VDDANA
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+  ADC0->REFCTRL.bit.REFCOMP = 0;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
 
   /*
-  ADC0->CTRLA.bit.ENABLE = 0;
-  delay(10);
-
-  // NVM Software Calibration Area: address 0x00800080
-  // See https://blog.thea.codes/reading-analog-values-with-the-samd-adc/
-  uint16_t *NVM_SCA = NULL;
-  NVM_SCA = (uint16_t*) 0x00800080ul;
-  NVM_ADC0_BIASCOMP = (*NVM_SCA & 0x1c) >> 2;
-  NVM_ADC0_BIASREFBUF = (*NVM_SCA & 0xe0) >> 5;
-  NVM_ADC0_BIASR2R = (*NVM_SCA & 0x700) >> 8;
-  ADC0->CALIB.bit.BIASCOMP   = NVM_ADC0_BIASCOMP;
-  ADC0->CALIB.bit.BIASREFBUF = NVM_ADC0_BIASREFBUF;
-  ADC0->CALIB.bit.BIASR2R    = NVM_ADC0_BIASR2R;
-  delay(10);
+  ADC0->GAINCORR.reg = (1 << 11) - 8;
+  syncADC(ADC0, ADC_SYNCBUSY_GAINCORR);
+  ADC0->OFFSETCORR.reg = 18;
+  syncADC(ADC0, ADC_SYNCBUSY_OFFSET);
+  ADC0->CTRLB.bit.CORREN = 1;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
   */
-
-  /*
-  ADC0->OFFSETCORR.bit.OFFSETCORR = ADC_OFFSETCORR_OFFSETCORR(50);
-  ADC0->GAINCORR.bit.GAINCORR = ADC_GAINCORR_GAINCORR(2065);
-  ADC0->CTRLB.bit.CORREN = 1;   // Enable offset and gain correction
-
-  ADC0->CTRLA.bit.ENABLE = 1;
-  delay(10);
-  */
-#endif
 
   // Prepare for software-triggered acquisition
-  // syncADC(); // NOT NECESSARY
-#if defined __SAMD21__
-  ADC->CTRLA.bit.ENABLE = 0x01;
-#elif defined __SAMD51__
-  ADC0->CTRLA.bit.ENABLE = 0x01;
-#endif
-  syncADC();
+  ADC0->CTRLA.bit.ENABLE = 1;
+  syncADC(ADC0, ADC_SYNCBUSY_SWRST | ADC_SYNCBUSY_ENABLE);
 
-  /*
-  // NOT NECESSARY
-  #if defined __SAMD21__
-    ADC->SWTRIG.bit.START = 1;
-    ADC->INTFLAG.reg = ADC_INTFLAG_RESRDY;
-  #elif defined __SAMD51__
-    ADC0->SWTRIG.bit.START = 1;
-    ADC0->INTFLAG.reg = ADC_INTFLAG_RESRDY;
-  #endif
-  */
+#endif
 
   // LUT
   parse_freq("250.0"); // [Hz] Wanted startup frequency
@@ -849,48 +885,123 @@ void loop() {
 
         } else if (strcmp(str_cmd, "mcu?") == 0) {
           // Report microcontroller information
-          Ser_data << FIRMWARE_VERSION << "\t"
-                   << MCU_MODEL << "\t"
-                   << SystemCoreClock << "\t"
-                   << mcu_uid << "\t"
-                   << endl;
+          // clang-format off
+          Ser_data << FIRMWARE_VERSION << '\t'
+                   << MCU_MODEL << '\t'
+                   << SystemCoreClock << '\t'
+                   << mcu_uid << endl;
+          // clang-format on
 
-        } else if (strcmp(str_cmd, "bias?") == 0) {
-          // Report ADC bias and correction information
-#if defined __SAMD51__
-          Ser_data << NVM_ADC0_BIASCOMP << endl
-                   << NVM_ADC0_BIASREFBUF << endl
-                   << NVM_ADC0_BIASR2R << endl
-                   << _DEC(ADC0->CALIB.bit.BIASCOMP) << endl
-                   << _DEC(ADC0->CALIB.bit.BIASREFBUF) << endl
-                   << _DEC(ADC0->CALIB.bit.BIASR2R) << endl
-                   << _DEC(ADC0->OFFSETCORR.bit.OFFSETCORR) << endl
-                   << _DEC(ADC0->GAINCORR.bit.GAINCORR) << endl;
+        } else if (strcmp(str_cmd, "adc?") == 0) {
+          // Report ADC registers
+          // clang-format off
+          uint8_t w = 15;
+          Ser_data << _PAD(40, '-') << endl
+#if defined __SAMD21__
+                   << "CTRLA" << endl
+                   << _WIDTH(".ENABLE", w) << "  F" << _DEC(ADC->CTRLA.bit.ENABLE) << endl
+                   << "INPUTCTRL" << endl
+                   << _WIDTH(".MUXPOS", w) << "  0x" << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl
+                   << _WIDTH(".MUXNEG", w) << "  0x" << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl
+                   << _WIDTH(".GAIN", w) << "  0x" << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl
+                   << "REFCTRL" << endl
+                   << _WIDTH(".REFCOMP", w) << "  F" << _DEC(ADC->REFCTRL.bit.REFCOMP) << endl
+                   << _WIDTH(".REFSEL", w) << "  0x" << _HEX(ADC->REFCTRL.bit.REFSEL) << endl
+                   << "AVGCTRL" << endl
+                   << _WIDTH(".ADJRES", w) << "  0x" << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl
+                   << _WIDTH(".SAMPLENUM", w) << "  0x" << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl
+                   << "SAMPCTRL" << endl
+                   << _WIDTH(".SAMPLEN", w) << "  " << _DEC(ADC->SAMPCTRL.bit.SAMPLEN) << endl
+                   << "CTRLB" << endl
+                   << _WIDTH(".RESSEL", w) << "  0x" << _HEX(ADC->CTRLB.bit.RESSEL) << endl
+                   << _WIDTH(".CORREN", w) << "  F" << _DEC(ADC->CTRLB.bit.CORREN) << endl
+                   << _WIDTH(".LEFTADJ", w) << "  F" <<  _DEC(ADC->CTRLB.bit.LEFTADJ) << endl
+                   << _WIDTH(".DIFFMODE", w) << "  F" << _DEC(ADC->CTRLB.bit.DIFFMODE) << endl
+                   << _WIDTH(".PRESCALER", w) << "  0x" << _HEX(ADC->CTRLB.bit.PRESCALER) << endl
+                   << "CALIB" << endl
+                   << _WIDTH(".LINEARITY_CAL", w) << "  " << _DEC(ADC->CALIB.bit.LINEARITY_CAL) << endl
+                   << _WIDTH(".BIAS_CAL", w) << "  " << _DEC(ADC->CALIB.bit.BIAS_CAL) << endl
+                   << "OFFSETCORR       " <<  _DEC(ADC->OFFSETCORR.bit.OFFSETCORR) << endl
+                   << "GAINCORR         " <<  _DEC(ADC->GAINCORR.bit.GAINCORR) << endl
+#elif defined __SAMD51__
+                   << "INPUTCTRL" << endl
+                   << _WIDTH(".DIFFMODE", w) << "  F" << _DEC(ADC0->INPUTCTRL.bit.DIFFMODE) << endl
+                   << _WIDTH(".MUXPOS", w) << "  0x" << _HEX(ADC0->INPUTCTRL.bit.MUXPOS) << endl
+                   << _WIDTH(".MUXNEG", w) << "  0x" << _HEX(ADC0->INPUTCTRL.bit.MUXNEG) << endl
+                   << "CTRLA" << endl
+                   << _WIDTH(".ENABLE", w) << "  F" << _DEC(ADC0->CTRLA.bit.ENABLE) << endl
+                   << _WIDTH(".PRESCALER", w) << "  0x" << _HEX(ADC0->CTRLA.bit.PRESCALER) << endl
+                   << _WIDTH(".R2R", w) << "  F" << _DEC(ADC0->CTRLA.bit.R2R) << endl
+                   << "CTRLB" << endl
+                   << _WIDTH(".RESSEL", w) << "  0x" << _HEX(ADC0->CTRLB.bit.RESSEL) << endl
+                   << _WIDTH(".CORREN", w) << "  F" << _DEC(ADC0->CTRLB.bit.CORREN) << endl
+                   << _WIDTH(".LEFTADJ", w) << "  F" <<  _DEC(ADC0->CTRLB.bit.LEFTADJ) << endl
+                   << "REFCTRL" << endl
+                   << _WIDTH(".REFCOMP", w) << "  F" << _DEC(ADC0->REFCTRL.bit.REFCOMP) << endl
+                   << _WIDTH(".REFSEL", w) << "  0x" << _HEX(ADC0->REFCTRL.bit.REFSEL) << endl
+                   << "AVGCTRL" << endl
+                   << _WIDTH(".ADJRES", w) << "  0x" << _HEX(ADC0->AVGCTRL.bit.ADJRES) << endl
+                   << _WIDTH(".SAMPLENUM", w) << "  0x" << _HEX(ADC0->AVGCTRL.bit.SAMPLENUM) << endl
+                   << "SAMPCTRL" << endl
+                   << _WIDTH(".OFFCOMP", w) << "  F" << _DEC(ADC0->SAMPCTRL.bit.OFFCOMP) << endl
+                   << _WIDTH(".SAMPLEN", w) << "  " << _DEC(ADC0->SAMPCTRL.bit.SAMPLEN) << endl
+                   << "CALIB" << endl
+                   << _WIDTH(".BIASCOMP", w) << "  " << _DEC(ADC0->CALIB.bit.BIASCOMP) << endl
+                   << _WIDTH(".BIASREFBUF", w) << "  " << _DEC(ADC0->CALIB.bit.BIASREFBUF) << endl
+                   << _WIDTH(".BIASR2R", w) << "  " << _DEC(ADC0->CALIB.bit.BIASR2R) << endl
+                   << "OFFSETCORR       " <<  _DEC(ADC0->OFFSETCORR.bit.OFFSETCORR) << endl
+                   << "GAINCORR         " <<  _DEC(ADC0->GAINCORR.bit.GAINCORR) << endl
 #endif
+                   << _PAD(40, '-') << endl;
+          // clang-format on
 
         } else if (strcmp(str_cmd, "debug?") == 0) {
           // Report debug information
-          print_debug_info();
+          float block_rate = SAMPLING_RATE_Hz / BLOCK_SIZE;
+          uint32_t baudrate = ceil(N_BYTES_TX_BUFFER * 10 * block_rate);
+          // 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
+          // clang-format off
+          uint8_t w1 = 15;
+          uint8_t w2 = 6;
+          Ser_data << _PAD(40, '-') << endl
+                   << _WIDTH("DAQ rate", w1) << ":  "
+                   << _FLOATW(SAMPLING_RATE_Hz, 0, w2) << "  Hz" << endl
+                   << _WIDTH("ISR clock", w1) << ":  "
+                   << _FLOATW(SAMPLING_PERIOD_us, 0, w2) << "  usec" << endl
+                   << _WIDTH("Block size", w1) << ":  "
+                   << _FLOATW(BLOCK_SIZE, 0, w2) << "  samples" << endl
+                   << _WIDTH("Block size", w1) << ":  "
+                   << _FLOATW(N_BYTES_TX_BUFFER, 0, w2) << "  bytes" << endl
+                   << _WIDTH("Transmit rate", w1) << ":  "
+                   << _FLOATW(block_rate, 2, w2) << "  blocks/s" << endl
+                   << _WIDTH("Baudrate", w1) << ":  "
+                   << _FLOATW(baudrate, 0, w2) << endl
+                   << _PAD(40, '-') << endl;
+          // clang-format on
 
         } else if (strcmp(str_cmd, "const?") == 0) {
           // Report lock-in amplifier constants
-          Ser_data << SAMPLING_PERIOD_us << "\t"
-                   << BLOCK_SIZE << "\t"
-                   << N_BYTES_TX_BUFFER << "\t"
-                   << DAC_OUTPUT_BITS << "\t"
-                   << ADC_INPUT_BITS << "\t"
-                   << ADC_DIFFERENTIAL << "\t"
-                   << A_REF << "\t"
-                   << MIN_N_LUT << "\t"
+          // clang-format off
+          Ser_data << SAMPLING_PERIOD_us << '\t'
+                   << BLOCK_SIZE << '\t'
+                   << N_BYTES_TX_BUFFER << '\t'
+                   << DAC_OUTPUT_BITS << '\t'
+                   << ADC_INPUT_BITS << '\t'
+                   << ADC_DIFFERENTIAL << '\t'
+                   << A_REF << '\t'
+                   << MIN_N_LUT << '\t'
                    << MAX_N_LUT << endl;
+          // clang-format on
 
         } else if (strcmp(str_cmd, "ref?") == 0 || strcmp(str_cmd, "?") == 0) {
           // Report reference signal `ref_X` settings
-          Ser_data << _FLOAT(ref_freq, 3) << "\t"
-                   << _FLOAT(ref_offs, 3) << "\t"
-                   << _FLOAT(ref_ampl, 3) << "\t"
-                   << WAVEFORM_STRING[ref_waveform] << "\t"
+          // clang-format off
+          Ser_data << _FLOAT(ref_freq, 3) << '\t'
+                   << _FLOAT(ref_offs, 3) << '\t'
+                   << _FLOAT(ref_ampl, 3) << '\t'
+                   << WAVEFORM_STRING[ref_waveform] << '\t'
                    << N_LUT << endl;
+          // clang-format on
 
         } else if (strcmp(str_cmd, "lut?") == 0 || strcmp(str_cmd, "l?") == 0) {
           // Report the LUT as a binary stream. The reported LUT will start at
@@ -904,9 +1015,9 @@ void loop() {
           // Report the LUT as tab-delimited ASCII. The reported LUT will start
           // at phase = 0 deg. Convenience function handy for debugging from a
           // serial console.
-          Ser_data << N_LUT << "\t" << is_LUT_dirty << endl;
+          Ser_data << N_LUT << '\t' << is_LUT_dirty << endl;
           for (uint16_t i = 0; i < N_LUT - 1; i++) {
-            Ser_data << LUT_wave[i] << "\t";
+            Ser_data << LUT_wave[i] << '\t';
           }
           Ser_data << LUT_wave[N_LUT - 1] << endl;
 
@@ -920,7 +1031,7 @@ void loop() {
 
         } else if (strcmp(str_cmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
-          Ser_data << "already_off" << endl;
+          Ser_data.print("already_off\n");
 
         } else if (strcmp(str_cmd, "on") == 0) {
           // Start lock-in amp
@@ -931,7 +1042,7 @@ void loop() {
         } else if (strcmp(str_cmd, "_on") == 0) {
           // Start lock-in amp and reset the millis counter
           noInterrupts();
-          trigger_millis_reset = true;
+          trigger_reset_time = true;
           is_running = true;
           interrupts();
 
