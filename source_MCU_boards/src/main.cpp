@@ -807,7 +807,11 @@ void setup() {
   // Experimental: Output a pulse train on pin 9 to act as clock source for
   // a (future) variable anti-aliasing filter IC placed in front of the ADC
   // input ports.
-  // TCC_pulse_train.startTimer(10);
+  /*
+#ifdef __SAMD51__
+  TCC_pulse_train.startTimer(10);
+#endif
+  */
 }
 
 /*------------------------------------------------------------------------------
