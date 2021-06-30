@@ -33,3 +33,7 @@ FIRMWARE
 * Merge `SAMD51_InterruptTimer` from GitHub repo with source_MCU_boards\lib\
 
 * Implement new timer reset mechanism for V1.0.0 MICROCHIPSTUDIO conform V1.0.0 VSCODE
+
+* Rewrite `flash.bat` to make use of the tools supplied with the standard Arduino IDE
+  See, https://starter-kit.nettigo.eu/2015/debug-sketch-on-arduino-zero-pro-with-gdb-and-openocd/
+  
