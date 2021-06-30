@@ -1,7 +1,11 @@
 @echo off
-
-REM Connect to the programming port of the M0
-REM Before flashing make sure to erase the chip and to set the NVMCTRL_BOOTPROT to 0 bytes
+echo;
+echo ---------------------------------------------------------
+echo   Connect to the programming port of the M0
+echo   Before flashing make sure to erase the chip and to set
+echo   the NVMCTRL_BOOTPROT fuse to 0 bytes
+echo ---------------------------------------------------------
+echo;
 
 
 set tool=%UserProfile%\.platformio\packages\tool-openocd\bin\openocd.exe
