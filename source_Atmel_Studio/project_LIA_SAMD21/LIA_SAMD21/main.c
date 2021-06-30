@@ -18,13 +18,27 @@ TODO: implement https://github.com/mpflaga/Arduino-MemoryFree
 #define FIRMWARE_VERSION "ALIA v1.0.0 MICROCHIPSTUDIO"
 #define VARIANT_MCK (48000000ul)     // Master clock frequency
 
-volatile bool is_running = false;    // Is the lock-in amplifier running?
-volatile bool is_serial_txc = false; // Is serial data sent out?
-volatile bool is_serial_rxc = false; // Is serial data received?
-volatile uint32_t millis = 0;        // Updated by SysTick, once every 1 ms
+// OBSERVATION: single-ended has half the noise compared to differential
+#define ADC_DIFFERENTIAL 0  // Leave at 0, differential mode is not implemented
 
-// Microcontroller unit (mcu) unique identifier (uid) number
-uint8_t mcu_uid[16];
+// Microcontroller unit (mcu)
+#if defined __SAMD21G18A__
+#  define MCU_MODEL "SAMD21G18A"
+#  ifndef __SAMD21__
+#    define __SAMD21__
+#  endif
+#elif defined __SAMD21E18A__
+#  define MCU_MODEL "SAMD21E18A"
+#  ifndef __SAMD21__
+#    define __SAMD21__
+#  endif
+#elif defined __SAMD51P20A__
+#  define MCU_MODEL "SAMD51P20A"
+#elif defined __SAMD51J19A__
+#  define MCU_MODEL "SAMD51J19A"
+#elif defined __SAMD51G19A__
+#  define MCU_MODEL "SAMD51G19A"
+#endif
 
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
 // 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
@@ -43,6 +57,15 @@ enum WAVEFORM_ENUM {
 static const char *WAVEFORM_STRING[] = {
     FOREACH_WAVEFORM(GENERATE_STRING)
 };
+
+// Others
+volatile bool is_running = false;    // Is the lock-in amplifier running?
+volatile bool is_serial_txc = false; // Is serial data sent out?
+volatile bool is_serial_rxc = false; // Is serial data received?
+volatile uint32_t millis = 0;        // Updated by SysTick, once every 1 ms
+char mcu_uid[33]; // Serial number
+
+
 
 /*------------------------------------------------------------------------------
     Waveform look-up table (LUT)
@@ -150,7 +173,7 @@ static uint8_t TX_buffer_B[N_BYTES_TX_BUFFER] = {};
 #define TX_BUFFER_OFFSET_SIG_I   (TX_BUFFER_OFFSET_PHASE   + N_BYTES_PHASE)
 
 // Outgoing serial string
-#define MAXLEN_STR_BUFFER 96
+#define MAXLEN_STR_BUFFER 100
 char str_buffer[MAXLEN_STR_BUFFER];
 char usb_buffer[MAXLEN_STR_BUFFER];
 struct io_descriptor* io;
@@ -274,41 +297,49 @@ static void cb_USART_err(const struct usart_async_descriptor *const io_descr) {
 
 
 /*------------------------------------------------------------------------------
-    get_mcu_uid
+  get_mcu_uid
 ------------------------------------------------------------------------------*/
 
-void get_mcu_uid(uint8_t raw_uid[16]) {
-	// Return the 128-bits uid (serial number) of the micro controller as a byte
-	// array
+void get_mcu_uid(char mcu_uid_out[33]) {
+  /* Return the 128-bit unique identifier (uid) of the microcontroller unit
+  (mcu) as a hex string. Aka, the serial number.
+  */
+  uint8_t raw_uid[16]; // uid as byte array
 
-	#ifdef _SAMD21_
-	// SAMD21 from section 9.3.3 of the datasheet
-	#define SERIAL_NUMBER_WORD_0	*(volatile uint32_t*)(0x0080A00C)
-	#define SERIAL_NUMBER_WORD_1	*(volatile uint32_t*)(0x0080A040)
-	#define SERIAL_NUMBER_WORD_2	*(volatile uint32_t*)(0x0080A044)
-	#define SERIAL_NUMBER_WORD_3	*(volatile uint32_t*)(0x0080A048)
-	#endif
-	#ifdef _SAMD51_
-	// SAMD51 from section 9.6 of the datasheet
-	#define SERIAL_NUMBER_WORD_0	*(volatile uint32_t*)(0x008061FC)
-	#define SERIAL_NUMBER_WORD_1	*(volatile uint32_t*)(0x00806010)
-	#define SERIAL_NUMBER_WORD_2	*(volatile uint32_t*)(0x00806014)
-	#define SERIAL_NUMBER_WORD_3	*(volatile uint32_t*)(0x00806018)
-	#endif
+// SAMD21 from section 9.3.3 of the datasheet
+#ifdef __SAMD21__
+#  define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x0080A00C)
+#  define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x0080A040)
+#  define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x0080A044)
+#  define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x0080A048)
+#endif
+// SAMD51 from section 9.6 of the datasheet
+#ifdef __SAMD51__
+#  define SERIAL_NUMBER_WORD_0 *(volatile uint32_t *)(0x008061FC)
+#  define SERIAL_NUMBER_WORD_1 *(volatile uint32_t *)(0x00806010)
+#  define SERIAL_NUMBER_WORD_2 *(volatile uint32_t *)(0x00806014)
+#  define SERIAL_NUMBER_WORD_3 *(volatile uint32_t *)(0x00806018)
+#endif
 
-	uint32_t pdwUniqueID[4];
-	pdwUniqueID[0] = SERIAL_NUMBER_WORD_0;
-	pdwUniqueID[1] = SERIAL_NUMBER_WORD_1;
-	pdwUniqueID[2] = SERIAL_NUMBER_WORD_2;
-	pdwUniqueID[3] = SERIAL_NUMBER_WORD_3;
+  uint32_t pdw_uid[4];
+  pdw_uid[0] = SERIAL_NUMBER_WORD_0;
+  pdw_uid[1] = SERIAL_NUMBER_WORD_1;
+  pdw_uid[2] = SERIAL_NUMBER_WORD_2;
+  pdw_uid[3] = SERIAL_NUMBER_WORD_3;
 
-	for (int i = 0; i < 4; i++) {
-		raw_uid[i*4+0] = (uint8_t)(pdwUniqueID[i] >> 24);
-		raw_uid[i*4+1] = (uint8_t)(pdwUniqueID[i] >> 16);
-		raw_uid[i*4+2] = (uint8_t)(pdwUniqueID[i] >> 8);
-		raw_uid[i*4+3] = (uint8_t)(pdwUniqueID[i] >> 0);
-	}
+  for (int i = 0; i < 4; i++) {
+    raw_uid[i * 4 + 0] = (uint8_t)(pdw_uid[i] >> 24);
+    raw_uid[i * 4 + 1] = (uint8_t)(pdw_uid[i] >> 16);
+    raw_uid[i * 4 + 2] = (uint8_t)(pdw_uid[i] >> 8);
+    raw_uid[i * 4 + 3] = (uint8_t)(pdw_uid[i] >> 0);
+  }
+
+  for (int j = 0; j < 16; j++) {
+    sprintf(&mcu_uid_out[2 * j], "%02X", raw_uid[j]);
+  }
+  mcu_uid_out[32] = 0;
 }
+
 
 
 /*------------------------------------------------------------------------------
@@ -744,33 +775,14 @@ int main(void) {
 
 
                     } else if (strcmp(str_cmd, "mcu?") == 0) {
-                        // Report microcontroller model, serial and firmware
-                        char str_model[12];
-                        char str_uid[33];
-
-                        snprintf(str_model, sizeof(str_model),
-                                 #if defined(__SAMD21G18A__)
-                                 "SAMD21G18A"
-                                 #elif defined(__SAMD21E18A__)
-                                 "SAMD21E18A"
-                                 #elif defined(__SAMD51P20A__)
-                                 "SAMD51P20A"
-                                 #elif defined(__SAMD51J19A__)
-                                 "SAMD51J19A"
-                                 #elif defined(__SAMD51G19A__)
-                                 "SAMD51G19A"
-                                 #else
-                                 "unknown MCU"
-                                 #endif
-                                 );
-
-						// Format the uid byte-array to hex representation
-						str_uid[32] = 0;
-						for (uint8_t j = 0; j < 16; j++)
-						sprintf(&str_uid[2*j], "%02X", mcu_uid[j]);
-
-                        snprintf(str_buffer, MAXLEN_STR_BUFFER, "%s\t%s\t%s\n",
-                                 FIRMWARE_VERSION, str_model, str_uid);
+                        // Report microcontroller information
+                        snprintf(str_buffer,
+                                 MAXLEN_STR_BUFFER,
+                                 "%s\t%s\t%lu\t%s\n",
+                                 FIRMWARE_VERSION,
+                                 MCU_MODEL,
+                                 VARIANT_MCK,
+                                 mcu_uid);
                         io_print(str_buffer);
 
 
@@ -778,12 +790,13 @@ int main(void) {
                     } else if (strcmp(str_cmd, "const?") == 0) {
                         // Report constants
                         snprintf(str_buffer, MAXLEN_STR_BUFFER,
-                                 "%.6f\t%u\t%u\t%u\t%u\t%.3f\t%u\t%u\n",
+                                 "%.6f\t%u\t%u\t%u\t%u\t%u\t%.3f\t%u\t%u\n",
                                  SAMPLING_PERIOD_us,
                                  BLOCK_SIZE,
                                  N_BYTES_TX_BUFFER,
                                  DAC_OUTPUT_BITS,
                                  ADC_INPUT_BITS,
+                                 ADC_DIFFERENTIAL,
                                  A_REF,
                                  MIN_N_LUT,
                                  MAX_N_LUT);
