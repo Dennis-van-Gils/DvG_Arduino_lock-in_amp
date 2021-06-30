@@ -1,9 +1,9 @@
 @echo off
 echo;
 echo ---------------------------------------------------------
-echo   Connect to the programming port of the M0
+echo   Connect to the programming port of the M0.
 echo   Before flashing make sure to erase the chip and to set
-echo   the NVMCTRL_BOOTPROT fuse to 0 bytes (EDBG tool)
+echo   the NVMCTRL_BOOTPROT fuse to 0 bytes (EDBG tool).
 echo ---------------------------------------------------------
 echo;
 

@@ -1,8 +1,13 @@
 @echo off
+echo;
+echo ---------------------------------------------------------
+echo   Port should be set to the port visible when running the
+echo   M4 in boot mode.
+echo ---------------------------------------------------------
+echo;
 
-REM Port should be set to the port visible when running M4 in boot mode
+
 set port=COM7
-
 set tool=%UserProfile%\.platformio\packages\tool-bossac\bossac.exe
 set firmware=firmware.bin
 
