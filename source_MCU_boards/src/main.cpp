@@ -1044,7 +1044,7 @@ void loop() {
           interrupts();
 
         } else if (strcmp(str_cmd, "_on") == 0) {
-          // Start lock-in amp and reset the millis counter
+          // Start lock-in amp and reset the time
           noInterrupts();
           trigger_reset_time = true;
           is_running = true;
