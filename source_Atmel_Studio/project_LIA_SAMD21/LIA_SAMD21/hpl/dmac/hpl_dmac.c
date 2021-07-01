@@ -214,7 +214,6 @@ static inline void _dmac_handler(void)
 
 	hri_dmac_write_CHID_reg(DMAC, channel);
 	flag_status = hri_dmac_get_CHINTFLAG_reg(DMAC, DMAC_CHINTFLAG_MASK);
-	hri_dmac_write_CHID_reg(DMAC, current_channel);
 
 	if (flag_status & DMAC_CHINTFLAG_TERR) {
 		hri_dmac_clear_CHINTFLAG_TERR_bit(DMAC);
@@ -223,6 +222,7 @@ static inline void _dmac_handler(void)
 		hri_dmac_clear_CHINTFLAG_TCMPL_bit(DMAC);
 		tmp_resource->dma_cb.transfer_done(tmp_resource);
 	}
+	hri_dmac_write_CHID_reg(DMAC, current_channel);
 }
 
 /**

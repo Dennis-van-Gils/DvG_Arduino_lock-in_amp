@@ -47,7 +47,6 @@
         <file category="doc" condition="ARMCC, GCC, IAR" name="hal/documentation/evsys.rst"/>
         <file category="doc" condition="ARMCC, GCC, IAR" name="hal/documentation/timer.rst"/>
         <file category="doc" condition="ARMCC, GCC, IAR" name="hal/documentation/usart_async.rst"/>
-        <file category="doc" condition="ARMCC, GCC, IAR" name="hal/documentation/usb_device_async.rst"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hal_adc_dma.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hal_atomic.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hal_dac_async.h"/>
@@ -57,7 +56,6 @@
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hal_init.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hal_io.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hal_sleep.h"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hal_usb_device.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hpl_adc_dma.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hpl_core.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hpl_delay.h"/>
@@ -75,9 +73,6 @@
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hpl_spi_async.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hpl_spi_sync.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hpl_usart.h"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hpl_usb.h"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hpl_usb_device.h"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="hal/include/hpl_usb_host.h"/>
         <file category="source" condition="ARMCC, GCC, IAR" name="hal/src/hal_adc_dma.c"/>
         <file category="source" condition="ARMCC, GCC, IAR" name="hal/src/hal_atomic.c"/>
         <file category="source" condition="ARMCC, GCC, IAR" name="hal/src/hal_dac_async.c"/>
@@ -87,7 +82,6 @@
         <file category="source" condition="ARMCC, GCC, IAR" name="hal/src/hal_init.c"/>
         <file category="source" condition="ARMCC, GCC, IAR" name="hal/src/hal_io.c"/>
         <file category="source" condition="ARMCC, GCC, IAR" name="hal/src/hal_sleep.c"/>
-        <file category="source" condition="ARMCC, GCC, IAR" name="hal/src/hal_usb_device.c"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/utils/include/compiler.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/utils/include/err_codes.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hal/utils/include/events.h"/>
@@ -129,23 +123,6 @@
         <file category="header" condition="ARMCC, GCC, IAR" name="hri/hri_tcc_d21.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hri/hri_usb_d21.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hri/hri_wdt_d21.h"/>
-        <file category="doc" condition="ARMCC, GCC, IAR" name="documentation/usb_device_cdc.rst"/>
-        <file category="doc" condition="ARMCC, GCC, IAR" name="documentation/usb_device_core.rst"/>
-        <file category="doc" condition="ARMCC, GCC, IAR" name="documentation/usb_protocol_cdc.rst"/>
-        <file category="doc" condition="ARMCC, GCC, IAR" name="documentation/usb_protocol_core.rst"/>
-        <file category="other" condition="ARMCC, GCC, IAR" name="usb/class/cdc/device/atmel_devices_cdc.cat"/>
-        <file category="other" condition="ARMCC, GCC, IAR" name="usb/class/cdc/device/atmel_devices_cdc.inf"/>
-        <file category="source" condition="ARMCC, GCC, IAR" name="usb/class/cdc/device/cdcdf_acm.c"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="usb/class/cdc/device/cdcdf_acm.h"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="usb/class/cdc/device/cdcdf_acm_desc.h"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="usb/class/cdc/usb_protocol_cdc.h"/>
-        <file category="source" condition="ARMCC, GCC, IAR" name="usb/device/usbdc.c"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="usb/device/usbdc.h"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="usb/usb_atmel.h"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="usb/usb_debug.h"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="usb/usb_includes.h"/>
-        <file category="source" condition="ARMCC, GCC, IAR" name="usb/usb_protocol.c"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="usb/usb_protocol.h"/>
         <file category="source" condition="ARMCC, GCC, IAR" name="main.c"/>
         <file category="source" condition="ARMCC, GCC, IAR" name="driver_init.c"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="driver_init.h"/>
@@ -189,9 +166,6 @@
         <file category="source" condition="ARMCC, GCC, IAR" name="hpl/sysctrl/hpl_sysctrl.c"/>
         <file category="source" condition="ARMCC, GCC, IAR" name="hpl/tcc/hpl_tcc.c"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="hpl/tcc/hpl_tcc.h"/>
-        <file category="source" condition="ARMCC, GCC, IAR" name="hpl/usb/hpl_usb.c"/>
-        <file category="source" condition="ARMCC, GCC, IAR" name="usb_start.c"/>
-        <file category="header" condition="ARMCC, GCC, IAR" name="usb_start.h"/>
         <file category="header" condition="ARMCC, GCC, IAR" name="atmel_start.h"/>
         <file category="source" condition="ARMCC, GCC, IAR" name="atmel_start.c"/>
         <file attr="config" category="header" condition="ARMCC, GCC, IAR" name="config/hpl_adc_config.h"/>
@@ -203,9 +177,7 @@
         <file attr="config" category="header" condition="ARMCC, GCC, IAR" name="config/hpl_sercom_config.h"/>
         <file attr="config" category="header" condition="ARMCC, GCC, IAR" name="config/hpl_sysctrl_config.h"/>
         <file attr="config" category="header" condition="ARMCC, GCC, IAR" name="config/hpl_tcc_config.h"/>
-        <file attr="config" category="header" condition="ARMCC, GCC, IAR" name="config/hpl_usb_config.h"/>
         <file attr="config" category="header" condition="ARMCC, GCC, IAR" name="config/peripheral_clk_config.h"/>
-        <file attr="config" category="header" condition="ARMCC, GCC, IAR" name="config/usbd_config.h"/>
         <file category="include" condition="ARMCC, GCC, IAR" name=""/>
         <file category="include" condition="ARMCC, GCC, IAR" name="config"/>
         <file category="include" condition="ARMCC, GCC, IAR" name="examples"/>
@@ -222,14 +194,7 @@
         <file category="include" condition="ARMCC, GCC, IAR" name="hpl/sercom"/>
         <file category="include" condition="ARMCC, GCC, IAR" name="hpl/sysctrl"/>
         <file category="include" condition="ARMCC, GCC, IAR" name="hpl/tcc"/>
-        <file category="include" condition="ARMCC, GCC, IAR" name="hpl/usb"/>
         <file category="include" condition="ARMCC, GCC, IAR" name="hri"/>
-        <file category="include" condition="ARMCC, GCC, IAR" name=""/>
-        <file category="include" condition="ARMCC, GCC, IAR" name="config"/>
-        <file category="include" condition="ARMCC, GCC, IAR" name="usb"/>
-        <file category="include" condition="ARMCC, GCC, IAR" name="usb/class/cdc"/>
-        <file category="include" condition="ARMCC, GCC, IAR" name="usb/class/cdc/device"/>
-        <file category="include" condition="ARMCC, GCC, IAR" name="usb/device"/>
         <file category="include" condition="ARMCC, GCC, IAR" name=""/>
       </files>
     </component>

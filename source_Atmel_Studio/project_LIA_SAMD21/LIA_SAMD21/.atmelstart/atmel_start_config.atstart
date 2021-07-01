@@ -2,86 +2,23 @@ format_version: '2'
 name: Lock-in_amplifier
 versions:
   api: '1.0'
-  backend: 1.6.148
-  commit: 605f106ab95776472e3febf2fac2471441fb1816
-  content: 1.0.1600
-  content_pack_name: acme-packs-all
+  backend: 1.8.580
+  commit: f3d8d96e294de8dee688333bbbe8d8458a4f6b4c
+  content: unknown
+  content_pack_name: unknown
   format: '2'
-  frontend: 1.6.1881
+  frontend: 1.8.580
+  packs_version_avr8: 1.0.1463
+  packs_version_qtouch: unknown
+  packs_version_sam: 1.0.1726
+  version_backend: 1.8.580
+  version_frontend: ''
 board:
   identifier: CustomBoard
   device: SAMD21G18A-AF
 details: null
 application: null
-middlewares:
-  USB_CHAPTER_9:
-    user_label: USB_CHAPTER_9
-    configuration: {}
-    definition: Atmel:USB:0.0.1::USB_Chapter_9
-    functionality: USB_Chapter_9
-    api: USB:Protocol:Core
-    dependencies: {}
-  USB_CLASS_CDC:
-    user_label: USB_CLASS_CDC
-    configuration: {}
-    definition: Atmel:USB:0.0.1::USB_Class_CDC
-    functionality: USB_Class_CDC
-    api: USB:Protocol:CDC
-    dependencies:
-      USB Chapter 9: USB_CHAPTER_9
-  USB_DEVICE_CORE_0:
-    user_label: USB_DEVICE_CORE_0
-    configuration:
-      usbd_hs_sp: false
-    definition: Atmel:USB:0.0.1::USB_Device_Core
-    functionality: USB_Device_Core
-    api: USB:Device:Core
-    dependencies:
-      USB Chapter 9: USB_CHAPTER_9
-      USB Device instance: USB_0
-  USB_DEVICE_CDC_ACM_0:
-    user_label: USB_DEVICE_CDC_ACM_0
-    configuration:
-      usb_cdcd_acm_bcddevice: 256
-      usb_cdcd_acm_bcdusb: USB 2.0 version
-      usb_cdcd_acm_bconfigval: 1
-      usb_cdcd_acm_bmattri: Bus power supply, not support for remote wakeup
-      usb_cdcd_acm_bmaxpksz0: 64 bytes
-      usb_cdcd_acm_bmaxpower: 50
-      usb_cdcd_acm_bnumconfig: 1
-      usb_cdcd_acm_comm_baltset: 0
-      usb_cdcd_acm_comm_bifcnum: 0
-      usb_cdcd_acm_comm_iifc: 0
-      usb_cdcd_acm_comm_int_interval: 10
-      usb_cdcd_acm_comm_int_maxpksz: 64 bytes
-      usb_cdcd_acm_data_baltset: 0
-      usb_cdcd_acm_data_bifcnum: 1
-      usb_cdcd_acm_data_buckout_maxpksz: 64 bytes
-      usb_cdcd_acm_data_buckout_maxpksz_hs: 512 bytes
-      usb_cdcd_acm_data_builin_maxpksz: 64 bytes
-      usb_cdcd_acm_data_builin_maxpksz_hs: 512 bytes
-      usb_cdcd_acm_data_bulkin_epaddr: EndpointAddress = 0x81
-      usb_cdcd_acm_data_bulkout_epaddr: EndpointAddress = 0x01
-      usb_cdcd_acm_data_iifc: 0
-      usb_cdcd_acm_epaddr: EndpointAddress = 0x82
-      usb_cdcd_acm_iconfig_en: false
-      usb_cdcd_acm_iconfig_str: ''
-      usb_cdcd_acm_idproduct: 9220
-      usb_cdcd_acm_idvender: 1003
-      usb_cdcd_acm_imanufact_en: true
-      usb_cdcd_acm_imanufact_str: Onera products
-      usb_cdcd_acm_iproduct_en: true
-      usb_cdcd_acm_iproduct_str: Onera Serial Bridge Demo
-      usb_cdcd_acm_iserialnum_en: false
-      usb_cdcd_acm_iserialnum_str: 123456789ABCDEF
-      usb_cdcd_acm_langid: '0x0409'
-      usb_cdcd_acm_str_en: false
-    definition: Atmel:USB:0.0.1::USB_Device_CDC_ACM
-    functionality: USB_Device_CDC_ACM
-    api: USB:Device:CDC_ACM
-    dependencies:
-      USB Device Stack Core Instance: USB_DEVICE_CORE_0
-      USB Class CDC: USB_CLASS_CDC
+middlewares: {}
 drivers:
   ADC_0:
     user_label: ADC_0
@@ -142,14 +79,34 @@ drivers:
     functionality: System
     api: HAL:HPL:GCLK
     configuration:
+      $input: 400000
+      $input_id: External Crystal Oscillator 0.4-32MHz (XOSC)
+      RESERVED_InputFreq: 400000
+      RESERVED_InputFreq_id: External Crystal Oscillator 0.4-32MHz (XOSC)
+      _$freq_output_Generic clock generator 0: 48000000
+      _$freq_output_Generic clock generator 1: 32768
+      _$freq_output_Generic clock generator 2: 32768
+      _$freq_output_Generic clock generator 3: 8000000
+      _$freq_output_Generic clock generator 4: 48000000
+      _$freq_output_Generic clock generator 5: 48000000
+      _$freq_output_Generic clock generator 6: 400000
+      _$freq_output_Generic clock generator 7: 400000
       enable_gclk_gen_0: true
+      enable_gclk_gen_0__externalclock: 1000000
       enable_gclk_gen_1: true
+      enable_gclk_gen_1__externalclock: 1000000
       enable_gclk_gen_2: false
+      enable_gclk_gen_2__externalclock: 1000000
       enable_gclk_gen_3: false
+      enable_gclk_gen_3__externalclock: 1000000
       enable_gclk_gen_4: true
+      enable_gclk_gen_4__externalclock: 1000000
       enable_gclk_gen_5: true
+      enable_gclk_gen_5__externalclock: 1000000
       enable_gclk_gen_6: false
+      enable_gclk_gen_6__externalclock: 1000000
       enable_gclk_gen_7: false
+      enable_gclk_gen_7__externalclock: 1000000
       gclk_arch_gen_0_RUNSTDBY: false
       gclk_arch_gen_0_enable: true
       gclk_arch_gen_0_idc: true
@@ -224,6 +181,11 @@ drivers:
     functionality: System
     api: HAL:HPL:PM
     configuration:
+      $input: 48000000
+      $input_id: Generic clock generator 0
+      RESERVED_InputFreq: 48000000
+      RESERVED_InputFreq_id: Generic clock generator 0
+      _$freq_output_CPU: 48000000
       apba_div: '1'
       apbb_div: '1'
       apbc_div: '1'
@@ -260,7 +222,7 @@ drivers:
       usart_arch_sampa: 7-8-9 (3-4-5 8-bit over-sampling)
       usart_arch_sampr: 16x arithmetic
       usart_arch_sfde: false
-      usart_baud_rate: 1200000
+      usart_baud_rate: 1000000
       usart_character_size: 8 bits
       usart_parity: No parity
       usart_rx_enable: true
@@ -795,6 +757,14 @@ drivers:
     functionality: System
     api: HAL:HPL:SYSCTRL
     configuration:
+      $input: 8000000
+      $input_id: Generic clock generator 3
+      RESERVED_InputFreq: 8000000
+      RESERVED_InputFreq_id: Generic clock generator 3
+      _$freq_output_8MHz Internal Oscillator (OSC8M): 8000000
+      _$freq_output_Digital Frequency Locked Loop (DFLL48M): 48000000
+      _$freq_output_External Crystal Oscillator 0.4-32MHz (XOSC): 400000
+      _$freq_output_Fractional Digital Phase Locked Loop (FDPLL96M): 11718500000
       dfll48m_arch_bplckc: true
       dfll48m_arch_calibration: false
       dfll48m_arch_ccdis: true
@@ -898,7 +868,7 @@ drivers:
       timer_advanced_configuration: false
       timer_event_control: true
       timer_prescaler: No division
-      timer_tick: 20
+      timer_tick: 50
     optional_signals:
     - identifier: TIMER_0:WO/2
       pad: PA10
@@ -917,49 +887,6 @@ drivers:
           external_frequency: 0
         configuration:
           tcc_gclk_selection: Generic clock generator 0
-  USB_0:
-    user_label: USB_0
-    definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::USB::driver_config_definition::USB.Device::HAL:Driver:USB.Device
-    functionality: USB
-    api: HAL:Driver:USB_Device
-    configuration:
-      usb_arch_ep0_cache: Cached by 64 bytes buffer
-      usb_arch_ep1_cache: Cached by 64 bytes buffer
-      usb_arch_ep2_cache: Cached by 64 bytes buffer
-      usb_arch_ep3_cache: Cached by 64 bytes buffer
-      usb_arch_ep4_cache: Cached by 64 bytes buffer
-      usb_arch_ep5_cache: Cached by 64 bytes buffer
-      usb_arch_ep6_cache: Cached by 64 bytes buffer
-      usb_arch_ep7_cache: Cached by 64 bytes buffer
-      usb_ep1_I_CACHE: No cache
-      usb_ep2_I_CACHE: No cache
-      usb_ep3_I_CACHE: No cache
-      usb_ep4_I_CACHE: No cache
-      usb_ep5_I_CACHE: No cache
-      usb_ep6_I_CACHE: No cache
-      usb_ep7_I_CACHE: No cache
-      usbd_arch_max_ep_n: 2 (EP 0x82 or 0x02)
-      usbd_arch_speed: Full speed
-      usbd_num_ep_sp: 4 (EP0 + 3 endpoints)
-    optional_signals: []
-    variant:
-      specification: default
-      required_signals:
-      - name: USB/DM
-        pad: PA24
-        label: Data-
-      - name: USB/DP
-        pad: PA25
-        label: Data+
-    clocks:
-      domain_group:
-        nodes:
-        - name: USB
-          input: Generic clock generator 5
-          external: false
-          external_frequency: 0
-        configuration:
-          usb_gclk_selection: Generic clock generator 5
 pads:
   PIN_A0__VOUT:
     name: PA02
@@ -1005,18 +932,6 @@ pads:
     mode: Digital output
     user_label: PIN_D13__LED
     configuration: null
-  PIN_USB_D0:
-    name: PA24
-    definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::pad::PA24
-    mode: Advanced
-    user_label: PIN_USB_D0
-    configuration: null
-  PIN_USB_D1:
-    name: PA25
-    definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::pad::PA25
-    mode: Advanced
-    user_label: PIN_USB_D1
-    configuration: null
   PIN_USART_TX:
     name: PB22
     definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::pad::PB22
@@ -1030,3 +945,4 @@ pads:
     user_label: PIN_USART_RX
     configuration: null
 toolchain_options: []
+static_files: []

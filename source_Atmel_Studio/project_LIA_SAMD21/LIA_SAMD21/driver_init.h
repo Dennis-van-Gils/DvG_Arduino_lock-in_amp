@@ -32,8 +32,6 @@ extern "C" {
 #include <hal_timer.h>
 #include <hpl_tcc.h>
 
-#include "hal_usb_device.h"
-
 extern struct adc_dma_descriptor     ADC_0;
 extern struct usart_async_descriptor USART_0;
 
@@ -51,9 +49,6 @@ void DAC_0_init(void);
 
 void TIMER_0_CLOCK_init(void);
 void TIMER_0_init(void);
-
-void USB_0_CLOCK_init(void);
-void USB_0_init(void);
 
 /**
  * \brief Perform system initialization, initialize pins and clocks for

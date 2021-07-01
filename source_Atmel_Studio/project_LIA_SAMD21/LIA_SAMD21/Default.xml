@@ -252,7 +252,7 @@
 				</d4p1:KeyValueOfstringstring>
 				<d4p1:KeyValueOfstringstring>
 					<d4p1:Key>OptimizationLevel</d4p1:Key>
-					<d4p1:Value>Optimize (-O1)</d4p1:Value>
+					<d4p1:Value>Optimize debugging experience (-Og)</d4p1:Value>
 				</d4p1:KeyValueOfstringstring>
 				<d4p1:KeyValueOfstringstring>
 					<d4p1:Key>SymbolDefines</d4p1:Key>

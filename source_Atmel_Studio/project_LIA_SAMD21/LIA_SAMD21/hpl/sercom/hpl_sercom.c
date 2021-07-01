@@ -1706,6 +1706,12 @@ static struct i2cs_configuration _i2css[] = {
 #if CONF_SERCOM_5_I2CS_ENABLE == 1
     I2CS_CONFIGURATION(5),
 #endif
+#if CONF_SERCOM_6_I2CS_ENABLE == 1
+    I2CS_CONFIGURATION(6),
+#endif
+#if CONF_SERCOM_7_I2CS_ENABLE == 1
+    I2CS_CONFIGURATION(7),
+#endif
 };
 #endif
 
@@ -1746,6 +1752,10 @@ int32_t _i2c_s_async_init(struct _i2c_s_async_device *const device, void *const 
 	NVIC_DisableIRQ((IRQn_Type)_sercom_get_irq_num(hw));
 	NVIC_ClearPendingIRQ((IRQn_Type)_sercom_get_irq_num(hw));
 	NVIC_EnableIRQ((IRQn_Type)_sercom_get_irq_num(hw));
+
+	// Enable Address Match and PREC interrupt by default.
+	hri_sercomi2cs_set_INTEN_AMATCH_bit(hw);
+	hri_sercomi2cs_set_INTEN_PREC_bit(hw);
 
 	return ERR_NONE;
 }

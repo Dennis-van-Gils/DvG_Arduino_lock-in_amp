@@ -13,6 +13,8 @@ TODO: implement https://github.com/mpflaga/Arduino-MemoryFree
 #include <stdio.h>
 #include <stdlib.h>
 #include <hpl_tcc_config.h>
+#include <string.h>
+#include <utils.h>
 #include "DvG_serial_command_listener.h"
 
 #define FIRMWARE_VERSION "ALIA v1.0.0 MICROCHIPSTUDIO"
@@ -246,12 +248,12 @@ void get_systick_timestamp(uint32_t *stamp_millis,
 /*------------------------------------------------------------------------------
     USB print
 ------------------------------------------------------------------------------*/
-
+/*
 void usb_print(const char *str_msg) {
     sprintf(usb_buffer, "%s", str_msg);
     cdcdf_acm_write((uint8_t *) usb_buffer, strlen(usb_buffer));
 }
-
+*/
 
 
 /*------------------------------------------------------------------------------
@@ -290,9 +292,11 @@ static void cb_USART_rxc(const struct usart_async_descriptor *const io_descr) {
     is_serial_rxc = true;
 }
 
+/*
 static void cb_USART_err(const struct usart_async_descriptor *const io_descr) {
     usb_print("USART ERROR\n");
 }
+*/
 
 
 
@@ -499,9 +503,11 @@ static void cb_DAC_0_conversion_done(struct dac_async_descriptor *const descr,
     ADC
 ------------------------------------------------------------------------------*/
 
+/*
 static void cb_ADC_0_error(const struct adc_dma_descriptor *const descr) {
     usb_print("ADC_0 ERROR\n");
 }
+*/
 
 static void cb_ADC_0_complete(const struct adc_dma_descriptor *const descr) {
     /*
@@ -554,7 +560,7 @@ void init_LIA(void) {
 
     // ADC
     adc_dma_register_callback(&ADC_0, ADC_DMA_COMPLETE_CB, cb_ADC_0_complete);
-    adc_dma_register_callback(&ADC_0, ADC_DMA_ERROR_CB, cb_ADC_0_error);
+    //adc_dma_register_callback(&ADC_0, ADC_DMA_ERROR_CB, cb_ADC_0_error);
 
     timer_start(&TIMER_0);
 }
@@ -660,7 +666,7 @@ int main(void) {
     usart_async_get_io_descriptor(&USART_0, &io);
     usart_async_register_callback(&USART_0, USART_ASYNC_TXC_CB  , cb_USART_txc);
     usart_async_register_callback(&USART_0, USART_ASYNC_RXC_CB  , cb_USART_rxc);
-    usart_async_register_callback(&USART_0, USART_ASYNC_ERROR_CB, cb_USART_err);
+    //usart_async_register_callback(&USART_0, USART_ASYNC_ERROR_CB, cb_USART_err);
     usart_async_enable(&USART_0);
 
     DvG_scl scl_1;
