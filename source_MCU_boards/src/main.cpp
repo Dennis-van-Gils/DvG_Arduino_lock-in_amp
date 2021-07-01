@@ -231,7 +231,7 @@ volatile bool trigger_send_TX_buffer_B = false;
 #define SERIAL_DATA_BAUDRATE 1e6 // Only used when Serial is UART
 
 #ifdef ARDUINO_SAMD_ZERO
-#  define Ser_data SerialUSB // Serial or SerialUSB
+#  define Ser_data Serial // Serial or SerialUSB
 #else
 #  define Ser_data Serial // Only Serial
 #endif
