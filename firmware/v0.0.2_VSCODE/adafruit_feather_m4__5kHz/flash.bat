@@ -7,7 +7,7 @@ echo ---------------------------------------------------------
 echo;
 
 
-set port=COM7
+set port=COM3
 set tool=%UserProfile%\.platformio\packages\tool-bossac\bossac.exe
 set firmware=firmware.bin
 
