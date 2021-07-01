@@ -673,9 +673,9 @@ int main(void) {
   SysTick->LOAD = (uint32_t) (SystemCoreClock / 1000 - 1UL);
   SysTick->VAL  = 0UL;
   SysTick->CTRL =
-		SysTick_CTRL_CLKSOURCE_Msk |
-		SysTick_CTRL_TICKINT_Msk |
-		SysTick_CTRL_ENABLE_Msk;
+    SysTick_CTRL_CLKSOURCE_Msk |
+    SysTick_CTRL_TICKINT_Msk |
+    SysTick_CTRL_ENABLE_Msk;
 
   // LUT
   parse_freq("250.0"); // [Hz] Wanted startup frequency
@@ -858,13 +858,10 @@ int main(void) {
 
 
 
-					} else if (strcmp(str_cmd, "_on") == 0) {
-						// Start lock-in amp and reset the time
-            __disable_irq();
+          } else if (strcmp(str_cmd, "_on") == 0) {
+            // Start lock-in amp and reset the time
             trigger_reset_time = true;
-						__enable_irq();
-
-						start_LIA();
+            start_LIA();
 
 
 
