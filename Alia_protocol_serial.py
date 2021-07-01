@@ -210,6 +210,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             c.return_type_ref_X     = float
             c.return_type_sig_I     = float
 
+            c.ref_waveform = Waveform["Cosine"]
+
         else:
             # "ALIA v1.0.0" and above
             c.binary_type_counter   = "I"  # [uint32_t] TX_buffer header
@@ -238,7 +240,8 @@ class Alia(Arduino_protocol_serial.Arduino):
                     c.N_LUT             = int(ans_list[3])
                     c.DAC_OUTPUT_BITS   = int(ans_list[4])
                     c.ADC_INPUT_BITS    = int(ans_list[5])
-                    c.A_REF             = float(ans_list[6])
+                    c.ADC_DIFFERENTIAL  = int(ans_list[6])
+                    c.A_REF             = float(ans_list[7])
                     # fmt: on
                 else:
                     # Round SAMPLING PERIOD to nanosecond resolution to
@@ -517,11 +520,17 @@ class Alia(Arduino_protocol_serial.Arduino):
                 ans_list = ans_str.split("\t")
 
                 # fmt: off
-                self.config.ref_freq     = float(ans_list[0])
-                self.config.ref_V_offset = float(ans_list[1])
-                self.config.ref_V_ampl   = float(ans_list[2])
-                self.config.ref_waveform = Waveform[ans_list[3]]
-                self.config.N_LUT        = int(ans_list[4])
+                if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
+                  # Legacy
+                  self.config.ref_freq     = float(ans_list[0])
+                  self.config.ref_V_offset = float(ans_list[1])
+                  self.config.ref_V_ampl   = float(ans_list[2])
+                else:
+                  self.config.ref_freq     = float(ans_list[0])
+                  self.config.ref_V_offset = float(ans_list[1])
+                  self.config.ref_V_ampl   = float(ans_list[2])
+                  self.config.ref_waveform = Waveform[ans_list[3]]
+                  self.config.N_LUT        = int(ans_list[4])
                 # fmt: on
             except Exception as err:
                 pft(err)
