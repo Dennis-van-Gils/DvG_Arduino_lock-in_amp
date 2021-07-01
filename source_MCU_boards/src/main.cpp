@@ -30,7 +30,7 @@ proper bindings to strncmpi
 "C_Cpp.intelliSenseEngineFallback": "Disabled"
 
 Dennis van Gils
-26-04-2019
+01-07-2019
 ------------------------------------------------------------------------------*/
 
 #include <Arduino.h>

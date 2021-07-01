@@ -1,5 +1,5 @@
 /*
-Dennis van Gils, 14-08-2018
+Dennis van Gils, 11-03-2020
 */
 
 #include "DvG_SerialCommand.h"
@@ -53,7 +53,7 @@ char* DvG_SerialCommand::getCmd() {
     _iPos = 0;                // Reset incoming serial command char array
     return (char*) _strIn;
   } else {
-    return '\0';
+    return (char*) _empty;
   }
 }
 
