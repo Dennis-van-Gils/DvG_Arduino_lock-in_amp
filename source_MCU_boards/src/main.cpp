@@ -594,11 +594,11 @@ void loop() {
         // -------------------
         strCmd = sc_data.getCmd();
 
-        if (strcmpi(strCmd, "id?") == 0) {
+        if (strcmp(strCmd, "id?") == 0) {
           // Reply identity string
           Ser_data.println("Arduino lock-in amp");
 
-        } else if (strcmpi(strCmd, "mcu?") == 0) {
+        } else if (strcmp(strCmd, "mcu?") == 0) {
           // Reply microcontroller type string
           #if defined(__SAMD21G18A__)
             Ser_data.println("SAMD21G18A");
@@ -614,13 +614,13 @@ void loop() {
             Ser_data.println("unknown MCU");
           #endif
 
-        } else if (strcmpi(strCmd, "mcu_uid?") == 0) {
+        } else if (strcmp(strCmd, "mcu_uid?") == 0) {
           // Reply microcontroller unique identifier (serial) number
           uint8_t mcu_uid[MCU_UID_LENGTH];
           get_mcu_uid(mcu_uid);
           print_hex_8(Ser_data, mcu_uid, MCU_UID_LENGTH);
          
-        } else if (strcmpi(strCmd, "bias?") == 0) {
+        } else if (strcmp(strCmd, "bias?") == 0) {
           #if defined (__SAMD51__)
             Ser_data.println(NVM_ADC0_BIASCOMP);
             Ser_data.println(NVM_ADC0_BIASREFBUF);
@@ -634,7 +634,7 @@ void loop() {
             Ser_data.println(ADC0->GAINCORR.bit.GAINCORR);
           #endif
 
-        } else if (strcmpi(strCmd, "config?") == 0) {
+        } else if (strcmp(strCmd, "config?") == 0) {
           Ser_data.print(ISR_CLOCK);
           Ser_data.print('\t');
           Ser_data.print(BUFFER_SIZE);
@@ -660,7 +660,7 @@ void loop() {
             print_debug_info();
           #endif
 
-        } else if (strcmpi(strCmd, "off") == 0) {
+        } else if (strcmp(strCmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
           Ser_data.print("already_off\n");
 
@@ -668,7 +668,7 @@ void loop() {
             Ser_debug << "Already OFF" << endl;
           # endif
 
-        } else if (strcmpi(strCmd, "on") == 0) {
+        } else if (strcmp(strCmd, "on") == 0) {
           // Start lock-in amp
           noInterrupts();
           fRunning = true;
@@ -684,7 +684,7 @@ void loop() {
             Ser_debug << "ON" << endl;
           # endif
 
-        } else if (strncmpi(strCmd, "ref_freq", 8) == 0) {
+        } else if (strncmp(strCmd, "ref_freq", 8) == 0) {
           // Set frequency of the output reference signal [Hz]
           ref_freq = parseFloatInString(strCmd, 8);
           noInterrupts();
@@ -693,7 +693,7 @@ void loop() {
           interrupts();
           Ser_data.println(ref_freq, 2);
 
-        } else if (strncmpi(strCmd, "ref_V_offset", 12) == 0) {
+        } else if (strncmp(strCmd, "ref_V_offset", 12) == 0) {
           // Set voltage offset of cosine reference signal [V]
           ref_V_offset = parseFloatInString(strCmd, 12);
           ref_V_offset = max(ref_V_offset, 0.0);
@@ -703,7 +703,7 @@ void loop() {
           interrupts();
           Ser_data.println(ref_V_offset, 3);
 
-        } else if (strncmpi(strCmd, "ref_V_ampl", 10) == 0) {
+        } else if (strncmp(strCmd, "ref_V_ampl", 10) == 0) {
           // Set voltage amplitude of cosine reference signal [V]
           ref_V_ampl = parseFloatInString(strCmd, 10);
           ref_V_ampl = max(ref_V_ampl, 0.0);
