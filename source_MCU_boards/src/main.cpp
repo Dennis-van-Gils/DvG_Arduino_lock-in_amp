@@ -40,7 +40,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  29-06-2021
+  01-07-2021
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -164,7 +164,7 @@ char mcu_uid[33]; // Serial number
       (uint32_t) millis timestamp at start of block     { 4 bytes}
       (uint16_t) micros part of timestamp               { 2 bytes}
       (uint16_t) `LUT_wave` index at start of block     { 2 bytes}
-      BLOCK_SIZE x (uint16_t) ADC readings `sig_I`      {BLOCK_SIZE * 2 bytes}
+      BLOCK_SIZE x (int16_t) ADC readings `sig_I`       {BLOCK_SIZE * 2 bytes}
       EOM                                               {10 bytes}
     ]
 */
@@ -467,7 +467,7 @@ void isr_psd() {
   static uint16_t write_idx;            // Current write index of TX_buffer
   volatile static uint16_t LUT_idx;     // Current read index of LUT
   uint16_t ref_X;
-  uint16_t sig_I = 0;
+  int16_t sig_I = 0;
 
   if (is_running != is_running_prev) {
     is_running_prev = is_running;

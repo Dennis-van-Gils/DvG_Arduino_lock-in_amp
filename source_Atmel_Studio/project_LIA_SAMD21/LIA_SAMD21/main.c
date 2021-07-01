@@ -138,7 +138,7 @@ const char EOM[] = {0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f};
   (uint32_t) millis timestamp at start of block     { 4 bytes}
   (uint16_t) micros part of timestamp               { 2 bytes}
   (uint16_t) `LUT_wave` index at start of block     { 2 bytes}
-  BLOCK_SIZE x (uint16_t) ADC readings `sig_I`      {BLOCK_SIZE * 2 bytes}
+  BLOCK_SIZE x (int16_t) ADC readings `sig_I`       {BLOCK_SIZE * 2 bytes}
   EOM                                               {10 bytes}
   ]
 */
