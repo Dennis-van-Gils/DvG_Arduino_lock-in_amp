@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "23-06-2021"
+__date__ = "01-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -204,29 +204,21 @@ class Alia(Arduino_protocol_serial.Arduino):
             # Legacy
             c.binary_type_time      = "I"  # [uint32_t]
             c.binary_type_ref_X     = "H"  # [uint16_t]
-            c.binary_type_sig_I     = "h"  # [int16_t]  NOTE: SIGNED!
+            c.binary_type_sig_I     = "h"  # [int16_t]
 
             c.return_type_time      = int  # Ensure signed to allow for flexible arithmetic
             c.return_type_ref_X     = float
             c.return_type_sig_I     = float
 
-        elif c.mcu_firmware == "ALIA v1.0.0 VSCODE":
+            c.ref_waveform = Waveform["Cosine"]
+
+        else:
+            # "ALIA v1.0.0" and above
             c.binary_type_counter   = "I"  # [uint32_t] TX_buffer header
             c.binary_type_millis    = "I"  # [uint32_t] TX_buffer header
             c.binary_type_micros    = "H"  # [uint16_t] TX_buffer header
             c.binary_type_idx_phase = "H"  # [uint16_t] TX_buffer header
-            c.binary_type_sig_I     = "h"  # [int16_t]  NOTE: SIGNED! TX_buffer body
-
-            c.return_type_time      = np.float64
-            c.return_type_ref_XY    = np.float64
-            c.return_type_sig_I     = np.float64
-
-        elif c.mcu_firmware == "ALIA v1.0.0 MICROCHIPSTUDIO":
-            c.binary_type_counter   = "I"  # [uint32_t] TX_buffer header
-            c.binary_type_millis    = "I"  # [uint32_t] TX_buffer header
-            c.binary_type_micros    = "H"  # [uint16_t] TX_buffer header
-            c.binary_type_idx_phase = "H"  # [uint16_t] TX_buffer header
-            c.binary_type_sig_I     = "H"  # [uint16_t] TX_buffer body
+            c.binary_type_sig_I     = "h"  # [int16_t]  TX_buffer body
 
             c.return_type_time      = np.float64
             c.return_type_ref_XY    = np.float64
@@ -248,7 +240,8 @@ class Alia(Arduino_protocol_serial.Arduino):
                     c.N_LUT             = int(ans_list[3])
                     c.DAC_OUTPUT_BITS   = int(ans_list[4])
                     c.ADC_INPUT_BITS    = int(ans_list[5])
-                    c.A_REF             = float(ans_list[6])
+                    c.ADC_DIFFERENTIAL  = int(ans_list[6])
+                    c.A_REF             = float(ans_list[7])
                     # fmt: on
                 else:
                     # Round SAMPLING PERIOD to nanosecond resolution to
@@ -527,11 +520,17 @@ class Alia(Arduino_protocol_serial.Arduino):
                 ans_list = ans_str.split("\t")
 
                 # fmt: off
-                self.config.ref_freq     = float(ans_list[0])
-                self.config.ref_V_offset = float(ans_list[1])
-                self.config.ref_V_ampl   = float(ans_list[2])
-                self.config.ref_waveform = Waveform[ans_list[3]]
-                self.config.N_LUT        = int(ans_list[4])
+                if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
+                  # Legacy
+                  self.config.ref_freq     = float(ans_list[0])
+                  self.config.ref_V_offset = float(ans_list[1])
+                  self.config.ref_V_ampl   = float(ans_list[2])
+                else:
+                  self.config.ref_freq     = float(ans_list[0])
+                  self.config.ref_V_offset = float(ans_list[1])
+                  self.config.ref_V_ampl   = float(ans_list[2])
+                  self.config.ref_waveform = Waveform[ans_list[3]]
+                  self.config.N_LUT        = int(ans_list[4])
                 # fmt: on
             except Exception as err:
                 pft(err)
