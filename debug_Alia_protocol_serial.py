@@ -6,7 +6,7 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "14-06-2021"
+__date__ = "02-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -26,8 +26,16 @@ fDrawPlot = True
 fVerbose = True
 
 if __name__ == "__main__":
-    p = psutil.Process(os.getpid())
-    p.nice(psutil.HIGH_PRIORITY_CLASS)
+    # Set priority of this process to maximum in the operating system
+    print("PID: %s" % os.getpid())
+    try:
+        proc = psutil.Process(os.getpid())
+        if os.name == "nt":
+            proc.nice(psutil.HIGH_PRIORITY_CLASS)  # Windows
+        else:
+            proc.nice(-20)  # Other
+    except:  # pylint: disable=bare-except
+        print("Warning: Could not set process to high priority.")
 
     alia = Alia()
     alia.auto_connect()
