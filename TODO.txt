@@ -12,7 +12,6 @@ PYTHON
   calculations when using numpy.ufuncs like `np.multiply()` and `np.add()`
 
 * `Arduino_protocol_serial.listen_to_lockin_amp()` can be sped up by numpy ufuncs.
-  --> EDIT: Unlikely to have any noticeable effect
 
 * Correct mistake in the mixer, making X and R too large. The amplitude of ref_X
   should be rescaled with its waveform's rms amplitude. I.e. a sine wave
