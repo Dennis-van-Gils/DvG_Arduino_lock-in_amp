@@ -20,18 +20,18 @@ N_blocks   = 21
 --> N_taps      = 40001
 
 #1  scipy.signal.fftconvolve:
-               3.425 ms
-               3.287 ms
-               3.295 ms
-               3.288 ms
-               3.287 ms
+               3.427 ms
+               3.426 ms
+               3.469 ms
+               3.378 ms
+               3.362 ms
 
 #2  dvg_fftw_convolver.convolve:
     FFTW_THREADS = 2
-               0.580 ms
                0.578 ms
                0.579 ms
-               0.583 ms
+               0.575 ms
                0.578 ms
+               0.580 ms
 
-Times faster #1/#2: 5.69
+Times faster #1/#2: 5.85
