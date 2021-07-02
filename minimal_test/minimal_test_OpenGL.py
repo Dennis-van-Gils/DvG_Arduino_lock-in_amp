@@ -12,7 +12,7 @@ PyOpenGL-3.1.3b2-cp37-cp37m-win_amd64.whl
 PyOpenGL_accelerate-3.1.3b2-cp37-cp37m-win_amd64.whl
 
 Dennis van Gils
-04-08-2019
+02-07-2021
 """
 import os
 import sys
@@ -28,12 +28,7 @@ USE_OPENGL = True
 if USE_OPENGL:
     pg.setConfigOptions(useOpenGL=True)
     pg.setConfigOptions(enableExperimental=True)
-    pg.setConfigOptions(antialias=False)
-
-    # Monkey patch error in pyqtgraph
-    import dvg_monkeypatch_pyqtgraph as pgmp
-
-    pg.PlotCurveItem.paintGL = pgmp.PlotCurveItem_paintGL
+    pg.setConfigOptions(antialias=True)
 else:
     pg.setConfigOptions(useOpenGL=False)
     pg.setConfigOptions(enableExperimental=True)

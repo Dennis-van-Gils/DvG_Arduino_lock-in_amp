@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "26-06-2021"
+__date__ = "02-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -25,13 +25,6 @@ from dvg_pyqtgraph_threadsafe import HistoryChartCurve, PlotCurve, LegendSelect
 from Alia_protocol_serial import Alia
 from Alia_qdev import Alia_qdev
 from dvg_ringbuffer_fir_filter_GUI import Filter_design_GUI
-
-# Monkey-patch errors in pyqtgraph v0.10 and v0.11
-import pyqtgraph.exporters  # pylint: disable=unused-import
-import dvg_monkeypatch_pyqtgraph as pgmp
-
-pg.PlotCurveItem.paintGL = pgmp.PlotCurveItem_paintGL
-pg.exporters.ImageExporter.export = pgmp.ImageExporter_export
 
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
@@ -1924,7 +1917,9 @@ class MainWindow(QtWid.QWidget):
     def plot_zoom_ROI_filt_1(self):
         freqz = self.alia_qdev.firf_1_sig_I.freqz
         self.pi_filt_1_resp.setXRange(
-            freqz.freq_Hz__ROI_start, freqz.freq_Hz__ROI_end, padding=0.02,
+            freqz.freq_Hz__ROI_start,
+            freqz.freq_Hz__ROI_end,
+            padding=0.02,
         )
         self.pi_filt_1_resp.enableAutoRange("y", True)
         self.pi_filt_1_resp.enableAutoRange("y", False)
@@ -1933,7 +1928,9 @@ class MainWindow(QtWid.QWidget):
     def plot_zoom_ROI_filt_2(self):
         freqz = self.alia_qdev.firf_2_mix_X.freqz
         self.pi_filt_2_resp.setXRange(
-            freqz.freq_Hz__ROI_start, freqz.freq_Hz__ROI_end, padding=0.02,
+            freqz.freq_Hz__ROI_start,
+            freqz.freq_Hz__ROI_end,
+            padding=0.02,
         )
         self.pi_filt_2_resp.enableAutoRange("y", True)
         self.pi_filt_2_resp.enableAutoRange("y", False)

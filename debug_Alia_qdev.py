@@ -6,7 +6,7 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "14-06-2021"
+__date__ = "02-07-2021"
 __version__ = "2.0.0"
 
 import sys
@@ -22,11 +22,6 @@ from dvg_pyqtgraph_threadsafe import HistoryChartCurve
 from dvg_debug_functions import dprint
 
 from Alia_protocol_serial import Alia, Waveform
-
-# Monkey-patch errors in pyqtgraph v0.10
-import dvg_monkeypatch_pyqtgraph as pgmp
-
-pg.PlotCurveItem.paintGL = pgmp.PlotCurveItem_paintGL
 
 # When True, favors more frames per second for graphing at the expense of a
 # higher CPU load and possibly dropped samples.
