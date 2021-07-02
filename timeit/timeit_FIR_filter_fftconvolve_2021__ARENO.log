@@ -1,7 +1,7 @@
 Timeit: fftconvolve
 
 Conda environment:
-  /home/areno/anaconda3/envs/liaforge
+  /home/areno/anaconda3/envs/lia
 
 Running on...
   node   : areno
@@ -20,18 +20,18 @@ N_blocks   = 21
 --> N_taps      = 40001
 
 #1  scipy.signal.fftconvolve:
-               1.957 ms
-               1.946 ms
-               1.946 ms
-               1.945 ms
-               1.944 ms
+               1.986 ms
+               1.985 ms
+               1.974 ms
+               1.934 ms
+               1.961 ms
 
 #2  dvg_fftw_convolver.convolve:
     FFTW_THREADS = 2
-               0.614 ms
-               0.610 ms
-               0.611 ms
-               0.612 ms
-               0.611 ms
+               0.658 ms
+               0.649 ms
+               0.666 ms
+               0.645 ms
+               0.640 ms
 
-Times faster #1/#2: 3.19
+Times faster #1/#2: 3.02

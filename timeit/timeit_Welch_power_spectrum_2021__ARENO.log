@@ -1,7 +1,7 @@
 Timeit: Welch power spectrum
 
 Conda environment:
-  /home/areno/anaconda3/envs/liaforge
+  /home/areno/anaconda3/envs/lia
 
 Running on...
   node   : areno
@@ -15,18 +15,18 @@ Running on...
 N = 1000, REPS = 5
 
 scipy.signal.welch:
-               0.819 ms
-               0.816 ms
-               0.815 ms
-               0.815 ms
-               0.816 ms
+               0.826 ms
+               0.799 ms
+               0.799 ms
+               0.807 ms
+               0.795 ms
 
 dvg_fftw_welchpowerspectrum:
     FFTW_THREADS = 5
-               0.307 ms
-               0.308 ms
-               0.303 ms
-               0.306 ms
-               0.296 ms
+               0.289 ms
+               0.273 ms
+               0.282 ms
+               0.273 ms
+               0.273 ms
 
-Times faster: 2.75
+Times faster: 2.92
