@@ -784,6 +784,38 @@ int main(void) {
 
 
 
+          } else if (strcmp(str_cmd, "adc?") == 0) {
+            // Report ADC registers
+            io_print("----------------------------------------\n");
+            io_print("CTRLA\n");
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  F%u\n" , ".ENABLE"   , ADC->CTRLA.bit.ENABLE); io_print(str_buffer);
+            io_print("INPUTCTRL\n");
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  0x%X\n", ".MUXPOS"   , ADC->INPUTCTRL.bit.MUXPOS); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  0x%X\n", ".MUXNEG"   , ADC->INPUTCTRL.bit.MUXNEG); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  0x%X\n", ".GAIN"     , ADC->INPUTCTRL.bit.GAIN); io_print(str_buffer);
+            io_print("REFCTRL\n");
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  F%u\n" , ".REFCOMP"  , ADC->REFCTRL.bit.REFCOMP); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  0x%X\n", ".REFSEL"   , ADC->REFCTRL.bit.REFSEL); io_print(str_buffer);
+            io_print("AVGCTRL\n");
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  0x%X\n", ".ADJRES"   , ADC->AVGCTRL.bit.ADJRES); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  0x%X\n", ".SAMPLENUM", ADC->AVGCTRL.bit.SAMPLENUM); io_print(str_buffer);
+            io_print("SAMPCTRL\n");
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  %u\n"  , ".REFCOMP"  , ADC->SAMPCTRL.bit.SAMPLEN); io_print(str_buffer);
+            io_print("CTRLB\n");
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  0x%X\n", ".RESSEL"   , ADC->CTRLB.bit.RESSEL); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  F%u\n" , ".CORREN"   , ADC->CTRLB.bit.CORREN); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  F%u\n" , ".LEFTADJ"  , ADC->CTRLB.bit.LEFTADJ); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  F%u\n" , ".DIFFMODE" , ADC->CTRLB.bit.DIFFMODE); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  0x%X\n", ".PRESCALER", ADC->CTRLB.bit.PRESCALER); io_print(str_buffer);
+            io_print("CALIB\n");
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  %u\n"  , ".LINEARITY_CAL", ADC->CALIB.bit.LINEARITY_CAL); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  %u\n"  , ".BIAS_CAL"     , ADC->CALIB.bit.BIAS_CAL); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "OFFSETCORR       %u\n"         , ADC->OFFSETCORR.bit.OFFSETCORR); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "GAINCORR         %u\n"         , ADC->GAINCORR.bit.GAINCORR); io_print(str_buffer);
+            io_print("----------------------------------------\n");
+
+
+
           } else if (strcmp(str_cmd, "const?") == 0) {
             // Report lock-in amplifier constants
             snprintf(str_buffer, MAXLEN_STR_BUFFER,

@@ -27,7 +27,7 @@ drivers:
     api: HAL:Driver:ADC_DMA
     configuration:
       adc_advanced_settings: true
-      adc_arch_adjres: 0
+      adc_arch_adjres: 2
       adc_arch_corren: false
       adc_arch_dbgrun: false
       adc_arch_event_settings: true
@@ -40,8 +40,8 @@ drivers:
       adc_arch_refcomp: false
       adc_arch_resrdyeo: false
       adc_arch_runstdby: false
-      adc_arch_samplen: 32
-      adc_arch_samplenum: 1 sample
+      adc_arch_samplen: 15
+      adc_arch_samplenum: 4 samples
       adc_arch_startei: true
       adc_arch_syncei: false
       adc_arch_winlt: 0
@@ -52,9 +52,9 @@ drivers:
       adc_freerunning_mode: false
       adc_pinmux_negative: Internal ground
       adc_pinmux_positive: ADC AIN2 pin
-      adc_prescaler: Peripheral clock divided by 16
+      adc_prescaler: Peripheral clock divided by 32
       adc_reference: 1/2 VDDANA (only for VDDANA > 2.0V)
-      adc_resolution: 12-bit
+      adc_resolution: 16-bit (averaging must be enabled)
     optional_signals:
     - identifier: ADC_0:AIN/2
       pad: PB08
