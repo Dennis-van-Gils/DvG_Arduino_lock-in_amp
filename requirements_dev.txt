@@ -1,0 +1,13 @@
+#  Possible conda install candidates, but fine when installed by pip
+
+black
+pylint
+twine
+
+#  pip installs
+
+check-manifest
+pytest-cov
+pyinstrument
+sphinx_qt_documentation
+snooty

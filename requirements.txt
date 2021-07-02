@@ -1,6 +1,29 @@
-dvg-debug-functions ~= 2.1
-dvg-devices ~= 1.0
-dvg-pyqt-filelogger ~= 1.1
-dvg-qdeviceio ~= 1.0
-dvg-ringbuffer ~= 1.0
+#  General
+
+pip
+ipython
+mkl
+psutil
+pyserial  ~= 3.5
+
+#  Scientific
+
+numpy
+numba
+scipy
+pyfftw
+
+#  Graphing & UI
+
+pyqt5     ~= 5.15
+pyqtgraph == 0.11.1      # Fix to version 0.11.1, because 0.12 breaks OpenGL
+pyopengl  ~= 3.1
+
+# Dennis van Gils
+
+dvg-debug-functions      ~= 2.1
+dvg-devices              ~= 1.0
+dvg-pyqt-filelogger      ~= 1.1
+dvg-qdeviceio            ~= 1.0
+dvg-ringbuffer           ~= 1.0
 dvg-pyqtgraph-threadsafe ~= 3.1
