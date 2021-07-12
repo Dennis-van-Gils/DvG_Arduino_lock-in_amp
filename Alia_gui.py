@@ -827,7 +827,7 @@ class MainWindow(QtWid.QWidget):
         grid.addItem(QtWid.QSpacerItem(0, 8)     , i, 0); i+=1
         grid.addWidget(QtWid.QLabel("avg R")     , i, 0)
         grid.addWidget(self.qlin_R_avg           , i, 1)
-        grid.addWidget(QtWid.QLabel("V<sub>trms</sub>"), i, 2); i+=1
+        grid.addWidget(QtWid.QLabel("V<sub>rms</sub>"), i, 2); i+=1
         grid.addWidget(QtWid.QLabel("avg \u0398"), i, 0)
         grid.addWidget(self.qlin_T_avg           , i, 1)
         grid.addWidget(QtWid.QLabel("\u00B0")    , i, 2)
@@ -1812,7 +1812,7 @@ class MainWindow(QtWid.QWidget):
         else:
             self.hcc_LIA_XR.curve.setPen(self.PEN_03)
             self.pi_XR.setLabel("top", "R")
-            self.pi_XR.setLabel("left", text="voltage (V trms)")
+            self.pi_XR.setLabel("left", text="voltage (V rms)")
 
         if (
             self.alia_qdev.worker_DAQ._paused  # pylint: disable=protected-access

@@ -265,10 +265,11 @@ def lockin_DAQ_update():
 
         # Transform R in units of [V] to [V_rms]
         # True rms
-        state.R /= state.sig_I_std / c.ref_V_ampl
+        # NOTE: Would love to but the blocksize is too small, resulting in a
+        # slightly oscillating value for the rms. This messes up `R`.
+        # state.R /= state.sig_I_std / c.ref_V_ampl
 
         # Analytical rms
-        """
         if c.ref_waveform == Waveform.Cosine:
             state.R *= np.sqrt(2)
         elif c.ref_waveform == Waveform.Square:
@@ -276,7 +277,6 @@ def lockin_DAQ_update():
             pass
         elif c.ref_waveform == Waveform.Triangle:
             state.R *= np.sqrt(3)
-        """
 
         # NOTE: Because `mix_X` and `mix_Y` are both of type `numpy.ndarray`, a
         # division by `mix_X = 0` is handled correctly due to `numpy.inf`.
@@ -359,7 +359,7 @@ def write_header_to_log():
                 "mix_Y[V]",
                 "X[V]",
                 "Y[V]",
-                "R[V_trms]",
+                "R[V_rms]",
                 "T[deg]",
             )
         )
