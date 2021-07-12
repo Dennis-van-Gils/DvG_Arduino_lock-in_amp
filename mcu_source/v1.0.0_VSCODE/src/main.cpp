@@ -40,7 +40,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  01-07-2021
+  12-07-2021
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -1013,6 +1013,13 @@ void loop() {
           Ser_data.write((uint8_t *)&N_LUT, 2);
           Ser_data.write((uint8_t *)&is_LUT_dirty, 1);
           Ser_data.write((uint8_t *)LUT_wave, N_LUT * 2);
+
+          // WORK-AROUND for strange bug when ref_freq is set to 130 Hz.
+          // I suspect a byte of the LUT_wave array to cause havoc in the
+          // serial stream, making it suspend?! Sending an ASCII character seems
+          // to fix it.
+          Ser_data << " ";
+          Ser_data.flush();
 
         } else if (strcmp(str_cmd, "lut_ascii?") == 0 ||
                    strcmp(str_cmd, "la?") == 0) {
