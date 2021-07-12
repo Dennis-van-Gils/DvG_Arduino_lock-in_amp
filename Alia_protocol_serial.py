@@ -623,8 +623,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             self.turn_on()
 
         # fmt: off
-        print("\nReference signal `ref_X`")
-        print("────────────────────────\n")
+        print("\nReference signal `ref_X*`")
+        print("─────────────────────────\n")
         print("            requested   obtained")
         if waveform is not None:
             print("  waveform  {:>9s}  {:>9s}"
