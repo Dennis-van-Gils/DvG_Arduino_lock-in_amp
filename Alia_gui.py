@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "02-07-2021"
+__date__ = "12-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -22,7 +22,7 @@ from dvg_pyqtgraph_threadsafe import HistoryChartCurve, PlotCurve, LegendSelect
 
 # from dvg_debug_functions import dprint
 
-from Alia_protocol_serial import Alia
+from Alia_protocol_serial import Alia, Waveform
 from Alia_qdev import Alia_qdev
 from dvg_ringbuffer_fir_filter_GUI import Filter_design_GUI
 
@@ -446,6 +446,11 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
 
         # QGROUP: Reference signal
+        self.qcbx_ref_waveform = QtWid.QComboBox()
+        for waveform in Waveform:
+            if waveform.value > -1:
+                self.qcbx_ref_waveform.addItem(waveform.name, waveform.value)
+
         p1 = {"maximumWidth": ex8, "minimumWidth": ex8}
         p2 = {"maximumWidth": ex10, "minimumWidth": ex10}
         self.qlin_ref_freq = QtWid.QLineEdit(
@@ -457,10 +462,14 @@ class MainWindow(QtWid.QWidget):
         self.qlin_ref_V_ampl = QtWid.QLineEdit(
             "%.3f" % alia.config.ref_V_ampl, **p1
         )
+
         self.qlin_ref_freq.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_ref_V_offset.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_ref_V_ampl.setAlignment(QtCore.Qt.AlignRight)
 
+        self.qcbx_ref_waveform.currentIndexChanged.connect(
+            self.process_qcbx_ref_waveform
+        )
         self.qlin_ref_freq.editingFinished.connect(self.process_qlin_ref_freq)
         self.qlin_ref_V_offset.editingFinished.connect(
             self.process_qlin_ref_V_offset
@@ -474,21 +483,20 @@ class MainWindow(QtWid.QWidget):
         p2 = {"alignment": QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter}
         i = 0
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(QtWid.QLabel("ref_X*: cosine wave", **p2)
-                                                   , i, 0, 1, 4); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 4)       , i, 0); i+=1
-        grid.addWidget(QtWid.QLabel("freq:", **p)  , i, 0)
-        grid.addWidget(self.qlin_ref_freq          , i, 1)
-        grid.addWidget(QtWid.QLabel("Hz")          , i, 2); i+=1
-        grid.addWidget(QtWid.QLabel("offset:", **p), i, 0)
-        grid.addWidget(self.qlin_ref_V_offset      , i, 1)
-        grid.addWidget(QtWid.QLabel("V")           , i, 2); i+=1
-        grid.addWidget(QtWid.QLabel("ampl:", **p)  , i, 0)
-        grid.addWidget(self.qlin_ref_V_ampl        , i, 1)
-        grid.addWidget(QtWid.QLabel("V")           , i, 2)
+        grid.addWidget(QtWid.QLabel("waveform:", **p), i, 0)
+        grid.addWidget(self.qcbx_ref_waveform        , i, 1, 1, 2); i+=1
+        grid.addWidget(QtWid.QLabel("freq:", **p)    , i, 0)
+        grid.addWidget(self.qlin_ref_freq            , i, 1)
+        grid.addWidget(QtWid.QLabel("Hz")            , i, 2); i+=1
+        grid.addWidget(QtWid.QLabel("offset:", **p)  , i, 0)
+        grid.addWidget(self.qlin_ref_V_offset        , i, 1)
+        grid.addWidget(QtWid.QLabel("V")             , i, 2); i+=1
+        grid.addWidget(QtWid.QLabel("ampl:", **p)    , i, 0)
+        grid.addWidget(self.qlin_ref_V_ampl          , i, 1)
+        grid.addWidget(QtWid.QLabel("V")             , i, 2)
         # fmt: on
 
-        qgrp_refsig = QtWid.QGroupBox("Reference signal")
+        qgrp_refsig = QtWid.QGroupBox("Reference signal: ref_X*")
         qgrp_refsig.setLayout(grid)
 
         # QGROUP: Connections
@@ -1522,6 +1530,10 @@ class MainWindow(QtWid.QWidget):
 
         self.alia_qdev.signal_DAQ_updated.connect(self.update_GUI)
         self.alia_qdev.signal_DAQ_paused.connect(self.update_GUI)
+
+        self.alia_qdev.signal_ref_waveform_is_set.connect(
+            self.update_newly_set_ref_waveform
+        )
         self.alia_qdev.signal_ref_freq_is_set.connect(
             self.update_newly_set_ref_freq
         )
@@ -1682,6 +1694,16 @@ class MainWindow(QtWid.QWidget):
             self.alia_qdev.set_ref_V_ampl(ref_V_ampl)
             QtWid.QApplication.processEvents()
 
+    @QtCore.pyqtSlot(int)
+    def process_qcbx_ref_waveform(self, value: int):
+        try:
+            ref_waveform = Waveform(value)
+        except ValueError:
+            ref_waveform = self.alia.config.ref_waveform
+
+        if ref_waveform != self.alia.config.ref_waveform:
+            self.alia_qdev.set_ref_waveform(ref_waveform)
+
     @QtCore.pyqtSlot()
     def update_newly_set_ref_freq(self):
         self.qlin_ref_freq.setText("%.3f" % self.alia.config.ref_freq)
@@ -1722,6 +1744,11 @@ class MainWindow(QtWid.QWidget):
     def update_newly_set_ref_V_ampl(self):
         self.qlin_ref_V_ampl.setText("%.3f" % self.alia.config.ref_V_ampl)
 
+        self.alia_qdev.state.reset()
+        self.clear_curves_stage_1_and_2()
+
+    @QtCore.pyqtSlot()
+    def update_newly_set_ref_waveform(self):
         self.alia_qdev.state.reset()
         self.clear_curves_stage_1_and_2()
 

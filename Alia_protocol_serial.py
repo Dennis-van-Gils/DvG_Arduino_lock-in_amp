@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "01-07-2021"
+__date__ = "12-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -626,6 +626,12 @@ class Alia(Arduino_protocol_serial.Arduino):
         print("\nReference signal `ref_X`")
         print("────────────────────────\n")
         print("            requested   obtained")
+        if waveform is not None:
+            print("  waveform  {:>9s}  {:>9s}"
+                .format(waveform.name, self.config.ref_waveform.name))
+        else:
+            print("  waveform  {:>9s}  {:>9s}"
+                .format("-", self.config.ref_waveform.name))
         if freq is not None:
             print("      freq  {:>9,.2f}  {:>9,.2f}  Hz"
                 .format(freq, self.config.ref_freq))
@@ -644,12 +650,6 @@ class Alia(Arduino_protocol_serial.Arduino):
         else:
             print("      ampl  {:>9s}  {:>9,.3f}  V"
                 .format("-", self.config.ref_V_ampl))
-        if waveform is not None:
-            print("  waveform  {:>9s}  {:>9s}"
-                .format(waveform.name, self.config.ref_waveform.name))
-        else:
-            print("  waveform  {:>9s}  {:>9s}"
-                .format("-", self.config.ref_waveform.name))
         print("     N_LUT  {:>9s}  {:>9d}\n".format("-", self.config.N_LUT))
         # fmt: on
 

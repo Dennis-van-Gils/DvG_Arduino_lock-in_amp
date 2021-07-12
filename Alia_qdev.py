@@ -7,7 +7,7 @@ specific firmware to turn it into a lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "14-06-2021"
+__date__ = "12-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
 
@@ -21,7 +21,7 @@ from dvg_ringbuffer_fir_filter import (
     RingBuffer_FIR_Filter_Config,
 )
 
-from Alia_protocol_serial import Alia
+from Alia_protocol_serial import Alia, Waveform
 
 # ------------------------------------------------------------------------------
 #   Alia_qdev
@@ -68,11 +68,13 @@ class Alia_qdev(QDeviceIO):
         signal_ref_freq_is_set()
         signal_ref_V_offset_is_set()
         signal_ref_V_ampl_is_set()
+        signal_ref_waveform_is_set()
     """
 
     signal_ref_freq_is_set = QtCore.pyqtSignal()
     signal_ref_V_offset_is_set = QtCore.pyqtSignal()
     signal_ref_V_ampl_is_set = QtCore.pyqtSignal()
+    signal_ref_waveform_is_set = QtCore.pyqtSignal()
 
     class State:
         def __init__(self, block_size: int, N_blocks: int):
@@ -269,6 +271,9 @@ class Alia_qdev(QDeviceIO):
     def turn_off(self):
         self.send("turn_off")
 
+    def set_ref_waveform(self, value: Waveform):
+        self.send("set_ref_waveform", value)
+
     def set_ref_freq(self, value: float):
         self.send("set_ref_freq", value)
 
@@ -286,7 +291,10 @@ class Alia_qdev(QDeviceIO):
         if func[:8] == "set_ref_":
             set_value = args[0]
 
-            if func == "set_ref_freq":
+            if func == "set_ref_waveform":
+                current_value = self.dev.config.ref_waveform
+
+            elif func == "set_ref_freq":
                 current_value = self.dev.config.ref_freq
 
             elif func == "set_ref_V_offset":
@@ -304,7 +312,11 @@ class Alia_qdev(QDeviceIO):
                 if not was_paused:
                     self.pause_DAQ()
 
-                if func == "set_ref_freq":
+                if func == "set_ref_waveform":
+                    self.dev.set_ref(waveform=set_value)
+                    self.signal_ref_waveform_is_set.emit()
+
+                elif func == "set_ref_freq":
                     self.dev.set_ref(freq=set_value)
                     self.signal_ref_freq_is_set.emit()
 
