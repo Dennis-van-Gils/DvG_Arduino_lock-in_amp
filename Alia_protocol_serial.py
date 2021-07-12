@@ -521,16 +521,16 @@ class Alia(Arduino_protocol_serial.Arduino):
 
                 # fmt: off
                 if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
-                  # Legacy
-                  self.config.ref_freq     = float(ans_list[0])
-                  self.config.ref_V_offset = float(ans_list[1])
-                  self.config.ref_V_ampl   = float(ans_list[2])
+                    # Legacy
+                    self.config.ref_freq     = float(ans_list[0])
+                    self.config.ref_V_offset = float(ans_list[1])
+                    self.config.ref_V_ampl   = float(ans_list[2])
                 else:
-                  self.config.ref_freq     = float(ans_list[0])
-                  self.config.ref_V_offset = float(ans_list[1])
-                  self.config.ref_V_ampl   = float(ans_list[2])
-                  self.config.ref_waveform = Waveform[ans_list[3]]
-                  self.config.N_LUT        = int(ans_list[4])
+                    self.config.ref_freq     = float(ans_list[0])
+                    self.config.ref_V_offset = float(ans_list[1])
+                    self.config.ref_V_ampl   = float(ans_list[2])
+                    self.config.ref_waveform = Waveform[ans_list[3]]
+                    self.config.N_LUT        = int(ans_list[4])
                 # fmt: on
             except Exception as err:
                 pft(err)
@@ -956,7 +956,8 @@ if __name__ == "__main__":
         sys.exit(0)
 
     alia.begin(
-        freq=220, waveform=Waveform.Cosine,
+        freq=220,
+        waveform=Waveform.Cosine,
     )
     # alia.begin()
     alia.turn_on(reset_timer=True)
