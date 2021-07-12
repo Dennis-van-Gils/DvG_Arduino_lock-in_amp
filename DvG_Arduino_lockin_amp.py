@@ -217,10 +217,12 @@ def lockin_DAQ_update():
 
         # Heterodyne mixing
         # Equivalent to:
-        #   mix_X = (old_ref_X - c.ref_V_offset) * filt_I  # SLOW code
-        #   mix_Y = (old_ref_Y - c.ref_V_offset) * filt_I  # SLOW code
+        #   mix_X = (old_ref_X - c.ref_V_offset) / c.ref_V_ampl * filt_I  # SLOW code
+        #   mix_Y = (old_ref_Y - c.ref_V_offset) / c.ref_V_ampl * filt_I  # SLOW code
         np.subtract(old_ref_X, c.ref_V_offset, out=old_ref_X)
         np.subtract(old_ref_Y, c.ref_V_offset, out=old_ref_Y)
+        np.divide  (old_ref_X, c.ref_V_ampl  , out=old_ref_X)
+        np.divide  (old_ref_Y, c.ref_V_ampl  , out=old_ref_Y)
         np.multiply(old_ref_X, state.filt_I  , out=state.mix_X)
         np.multiply(old_ref_Y, state.filt_I  , out=state.mix_Y)
     else:
@@ -260,6 +262,21 @@ def lockin_DAQ_update():
 
         # Signal amplitude and phase reconstruction
         np.sqrt(np.add(np.square(state.X), np.square(state.Y)), out=state.R)
+
+        # Transform R in units of [V] to [V_rms]
+        # True rms
+        state.R /= state.sig_I_std / c.ref_V_ampl
+
+        # Analytical rms
+        """
+        if c.ref_waveform == Waveform.Cosine:
+            state.R *= np.sqrt(2)
+        elif c.ref_waveform == Waveform.Square:
+            # state.R *= 1
+            pass
+        elif c.ref_waveform == Waveform.Triangle:
+            state.R *= np.sqrt(3)
+        """
 
         # NOTE: Because `mix_X` and `mix_Y` are both of type `numpy.ndarray`, a
         # division by `mix_X = 0` is handled correctly due to `numpy.inf`.
@@ -342,7 +359,7 @@ def write_header_to_log():
                 "mix_Y[V]",
                 "X[V]",
                 "Y[V]",
-                "R[V]",
+                "R[V_trms]",
                 "T[deg]",
             )
         )
@@ -416,7 +433,7 @@ if __name__ == "__main__":
     if DEBUG_TIMING:
         alia.tick = Time.perf_counter()
 
-    alia.begin(freq=250, V_offset=1.7, V_ampl=1.414, waveform=Waveform.Cosine)
+    alia.begin(freq=250, V_offset=2, V_ampl=1, waveform=Waveform.Cosine)
 
     # Create workers and threads
     alia_qdev = Alia_qdev(
