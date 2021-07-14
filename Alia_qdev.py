@@ -98,13 +98,13 @@ class Alia_qdev(QDeviceIO):
 
             self.time_1 = np.full(block_size, np.nan, dtype=np.float64)  # [ms]
             self.filt_I = np.full(block_size, np.nan, dtype=np.float64)  # [V]
-            self.mix_X  = np.full(block_size, np.nan, dtype=np.float64)  # [V]
-            self.mix_Y  = np.full(block_size, np.nan, dtype=np.float64)  # [V]
+            self.mix_X  = np.full(block_size, np.nan, dtype=np.float64)  # [V_RMS]
+            self.mix_Y  = np.full(block_size, np.nan, dtype=np.float64)  # [V_RMS]
 
             self.time_2 = np.full(block_size, np.nan, dtype=np.float64)  # [ms]
-            self.X      = np.full(block_size, np.nan, dtype=np.float64)  # [V]
-            self.Y      = np.full(block_size, np.nan, dtype=np.float64)  # [V]
-            self.R      = np.full(block_size, np.nan, dtype=np.float64)  # [V]
+            self.X      = np.full(block_size, np.nan, dtype=np.float64)  # [V_RMS]
+            self.Y      = np.full(block_size, np.nan, dtype=np.float64)  # [V_RMS]
+            self.R      = np.full(block_size, np.nan, dtype=np.float64)  # [V_RMS]
             self.T      = np.full(block_size, np.nan, dtype=np.float64)  # [deg]
 
             self.sig_I_min  = np.nan  # [V]
@@ -115,10 +115,10 @@ class Alia_qdev(QDeviceIO):
             self.filt_I_max = np.nan  # [V]
             self.filt_I_avg = np.nan  # [V]
             self.filt_I_std = np.nan  # [V]
-            self.X_avg      = np.nan  # [V]
-            self.Y_avg      = np.nan  # [V]
-            self.R_avg      = np.nan  # [V]
-            self.R_avg_rms  = np.nan  # [V_rms]
+            self.X_avg      = np.nan  # [V_RMS]
+            self.Y_avg      = np.nan  # [V_RMS]
+            self.R_avg      = np.nan  # [V_RMS]
+            self.R_avg_trms = np.nan  # [V_TRMS], i.e. 'True RMS'
             self.T_avg      = np.nan  # [deg]
             # fmt: on
 

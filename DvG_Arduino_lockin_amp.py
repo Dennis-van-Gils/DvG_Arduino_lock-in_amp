@@ -219,12 +219,25 @@ def lockin_DAQ_update():
         # Equivalent to SLOW code:
         #   mix_X = (old_ref_X - c.ref_V_offset) / c.ref_V_ampl * filt_I
         #   mix_Y = (old_ref_Y - c.ref_V_offset) / c.ref_V_ampl * filt_I
+
+        if c.ref_waveform == Waveform.Cosine:
+            f_rms = 1.414213562  # np.sqrt(2)
+        elif c.ref_waveform == Waveform.Square:
+            f_rms = 1
+        elif c.ref_waveform == Waveform.Triangle:
+            f_rms = 1.732050808  # np.sqrt(3)
+
         np.subtract(old_ref_X, c.ref_V_offset, out=old_ref_X)
         np.subtract(old_ref_Y, c.ref_V_offset, out=old_ref_Y)
         np.divide  (old_ref_X, c.ref_V_ampl  , out=old_ref_X)
         np.divide  (old_ref_Y, c.ref_V_ampl  , out=old_ref_Y)
+        np.multiply(old_ref_X, f_rms         , out=old_ref_X)
+        np.multiply(old_ref_Y, f_rms         , out=old_ref_Y)
         np.multiply(old_ref_X, state.filt_I  , out=state.mix_X)
         np.multiply(old_ref_Y, state.filt_I  , out=state.mix_Y)
+
+        # NOTE:
+        # mix_X, mix_Y, X, Y and R are now in units of [V_rms], not [V] anymore!
     else:
         state.time_1.fill(np.nan)
         old_sig_I = np.full(c.BLOCK_SIZE, np.nan)
@@ -282,32 +295,29 @@ def lockin_DAQ_update():
     state.R_avg = np.mean(state.R)
     state.T_avg = np.mean(state.T)
 
-    # Additionally calculate `R` in units of [V_rms]
-    TRUE_RMS = True
-    if TRUE_RMS:
-        # NOTE: Don't calculate the rms value based on `np.std(state.sig_I)`
-        # because the sample size is too small, namely of length
-        # 'block_size'. This could cause the rescaled `R` value in units of
-        # V_rms to oscillate slightly whenever a non-integer number of
-        # signal periods is contained inside the block size.
-        #
-        # Instead, we base the rms value on the larger sample size as
-        # contained by the ringbuffer of `sig_I`. This sample size is
-        # `N_blocks * block_size` large, effectively averaging out the
-        # effect of any non-integer numbers of signal periods.
-        #
-        # 'block_size` is set in the microcontroller firmware.
-        # `N_blocks` is defined in the constructor of class `Alia_qdev()`.
-        state.R_avg_rms = state.R_avg / np.std(state.rb_sig_I) * c.ref_V_ampl
-    else:
-        # Analytical rms based on the expected signal-response waveform,
-        # which is not necessarily true.
-        if c.ref_waveform == Waveform.Cosine:
-            state.R_avg_rms = state.R_avg * 1.414213562  # np.sqrt(2)
-        elif c.ref_waveform == Waveform.Square:
-            state.R_avg_rms = state.R_avg  # 1
-        elif c.ref_waveform == Waveform.Triangle:
-            state.R_avg_rms = state.R_avg * 1.732050808  # np.sqrt(3)
+    # Additionally calculate `R` in units of [V_trms]
+    # NOTE: Don't calculate the rms value based on `np.std(state.sig_I)`
+    # because the sample size is too small, namely of length
+    # 'block_size'. This could cause the rescaled `R` value in units of
+    # V_rms to oscillate slightly whenever a non-integer number of
+    # signal periods is contained inside the block size.
+    #
+    # Instead, we base the rms value on the larger sample size as
+    # contained by the ringbuffer of `sig_I`. This sample size is
+    # `N_blocks * block_size` large, effectively averaging out the
+    # effect of any non-integer numbers of signal periods.
+    #
+    # 'block_size` is set in the microcontroller firmware.
+    # `N_blocks` is defined in the constructor of class `Alia_qdev()`.
+    if c.ref_waveform == Waveform.Cosine:
+        f_rms = 1.414213562  # np.sqrt(2)
+    elif c.ref_waveform == Waveform.Square:
+        f_rms = 1
+    elif c.ref_waveform == Waveform.Triangle:
+        f_rms = 1.732050808  # np.sqrt(3)
+    state.R_avg_trms = (
+        state.R_avg / f_rms * c.ref_V_ampl / np.std(state.rb_sig_I)
+    )
 
     state.rb_time_2.extend(state.time_2)
     state.rb_X.extend(state.X)
@@ -368,11 +378,11 @@ def write_header_to_log():
                 "ref_Y*[V]",
                 "sig_I[V]",
                 "filt_I[V]",
-                "mix_X[V]",
-                "mix_Y[V]",
-                "X[V]",
-                "Y[V]",
-                "R[V]",
+                "mix_X[V_RMS]",
+                "mix_Y[V_RMS]",
+                "X[V_RMS]",
+                "Y[V_RMS]",
+                "R[V_RMS]",
                 "T[deg]",
             )
         )
@@ -446,7 +456,12 @@ if __name__ == "__main__":
     if DEBUG_TIMING:
         alia.tick = Time.perf_counter()
 
-    alia.begin(freq=250, V_offset=2, V_ampl=1, waveform=Waveform.Cosine)
+    alia.begin(
+        freq=250,
+        V_offset=1.6,
+        V_ampl=1.414,
+        waveform=Waveform.Cosine,
+    )
 
     # Create workers and threads
     alia_qdev = Alia_qdev(

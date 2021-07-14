@@ -285,6 +285,7 @@ def apply_PlotItem_style(
 FONT_MONOSPACE = QtGui.QFont("Courier")
 FONT_MONOSPACE.setFamily("Monospace")
 FONT_MONOSPACE.setStyleHint(QtGui.QFont.Monospace)
+str_V_RMS = "V<sub>RMS</sub>"
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -602,9 +603,7 @@ class MainWindow(QtWid.QWidget):
         self.all_graphs.append(self.pw_refsig)
 
         self.pi_refsig = self.pw_refsig.getPlotItem()
-        apply_PlotItem_style(
-            self.pi_refsig, "Readings", "time (ms)", "voltage (V)"
-        )
+        apply_PlotItem_style(self.pi_refsig, "Readings", "ms", "V")
         self.pi_refsig.setXRange(
             -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
             0,
@@ -720,8 +719,8 @@ class MainWindow(QtWid.QWidget):
 
         self.pi_XR = self.pw_XR.getPlotItem()
         self.pi_YT = self.pw_YT.getPlotItem()
-        apply_PlotItem_style(self.pi_XR, "R", "time (ms)", "voltage (V)")
-        apply_PlotItem_style(self.pi_YT, "\u0398", "time (ms)", "phase (deg)")
+        apply_PlotItem_style(self.pi_XR, "", "ms", str_V_RMS)
+        apply_PlotItem_style(self.pi_YT, "", "ms")
 
         self.pi_XR.setXRange(
             -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
@@ -807,12 +806,12 @@ class MainWindow(QtWid.QWidget):
         self.qlin_X_avg = QtWid.QLineEdit(**p)
         self.qlin_Y_avg = QtWid.QLineEdit(**p)
         self.qlin_R_avg = QtWid.QLineEdit(**p)
-        self.qlin_R_avg_rms = QtWid.QLineEdit(**p)
+        self.qlin_R_avg_trms = QtWid.QLineEdit(**p)
         self.qlin_T_avg = QtWid.QLineEdit(**p)
         self.qlin_X_avg.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_Y_avg.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_R_avg.setAlignment(QtCore.Qt.AlignRight)
-        self.qlin_R_avg_rms.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_R_avg_trms.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_T_avg.setAlignment(QtCore.Qt.AlignRight)
 
         # fmt: off
@@ -822,16 +821,16 @@ class MainWindow(QtWid.QWidget):
         grid.addItem(QtWid.QSpacerItem(0, 8)     , i, 0); i+=1
         grid.addWidget(QtWid.QLabel("avg X")     , i, 0)
         grid.addWidget(self.qlin_X_avg           , i, 1)
-        grid.addWidget(QtWid.QLabel("V")         , i, 2); i+=1
+        grid.addWidget(QtWid.QLabel(str_V_RMS)   , i, 2); i+=1
         grid.addWidget(QtWid.QLabel("avg Y")     , i, 0)
         grid.addWidget(self.qlin_Y_avg           , i, 1)
-        grid.addWidget(QtWid.QLabel("V")         , i, 2); i+=1
+        grid.addWidget(QtWid.QLabel(str_V_RMS)   , i, 2); i+=1
         grid.addItem(QtWid.QSpacerItem(0, 8)     , i, 0); i+=1
         grid.addWidget(QtWid.QLabel("avg R")     , i, 0)
         grid.addWidget(self.qlin_R_avg           , i, 1)
-        grid.addWidget(QtWid.QLabel("V")         , i, 2); i+=1
-        grid.addWidget(self.qlin_R_avg_rms       , i, 1)
-        grid.addWidget(QtWid.QLabel("V<sub>trms</sub>"), i, 2); i+=1
+        grid.addWidget(QtWid.QLabel(str_V_RMS)   , i, 2); i+=1
+        grid.addWidget(self.qlin_R_avg_trms      , i, 1)
+        grid.addWidget(QtWid.QLabel("V<sub>TRMS<\sub>"), i, 2); i+=1
         grid.addWidget(QtWid.QLabel("avg \u0398"), i, 0)
         grid.addWidget(self.qlin_T_avg           , i, 1)
         grid.addWidget(QtWid.QLabel("\u00B0")    , i, 2)
@@ -888,9 +887,7 @@ class MainWindow(QtWid.QWidget):
         self.all_graphs.append(self.pw_filt_1)
 
         self.pi_filt_1 = self.pw_filt_1.getPlotItem()
-        apply_PlotItem_style(
-            self.pi_filt_1, "Filter @ sig_I", "time (ms)", "voltage (V)"
-        )
+        apply_PlotItem_style(self.pi_filt_1, "Filter @ sig_I", "ms", "V")
         self.pi_filt_1.setXRange(
             -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
             0,
@@ -985,7 +982,7 @@ class MainWindow(QtWid.QWidget):
         self.all_graphs.append(self.pw_mixer)
 
         self.pi_mixer = self.pw_mixer.getPlotItem()
-        apply_PlotItem_style(self.pi_mixer, "Mixer", "time (ms)", "voltage (V)")
+        apply_PlotItem_style(self.pi_mixer, "Mixer", "ms", "V<sub>RMS</sub>")
         self.pi_mixer.setXRange(
             -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
             0,
@@ -1068,19 +1065,16 @@ class MainWindow(QtWid.QWidget):
 
         self.pi_PS = self.pw_PS.getPlotItem()
         apply_PlotItem_style(
-            self.pi_PS,
-            "Power spectrum (Welch)",
-            "frequency (Hz)",
-            "power (dBV)",
+            self.pi_PS, "Power spectrum (Welch)", "Hz", "dBV<sub>RMS</sub>"
         )
         self.pi_PS.setAutoVisible(x=True, y=True)
         self.pi_PS.setXRange(0, self.alia.config.F_Nyquist, padding=0)
-        self.pi_PS.setYRange(-160, 10, padding=0)
+        self.pi_PS.setYRange(-165, 10, padding=0)
         self.pi_PS.setClipToView(True)
         self.pi_PS.setLimits(
             xMin=-1,
             xMax=self.alia.config.F_Nyquist,
-            yMin=-160,
+            yMin=-165,
             yMax=10,
         )
 
@@ -1222,8 +1216,8 @@ class MainWindow(QtWid.QWidget):
         apply_PlotItem_style(
             self.pi_filt_1_resp,
             "Filter response @ sig_I",
-            "frequency (Hz)",
-            "amplitude attenuation (dBV)",
+            "Hz",
+            "amplitude attenuation \u2014 dBV",
         )
         self.pi_filt_1_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_1_resp.enableAutoRange("x", False)
@@ -1336,8 +1330,8 @@ class MainWindow(QtWid.QWidget):
         apply_PlotItem_style(
             self.pi_filt_2_resp,
             "Filter response @ mix_X/Y",
-            "frequency (Hz)",
-            "amplitude attenuation (dBV)",
+            "Hz",
+            "amplitude attenuation \u2014 dBV",
         )
         self.pi_filt_2_resp.setAutoVisible(x=True, y=True)
         self.pi_filt_2_resp.enableAutoRange("x", False)
@@ -1617,7 +1611,7 @@ class MainWindow(QtWid.QWidget):
         self.qlin_X_avg.setText("%.4f" % alia_qdev.state.X_avg)
         self.qlin_Y_avg.setText("%.4f" % alia_qdev.state.Y_avg)
         self.qlin_R_avg.setText("%.4f" % alia_qdev.state.R_avg)
-        self.qlin_R_avg_rms.setText("%.4f" % alia_qdev.state.R_avg_rms)
+        self.qlin_R_avg_trms.setText("%.4f" % alia_qdev.state.R_avg_trms)
         self.qlin_T_avg.setText("%.3f" % alia_qdev.state.T_avg)
 
         if alia_qdev.firf_1_sig_I.filter_has_settled:
@@ -1819,11 +1813,9 @@ class MainWindow(QtWid.QWidget):
         if self.qrbt_XR_X.isChecked():
             self.hcc_LIA_XR.curve.setPen(self.PEN_01)
             self.pi_XR.setLabel("top", "X")
-            self.pi_XR.setLabel("left", text="voltage (V)")
         else:
             self.hcc_LIA_XR.curve.setPen(self.PEN_03)
             self.pi_XR.setLabel("top", "R")
-            self.pi_XR.setLabel("left", text="voltage (V)")
 
         if (
             self.alia_qdev.worker_DAQ._paused  # pylint: disable=protected-access
@@ -1855,11 +1847,11 @@ class MainWindow(QtWid.QWidget):
         if self.qrbt_YT_Y.isChecked():
             self.hcc_LIA_YT.curve.setPen(self.PEN_02)
             self.pi_YT.setLabel("top", "Y")
-            self.pi_YT.setLabel("left", text="voltage (V)")
+            self.pi_YT.setLabel("left", text="V<sub>RMS</sub>")
         else:
             self.hcc_LIA_YT.curve.setPen(self.PEN_03)
             self.pi_YT.setLabel("top", "%s" % chr(0x398))
-            self.pi_YT.setLabel("left", text="phase (deg)")
+            self.pi_YT.setLabel("left", text="deg")
 
         if (
             self.alia_qdev.worker_DAQ._paused  # pylint: disable=protected-access
@@ -1955,6 +1947,7 @@ class MainWindow(QtWid.QWidget):
 
     @QtCore.pyqtSlot()
     def plot_zoom_ROI_filt_1(self):
+        self.setUpdatesEnabled(False)
         freqz = self.alia_qdev.firf_1_sig_I.freqz
         self.pi_filt_1_resp.setXRange(
             freqz.freq_Hz__ROI_start,
@@ -1963,9 +1956,12 @@ class MainWindow(QtWid.QWidget):
         )
         self.pi_filt_1_resp.enableAutoRange("y", True)
         self.pi_filt_1_resp.enableAutoRange("y", False)
+        QtWid.QApplication.processEvents()
+        self.setUpdatesEnabled(True)
 
     @QtCore.pyqtSlot()
     def plot_zoom_ROI_filt_2(self):
+        self.setUpdatesEnabled(False)
         freqz = self.alia_qdev.firf_2_mix_X.freqz
         self.pi_filt_2_resp.setXRange(
             freqz.freq_Hz__ROI_start,
@@ -1974,11 +1970,16 @@ class MainWindow(QtWid.QWidget):
         )
         self.pi_filt_2_resp.enableAutoRange("y", True)
         self.pi_filt_2_resp.enableAutoRange("y", False)
+        QtWid.QApplication.processEvents()
+        self.setUpdatesEnabled(True)
 
     def plot_zoom_x(self, pi_plot: pg.PlotItem, xRangeLo, xRangeHi):
+        self.setUpdatesEnabled(False)
         pi_plot.setXRange(xRangeLo, xRangeHi, padding=0.02)
         pi_plot.enableAutoRange("y", True)
         pi_plot.enableAutoRange("y", False)
+        QtWid.QApplication.processEvents()
+        self.setUpdatesEnabled(True)
 
     @QtCore.pyqtSlot()
     def process_qchk_boost_fps_graphing(self):
