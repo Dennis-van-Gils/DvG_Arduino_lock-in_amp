@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "31-05-2021"
+__date__ = "14-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -263,25 +263,10 @@ def lockin_DAQ_update():
         # Signal amplitude and phase reconstruction
         np.sqrt(np.add(np.square(state.X), np.square(state.Y)), out=state.R)
 
-        # Transform R in units of [V] to [V_rms]
-        # True rms
-        # NOTE: Would love to but the blocksize is too small, resulting in a
-        # slightly oscillating value for the rms. This messes up `R`.
-        # state.R /= state.sig_I_std / c.ref_V_ampl
-
-        # Analytical rms
-        if c.ref_waveform == Waveform.Cosine:
-            state.R *= np.sqrt(2)
-        elif c.ref_waveform == Waveform.Square:
-            # state.R *= 1
-            pass
-        elif c.ref_waveform == Waveform.Triangle:
-            state.R *= np.sqrt(3)
-
         # NOTE: Because `mix_X` and `mix_Y` are both of type `numpy.ndarray`, a
         # division by `mix_X = 0` is handled correctly due to `numpy.inf`.
         # Likewise, `numpy.arctan(numpy.inf)`` will result in pi/2. We suppress
-        # the RuntimeWarning: divide by zero encountered in true_divide.
+        # the 'RuntimeWarning: divide by zero' encountered in `true_divide()`.
         np.seterr(divide="ignore")
         np.divide(state.Y, state.X, out=state.T)
         np.arctan(state.T, out=state.T)
@@ -296,6 +281,33 @@ def lockin_DAQ_update():
     state.Y_avg = np.mean(state.Y)
     state.R_avg = np.mean(state.R)
     state.T_avg = np.mean(state.T)
+
+    # Additionally calculate `R` in units of [V_rms]
+    TRUE_RMS = True
+    if TRUE_RMS:
+        # NOTE: Don't calculate the rms value based on `np.std(state.sig_I)`
+        # because the sample size is too small, namely of length
+        # 'block_size'. This could cause the rescaled `R` value in units of
+        # V_rms to oscillate slightly whenever a non-integer number of
+        # signal periods is contained inside the block size.
+        #
+        # Instead, we base the rms value on the larger sample size as
+        # contained by the ringbuffer of `sig_I`. This sample size is
+        # `N_blocks * block_size` large, effectively averaging out the
+        # effect of any non-integer numbers of signal periods.
+        #
+        # 'block_size` is set in the microcontroller firmware.
+        # `N_blocks` is defined in the constructor of class `Alia_qdev()`.
+        state.R_avg_rms = state.R_avg / np.std(state.rb_sig_I) * c.ref_V_ampl
+    else:
+        # Analytical rms based on the expected signal-response waveform,
+        # which is not necessarily true.
+        if c.ref_waveform == Waveform.Cosine:
+            state.R_avg_rms = state.R_avg * 1.414213562  # np.sqrt(2)
+        elif c.ref_waveform == Waveform.Square:
+            state.R_avg_rms = state.R_avg  # 1
+        elif c.ref_waveform == Waveform.Triangle:
+            state.R_avg_rms = state.R_avg * 1.732050808  # np.sqrt(3)
 
     state.rb_time_2.extend(state.time_2)
     state.rb_X.extend(state.X)
@@ -359,7 +371,7 @@ def write_header_to_log():
                 "mix_Y[V]",
                 "X[V]",
                 "Y[V]",
-                "R[V_rms]",
+                "R[V]",
                 "T[deg]",
             )
         )

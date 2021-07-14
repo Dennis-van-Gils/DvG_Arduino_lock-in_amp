@@ -807,10 +807,12 @@ class MainWindow(QtWid.QWidget):
         self.qlin_X_avg = QtWid.QLineEdit(**p)
         self.qlin_Y_avg = QtWid.QLineEdit(**p)
         self.qlin_R_avg = QtWid.QLineEdit(**p)
+        self.qlin_R_avg_rms = QtWid.QLineEdit(**p)
         self.qlin_T_avg = QtWid.QLineEdit(**p)
         self.qlin_X_avg.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_Y_avg.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_R_avg.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_R_avg_rms.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_T_avg.setAlignment(QtCore.Qt.AlignRight)
 
         # fmt: off
@@ -827,7 +829,9 @@ class MainWindow(QtWid.QWidget):
         grid.addItem(QtWid.QSpacerItem(0, 8)     , i, 0); i+=1
         grid.addWidget(QtWid.QLabel("avg R")     , i, 0)
         grid.addWidget(self.qlin_R_avg           , i, 1)
-        grid.addWidget(QtWid.QLabel("V<sub>rms</sub>"), i, 2); i+=1
+        grid.addWidget(QtWid.QLabel("V")         , i, 2); i+=1
+        grid.addWidget(self.qlin_R_avg_rms       , i, 1)
+        grid.addWidget(QtWid.QLabel("V<sub>trms</sub>"), i, 2); i+=1
         grid.addWidget(QtWid.QLabel("avg \u0398"), i, 0)
         grid.addWidget(self.qlin_T_avg           , i, 1)
         grid.addWidget(QtWid.QLabel("\u00B0")    , i, 2)
@@ -1613,6 +1617,7 @@ class MainWindow(QtWid.QWidget):
         self.qlin_X_avg.setText("%.4f" % alia_qdev.state.X_avg)
         self.qlin_Y_avg.setText("%.4f" % alia_qdev.state.Y_avg)
         self.qlin_R_avg.setText("%.4f" % alia_qdev.state.R_avg)
+        self.qlin_R_avg_rms.setText("%.4f" % alia_qdev.state.R_avg_rms)
         self.qlin_T_avg.setText("%.3f" % alia_qdev.state.T_avg)
 
         if alia_qdev.firf_1_sig_I.filter_has_settled:
@@ -1818,7 +1823,7 @@ class MainWindow(QtWid.QWidget):
         else:
             self.hcc_LIA_XR.curve.setPen(self.PEN_03)
             self.pi_XR.setLabel("top", "R")
-            self.pi_XR.setLabel("left", text="voltage (V rms)")
+            self.pi_XR.setLabel("left", text="voltage (V)")
 
         if (
             self.alia_qdev.worker_DAQ._paused  # pylint: disable=protected-access

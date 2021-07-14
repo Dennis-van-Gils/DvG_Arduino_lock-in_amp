@@ -7,7 +7,7 @@ specific firmware to turn it into a lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "12-07-2021"
+__date__ = "14-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
 
@@ -91,35 +91,36 @@ class Alia_qdev(QDeviceIO):
 
             # Arrays to hold the block data coming from the lock-in amplifier
             # Keep `time` as `dtype=np.float64`, because it can contain `np.nan`
-            self.time   = np.full(block_size, np.nan, dtype=np.float64) # [ms]
-            self.ref_X  = np.full(block_size, np.nan, dtype=np.float64)
-            self.ref_Y  = np.full(block_size, np.nan, dtype=np.float64)
-            self.sig_I  = np.full(block_size, np.nan, dtype=np.float64)
+            self.time   = np.full(block_size, np.nan, dtype=np.float64)  # [ms]
+            self.ref_X  = np.full(block_size, np.nan, dtype=np.float64)  # [V]
+            self.ref_Y  = np.full(block_size, np.nan, dtype=np.float64)  # [V]
+            self.sig_I  = np.full(block_size, np.nan, dtype=np.float64)  # [V]
 
-            self.time_1 = np.full(block_size, np.nan, dtype=np.float64) # [ms]
-            self.filt_I = np.full(block_size, np.nan, dtype=np.float64)
-            self.mix_X  = np.full(block_size, np.nan, dtype=np.float64)
-            self.mix_Y  = np.full(block_size, np.nan, dtype=np.float64)
+            self.time_1 = np.full(block_size, np.nan, dtype=np.float64)  # [ms]
+            self.filt_I = np.full(block_size, np.nan, dtype=np.float64)  # [V]
+            self.mix_X  = np.full(block_size, np.nan, dtype=np.float64)  # [V]
+            self.mix_Y  = np.full(block_size, np.nan, dtype=np.float64)  # [V]
 
-            self.time_2 = np.full(block_size, np.nan, dtype=np.float64) # [ms]
-            self.X      = np.full(block_size, np.nan, dtype=np.float64)
-            self.Y      = np.full(block_size, np.nan, dtype=np.float64)
-            self.R      = np.full(block_size, np.nan, dtype=np.float64)
-            self.T      = np.full(block_size, np.nan, dtype=np.float64)
+            self.time_2 = np.full(block_size, np.nan, dtype=np.float64)  # [ms]
+            self.X      = np.full(block_size, np.nan, dtype=np.float64)  # [V]
+            self.Y      = np.full(block_size, np.nan, dtype=np.float64)  # [V]
+            self.R      = np.full(block_size, np.nan, dtype=np.float64)  # [V]
+            self.T      = np.full(block_size, np.nan, dtype=np.float64)  # [deg]
+
+            self.sig_I_min  = np.nan  # [V]
+            self.sig_I_max  = np.nan  # [V]
+            self.sig_I_avg  = np.nan  # [V]
+            self.sig_I_std  = np.nan  # [V]
+            self.filt_I_min = np.nan  # [V]
+            self.filt_I_max = np.nan  # [V]
+            self.filt_I_avg = np.nan  # [V]
+            self.filt_I_std = np.nan  # [V]
+            self.X_avg      = np.nan  # [V]
+            self.Y_avg      = np.nan  # [V]
+            self.R_avg      = np.nan  # [V]
+            self.R_avg_rms  = np.nan  # [V_rms]
+            self.T_avg      = np.nan  # [deg]
             # fmt: on
-
-            self.sig_I_min = np.nan
-            self.sig_I_max = np.nan
-            self.sig_I_avg = np.nan
-            self.sig_I_std = np.nan
-            self.filt_I_min = np.nan
-            self.filt_I_max = np.nan
-            self.filt_I_avg = np.nan
-            self.filt_I_std = np.nan
-            self.X_avg = np.nan
-            self.Y_avg = np.nan
-            self.R_avg = np.nan
-            self.T_avg = np.nan
 
             # Ring buffers (rb) for performing FIR filtering and power spectra
             # fmt: off
