@@ -121,6 +121,8 @@ class Alia(Arduino_protocol_serial.Arduino):
         ref_V_offset = 0                 # [V]  Voltage offset
         ref_V_ampl   = 0                 # [V]  Voltage amplitude
         ref_waveform = Waveform.Unknown  # Waveform enum
+        ref_RMS_factor = np.nan          # RMS correction factor belonging to
+        # chosen reference waveform
         # fmt: on
 
     def __init__(
@@ -537,6 +539,15 @@ class Alia(Arduino_protocol_serial.Arduino):
                 return False
         else:
             return False
+
+        if self.config.ref_waveform == Waveform.Cosine:
+            self.config.ref_RMS_factor = np.sqrt(2)
+
+        elif self.config.ref_waveform == Waveform.Square:
+            self.config.ref_RMS_factor = 1
+
+        elif self.config.ref_waveform == Waveform.Triangle:
+            self.config.ref_RMS_factor = np.sqrt(3)
 
         return True
 

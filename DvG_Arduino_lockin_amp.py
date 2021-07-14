@@ -217,24 +217,20 @@ def lockin_DAQ_update():
 
         # Heterodyne mixing
         # Equivalent to SLOW code:
-        #   mix_X = (old_ref_X - c.ref_V_offset) / c.ref_V_ampl * filt_I
-        #   mix_Y = (old_ref_Y - c.ref_V_offset) / c.ref_V_ampl * filt_I
-
-        if c.ref_waveform == Waveform.Cosine:
-            f_rms = 1.414213562  # np.sqrt(2)
-        elif c.ref_waveform == Waveform.Square:
-            f_rms = 1
-        elif c.ref_waveform == Waveform.Triangle:
-            f_rms = 1.732050808  # np.sqrt(3)
-
-        np.subtract(old_ref_X, c.ref_V_offset, out=old_ref_X)
-        np.subtract(old_ref_Y, c.ref_V_offset, out=old_ref_Y)
-        np.divide  (old_ref_X, c.ref_V_ampl  , out=old_ref_X)
-        np.divide  (old_ref_Y, c.ref_V_ampl  , out=old_ref_Y)
-        np.multiply(old_ref_X, f_rms         , out=old_ref_X)
-        np.multiply(old_ref_Y, f_rms         , out=old_ref_Y)
-        np.multiply(old_ref_X, state.filt_I  , out=state.mix_X)
-        np.multiply(old_ref_Y, state.filt_I  , out=state.mix_Y)
+        #   mix_X =
+        #       (old_ref_X - c.ref_V_offset) / c.ref_V_ampl * c.ref_RMS_factor *
+        #       filt_I
+        #   mix_Y =
+        #       (old_ref_Y - c.ref_V_offset) / c.ref_V_ampl * c.ref_RMS_factor *
+        #       filt_I
+        np.subtract(old_ref_X, c.ref_V_offset  , out=old_ref_X)
+        np.subtract(old_ref_Y, c.ref_V_offset  , out=old_ref_Y)
+        np.divide  (old_ref_X, c.ref_V_ampl    , out=old_ref_X)
+        np.divide  (old_ref_Y, c.ref_V_ampl    , out=old_ref_Y)
+        np.multiply(old_ref_X, c.ref_RMS_factor, out=old_ref_X)
+        np.multiply(old_ref_Y, c.ref_RMS_factor, out=old_ref_Y)
+        np.multiply(old_ref_X, state.filt_I    , out=state.mix_X)
+        np.multiply(old_ref_Y, state.filt_I    , out=state.mix_Y)
 
         # NOTE:
         # mix_X, mix_Y, X, Y and R are now in units of [V_rms], not [V] anymore!
@@ -309,14 +305,8 @@ def lockin_DAQ_update():
     #
     # 'block_size` is set in the microcontroller firmware.
     # `N_blocks` is defined in the constructor of class `Alia_qdev()`.
-    if c.ref_waveform == Waveform.Cosine:
-        f_rms = 1.414213562  # np.sqrt(2)
-    elif c.ref_waveform == Waveform.Square:
-        f_rms = 1
-    elif c.ref_waveform == Waveform.Triangle:
-        f_rms = 1.732050808  # np.sqrt(3)
     state.R_avg_trms = (
-        state.R_avg / f_rms * c.ref_V_ampl / np.std(state.rb_sig_I)
+        state.R_avg / c.ref_RMS_factor * c.ref_V_ampl / np.std(state.rb_sig_I)
     )
 
     state.rb_time_2.extend(state.time_2)
