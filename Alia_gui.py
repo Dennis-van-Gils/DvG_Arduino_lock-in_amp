@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "12-07-2021"
+__date__ = "14-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -1071,10 +1071,13 @@ class MainWindow(QtWid.QWidget):
         )
         self.pi_PS.setAutoVisible(x=True, y=True)
         self.pi_PS.setXRange(0, self.alia.config.F_Nyquist, padding=0)
-        self.pi_PS.setYRange(-110, 0, padding=0.02)
+        self.pi_PS.setYRange(-160, 10, padding=0)
         self.pi_PS.setClipToView(True)
         self.pi_PS.setLimits(
-            xMin=0, xMax=self.alia.config.F_Nyquist, yMin=-300, yMax=60
+            xMin=-1,
+            xMax=self.alia.config.F_Nyquist,
+            yMin=-160,
+            yMax=10,
         )
 
         self.pc_PS_sig_I = PlotCurve(
@@ -1110,36 +1113,40 @@ class MainWindow(QtWid.QWidget):
 
         # QGROUP: Zoom
         # fmt: off
-        self.qpbt_PS_zoom_DC        = QtWid.QPushButton("DC")
-        self.qpbt_PS_zoom_f_ref     = QtWid.QPushButton("ref_freq")
-        self.qpbt_PS_zoom_dbl_f_ref = QtWid.QPushButton("2x ref_freq")
-        self.qpbt_PS_zoom_low       = QtWid.QPushButton("0 - 200 Hz")
-        self.qpbt_PS_zoom_mid       = QtWid.QPushButton("0 - 1 kHz")
-        self.qpbt_PS_zoom_all       = QtWid.QPushButton("Full range")
+        self.qpbt_PS_zoom_DC   = QtWid.QPushButton("DC")
+        self.qpbt_PS_zoom_ref  = QtWid.QPushButton("ref_freq")
+        self.qpbt_PS_zoom_2ref = QtWid.QPushButton("2x ref_freq")
+        self.qpbt_PS_zoom_s1   = QtWid.QPushButton("0 - 0.5 kHz")
+        self.qpbt_PS_zoom_s2   = QtWid.QPushButton("0 - 1 kHz")
+        self.qpbt_PS_zoom_s3   = QtWid.QPushButton("0 - 2.5 kHz")
+        self.qpbt_PS_zoom_all  = QtWid.QPushButton("Full range")
         # fmt: on
 
         self.qpbt_PS_zoom_DC.clicked.connect(
             lambda: self.plot_zoom_x(self.pi_PS, 0, 10)
         )
-        self.qpbt_PS_zoom_f_ref.clicked.connect(
+        self.qpbt_PS_zoom_ref.clicked.connect(
             lambda: self.plot_zoom_x(
                 self.pi_PS,
                 alia.config.ref_freq - 10,
                 alia.config.ref_freq + 10,
             )
         )
-        self.qpbt_PS_zoom_dbl_f_ref.clicked.connect(
+        self.qpbt_PS_zoom_2ref.clicked.connect(
             lambda: self.plot_zoom_x(
                 self.pi_PS,
                 2 * alia.config.ref_freq - 10,
                 2 * alia.config.ref_freq + 10,
             )
         )
-        self.qpbt_PS_zoom_low.clicked.connect(
-            lambda: self.plot_zoom_x(self.pi_PS, 0, 200)
+        self.qpbt_PS_zoom_s1.clicked.connect(
+            lambda: self.plot_zoom_x(self.pi_PS, 0, 500)
         )
-        self.qpbt_PS_zoom_mid.clicked.connect(
+        self.qpbt_PS_zoom_s2.clicked.connect(
             lambda: self.plot_zoom_x(self.pi_PS, 0, 1000)
+        )
+        self.qpbt_PS_zoom_s3.clicked.connect(
+            lambda: self.plot_zoom_x(self.pi_PS, 0, 2500)
         )
         self.qpbt_PS_zoom_all.clicked.connect(
             lambda: self.plot_zoom_x(self.pi_PS, 0, self.alia.config.F_Nyquist)
@@ -1147,12 +1154,13 @@ class MainWindow(QtWid.QWidget):
 
         # fmt: off
         grid = QtWid.QGridLayout()
-        grid.addWidget(self.qpbt_PS_zoom_DC       , 0, 0)
-        grid.addWidget(self.qpbt_PS_zoom_f_ref    , 0, 1)
-        grid.addWidget(self.qpbt_PS_zoom_dbl_f_ref, 0, 2)
-        grid.addWidget(self.qpbt_PS_zoom_low      , 0, 3)
-        grid.addWidget(self.qpbt_PS_zoom_mid      , 0, 4)
-        grid.addWidget(self.qpbt_PS_zoom_all      , 0, 5)
+        grid.addWidget(self.qpbt_PS_zoom_DC  , 0, 0)
+        grid.addWidget(self.qpbt_PS_zoom_ref , 0, 1)
+        grid.addWidget(self.qpbt_PS_zoom_2ref, 0, 2)
+        grid.addWidget(self.qpbt_PS_zoom_s1  , 0, 3)
+        grid.addWidget(self.qpbt_PS_zoom_s2  , 0, 4)
+        grid.addWidget(self.qpbt_PS_zoom_s3  , 0, 5)
+        grid.addWidget(self.qpbt_PS_zoom_all , 0, 6)
         # fmt: on
 
         qgrp_zoom = QtWid.QGroupBox("Zoom")
@@ -1218,7 +1226,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_1_resp.enableAutoRange("y", True)
         self.pi_filt_1_resp.setClipToView(True)
         self.pi_filt_1_resp.setLimits(
-            xMin=0, xMax=self.alia.config.F_Nyquist, yMin=-120, yMax=20
+            xMin=-1, xMax=self.alia.config.F_Nyquist, yMin=-120, yMax=20
         )
 
         if 0:  # pylint: disable=using-constant-test
@@ -1239,21 +1247,21 @@ class MainWindow(QtWid.QWidget):
         # QGROUP: Zoom
         self.qpbt_filt_1_resp_zoom_DC = QtWid.QPushButton("DC")
         self.qpbt_filt_1_resp_zoom_50 = QtWid.QPushButton("50 Hz")
-        self.qpbt_filt_1_resp_zoom_low = QtWid.QPushButton("0 - 200 Hz")
-        self.qpbt_filt_1_resp_zoom_mid = QtWid.QPushButton("0 - 1 kHz")
+        self.qpbt_filt_1_resp_zoom_s1 = QtWid.QPushButton("0 - 200 Hz")
+        self.qpbt_filt_1_resp_zoom_s2 = QtWid.QPushButton("0 - 1 kHz")
         self.qpbt_filt_1_resp_zoom_all = QtWid.QPushButton("Full range")
         self.qpbt_filt_1_resp_zoom_ROI = QtWid.QPushButton("Region of interest")
 
         self.qpbt_filt_1_resp_zoom_DC.clicked.connect(
-            lambda: self.plot_zoom_x(self.pi_filt_1_resp, 0, 5)
+            lambda: self.plot_zoom_x(self.pi_filt_1_resp, 0, 10)
         )
         self.qpbt_filt_1_resp_zoom_50.clicked.connect(
-            lambda: self.plot_zoom_x(self.pi_filt_1_resp, 47, 53)
+            lambda: self.plot_zoom_x(self.pi_filt_1_resp, 45, 55)
         )
-        self.qpbt_filt_1_resp_zoom_low.clicked.connect(
+        self.qpbt_filt_1_resp_zoom_s1.clicked.connect(
             lambda: self.plot_zoom_x(self.pi_filt_1_resp, 0, 200)
         )
-        self.qpbt_filt_1_resp_zoom_mid.clicked.connect(
+        self.qpbt_filt_1_resp_zoom_s2.clicked.connect(
             lambda: self.plot_zoom_x(self.pi_filt_1_resp, 0, 1000)
         )
         self.qpbt_filt_1_resp_zoom_all.clicked.connect(
@@ -1268,8 +1276,8 @@ class MainWindow(QtWid.QWidget):
         grid = QtWid.QGridLayout()
         grid.addWidget(self.qpbt_filt_1_resp_zoom_DC, 0, 0)
         grid.addWidget(self.qpbt_filt_1_resp_zoom_50, 0, 1)
-        grid.addWidget(self.qpbt_filt_1_resp_zoom_low, 0, 2)
-        grid.addWidget(self.qpbt_filt_1_resp_zoom_mid, 0, 3)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_s1, 0, 2)
+        grid.addWidget(self.qpbt_filt_1_resp_zoom_s2, 0, 3)
         grid.addWidget(self.qpbt_filt_1_resp_zoom_all, 0, 4)
         grid.addWidget(self.qpbt_filt_1_resp_zoom_ROI, 0, 5)
 
@@ -1332,7 +1340,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_2_resp.enableAutoRange("y", True)
         self.pi_filt_2_resp.setClipToView(True)
         self.pi_filt_2_resp.setLimits(
-            xMin=0, xMax=self.alia.config.F_Nyquist, yMin=-120, yMax=20
+            xMin=-1, xMax=self.alia.config.F_Nyquist, yMin=-120, yMax=20
         )
 
         if 0:  # pylint: disable=using-constant-test
@@ -1351,25 +1359,23 @@ class MainWindow(QtWid.QWidget):
         self.plot_zoom_ROI_filt_2()
 
         # QGROUP: Zoom
-        # fmt: off
-        self.qpbt_filt_2_resp_zoom_DC  = QtWid.QPushButton("DC")
-        self.qpbt_filt_2_resp_zoom_50  = QtWid.QPushButton("50 Hz")
-        self.qpbt_filt_2_resp_zoom_low = QtWid.QPushButton("0 - 200 Hz")
-        self.qpbt_filt_2_resp_zoom_mid = QtWid.QPushButton("0 - 1 kHz")
+        self.qpbt_filt_2_resp_zoom_DC = QtWid.QPushButton("DC")
+        self.qpbt_filt_2_resp_zoom_50 = QtWid.QPushButton("50 Hz")
+        self.qpbt_filt_2_resp_zoom_s1 = QtWid.QPushButton("0 - 200 Hz")
+        self.qpbt_filt_2_resp_zoom_s2 = QtWid.QPushButton("0 - 1 kHz")
         self.qpbt_filt_2_resp_zoom_all = QtWid.QPushButton("Full range")
         self.qpbt_filt_2_resp_zoom_ROI = QtWid.QPushButton("Region of interest")
-        # fmt: on
 
         self.qpbt_filt_2_resp_zoom_DC.clicked.connect(
-            lambda: self.plot_zoom_x(self.pi_filt_2_resp, 0, 5)
+            lambda: self.plot_zoom_x(self.pi_filt_2_resp, 0, 10)
         )
         self.qpbt_filt_2_resp_zoom_50.clicked.connect(
-            lambda: self.plot_zoom_x(self.pi_filt_2_resp, 47, 53)
+            lambda: self.plot_zoom_x(self.pi_filt_2_resp, 45, 55)
         )
-        self.qpbt_filt_2_resp_zoom_low.clicked.connect(
+        self.qpbt_filt_2_resp_zoom_s1.clicked.connect(
             lambda: self.plot_zoom_x(self.pi_filt_2_resp, 0, 200)
         )
-        self.qpbt_filt_2_resp_zoom_mid.clicked.connect(
+        self.qpbt_filt_2_resp_zoom_s2.clicked.connect(
             lambda: self.plot_zoom_x(self.pi_filt_2_resp, 0, 1000)
         )
         self.qpbt_filt_2_resp_zoom_all.clicked.connect(
@@ -1384,8 +1390,8 @@ class MainWindow(QtWid.QWidget):
         grid = QtWid.QGridLayout()
         grid.addWidget(self.qpbt_filt_2_resp_zoom_DC, 0, 0)
         grid.addWidget(self.qpbt_filt_2_resp_zoom_50, 0, 1)
-        grid.addWidget(self.qpbt_filt_2_resp_zoom_low, 0, 2)
-        grid.addWidget(self.qpbt_filt_2_resp_zoom_mid, 0, 3)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_s1, 0, 2)
+        grid.addWidget(self.qpbt_filt_2_resp_zoom_s2, 0, 3)
         grid.addWidget(self.qpbt_filt_2_resp_zoom_all, 0, 4)
         grid.addWidget(self.qpbt_filt_2_resp_zoom_ROI, 0, 5)
 
