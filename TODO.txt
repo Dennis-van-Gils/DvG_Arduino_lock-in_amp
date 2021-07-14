@@ -32,3 +32,7 @@ FIRMWARE
   internally, i.e. via the chipset itself not via a physical wire.
 
 * Very strange: setting f_ref = 130 Hz will hang the Arduino?!
+  Right now solved with a work-around.
+
+* Lock-in amplifiers generally use units of [V_rms] not [V] for ref_X, sig_I, X,
+  Y and R. Adopt.
