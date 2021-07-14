@@ -285,7 +285,7 @@ def apply_PlotItem_style(
 FONT_MONOSPACE = QtGui.QFont("Courier")
 FONT_MONOSPACE.setFamily("Monospace")
 FONT_MONOSPACE.setStyleHint(QtGui.QFont.Monospace)
-str_V_RMS = "V<sub>RMS</sub>"
+str_V_RMS = "V<sub><b>RMS</b></sub>"
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -719,7 +719,7 @@ class MainWindow(QtWid.QWidget):
 
         self.pi_XR = self.pw_XR.getPlotItem()
         self.pi_YT = self.pw_YT.getPlotItem()
-        apply_PlotItem_style(self.pi_XR, "", "ms", str_V_RMS)
+        apply_PlotItem_style(self.pi_XR, "", "ms", "V<sub>RMS</sub>")
         apply_PlotItem_style(self.pi_YT, "", "ms")
 
         self.pi_XR.setXRange(
@@ -830,7 +830,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.qlin_R_avg           , i, 1)
         grid.addWidget(QtWid.QLabel(str_V_RMS)   , i, 2); i+=1
         grid.addWidget(self.qlin_R_avg_trms      , i, 1)
-        grid.addWidget(QtWid.QLabel("V<sub>TRMS<\sub>"), i, 2); i+=1
+        grid.addWidget(QtWid.QLabel("V<sub><b>TRMS</b></sub>"), i, 2); i+=1
         grid.addWidget(QtWid.QLabel("avg \u0398"), i, 0)
         grid.addWidget(self.qlin_T_avg           , i, 1)
         grid.addWidget(QtWid.QLabel("\u00B0")    , i, 2)
