@@ -216,9 +216,9 @@ def lockin_DAQ_update():
         old_ref_Y    = state.rb_ref_Y[valid_slice]
 
         # Heterodyne mixing
-        # Equivalent to:
-        #   mix_X = (old_ref_X - c.ref_V_offset) / c.ref_V_ampl * filt_I  # SLOW code
-        #   mix_Y = (old_ref_Y - c.ref_V_offset) / c.ref_V_ampl * filt_I  # SLOW code
+        # Equivalent to SLOW code:
+        #   mix_X = (old_ref_X - c.ref_V_offset) / c.ref_V_ampl * filt_I
+        #   mix_Y = (old_ref_Y - c.ref_V_offset) / c.ref_V_ampl * filt_I
         np.subtract(old_ref_X, c.ref_V_offset, out=old_ref_X)
         np.subtract(old_ref_Y, c.ref_V_offset, out=old_ref_Y)
         np.divide  (old_ref_X, c.ref_V_ampl  , out=old_ref_X)
@@ -323,6 +323,7 @@ def lockin_DAQ_update():
     )
 
     # Check if memory address of underlying buffer is still unchanged
+    # pylint: disable=pointless-string-statement
     """
     test = np.asarray(state.rb_X)
     print("%6i, mem: %i, cont?: %i, rb buf mem: %i, full? %i" % (
