@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "12-07-2021"
+__date__ = "15-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -117,12 +117,14 @@ class Alia(Arduino_protocol_serial.Arduino):
         """
 
         # Reference signal parameters
-        ref_freq     = 0                 # [Hz] Frequency
-        ref_V_offset = 0                 # [V]  Voltage offset
-        ref_V_ampl   = 0                 # [V]  Voltage amplitude
-        ref_waveform = Waveform.Unknown  # Waveform enum
-        ref_RMS_factor = np.nan          # RMS correction factor belonging to
-        # chosen reference waveform
+        ref_waveform    = Waveform.Unknown  # Waveform enum
+        ref_freq        = 0         # [Hz]
+        ref_V_offset    = 0         # [V]
+        ref_V_ampl      = 0         # [V]
+        ref_V_ampl_RMS  = 0         # [V_RMS]
+        ref_RMS_factor  = np.nan    # RMS factor belonging to chosen waveform
+        ref_is_clipping_HI = False  # Output is set too high?
+        ref_is_clipping_LO = False  # Output is set too low?
         # fmt: on
 
     def __init__(
@@ -507,32 +509,38 @@ class Alia(Arduino_protocol_serial.Arduino):
         output reference signal `ref_X` parameters.
 
         This method will update members:
+            `config.ref_waveform`
             `config.ref_freq`
             `config.ref_V_offset`
             `config.ref_V_ampl`
-            `config.ref_waveform`
+            `config.ref_V_ampl_RMS`
+            `config.ref_RMS_factor`
+            `config.ref_is_clipping_HI`
+            `config.ref_is_clipping_LO`
             `config.N_LUT`
 
         Returns:
             True if successful, False otherwise.
         """
+        c = self.config  # Short-hand
+
         success, ans_str = self.safe_query("?")
         if success:
             try:
                 ans_list = ans_str.split("\t")
 
                 # fmt: off
-                if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
+                if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
                     # Legacy
-                    self.config.ref_freq     = float(ans_list[0])
-                    self.config.ref_V_offset = float(ans_list[1])
-                    self.config.ref_V_ampl   = float(ans_list[2])
+                    c.ref_freq     = float(ans_list[0])
+                    c.ref_V_offset = float(ans_list[1])
+                    c.ref_V_ampl   = float(ans_list[2])
                 else:
-                    self.config.ref_freq     = float(ans_list[0])
-                    self.config.ref_V_offset = float(ans_list[1])
-                    self.config.ref_V_ampl   = float(ans_list[2])
-                    self.config.ref_waveform = Waveform[ans_list[3]]
-                    self.config.N_LUT        = int(ans_list[4])
+                    c.ref_freq     = float(ans_list[0])
+                    c.ref_V_offset = float(ans_list[1])
+                    c.ref_V_ampl   = float(ans_list[2])
+                    c.ref_waveform = Waveform[ans_list[3]]
+                    c.N_LUT        = int(ans_list[4])
                 # fmt: on
             except Exception as err:
                 pft(err)
@@ -540,14 +548,18 @@ class Alia(Arduino_protocol_serial.Arduino):
         else:
             return False
 
-        if self.config.ref_waveform == Waveform.Cosine:
-            self.config.ref_RMS_factor = np.sqrt(2)
+        if c.ref_waveform == Waveform.Cosine:
+            c.ref_RMS_factor = np.sqrt(2)
 
-        elif self.config.ref_waveform == Waveform.Square:
-            self.config.ref_RMS_factor = 1
+        elif c.ref_waveform == Waveform.Square:
+            c.ref_RMS_factor = 1
 
-        elif self.config.ref_waveform == Waveform.Triangle:
-            self.config.ref_RMS_factor = np.sqrt(3)
+        elif c.ref_waveform == Waveform.Triangle:
+            c.ref_RMS_factor = np.sqrt(3)
+
+        c.ref_V_ampl_RMS = round(c.ref_V_ampl / c.ref_RMS_factor, 3)
+        c.ref_is_clipping_HI = (c.ref_V_offset + c.ref_V_ampl) > c.A_REF
+        c.ref_is_clipping_LO = (c.ref_V_offset - c.ref_V_ampl) < 0
 
         return True
 
@@ -569,10 +581,14 @@ class Alia(Arduino_protocol_serial.Arduino):
         from the requested ones, noticably the frequency.
 
         This method will update members:
+            `config.ref_waveform`
             `config.ref_freq`
             `config.ref_V_offset`
             `config.ref_V_ampl`
-            `config.ref_waveform`
+            `config.ref_V_ampl_RMS`
+            `config.ref_RMS_factor`
+            `config.ref_is_clipping_HI`
+            `config.ref_is_clipping_LO`
             `config.N_LUT`
             `config.is_LUT_dirty`
             `config.LUT_wave`
