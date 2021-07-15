@@ -5,14 +5,30 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "14-07-2021"
+__date__ = "15-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
 import os
 import time as Time
 
-from PyQt5 import QtCore, QtGui, QtWidgets as QtWid
+from PyQt5 import QtCore, QtGui
+from PyQt5.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QGridLayout,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QRadioButton,
+    QSpacerItem,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
+)
 from PyQt5.QtCore import QDateTime
 import pyqtgraph as pg
 import numpy as np
@@ -181,7 +197,7 @@ SS_LED_RECT = (
 
 
 def create_Toggle_button(text="", minimumHeight=40):
-    button = QtWid.QPushButton(text, checkable=True)
+    button = QPushButton(text, checkable=True)
     button.setStyleSheet(SS_TOGGLE_BUTTON)
     if minimumHeight is not None:
         button.setMinimumHeight(minimumHeight)
@@ -189,7 +205,7 @@ def create_Toggle_button(text="", minimumHeight=40):
 
 
 def create_LED_indicator_rect(initial_state=False, text=""):
-    button = QtWid.QPushButton(text, checkable=True, enabled=False)
+    button = QPushButton(text, checkable=True, enabled=False)
     button.setStyleSheet(SS_LED_RECT)
     button.setChecked(initial_state)
     return button
@@ -233,9 +249,7 @@ class CustomAxis(pg.AxisItem):
         self.picture = None
 
 
-def apply_PlotItem_style(
-    pi, lbl_title="", lbl_bottom="", lbl_left="", lbl_right=""
-):
+def apply_PlotItem_style(pi, title="", bottom="", left="", right=""):
     # Note: We are not using 'title' but use label 'top' instead
 
     p_title = {
@@ -249,10 +263,10 @@ def apply_PlotItem_style(
         "font-size": "12pt",
         "font-family": "Helvetica",
     }
-    pi.setLabel("bottom", lbl_bottom, **p_label)
-    pi.setLabel("left", lbl_left, **p_label)
-    pi.setLabel("top", lbl_title, **p_title)
-    pi.setLabel("right", lbl_right, **p_label)
+    pi.setLabel("bottom", bottom, **p_label)
+    pi.setLabel("left", left, **p_label)
+    pi.setLabel("top", title, **p_title)
+    pi.setLabel("right", right, **p_label)
 
     pi.getAxis("bottom").nudge -= 8
     pi.getAxis("left").nudge -= 4
@@ -292,7 +306,7 @@ str_V_RMS = "V<sub><b>RMS</b></sub>"
 # ------------------------------------------------------------------------------
 
 
-class MainWindow(QtWid.QWidget):
+class MainWindow(QWidget):
     def __init__(self, alia: Alia, alia_qdev: Alia_qdev, parent=None, **kwargs):
         super().__init__(parent, **kwargs)
 
@@ -301,6 +315,7 @@ class MainWindow(QtWid.QWidget):
 
         self.alia = alia
         self.alia_qdev = alia_qdev
+        c = alia.config  # Short-hand
 
         self.proc = psutil.Process(os.getpid())
         self.cpu_count = psutil.cpu_count()
@@ -342,16 +357,14 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
 
         # Left box
-        self.qlbl_update_counter = QtWid.QLabel("0")
-        self.qlbl_sample_rate = QtWid.QLabel(
-            "Sample rate: {:,.0f} Hz".format(alia.config.Fs)
-        )
-        self.qlbl_CPU_syst = QtWid.QLabel("CPU system : nan%")
-        self.qlbl_CPU_proc = QtWid.QLabel("CPU process: nan%")
-        self.qlbl_DAQ_rate = QtWid.QLabel("Blocks/s: nan")
+        self.qlbl_update_counter = QLabel("0")
+        self.qlbl_sample_rate = QLabel("Sample rate: {:,.0f} Hz".format(c.Fs))
+        self.qlbl_CPU_syst = QLabel("CPU system : nan%")
+        self.qlbl_CPU_proc = QLabel("CPU process: nan%")
+        self.qlbl_DAQ_rate = QLabel("Blocks/s: nan")
         self.qlbl_DAQ_rate.setMinimumWidth(100)
 
-        vbox_left = QtWid.QVBoxLayout()
+        vbox_left = QVBoxLayout()
         vbox_left.addWidget(self.qlbl_sample_rate)
         vbox_left.addWidget(self.qlbl_CPU_syst)
         vbox_left.addWidget(self.qlbl_CPU_proc)
@@ -360,32 +373,32 @@ class MainWindow(QtWid.QWidget):
         vbox_left.addWidget(self.qlbl_update_counter)
 
         # Middle box
-        self.qlbl_title = QtWid.QLabel(
+        self.qlbl_title = QLabel(
             "Arduino lock-in amplifier",
             font=QtGui.QFont("Palatino", 14, weight=QtGui.QFont.Bold),
         )
         self.qlbl_title.setAlignment(QtCore.Qt.AlignCenter)
-        self.qlbl_cur_date_time = QtWid.QLabel("00-00-0000    00:00:00")
+        self.qlbl_cur_date_time = QLabel("00-00-0000    00:00:00")
         self.qlbl_cur_date_time.setAlignment(QtCore.Qt.AlignCenter)
         self.qpbt_record = create_Toggle_button(
             "Click to start recording to file", minimumHeight=40
         )
 
-        vbox_middle = QtWid.QVBoxLayout()
+        vbox_middle = QVBoxLayout()
         vbox_middle.addWidget(self.qlbl_title)
         vbox_middle.addWidget(self.qlbl_cur_date_time)
         vbox_middle.addWidget(self.qpbt_record)
 
         # Right box
-        self.qpbt_exit = QtWid.QPushButton("Exit")
+        self.qpbt_exit = QPushButton("Exit")
         self.qpbt_exit.clicked.connect(self.close)
         self.qpbt_exit.setMinimumHeight(30)
 
         p = {"alignment": QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter}
-        vbox_right = QtWid.QVBoxLayout()
+        vbox_right = QVBoxLayout()
         vbox_right.addWidget(self.qpbt_exit)
         vbox_right.addStretch(1)
-        self.qlbl_GitHub = QtWid.QLabel(
+        self.qlbl_GitHub = QLabel(
             '<a href="%s">GitHub source</a>' % __url__, **p
         )
         self.qlbl_GitHub.setTextFormat(QtCore.Qt.RichText)
@@ -394,11 +407,11 @@ class MainWindow(QtWid.QWidget):
         )
         self.qlbl_GitHub.setOpenExternalLinks(True)
         vbox_right.addWidget(self.qlbl_GitHub)
-        vbox_right.addWidget(QtWid.QLabel(__author__, **p))
-        vbox_right.addWidget(QtWid.QLabel(__date__, **p))
+        vbox_right.addWidget(QLabel(__author__, **p))
+        vbox_right.addWidget(QLabel(__date__, **p))
 
         # Round up frame
-        hbox_header = QtWid.QHBoxLayout()
+        hbox_header = QHBoxLayout()
         hbox_header.addLayout(vbox_left)
         hbox_header.addStretch(1)
         hbox_header.addLayout(vbox_middle)
@@ -414,14 +427,14 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
 
-        self.tabs = QtWid.QTabWidget()
-        self.tab_main = QtWid.QWidget()
-        self.tab_mixer = QtWid.QWidget()
-        self.tab_power_spectrum = QtWid.QWidget()
-        self.tab_filter_1_design = QtWid.QWidget()
-        self.tab_filter_2_design = QtWid.QWidget()
-        self.tab_diagram = QtWid.QWidget()
-        self.tab_settings = QtWid.QWidget()
+        self.tabs = QTabWidget()
+        self.tab_main = QWidget()
+        self.tab_mixer = QWidget()
+        self.tab_power_spectrum = QWidget()
+        self.tab_filter_1_design = QWidget()
+        self.tab_filter_2_design = QWidget()
+        self.tab_diagram = QWidget()
+        self.tab_settings = QWidget()
 
         # fmt: off
         self.tabs.addTab(self.tab_main           , "Main")
@@ -447,25 +460,24 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_ENA_lockin.clicked.connect(self.process_qpbt_ENA_lockin)
 
         # QGROUP: Reference signal
-        self.qcbx_ref_waveform = QtWid.QComboBox()
+        self.qcbx_ref_waveform = QComboBox()
         for waveform in Waveform:
             if waveform.value > -1:
                 self.qcbx_ref_waveform.addItem(waveform.name, waveform.value)
 
         p1 = {"maximumWidth": ex8, "minimumWidth": ex8}
         p2 = {"maximumWidth": ex10, "minimumWidth": ex10}
-        self.qlin_ref_freq = QtWid.QLineEdit(
-            "%.3f" % alia.config.ref_freq, **p2
+        self.qlin_ref_freq = QLineEdit("%.3f" % c.ref_freq, **p2)
+        self.qlin_ref_V_offset = QLineEdit("%.3f" % c.ref_V_offset, **p1)
+        self.qlin_ref_V_ampl_RMS = QLineEdit("%.3f" % c.ref_V_ampl_RMS, **p1)
+        self.qlin_ref_V_ampl = QLineEdit(
+            "%.3f" % c.ref_V_ampl, readOnly=True, **p1
         )
-        self.qlin_ref_V_offset = QtWid.QLineEdit(
-            "%.3f" % alia.config.ref_V_offset, **p1
-        )
-        self.qlin_ref_V_ampl = QtWid.QLineEdit(
-            "%.3f" % alia.config.ref_V_ampl, **p1
-        )
+        # self.qlin_ref_V_clipping = QLineEdit(readOnly=True, **p1)
 
         self.qlin_ref_freq.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_ref_V_offset.setAlignment(QtCore.Qt.AlignRight)
+        self.qlin_ref_V_ampl_RMS.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_ref_V_ampl.setAlignment(QtCore.Qt.AlignRight)
 
         self.qcbx_ref_waveform.currentIndexChanged.connect(
@@ -475,78 +487,80 @@ class MainWindow(QtWid.QWidget):
         self.qlin_ref_V_offset.editingFinished.connect(
             self.process_qlin_ref_V_offset
         )
-        self.qlin_ref_V_ampl.editingFinished.connect(
-            self.process_qlin_ref_V_ampl
+        self.qlin_ref_V_ampl_RMS.editingFinished.connect(
+            self.process_qlin_ref_V_ampl_RMS
         )
 
         # fmt: off
         p  = {"alignment": QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight}
         p2 = {"alignment": QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter}
         i = 0
-        grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(QtWid.QLabel("waveform:", **p), i, 0)
-        grid.addWidget(self.qcbx_ref_waveform        , i, 1, 1, 2); i+=1
-        grid.addWidget(QtWid.QLabel("freq:", **p)    , i, 0)
-        grid.addWidget(self.qlin_ref_freq            , i, 1)
-        grid.addWidget(QtWid.QLabel("Hz")            , i, 2); i+=1
-        grid.addWidget(QtWid.QLabel("offset:", **p)  , i, 0)
-        grid.addWidget(self.qlin_ref_V_offset        , i, 1)
-        grid.addWidget(QtWid.QLabel("V")             , i, 2); i+=1
-        grid.addWidget(QtWid.QLabel("ampl:", **p)    , i, 0)
-        grid.addWidget(self.qlin_ref_V_ampl          , i, 1)
-        grid.addWidget(QtWid.QLabel("V")             , i, 2)
+        grid = QGridLayout(spacing=4)
+        grid.addWidget(QLabel("waveform:", **p), i, 0)
+        grid.addWidget(self.qcbx_ref_waveform  , i, 1, 1, 2); i+=1
+        grid.addWidget(QLabel("freq:", **p)    , i, 0)
+        grid.addWidget(self.qlin_ref_freq      , i, 1)
+        grid.addWidget(QLabel("Hz")            , i, 2); i+=1
+        grid.addWidget(QLabel("offset:", **p)  , i, 0)
+        grid.addWidget(self.qlin_ref_V_offset  , i, 1)
+        grid.addWidget(QLabel("V")             , i, 2); i+=1
+        grid.addWidget(QLabel("ampl:", **p)    , i, 0)
+        grid.addWidget(self.qlin_ref_V_ampl_RMS, i, 1)
+        grid.addWidget(QLabel(str_V_RMS)       , i, 2); i+=1
+        grid.addWidget(self.qlin_ref_V_ampl    , i, 1)
+        grid.addWidget(QLabel("V")             , i, 2)
         # fmt: on
 
-        qgrp_refsig = QtWid.QGroupBox("Reference signal: ref_X*")
+        qgrp_refsig = QGroupBox("Reference signal: ref_X*")
         qgrp_refsig.setLayout(grid)
 
         # QGROUP: Connections
-        grid = QtWid.QGridLayout(spacing=4)
+        grid = QGridLayout(spacing=4)
         grid.addWidget(
-            QtWid.QLabel(
+            QLabel(
                 "Output: ref_X*\n"
                 "  [ 0.0, %.1f] V\n"
-                "  pin A0 wrt GND" % alia.config.A_REF,
+                "  pin A0 wrt GND" % c.A_REF,
                 font=FONT_MONOSPACE,
             ),
             0,
             0,
         )
         grid.addWidget(
-            QtWid.QLabel(
+            QLabel(
                 "Input: sig_I\n" "  [-3.3, 3.3] V\n" "  pin A1(+), A2(-)"
-                if self.alia.config.ADC_DIFFERENTIAL
+                if c.ADC_DIFFERENTIAL
                 else "Input: sig_I\n"
                 "  [ 0.0, %.1f] V\n"
-                "  pin A1 wrt GND" % alia.config.A_REF,
+                "  pin A1 wrt GND" % c.A_REF,
                 font=FONT_MONOSPACE,
             ),
             1,
             0,
         )
 
-        qgrp_connections = QtWid.QGroupBox("Analog connections")
+        qgrp_connections = QGroupBox("Analog connections")
         qgrp_connections.setLayout(grid)
 
         # QGROUP: Axes controls
-        self.qpbt_fullrange_xy = QtWid.QPushButton("Full range")
+        self.qpbt_fullrange_xy = QPushButton("Full range")
         self.qpbt_fullrange_xy.clicked.connect(self.process_qpbt_fullrange_xy)
-        self.qpbt_autorange_xy = QtWid.QPushButton("Auto range")
+        self.qpbt_autorange_xy = QPushButton("Auto range")
         self.qpbt_autorange_xy.clicked.connect(self.process_qpbt_autorange_xy)
-        self.qpbt_autorange_x = QtWid.QPushButton("Auto x", maximumWidth=80)
+        self.qpbt_autorange_x = QPushButton("Auto x", maximumWidth=80)
         self.qpbt_autorange_x.clicked.connect(self.process_qpbt_autorange_x)
-        self.qpbt_autorange_y = QtWid.QPushButton("Auto y", maximumWidth=80)
+        self.qpbt_autorange_y = QPushButton("Auto y", maximumWidth=80)
         self.qpbt_autorange_y.clicked.connect(self.process_qpbt_autorange_y)
 
         # fmt: off
-        grid = QtWid.QGridLayout(spacing=4)
+        grid = QGridLayout(spacing=4)
         grid.addWidget(self.qpbt_fullrange_xy, 0, 0, 1, 2)
         grid.addWidget(self.qpbt_autorange_xy, 2, 0, 1, 2)
         grid.addWidget(self.qpbt_autorange_x , 3, 0)
         grid.addWidget(self.qpbt_autorange_y , 3, 1)
         # fmt: on
 
-        qgrp_axes_controls = QtWid.QGroupBox("Zoom timeseries")
+        qgrp_axes_controls = QGroupBox("Zoom timeseries")
         qgrp_axes_controls.setLayout(grid)
 
         # QGROUP: Filter settled?
@@ -554,19 +568,19 @@ class MainWindow(QtWid.QWidget):
         self.LED_filt_2_settled = create_LED_indicator_rect(False, "NO")
 
         # fmt: off
-        grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(QtWid.QLabel("Filter @ sig_I")  , 0, 0)
-        grid.addWidget(self.LED_filt_1_settled         , 0, 1)
-        grid.addWidget(QtWid.QLabel("Filter @ mix_X/Y"), 1, 0)
-        grid.addWidget(self.LED_filt_2_settled         , 1, 1)
+        grid = QGridLayout(spacing=4)
+        grid.addWidget(QLabel("Filter @ sig_I")  , 0, 0)
+        grid.addWidget(self.LED_filt_1_settled   , 0, 1)
+        grid.addWidget(QLabel("Filter @ mix_X/Y"), 1, 0)
+        grid.addWidget(self.LED_filt_2_settled   , 1, 1)
         # fmt: on
 
-        qgrp_settling = QtWid.QGroupBox("Filters settled?")
+        qgrp_settling = QGroupBox("Filters settled?")
         qgrp_settling.setLayout(grid)
 
         # Round up frame
-        vbox_sidebar = QtWid.QVBoxLayout()
-        vbox_sidebar.addItem(QtWid.QSpacerItem(0, 30))
+        vbox_sidebar = QVBoxLayout()
+        vbox_sidebar.addItem(QSpacerItem(0, 30))
         vbox_sidebar.addWidget(self.qpbt_ENA_lockin, stretch=0)
         vbox_sidebar.addWidget(qgrp_refsig, stretch=0)
         vbox_sidebar.addWidget(qgrp_connections, stretch=0)
@@ -605,32 +619,28 @@ class MainWindow(QtWid.QWidget):
         self.pi_refsig = self.pw_refsig.getPlotItem()
         apply_PlotItem_style(self.pi_refsig, "Readings", "ms", "V")
         self.pi_refsig.setXRange(
-            -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
-            0,
-            padding=0,
+            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0, padding=0
         )
         self.pi_refsig.setYRange(0.0, 3.3, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
         self.pi_refsig.setLimits(
-            xMin=-(alia.config.BLOCK_SIZE + 1)
-            * alia.config.SAMPLING_PERIOD
-            * 1e3,
+            xMin=-(c.BLOCK_SIZE + 1) * c.SAMPLING_PERIOD * 1e3,
             xMax=0,
-            yMin=-3.465 if alia.config.ADC_DIFFERENTIAL else -0.165,
+            yMin=-3.465 if c.ADC_DIFFERENTIAL else -0.165,
             yMax=3.465,
         )
 
         self.hcc_ref_X = HistoryChartCurve(
-            capacity=alia.config.BLOCK_SIZE,
+            capacity=c.BLOCK_SIZE,
             linked_curve=self.pi_refsig.plot(pen=self.PEN_01, name="ref_X*"),
         )
         self.hcc_ref_Y = HistoryChartCurve(
-            capacity=alia.config.BLOCK_SIZE,
+            capacity=c.BLOCK_SIZE,
             linked_curve=self.pi_refsig.plot(pen=self.PEN_02, name="ref_Y*"),
         )
         self.hcc_sig_I = HistoryChartCurve(
-            capacity=alia.config.BLOCK_SIZE,
+            capacity=c.BLOCK_SIZE,
             linked_curve=self.pi_refsig.plot(pen=self.PEN_03, name="sig_I"),
         )
         curves = [self.hcc_ref_X, self.hcc_ref_Y, self.hcc_sig_I]
@@ -649,11 +659,11 @@ class MainWindow(QtWid.QWidget):
 
         # QGROUP: Readings
         p = {"maximumWidth": ex8, "minimumWidth": ex8, "readOnly": True}
-        self.qlin_time = QtWid.QLineEdit(readOnly=True)
-        self.qlin_sig_I_max = QtWid.QLineEdit(**p)
-        self.qlin_sig_I_min = QtWid.QLineEdit(**p)
-        self.qlin_sig_I_avg = QtWid.QLineEdit(**p)
-        self.qlin_sig_I_std = QtWid.QLineEdit(**p)
+        self.qlin_time = QLineEdit(readOnly=True)
+        self.qlin_sig_I_max = QLineEdit(**p)
+        self.qlin_sig_I_min = QLineEdit(**p)
+        self.qlin_sig_I_avg = QLineEdit(**p)
+        self.qlin_sig_I_std = QLineEdit(**p)
         self.qlin_time.setAlignment(QtCore.Qt.AlignHCenter)
         self.qlin_sig_I_max.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_sig_I_min.setAlignment(QtCore.Qt.AlignRight)
@@ -662,30 +672,30 @@ class MainWindow(QtWid.QWidget):
 
         # fmt: off
         i = 0
-        grid = QtWid.QGridLayout(spacing=4)
+        grid = QGridLayout(spacing=4)
         grid.addWidget(self.qlin_time         , i, 0, 1, 3); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 6)  , i, 0)      ; i+=1
+        grid.addItem(QSpacerItem(0, 6)        , i, 0)      ; i+=1
         grid.addLayout(self.legend_refsig.grid, i, 0, 1, 3); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 6)  , i, 0)      ; i+=1
-        grid.addWidget(QtWid.QLabel("sig_I:") , i, 0)      ; i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 4)  , i, 0)      ; i+=1
-        grid.addWidget(QtWid.QLabel("max")    , i, 0)
+        grid.addItem(QSpacerItem(0, 6)        , i, 0); i+=1
+        grid.addWidget(QLabel("sig_I:")       , i, 0); i+=1
+        grid.addItem(QSpacerItem(0, 4)        , i, 0); i+=1
+        grid.addWidget(QLabel("max")          , i, 0)
         grid.addWidget(self.qlin_sig_I_max    , i, 1)
-        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
-        grid.addWidget(QtWid.QLabel("min")    , i, 0)
+        grid.addWidget(QLabel("V")            , i, 2); i+=1
+        grid.addWidget(QLabel("min")          , i, 0)
         grid.addWidget(self.qlin_sig_I_min    , i, 1)
-        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 4)  , i, 0)      ; i+=1
-        grid.addWidget(QtWid.QLabel("avg")    , i, 0)
+        grid.addWidget(QLabel("V")            , i, 2); i+=1
+        grid.addItem(QSpacerItem(0, 4)        , i, 0); i+=1
+        grid.addWidget(QLabel("avg")          , i, 0)
         grid.addWidget(self.qlin_sig_I_avg    , i, 1)
-        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
-        grid.addWidget(QtWid.QLabel("std")    , i, 0)
+        grid.addWidget(QLabel("V")            , i, 2); i+=1
+        grid.addWidget(QLabel("std")          , i, 0)
         grid.addWidget(self.qlin_sig_I_std    , i, 1)
-        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
+        grid.addWidget(QLabel("V")            , i, 2); i+=1
         grid.setAlignment(QtCore.Qt.AlignTop)
         # fmt: on
 
-        qgrp_readings = QtWid.QGroupBox("Readings")
+        qgrp_readings = QGroupBox("Readings")
         qgrp_readings.setLayout(grid)
 
         def LIA_output():  # pylint: disable=unused-variable
@@ -723,43 +733,35 @@ class MainWindow(QtWid.QWidget):
         apply_PlotItem_style(self.pi_YT, "", "ms")
 
         self.pi_XR.setXRange(
-            -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
-            0,
-            padding=0,
+            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0, padding=0
         )
         self.pi_XR.setYRange(0, 5, padding=0.05)
         self.pi_XR.setAutoVisible(x=True, y=True)
         self.pi_XR.setClipToView(True)
         self.pi_XR.request_autorange_y = False
         self.pi_XR.setLimits(
-            xMin=-(alia.config.BLOCK_SIZE + 1)
-            * alia.config.SAMPLING_PERIOD
-            * 1e3,
+            xMin=-(c.BLOCK_SIZE + 1) * c.SAMPLING_PERIOD * 1e3,
             xMax=0,
         )
 
         self.pi_YT.setXRange(
-            -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
-            0,
-            padding=0,
+            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0, padding=0
         )
         self.pi_YT.setYRange(-90, 90, padding=0.1)
         self.pi_YT.setAutoVisible(x=True, y=True)
         self.pi_YT.setClipToView(True)
         self.pi_YT.request_autorange_y = False
         self.pi_YT.setLimits(
-            xMin=-(alia.config.BLOCK_SIZE + 1)
-            * alia.config.SAMPLING_PERIOD
-            * 1e3,
+            xMin=-(c.BLOCK_SIZE + 1) * c.SAMPLING_PERIOD * 1e3,
             xMax=0,
         )
 
         self.hcc_LIA_XR = HistoryChartCurve(
-            capacity=alia.config.BLOCK_SIZE,
+            capacity=c.BLOCK_SIZE,
             linked_curve=self.pi_XR.plot(pen=self.PEN_03, name="X/R"),
         )
         self.hcc_LIA_YT = HistoryChartCurve(
-            capacity=alia.config.BLOCK_SIZE,
+            capacity=c.BLOCK_SIZE,
             linked_curve=self.pi_YT.plot(pen=self.PEN_03, name="Y/\u0398"),
         )
         self.all_curves.extend([self.hcc_LIA_XR, self.hcc_LIA_YT])
@@ -767,15 +769,15 @@ class MainWindow(QtWid.QWidget):
         self.hcc_LIA_XR.x_axis_divisor = 1000  # From [us] to [ms]
         self.hcc_LIA_YT.x_axis_divisor = 1000  # From [us] to [ms]
 
-        self.grid_pws_XYRT = QtWid.QGridLayout(spacing=0)
+        self.grid_pws_XYRT = QGridLayout(spacing=0)
         self.grid_pws_XYRT.addWidget(self.pw_XR, 0, 0)
         self.grid_pws_XYRT.addWidget(self.pw_YT, 0, 1)
 
         # QGROUP: Show X-Y or R-Theta
-        self.qrbt_XR_X = QtWid.QRadioButton("X")
-        self.qrbt_XR_R = QtWid.QRadioButton("R", checked=True)
-        self.qrbt_YT_Y = QtWid.QRadioButton("Y")
-        self.qrbt_YT_T = QtWid.QRadioButton("\u0398", checked=True)
+        self.qrbt_XR_X = QRadioButton("X")
+        self.qrbt_XR_R = QRadioButton("R", checked=True)
+        self.qrbt_YT_Y = QRadioButton("Y")
+        self.qrbt_YT_T = QRadioButton("\u0398", checked=True)
         self.qrbt_XR_X.clicked.connect(self.process_qrbt_XR)
         self.qrbt_XR_R.clicked.connect(self.process_qrbt_XR)
         self.qrbt_YT_Y.clicked.connect(self.process_qrbt_YT)
@@ -783,31 +785,31 @@ class MainWindow(QtWid.QWidget):
         self.process_qrbt_XR()
         self.process_qrbt_YT()
 
-        vbox = QtWid.QVBoxLayout(spacing=4)
+        vbox = QVBoxLayout(spacing=4)
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.addWidget(self.qrbt_XR_X)
         vbox.addWidget(self.qrbt_XR_R)
-        qgrp_XR = QtWid.QGroupBox(flat=True)
+        qgrp_XR = QGroupBox(flat=True)
         qgrp_XR.setLayout(vbox)
 
-        vbox = QtWid.QVBoxLayout(spacing=4)
+        vbox = QVBoxLayout(spacing=4)
         vbox.setContentsMargins(0, 0, 0, 0)
         vbox.addWidget(self.qrbt_YT_Y)
         vbox.addWidget(self.qrbt_YT_T)
-        qgrp_YT = QtWid.QGroupBox(flat=True)
+        qgrp_YT = QGroupBox(flat=True)
         qgrp_YT.setLayout(vbox)
 
-        hbox = QtWid.QHBoxLayout(spacing=4)
+        hbox = QHBoxLayout(spacing=4)
         hbox.setContentsMargins(0, 0, 0, 0)
         hbox.addWidget(qgrp_XR)
         hbox.addWidget(qgrp_YT)
 
         p = {"maximumWidth": ex8, "minimumWidth": ex8, "readOnly": True}
-        self.qlin_X_avg = QtWid.QLineEdit(**p)
-        self.qlin_Y_avg = QtWid.QLineEdit(**p)
-        self.qlin_R_avg = QtWid.QLineEdit(**p)
-        self.qlin_R_avg_trms = QtWid.QLineEdit(**p)
-        self.qlin_T_avg = QtWid.QLineEdit(**p)
+        self.qlin_X_avg = QLineEdit(**p)
+        self.qlin_Y_avg = QLineEdit(**p)
+        self.qlin_R_avg = QLineEdit(**p)
+        self.qlin_R_avg_trms = QLineEdit(**p)
+        self.qlin_T_avg = QLineEdit(**p)
         self.qlin_X_avg.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_Y_avg.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_R_avg.setAlignment(QtCore.Qt.AlignRight)
@@ -816,28 +818,28 @@ class MainWindow(QtWid.QWidget):
 
         # fmt: off
         i = 0
-        grid = QtWid.QGridLayout(spacing=4)
-        grid.addLayout(hbox                      , i, 0, 1, 3); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 8)     , i, 0); i+=1
-        grid.addWidget(QtWid.QLabel("avg X")     , i, 0)
-        grid.addWidget(self.qlin_X_avg           , i, 1)
-        grid.addWidget(QtWid.QLabel(str_V_RMS)   , i, 2); i+=1
-        grid.addWidget(QtWid.QLabel("avg Y")     , i, 0)
-        grid.addWidget(self.qlin_Y_avg           , i, 1)
-        grid.addWidget(QtWid.QLabel(str_V_RMS)   , i, 2); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 8)     , i, 0); i+=1
-        grid.addWidget(QtWid.QLabel("avg R")     , i, 0)
-        grid.addWidget(self.qlin_R_avg           , i, 1)
-        grid.addWidget(QtWid.QLabel(str_V_RMS)   , i, 2); i+=1
-        grid.addWidget(self.qlin_R_avg_trms      , i, 1)
-        grid.addWidget(QtWid.QLabel("V<sub><b>TRMS</b></sub>"), i, 2); i+=1
-        grid.addWidget(QtWid.QLabel("avg \u0398"), i, 0)
-        grid.addWidget(self.qlin_T_avg           , i, 1)
-        grid.addWidget(QtWid.QLabel("\u00B0")    , i, 2)
+        grid = QGridLayout(spacing=4)
+        grid.addLayout(hbox                , i, 0, 1, 3); i+=1
+        grid.addItem(QSpacerItem(0, 8)     , i, 0); i+=1
+        grid.addWidget(QLabel("avg X")     , i, 0)
+        grid.addWidget(self.qlin_X_avg     , i, 1)
+        grid.addWidget(QLabel(str_V_RMS)   , i, 2); i+=1
+        grid.addWidget(QLabel("avg Y")     , i, 0)
+        grid.addWidget(self.qlin_Y_avg     , i, 1)
+        grid.addWidget(QLabel(str_V_RMS)   , i, 2); i+=1
+        grid.addItem(QSpacerItem(0, 8)     , i, 0); i+=1
+        grid.addWidget(QLabel("avg R")     , i, 0)
+        grid.addWidget(self.qlin_R_avg     , i, 1)
+        grid.addWidget(QLabel(str_V_RMS)   , i, 2); i+=1
+        grid.addWidget(self.qlin_R_avg_trms, i, 1)
+        grid.addWidget(QLabel("V<sub><b>TRMS</b></sub>"), i, 2); i+=1
+        grid.addWidget(QLabel("avg \u0398"), i, 0)
+        grid.addWidget(self.qlin_T_avg     , i, 1)
+        grid.addWidget(QLabel("\u00B0")    , i, 2)
         grid.setAlignment(QtCore.Qt.AlignTop)
         # fmt: on
 
-        qgrp_XRYT = QtWid.QGroupBox("X/R, Y/\u0398")
+        qgrp_XRYT = QGroupBox("X/R, Y/\u0398")
         qgrp_XRYT.setLayout(grid)
 
         # -----------------------------------
@@ -847,7 +849,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
 
         # fmt: off
-        grid = QtWid.QGridLayout(spacing=0)
+        grid = QGridLayout(spacing=0)
         grid.addWidget(qgrp_readings     , 0, 0, QtCore.Qt.AlignTop)
         grid.addWidget(self.pw_refsig    , 0, 1)
         grid.addWidget(qgrp_XRYT         , 1, 0, QtCore.Qt.AlignTop)
@@ -889,28 +891,24 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_1 = self.pw_filt_1.getPlotItem()
         apply_PlotItem_style(self.pi_filt_1, "Filter @ sig_I", "ms", "V")
         self.pi_filt_1.setXRange(
-            -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
-            0,
-            padding=0,
+            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0, padding=0
         )
         self.pi_filt_1.setYRange(-3.3, 3.3, padding=0.025)
         self.pi_filt_1.setAutoVisible(x=True, y=True)
         self.pi_filt_1.setClipToView(True)
         self.pi_filt_1.setLimits(
-            xMin=-(alia.config.BLOCK_SIZE + 1)
-            * alia.config.SAMPLING_PERIOD
-            * 1e3,
+            xMin=-(c.BLOCK_SIZE + 1) * c.SAMPLING_PERIOD * 1e3,
             xMax=0,
             yMin=-3.465,
             yMax=3.465,
         )
 
         self.hcc_filt_1_in = HistoryChartCurve(
-            capacity=alia.config.BLOCK_SIZE,
+            capacity=c.BLOCK_SIZE,
             linked_curve=self.pi_filt_1.plot(pen=self.PEN_03, name="sig_I"),
         )
         self.hcc_filt_1_out = HistoryChartCurve(
-            capacity=alia.config.BLOCK_SIZE,
+            capacity=c.BLOCK_SIZE,
             linked_curve=self.pi_filt_1.plot(pen=self.PEN_04, name="filt_I"),
         )
         curves = [self.hcc_filt_1_in, self.hcc_filt_1_out]
@@ -926,10 +924,10 @@ class MainWindow(QtWid.QWidget):
 
         # QGROUP: Filter output
         p = {"maximumWidth": ex8, "minimumWidth": ex8, "readOnly": True}
-        self.qlin_filt_I_max = QtWid.QLineEdit(**p)
-        self.qlin_filt_I_min = QtWid.QLineEdit(**p)
-        self.qlin_filt_I_avg = QtWid.QLineEdit(**p)
-        self.qlin_filt_I_std = QtWid.QLineEdit(**p)
+        self.qlin_filt_I_max = QLineEdit(**p)
+        self.qlin_filt_I_min = QLineEdit(**p)
+        self.qlin_filt_I_avg = QLineEdit(**p)
+        self.qlin_filt_I_std = QLineEdit(**p)
         self.qlin_filt_I_max.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_filt_I_min.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_filt_I_avg.setAlignment(QtCore.Qt.AlignRight)
@@ -937,28 +935,28 @@ class MainWindow(QtWid.QWidget):
 
         # fmt: off
         i = 0
-        grid = QtWid.QGridLayout(spacing=4)
+        grid = QGridLayout(spacing=4)
         grid.addLayout(self.legend_filt_1.grid, i, 0, 1, 3); i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 6)  , i, 0)      ; i+=1
-        grid.addWidget(QtWid.QLabel("filt_I:"), i, 0)      ; i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 4)  , i, 0)      ; i+=1
-        grid.addWidget(QtWid.QLabel("max")    , i, 0)
+        grid.addItem(QSpacerItem(0, 6)        , i, 0)      ; i+=1
+        grid.addWidget(QLabel("filt_I:")      , i, 0)      ; i+=1
+        grid.addItem(QSpacerItem(0, 4)        , i, 0)      ; i+=1
+        grid.addWidget(QLabel("max")          , i, 0)
         grid.addWidget(self.qlin_filt_I_max   , i, 1)
-        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
-        grid.addWidget(QtWid.QLabel("min")    , i, 0)
+        grid.addWidget(QLabel("V")            , i, 2)      ; i+=1
+        grid.addWidget(QLabel("min")          , i, 0)
         grid.addWidget(self.qlin_filt_I_min   , i, 1)
-        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
-        grid.addItem(QtWid.QSpacerItem(0, 4)  , i, 0)      ; i+=1
-        grid.addWidget(QtWid.QLabel("avg")    , i, 0)
+        grid.addWidget(QLabel("V")            , i, 2)      ; i+=1
+        grid.addItem(QSpacerItem(0, 4)        , i, 0)      ; i+=1
+        grid.addWidget(QLabel("avg")          , i, 0)
         grid.addWidget(self.qlin_filt_I_avg   , i, 1)
-        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
-        grid.addWidget(QtWid.QLabel("std")    , i, 0)
+        grid.addWidget(QLabel("V")            , i, 2)      ; i+=1
+        grid.addWidget(QLabel("std")          , i, 0)
         grid.addWidget(self.qlin_filt_I_std   , i, 1)
-        grid.addWidget(QtWid.QLabel("V")      , i, 2)      ; i+=1
+        grid.addWidget(QLabel("V")            , i, 2)      ; i+=1
         grid.setAlignment(QtCore.Qt.AlignTop)
         # fmt: on
 
-        qgrp_filt_1 = QtWid.QGroupBox("Filter @ sig_I")
+        qgrp_filt_1 = QGroupBox("Filter @ sig_I")
         qgrp_filt_1.setLayout(grid)
 
         def Mixer():  # pylint: disable=unused-variable
@@ -984,28 +982,24 @@ class MainWindow(QtWid.QWidget):
         self.pi_mixer = self.pw_mixer.getPlotItem()
         apply_PlotItem_style(self.pi_mixer, "Mixer", "ms", "V<sub>RMS</sub>")
         self.pi_mixer.setXRange(
-            -alia.config.BLOCK_SIZE * alia.config.SAMPLING_PERIOD * 1e3,
-            0,
-            padding=0,
+            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0, padding=0
         )
         self.pi_mixer.setYRange(-5, 5, padding=0.025)
         self.pi_mixer.setAutoVisible(x=True, y=True)
         self.pi_mixer.setClipToView(True)
         self.pi_mixer.setLimits(
-            xMin=-(alia.config.BLOCK_SIZE + 1)
-            * alia.config.SAMPLING_PERIOD
-            * 1e3,
+            xMin=-(c.BLOCK_SIZE + 1) * c.SAMPLING_PERIOD * 1e3,
             xMax=0,
             yMin=-5.25,
             yMax=5.25,
         )
 
         self.hcc_mix_X = HistoryChartCurve(
-            capacity=alia.config.BLOCK_SIZE,
+            capacity=c.BLOCK_SIZE,
             linked_curve=self.pi_mixer.plot(pen=self.PEN_01, name="mix_X"),
         )
         self.hcc_mix_Y = HistoryChartCurve(
-            capacity=alia.config.BLOCK_SIZE,
+            capacity=c.BLOCK_SIZE,
             linked_curve=self.pi_mixer.plot(pen=self.PEN_02, name="mix_Y"),
         )
         curves = [self.hcc_mix_X, self.hcc_mix_Y]
@@ -1020,7 +1014,7 @@ class MainWindow(QtWid.QWidget):
         self.hcc_mix_Y.x_axis_divisor = 1000  # From [us] to [ms]
 
         # QGROUP: Mixer
-        qgrp_mixer = QtWid.QGroupBox("Mixer")
+        qgrp_mixer = QGroupBox("Mixer")
         qgrp_mixer.setLayout(self.legend_mixer.grid)
 
         # -----------------------------------
@@ -1030,7 +1024,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
 
         # fmt: off
-        grid = QtWid.QGridLayout(spacing=0)
+        grid = QGridLayout(spacing=0)
         grid.addWidget(qgrp_filt_1   , 0, 0, QtCore.Qt.AlignTop)
         grid.addWidget(self.pw_filt_1, 0, 1)
         grid.addWidget(qgrp_mixer    , 1, 0, QtCore.Qt.AlignTop)
@@ -1068,12 +1062,12 @@ class MainWindow(QtWid.QWidget):
             self.pi_PS, "Power spectrum (Welch)", "Hz", "dBV<sub>RMS</sub>"
         )
         self.pi_PS.setAutoVisible(x=True, y=True)
-        self.pi_PS.setXRange(0, self.alia.config.F_Nyquist, padding=0)
+        self.pi_PS.setXRange(0, c.F_Nyquist, padding=0)
         self.pi_PS.setYRange(-165, 10, padding=0)
         self.pi_PS.setClipToView(True)
         self.pi_PS.setLimits(
             xMin=-1,
-            xMax=self.alia.config.F_Nyquist,
+            xMax=c.F_Nyquist,
             yMin=-165,
             yMax=10,
         )
@@ -1111,13 +1105,13 @@ class MainWindow(QtWid.QWidget):
 
         # QGROUP: Zoom
         # fmt: off
-        self.qpbt_PS_zoom_DC   = QtWid.QPushButton("DC")
-        self.qpbt_PS_zoom_ref  = QtWid.QPushButton("ref_freq")
-        self.qpbt_PS_zoom_2ref = QtWid.QPushButton("2x ref_freq")
-        self.qpbt_PS_zoom_s1   = QtWid.QPushButton("0 - 0.5 kHz")
-        self.qpbt_PS_zoom_s2   = QtWid.QPushButton("0 - 1 kHz")
-        self.qpbt_PS_zoom_s3   = QtWid.QPushButton("0 - 2.5 kHz")
-        self.qpbt_PS_zoom_all  = QtWid.QPushButton("Full range")
+        self.qpbt_PS_zoom_DC   = QPushButton("DC")
+        self.qpbt_PS_zoom_ref  = QPushButton("ref_freq")
+        self.qpbt_PS_zoom_2ref = QPushButton("2x ref_freq")
+        self.qpbt_PS_zoom_s1   = QPushButton("0 - 0.5 kHz")
+        self.qpbt_PS_zoom_s2   = QPushButton("0 - 1 kHz")
+        self.qpbt_PS_zoom_s3   = QPushButton("0 - 2.5 kHz")
+        self.qpbt_PS_zoom_all  = QPushButton("Full range")
         # fmt: on
 
         self.qpbt_PS_zoom_DC.clicked.connect(
@@ -1126,15 +1120,15 @@ class MainWindow(QtWid.QWidget):
         self.qpbt_PS_zoom_ref.clicked.connect(
             lambda: self.plot_zoom_x(
                 self.pi_PS,
-                alia.config.ref_freq - 10,
-                alia.config.ref_freq + 10,
+                c.ref_freq - 10,
+                c.ref_freq + 10,
             )
         )
         self.qpbt_PS_zoom_2ref.clicked.connect(
             lambda: self.plot_zoom_x(
                 self.pi_PS,
-                2 * alia.config.ref_freq - 10,
-                2 * alia.config.ref_freq + 10,
+                2 * c.ref_freq - 10,
+                2 * c.ref_freq + 10,
             )
         )
         self.qpbt_PS_zoom_s1.clicked.connect(
@@ -1147,11 +1141,11 @@ class MainWindow(QtWid.QWidget):
             lambda: self.plot_zoom_x(self.pi_PS, 0, 2500)
         )
         self.qpbt_PS_zoom_all.clicked.connect(
-            lambda: self.plot_zoom_x(self.pi_PS, 0, self.alia.config.F_Nyquist)
+            lambda: self.plot_zoom_x(self.pi_PS, 0, c.F_Nyquist)
         )
 
         # fmt: off
-        grid = QtWid.QGridLayout()
+        grid = QGridLayout()
         grid.addWidget(self.qpbt_PS_zoom_DC  , 0, 0)
         grid.addWidget(self.qpbt_PS_zoom_ref , 0, 1)
         grid.addWidget(self.qpbt_PS_zoom_2ref, 0, 2)
@@ -1161,16 +1155,16 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.qpbt_PS_zoom_all , 0, 6)
         # fmt: on
 
-        qgrp_zoom = QtWid.QGroupBox("Zoom")
+        qgrp_zoom = QGroupBox("Zoom")
         qgrp_zoom.setLayout(grid)
 
         # QGROUP: Power spectrum
-        grid = QtWid.QGridLayout(spacing=4)
-        grid.addItem(QtWid.QSpacerItem(0, 4), 0, 0)
+        grid = QGridLayout(spacing=4)
+        grid.addItem(QSpacerItem(0, 4), 0, 0)
         grid.addLayout(self.legend_PS.grid, 1, 0)
         grid.setAlignment(QtCore.Qt.AlignTop)
 
-        qgrp_PS = QtWid.QGroupBox("Pow. spectrum")
+        qgrp_PS = QGroupBox("Pow. spectrum")
         qgrp_PS.setLayout(grid)
 
         # -----------------------------------
@@ -1180,7 +1174,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
 
         # fmt: off
-        grid = QtWid.QGridLayout(spacing=0)
+        grid = QGridLayout(spacing=0)
         grid.addWidget(qgrp_PS   , 0, 0, 2, 1, QtCore.Qt.AlignTop)
         grid.addWidget(qgrp_zoom , 0, 1)
         grid.addWidget(self.pw_PS, 1, 1)
@@ -1224,7 +1218,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_1_resp.enableAutoRange("y", True)
         self.pi_filt_1_resp.setClipToView(True)
         self.pi_filt_1_resp.setLimits(
-            xMin=-1, xMax=self.alia.config.F_Nyquist, yMin=-120, yMax=20
+            xMin=-1, xMax=c.F_Nyquist, yMin=-120, yMax=20
         )
 
         if 0:  # pylint: disable=using-constant-test
@@ -1243,12 +1237,12 @@ class MainWindow(QtWid.QWidget):
         self.plot_zoom_ROI_filt_1()
 
         # QGROUP: Zoom
-        self.qpbt_filt_1_resp_zoom_DC = QtWid.QPushButton("DC")
-        self.qpbt_filt_1_resp_zoom_50 = QtWid.QPushButton("50 Hz")
-        self.qpbt_filt_1_resp_zoom_s1 = QtWid.QPushButton("0 - 200 Hz")
-        self.qpbt_filt_1_resp_zoom_s2 = QtWid.QPushButton("0 - 1 kHz")
-        self.qpbt_filt_1_resp_zoom_all = QtWid.QPushButton("Full range")
-        self.qpbt_filt_1_resp_zoom_ROI = QtWid.QPushButton("Region of interest")
+        self.qpbt_filt_1_resp_zoom_DC = QPushButton("DC")
+        self.qpbt_filt_1_resp_zoom_50 = QPushButton("50 Hz")
+        self.qpbt_filt_1_resp_zoom_s1 = QPushButton("0 - 200 Hz")
+        self.qpbt_filt_1_resp_zoom_s2 = QPushButton("0 - 1 kHz")
+        self.qpbt_filt_1_resp_zoom_all = QPushButton("Full range")
+        self.qpbt_filt_1_resp_zoom_ROI = QPushButton("Region of interest")
 
         self.qpbt_filt_1_resp_zoom_DC.clicked.connect(
             lambda: self.plot_zoom_x(self.pi_filt_1_resp, 0, 10)
@@ -1263,15 +1257,13 @@ class MainWindow(QtWid.QWidget):
             lambda: self.plot_zoom_x(self.pi_filt_1_resp, 0, 1000)
         )
         self.qpbt_filt_1_resp_zoom_all.clicked.connect(
-            lambda: self.plot_zoom_x(
-                self.pi_filt_1_resp, 0, self.alia.config.F_Nyquist
-            )
+            lambda: self.plot_zoom_x(self.pi_filt_1_resp, 0, c.F_Nyquist)
         )
         self.qpbt_filt_1_resp_zoom_ROI.clicked.connect(
             self.plot_zoom_ROI_filt_1
         )
 
-        grid = QtWid.QGridLayout()
+        grid = QGridLayout()
         grid.addWidget(self.qpbt_filt_1_resp_zoom_DC, 0, 0)
         grid.addWidget(self.qpbt_filt_1_resp_zoom_50, 0, 1)
         grid.addWidget(self.qpbt_filt_1_resp_zoom_s1, 0, 2)
@@ -1279,7 +1271,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.qpbt_filt_1_resp_zoom_all, 0, 4)
         grid.addWidget(self.qpbt_filt_1_resp_zoom_ROI, 0, 5)
 
-        qgrp_zoom = QtWid.QGroupBox("Zoom")
+        qgrp_zoom = QGroupBox("Zoom")
         qgrp_zoom.setLayout(grid)
 
         # QGROUP: Filter design
@@ -1294,7 +1286,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
 
-        grid = QtWid.QGridLayout(spacing=0)
+        grid = QGridLayout(spacing=0)
         grid.addWidget(
             self.filt_1_design_GUI.qgrp, 0, 0, 2, 1, QtCore.Qt.AlignTop
         )
@@ -1338,7 +1330,7 @@ class MainWindow(QtWid.QWidget):
         self.pi_filt_2_resp.enableAutoRange("y", True)
         self.pi_filt_2_resp.setClipToView(True)
         self.pi_filt_2_resp.setLimits(
-            xMin=-1, xMax=self.alia.config.F_Nyquist, yMin=-120, yMax=20
+            xMin=-1, xMax=c.F_Nyquist, yMin=-120, yMax=20
         )
 
         if 0:  # pylint: disable=using-constant-test
@@ -1357,12 +1349,12 @@ class MainWindow(QtWid.QWidget):
         self.plot_zoom_ROI_filt_2()
 
         # QGROUP: Zoom
-        self.qpbt_filt_2_resp_zoom_DC = QtWid.QPushButton("DC")
-        self.qpbt_filt_2_resp_zoom_50 = QtWid.QPushButton("50 Hz")
-        self.qpbt_filt_2_resp_zoom_s1 = QtWid.QPushButton("0 - 200 Hz")
-        self.qpbt_filt_2_resp_zoom_s2 = QtWid.QPushButton("0 - 1 kHz")
-        self.qpbt_filt_2_resp_zoom_all = QtWid.QPushButton("Full range")
-        self.qpbt_filt_2_resp_zoom_ROI = QtWid.QPushButton("Region of interest")
+        self.qpbt_filt_2_resp_zoom_DC = QPushButton("DC")
+        self.qpbt_filt_2_resp_zoom_50 = QPushButton("50 Hz")
+        self.qpbt_filt_2_resp_zoom_s1 = QPushButton("0 - 200 Hz")
+        self.qpbt_filt_2_resp_zoom_s2 = QPushButton("0 - 1 kHz")
+        self.qpbt_filt_2_resp_zoom_all = QPushButton("Full range")
+        self.qpbt_filt_2_resp_zoom_ROI = QPushButton("Region of interest")
 
         self.qpbt_filt_2_resp_zoom_DC.clicked.connect(
             lambda: self.plot_zoom_x(self.pi_filt_2_resp, 0, 10)
@@ -1377,15 +1369,13 @@ class MainWindow(QtWid.QWidget):
             lambda: self.plot_zoom_x(self.pi_filt_2_resp, 0, 1000)
         )
         self.qpbt_filt_2_resp_zoom_all.clicked.connect(
-            lambda: self.plot_zoom_x(
-                self.pi_filt_2_resp, 0, self.alia.config.F_Nyquist
-            )
+            lambda: self.plot_zoom_x(self.pi_filt_2_resp, 0, c.F_Nyquist)
         )
         self.qpbt_filt_2_resp_zoom_ROI.clicked.connect(
             self.plot_zoom_ROI_filt_2
         )
 
-        grid = QtWid.QGridLayout()
+        grid = QGridLayout()
         grid.addWidget(self.qpbt_filt_2_resp_zoom_DC, 0, 0)
         grid.addWidget(self.qpbt_filt_2_resp_zoom_50, 0, 1)
         grid.addWidget(self.qpbt_filt_2_resp_zoom_s1, 0, 2)
@@ -1393,7 +1383,7 @@ class MainWindow(QtWid.QWidget):
         grid.addWidget(self.qpbt_filt_2_resp_zoom_all, 0, 4)
         grid.addWidget(self.qpbt_filt_2_resp_zoom_ROI, 0, 5)
 
-        qgrp_zoom = QtWid.QGroupBox("Zoom")
+        qgrp_zoom = QGroupBox("Zoom")
         qgrp_zoom.setLayout(grid)
 
         # QGROUP: Filter design
@@ -1410,7 +1400,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
 
-        grid = QtWid.QGridLayout(spacing=0)
+        grid = QGridLayout(spacing=0)
         grid.addWidget(
             self.filt_2_design_GUI.qgrp, 0, 0, 2, 1, QtCore.Qt.AlignTop
         )
@@ -1432,7 +1422,7 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
 
         # Schematic diagram
-        qlbl = QtWid.QLabel()
+        qlbl = QLabel()
         qpix = QtGui.QPixmap("user_manual/fig_diagram.png")
         qlbl.setPixmap(qpix)
 
@@ -1442,7 +1432,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
 
-        grid = QtWid.QGridLayout(spacing=0)
+        grid = QGridLayout(spacing=0)
         grid.addWidget(qlbl, 0, 0, QtCore.Qt.AlignTop)
         grid.setColumnStretch(1, 1)
 
@@ -1459,7 +1449,7 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
 
-        self.qchk_boost_fps_graphing = QtWid.QCheckBox(
+        self.qchk_boost_fps_graphing = QCheckBox(
             "Boost graphing", checked=self.boost_fps_graphing
         )
         self.qchk_boost_fps_graphing.clicked.connect(
@@ -1467,23 +1457,23 @@ class MainWindow(QtWid.QWidget):
         )
 
         # fmt: off
-        grid = QtWid.QGridLayout(spacing=4)
+        grid = QGridLayout(spacing=4)
         grid.addWidget(self.qchk_boost_fps_graphing, 0, 0)
         grid.addWidget(
-            QtWid.QLabel(
+            QLabel(
                 "Improves the graphing framerate<br>"
                 "at the expense of a higher CPU load."
             ), 1, 0,
         )
         grid.addWidget(
-            QtWid.QLabel(
+            QLabel(
                 "Uncheck whenever you encounter<br>"
                 "dropped samples."
             ), 2, 0,
         )
         # fmt: on
 
-        qgrp = QtWid.QGroupBox("Python program")
+        qgrp = QGroupBox("Python program")
         qgrp.setLayout(grid)
 
         # -----------------------------------
@@ -1492,7 +1482,7 @@ class MainWindow(QtWid.QWidget):
         # -----------------------------------
         # -----------------------------------
 
-        grid = QtWid.QGridLayout()
+        grid = QGridLayout()
         grid.addWidget(qgrp, 0, 0, QtCore.Qt.AlignTop)
         grid.setColumnStretch(1, 1)
 
@@ -1506,14 +1496,14 @@ class MainWindow(QtWid.QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
 
-        vbox = QtWid.QVBoxLayout(self)
+        vbox = QVBoxLayout(self)
         vbox.addLayout(hbox_header)
 
-        hbox = QtWid.QHBoxLayout()
+        hbox = QHBoxLayout()
         hbox.addWidget(self.tabs, stretch=1)
         hbox.addLayout(vbox_sidebar, stretch=0)
 
-        vbox.addItem(QtWid.QSpacerItem(0, 10))
+        vbox.addItem(QSpacerItem(0, 10))
         vbox.addLayout(hbox, stretch=1)
 
         # -----------------------------------
@@ -1682,22 +1672,24 @@ class MainWindow(QtWid.QWidget):
         self.qlin_ref_V_offset.setText("%.3f" % ref_V_offset)
         if ref_V_offset != self.alia.config.ref_V_offset:
             self.alia_qdev.set_ref_V_offset(ref_V_offset)
-            QtWid.QApplication.processEvents()
+            QApplication.processEvents()
 
     @QtCore.pyqtSlot()
-    def process_qlin_ref_V_ampl(self):
+    def process_qlin_ref_V_ampl_RMS(self):
         try:
-            ref_V_ampl = float(self.qlin_ref_V_ampl.text())
+            V_RMS = float(self.qlin_ref_V_ampl_RMS.text())
         except ValueError:
-            ref_V_ampl = self.alia.config.ref_V_ampl
+            V_RMS = self.alia.config.ref_V_ampl_RMS
 
         # Clip between 0 and the analog voltage reference
-        ref_V_ampl = np.clip(ref_V_ampl, 0, self.alia.config.A_REF)
+        V_RMS = np.clip(V_RMS, 0, self.alia.config.A_REF)
 
-        self.qlin_ref_V_ampl.setText("%.3f" % ref_V_ampl)
-        if ref_V_ampl != self.alia.config.ref_V_ampl:
-            self.alia_qdev.set_ref_V_ampl(ref_V_ampl)
-            QtWid.QApplication.processEvents()
+        self.qlin_ref_V_ampl_RMS.setText("%.3f" % V_RMS)
+        if V_RMS != self.alia.config.ref_V_ampl_RMS:
+            self.alia_qdev.set_ref_V_ampl(
+                V_RMS * self.alia.config.ref_RMS_factor
+            )
+            QApplication.processEvents()
 
     @QtCore.pyqtSlot(int)
     def process_qcbx_ref_waveform(self, value: int):
@@ -1748,6 +1740,9 @@ class MainWindow(QtWid.QWidget):
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_ampl(self):
         self.qlin_ref_V_ampl.setText("%.3f" % self.alia.config.ref_V_ampl)
+        self.qlin_ref_V_ampl_RMS.setText(
+            "%.3f" % self.alia.config.ref_V_ampl_RMS
+        )
 
         self.alia_qdev.state.reset()
         self.clear_curves_stage_1_and_2()
@@ -1956,7 +1951,7 @@ class MainWindow(QtWid.QWidget):
         )
         self.pi_filt_1_resp.enableAutoRange("y", True)
         self.pi_filt_1_resp.enableAutoRange("y", False)
-        QtWid.QApplication.processEvents()
+        QApplication.processEvents()
         self.setUpdatesEnabled(True)
 
     @QtCore.pyqtSlot()
@@ -1970,7 +1965,7 @@ class MainWindow(QtWid.QWidget):
         )
         self.pi_filt_2_resp.enableAutoRange("y", True)
         self.pi_filt_2_resp.enableAutoRange("y", False)
-        QtWid.QApplication.processEvents()
+        QApplication.processEvents()
         self.setUpdatesEnabled(True)
 
     def plot_zoom_x(self, pi_plot: pg.PlotItem, xRangeLo, xRangeHi):
@@ -1978,7 +1973,7 @@ class MainWindow(QtWid.QWidget):
         pi_plot.setXRange(xRangeLo, xRangeHi, padding=0.02)
         pi_plot.enableAutoRange("y", True)
         pi_plot.enableAutoRange("y", False)
-        QtWid.QApplication.processEvents()
+        QApplication.processEvents()
         self.setUpdatesEnabled(True)
 
     @QtCore.pyqtSlot()
