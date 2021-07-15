@@ -291,7 +291,7 @@ def lockin_DAQ_update():
     state.R_avg = np.mean(state.R)
     state.T_avg = np.mean(state.T)
 
-    # Additionally calculate `R` in units of [V_trms]
+    # Additionally calculate the TRUE RMS value of `R`
     # NOTE: Don't calculate the rms value based on `np.std(state.sig_I)`
     # because the sample size is too small, namely of length
     # 'block_size'. This could cause the rescaled `R` value in units of
