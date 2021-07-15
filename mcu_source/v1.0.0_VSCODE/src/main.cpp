@@ -2,17 +2,21 @@
   Arduino lock-in amplifier
 
   Pins:
-    A0: Output reference signal `ref_X`, single-ended with respect to GND
+    - A0: Output reference signal `ref_X`, single-ended with respect to GND
 
     When `ADC_DIFFERENTIAL` = 0
     ------------------------------------------
-    A1: Input signal `sig_I`, single-ended with respect to GND
-    A2: Not used
+    - A1: Input signal `sig_I`, single-ended with respect to GND
+    - A2: Not used
 
     When `ADC_DIFFERENTIAL` = 1
     ------------------------------------------
-    A1: Input signal `sig_I`, differential(+)
-    A2: Input signal `sig_I`, differential(-)
+    - A1: Input signal `sig_I`, differential(+)
+    - A2: Input signal `sig_I`, differential(-)
+
+    - D12: A digital trigger-out signal that is in sync with every full period
+    of the output reference waveform, useful for connecting up to an
+    oscilloscope.
 
 
   Boards                     | MCU        | test | #define
@@ -40,7 +44,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  12-07-2021
+  15-07-2021
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -74,6 +78,11 @@
 // Use built-in LED to signal running state of lock-in amp
 static __inline__ void LED_off() __attribute__((always_inline, unused));
 static __inline__ void LED_on() __attribute__((always_inline, unused));
+
+// Digital trigger-out
+#define PIN_TRIG_OUT 12
+EPortType PORT_TRIG_OUT = g_APinDescription[PIN_TRIG_OUT].ulPort;
+uint32_t MASK_TRIG_OUT = (1ul << g_APinDescription[PIN_TRIG_OUT].ulPin);
 
 // clang-format off
 #ifdef ADAFRUIT_FEATHER_M4_EXPRESS
@@ -296,6 +305,11 @@ void compute_LUT(uint16_t *LUT_array) {
   double norm_ampl = ref_ampl / A_REF; // Normalized
   double wave;
 
+  // Clear all waveform data for ease of debugging
+  for (int16_t i = 0; i < MAX_N_LUT; i++) {
+    LUT_array[i] = 0;
+  }
+
   // Generate normalized waveform periods in the range [0, 1]
   for (int16_t i = 0; i < N_LUT; i++) {
     float j = i % N_LUT;
@@ -371,6 +385,22 @@ void get_mcu_uid(char mcu_uid_out[33]) {
     sprintf(&mcu_uid_out[2 * j], "%02X", raw_uid[j]);
   }
   mcu_uid_out[32] = 0;
+}
+
+/*------------------------------------------------------------------------------
+  digitalWriteFast
+------------------------------------------------------------------------------*/
+
+void digitalWriteFast(EPortType port, uint32_t pinMask, uint32_t ulVal) {
+  switch (ulVal) {
+    case LOW:
+      PORT->Group[port].OUTCLR.reg = pinMask;
+      break;
+
+    default:
+      PORT->Group[port].OUTSET.reg = pinMask;
+      break;
+  }
 }
 
 /*------------------------------------------------------------------------------
@@ -517,6 +547,13 @@ void isr_psd() {
 #endif
   }
 
+  // Trigger out
+  if (LUT_idx == 0) {
+    digitalWriteFast(PORT_TRIG_OUT, MASK_TRIG_OUT, HIGH);
+  } else if (LUT_idx == 1) {
+    digitalWriteFast(PORT_TRIG_OUT, MASK_TRIG_OUT, LOW);
+  }
+
   // Output reference signal
   // We don't have to worry about syncing, because the ISR is slow enough for
   // the DAC output to get effective every ISR call
@@ -598,6 +635,10 @@ void setup() {
   pinMode(PIN_LED, OUTPUT);
 #endif
   LED_off();
+
+  // Trigger out
+  pinMode(PIN_TRIG_OUT, OUTPUT);
+  digitalWrite(PIN_TRIG_OUT, LOW);
 
   // Prepare SOM and EOM
   noInterrupts();
@@ -1010,16 +1051,27 @@ void loop() {
         } else if (strcmp(str_cmd, "lut?") == 0 || strcmp(str_cmd, "l?") == 0) {
           // Report the LUT as a binary stream. The reported LUT will start at
           // phase = 0 deg.
+          static uint8_t buffer[MAX_N_LUT + 3] = {0};
+
+          buffer[0] = N_LUT;
+          buffer[1] = N_LUT >> 8;
+          buffer[2] = is_LUT_dirty;
+          memcpy(&buffer[3], LUT_wave, N_LUT * 2);
+          Ser_data.write((uint8_t *)buffer, N_LUT * 2 + 3);
+
+          /*
+          // Old code before using `buffer[]`:
           Ser_data.write((uint8_t *)&N_LUT, 2);
           Ser_data.write((uint8_t *)&is_LUT_dirty, 1);
           Ser_data.write((uint8_t *)LUT_wave, N_LUT * 2);
 
           // WORK-AROUND for strange bug when ref_freq is set to 130 Hz.
-          // I suspect a byte of the LUT_wave array to cause havoc in the
+          // I suspect a byte of the `LUT_wave` array to cause havoc in the
           // serial stream, making it suspend?! Sending an ASCII character seems
           // to fix it.
           Ser_data << " ";
           Ser_data.flush();
+          */
 
         } else if (strcmp(str_cmd, "lut_ascii?") == 0 ||
                    strcmp(str_cmd, "la?") == 0) {
