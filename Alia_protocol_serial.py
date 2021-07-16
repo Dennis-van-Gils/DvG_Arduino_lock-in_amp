@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "15-07-2021"
+__date__ = "16-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -158,16 +158,17 @@ class Alia(Arduino_protocol_serial.Arduino):
 
     def begin(
         self,
+        waveform: Optional[Waveform] = None,
         freq: Optional[float] = None,
         V_offset: Optional[float] = None,
         V_ampl: Optional[float] = None,
-        waveform: Optional[Waveform] = None,
+        V_ampl_RMS: Optional[float] = None,
     ) -> bool:
         """Determine the chipset and firmware of the Arduino lock-in amp and
         prepare the lock-in amp for operation. The default startup state is
-        off. If the optional parameters `freq`, `V_offset`, `V_ampl` or
-        `ref_waveform` are not passed, the pre-existing values known to the
-        Arduino will be used instead, i.e. it will pick up where it left.
+        off. The optional parameters can be used to set the reference signal and
+        when not supplied, the pre-existing values known to the Arduino will be
+        used instead, i.e. it will pick up where it left.
 
         Returns:
             True if successful, False otherwise.
@@ -303,7 +304,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             fancy("min N_LUT", c.MIN_N_LUT, "{:>12d}", "samples")
             fancy("max N_LUT", c.MAX_N_LUT, "{:>12d}", "samples")
 
-        self.set_ref(freq, V_offset, V_ampl, waveform)
+        self.set_ref(waveform, freq, V_offset, V_ampl, V_ampl_RMS)
 
         print("┌─────────────────────────┐")
         print("│     All systems GO!     │")
@@ -536,11 +537,14 @@ class Alia(Arduino_protocol_serial.Arduino):
                     c.ref_V_offset = float(ans_list[1])
                     c.ref_V_ampl   = float(ans_list[2])
                 else:
-                    c.ref_freq     = float(ans_list[0])
-                    c.ref_V_offset = float(ans_list[1])
-                    c.ref_V_ampl   = float(ans_list[2])
-                    c.ref_waveform = Waveform[ans_list[3]]
-                    c.N_LUT        = int(ans_list[4])
+                    c.ref_waveform       = Waveform[ans_list[0]]
+                    c.ref_freq           = float(ans_list[1])
+                    c.ref_V_offset       = float(ans_list[2])
+                    c.ref_V_ampl         = float(ans_list[3])
+                    c.ref_V_ampl_RMS     = float(ans_list[4])
+                    c.ref_is_clipping_HI = bool(int(ans_list[5]))
+                    c.ref_is_clipping_LO = bool(int(ans_list[6]))
+                    c.N_LUT              = int(ans_list[7])
                 # fmt: on
             except Exception as err:
                 pft(err)
@@ -557,10 +561,6 @@ class Alia(Arduino_protocol_serial.Arduino):
         elif c.ref_waveform == Waveform.Triangle:
             c.ref_RMS_factor = np.sqrt(3)
 
-        c.ref_V_ampl_RMS = round(c.ref_V_ampl / c.ref_RMS_factor, 3)
-        c.ref_is_clipping_HI = (c.ref_V_offset + c.ref_V_ampl) > c.A_REF
-        c.ref_is_clipping_LO = (c.ref_V_offset - c.ref_V_ampl) < 0
-
         return True
 
     # --------------------------------------------------------------------------
@@ -569,10 +569,11 @@ class Alia(Arduino_protocol_serial.Arduino):
 
     def set_ref(
         self,
+        waveform: Optional[Waveform] = None,
         freq: Optional[float] = None,
         V_offset: Optional[float] = None,
         V_ampl: Optional[float] = None,
-        waveform: Optional[Waveform] = None,
+        V_ampl_RMS: Optional[float] = None,
     ) -> bool:
         """Request new parameters to be set of the output reference signal
         `ref_X` at the Arduino. The Arduino will compute the new LUT, based on
@@ -594,6 +595,10 @@ class Alia(Arduino_protocol_serial.Arduino):
             `config.LUT_wave`
 
         Args:
+            waveform (Waveform):
+                Enumeration decoding a waveform type, like cosine, square or
+                triangle wave.
+
             freq (float):
                 The requested frequency in Hz.
 
@@ -603,9 +608,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             V_ampl (float):
                 The requested voltage amplitude in V.
 
-            waveform (Waveform):
-                Enumeration decoding a waveform type, like cosine, square or
-                triangle wave.
+            V_ampl_RMS (float):
+                The requested voltage amplitude in V_RMS.
 
         Returns:
             True if successful, False otherwise.
@@ -613,6 +617,11 @@ class Alia(Arduino_protocol_serial.Arduino):
         was_paused = self.lockin_paused
         if not was_paused:
             self.turn_off()
+
+        if waveform is not None:
+            success, _ans_str = self.query("_wave %i" % waveform.value)
+            if not success:
+                return False
 
         if freq is not None:
             success, _ans_str = self.query("_freq %f" % freq)
@@ -629,16 +638,16 @@ class Alia(Arduino_protocol_serial.Arduino):
             if not success:
                 return False
 
+        if V_ampl_RMS is not None:
+            success, _ans_str = self.query("_vrms %f" % V_ampl_RMS)
+            if not success:
+                return False
+
         if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
             # Legacy
             if not self.query_ref():
                 return False
         else:
-            if waveform is not None:
-                success, _ans_str = self.query("_wave %i" % waveform.value)
-                if not success:
-                    return False
-
             if (
                 not self.compute_LUT()
                 or not self.query_LUT()
@@ -649,36 +658,39 @@ class Alia(Arduino_protocol_serial.Arduino):
         if not was_paused:
             self.turn_on()
 
-        # fmt: off
+        def pprint(str_name, val_req, val_obt, str_unit="", str_format="s"):
+            line = "  {:>8s}".format(str_name)
+            line += (
+                "  {:>9s}".format("-")
+                if val_req is None
+                else "  {:>9{p}}".format(val_req, p=str_format)
+            )
+            line += "  {:>9{p}}".format(val_obt, p=str_format)
+            line += "  " + str_unit
+            print(line)
+
+        c = self.config  # Short-hand
         print("\nReference signal `ref_X*`")
         print("─────────────────────────\n")
-        print("            requested   obtained")
-        if waveform is not None:
-            print("  waveform  {:>9s}  {:>9s}"
-                .format(waveform.name, self.config.ref_waveform.name))
-        else:
-            print("  waveform  {:>9s}  {:>9s}"
-                .format("-", self.config.ref_waveform.name))
-        if freq is not None:
-            print("      freq  {:>9,.2f}  {:>9,.2f}  Hz"
-                .format(freq, self.config.ref_freq))
-        else:
-            print("      freq  {:>9s}  {:>9,.2f}  Hz"
-                .format("-", self.config.ref_freq))
-        if V_offset is not None:
-            print("    offset  {:>9,.3f}  {:>9,.3f}  V"
-                .format(V_offset, self.config.ref_V_offset))
-        else:
-            print("    offset  {:>9s}  {:>9,.3f}  V"
-                .format("-", self.config.ref_V_offset))
-        if V_ampl is not None:
-            print("      ampl  {:>9,.3f}  {:>9,.3f}  V"
-                .format(V_ampl, self.config.ref_V_ampl))
-        else:
-            print("      ampl  {:>9s}  {:>9,.3f}  V"
-                .format("-", self.config.ref_V_ampl))
-        print("     N_LUT  {:>9s}  {:>9d}\n".format("-", self.config.N_LUT))
-        # fmt: on
+        print("            REQUESTED   OBTAINED")
+        pprint(
+            "waveform",
+            None if waveform is None else waveform.name,
+            c.ref_waveform.name,
+        )
+        pprint("freq", freq, c.ref_freq, "Hz", ",.3f")
+        pprint("offset", V_offset, c.ref_V_offset, "V", ".3f")
+        pprint("ampl", V_ampl_RMS, c.ref_V_ampl_RMS, "V_RMS", ".3f")
+        pprint("", V_ampl, c.ref_V_ampl, "V", ".3f")
+        pprint("N_LUT", None, c.N_LUT, "", "d")
+        print()
+
+        if c.ref_is_clipping_HI:
+            print("             !! Clipping HI !!")
+        if c.ref_is_clipping_LO:
+            print("             !! Clipping LO !!")
+        if c.ref_is_clipping_HI or c.ref_is_clipping_LO:
+            print()
 
         return True
 
@@ -940,8 +952,8 @@ class Alia(Arduino_protocol_serial.Arduino):
 
             lut_X = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_X
             lut_Y = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_Y
-            lut_X.clip(0, c.A_REF)
-            lut_Y.clip(0, c.A_REF)
+            lut_X.clip(0, c.A_REF, out=lut_X)
+            lut_Y.clip(0, c.A_REF, out=lut_Y)
 
             ref_X_tiled = np.tile(lut_X, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
             ref_Y_tiled = np.tile(lut_Y, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))

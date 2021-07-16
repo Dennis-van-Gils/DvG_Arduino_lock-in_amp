@@ -19,6 +19,8 @@ PYTHON
   `SSD practicum` firmware) and notify the user to flash to the
   latest firmware first in order to continue the main Python program.
 
+* `Alia_protocol_serial.py` should use numpy ufuncs in `listen_to_lockin_amp()`
+
 
 FIRMWARE
 

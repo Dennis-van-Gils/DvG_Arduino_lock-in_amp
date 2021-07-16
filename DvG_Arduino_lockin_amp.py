@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "14-07-2021"
+__date__ = "16-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -447,10 +447,10 @@ if __name__ == "__main__":
         alia.tick = Time.perf_counter()
 
     alia.begin(
+        waveform=Waveform.Cosine,
         freq=250,
         V_offset=1.6,
-        V_ampl=1.414,
-        waveform=Waveform.Cosine,
+        V_ampl_RMS=0.5,
     )
 
     # Create workers and threads

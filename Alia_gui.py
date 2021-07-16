@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "15-07-2021"
+__date__ = "16-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -464,6 +464,7 @@ class MainWindow(QWidget):
         for waveform in Waveform:
             if waveform.value > -1:
                 self.qcbx_ref_waveform.addItem(waveform.name, waveform.value)
+        self.qcbx_ref_waveform.setCurrentIndex(c.ref_waveform.value)
 
         p1 = {"maximumWidth": ex8, "minimumWidth": ex8}
         p2 = {"maximumWidth": ex10, "minimumWidth": ex10}
@@ -473,12 +474,13 @@ class MainWindow(QWidget):
         self.qlin_ref_V_ampl = QLineEdit(
             "%.3f" % c.ref_V_ampl, readOnly=True, **p1
         )
-        # self.qlin_ref_V_clipping = QLineEdit(readOnly=True, **p1)
+        self.qlbl_ref_is_clipping = QLabel(self.get_clipping_text())
 
         self.qlin_ref_freq.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_ref_V_offset.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_ref_V_ampl_RMS.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_ref_V_ampl.setAlignment(QtCore.Qt.AlignRight)
+        self.qlbl_ref_is_clipping.setAlignment(QtCore.Qt.AlignCenter)
 
         self.qcbx_ref_waveform.currentIndexChanged.connect(
             self.process_qcbx_ref_waveform
@@ -496,19 +498,21 @@ class MainWindow(QWidget):
         p2 = {"alignment": QtCore.Qt.AlignVCenter | QtCore.Qt.AlignHCenter}
         i = 0
         grid = QGridLayout(spacing=4)
-        grid.addWidget(QLabel("waveform:", **p), i, 0)
-        grid.addWidget(self.qcbx_ref_waveform  , i, 1, 1, 2); i+=1
-        grid.addWidget(QLabel("freq:", **p)    , i, 0)
-        grid.addWidget(self.qlin_ref_freq      , i, 1)
-        grid.addWidget(QLabel("Hz")            , i, 2); i+=1
-        grid.addWidget(QLabel("offset:", **p)  , i, 0)
-        grid.addWidget(self.qlin_ref_V_offset  , i, 1)
-        grid.addWidget(QLabel("V")             , i, 2); i+=1
-        grid.addWidget(QLabel("ampl:", **p)    , i, 0)
-        grid.addWidget(self.qlin_ref_V_ampl_RMS, i, 1)
-        grid.addWidget(QLabel(str_V_RMS)       , i, 2); i+=1
-        grid.addWidget(self.qlin_ref_V_ampl    , i, 1)
-        grid.addWidget(QLabel("V")             , i, 2)
+        grid.addWidget(QLabel("waveform:", **p) , i, 0)
+        grid.addWidget(self.qcbx_ref_waveform   , i, 1, 1, 2); i+=1
+        grid.addWidget(QLabel("freq:", **p)     , i, 0)
+        grid.addWidget(self.qlin_ref_freq       , i, 1)
+        grid.addWidget(QLabel("Hz")             , i, 2); i+=1
+        grid.addWidget(QLabel("offset:", **p)   , i, 0)
+        grid.addWidget(self.qlin_ref_V_offset   , i, 1)
+        grid.addWidget(QLabel("V")              , i, 2); i+=1
+        grid.addWidget(QLabel("ampl:", **p)     , i, 0)
+        grid.addWidget(self.qlin_ref_V_ampl_RMS , i, 1)
+        grid.addWidget(QLabel(str_V_RMS)        , i, 2); i+=1
+        grid.addWidget(self.qlin_ref_V_ampl     , i, 1)
+        grid.addWidget(QLabel("V")              , i, 2); i+=1
+        grid.addWidget(QLabel("clipping?", **p) , i, 0)
+        grid.addWidget(self.qlbl_ref_is_clipping, i, 1, 1, 2)
         # fmt: on
 
         qgrp_refsig = QGroupBox("Reference signal: ref_X*")
@@ -1645,15 +1649,18 @@ class MainWindow(QWidget):
             self.alia_qdev.turn_off()
             self.qpbt_ENA_lockin.setText("Lock-in OFF")
 
+    @QtCore.pyqtSlot(int)
+    def process_qcbx_ref_waveform(self, value: int):
+        ref_waveform = Waveform(value)
+        if ref_waveform != self.alia.config.ref_waveform:
+            self.alia_qdev.set_ref_waveform(ref_waveform)
+
     @QtCore.pyqtSlot()
     def process_qlin_ref_freq(self):
         try:
-            ref_freq = float(self.qlin_ref_freq.text())
+            ref_freq = round(float(self.qlin_ref_freq.text()), 3)
         except ValueError:
             ref_freq = self.alia.config.ref_freq
-
-        # Clip between 0 and half the Nyquist frequency
-        ref_freq = np.clip(ref_freq, 0, self.alia.config.F_Nyquist / 2)
 
         self.qlin_ref_freq.setText("%.3f" % ref_freq)
         if ref_freq != self.alia.config.ref_freq:
@@ -1662,55 +1669,46 @@ class MainWindow(QWidget):
     @QtCore.pyqtSlot()
     def process_qlin_ref_V_offset(self):
         try:
-            ref_V_offset = float(self.qlin_ref_V_offset.text())
+            ref_V_offset = round(float(self.qlin_ref_V_offset.text()), 3)
         except ValueError:
             ref_V_offset = self.alia.config.ref_V_offset
-
-        # Clip between 0 and the analog voltage reference
-        ref_V_offset = np.clip(ref_V_offset, 0, self.alia.config.A_REF)
 
         self.qlin_ref_V_offset.setText("%.3f" % ref_V_offset)
         if ref_V_offset != self.alia.config.ref_V_offset:
             self.alia_qdev.set_ref_V_offset(ref_V_offset)
-            QApplication.processEvents()
 
     @QtCore.pyqtSlot()
     def process_qlin_ref_V_ampl_RMS(self):
         try:
-            V_RMS = float(self.qlin_ref_V_ampl_RMS.text())
+            ref_V_ampl_RMS = round(float(self.qlin_ref_V_ampl_RMS.text()), 3)
         except ValueError:
-            V_RMS = self.alia.config.ref_V_ampl_RMS
+            ref_V_ampl_RMS = self.alia.config.ref_V_ampl_RMS
 
-        # Clip between 0 and the analog voltage reference
-        V_RMS = np.clip(V_RMS, 0, self.alia.config.A_REF)
+        self.qlin_ref_V_ampl_RMS.setText("%.3f" % ref_V_ampl_RMS)
+        if ref_V_ampl_RMS != self.alia.config.ref_V_ampl_RMS:
+            self.alia_qdev.set_ref_V_ampl_RMS(ref_V_ampl_RMS)
 
-        self.qlin_ref_V_ampl_RMS.setText("%.3f" % V_RMS)
-        if V_RMS != self.alia.config.ref_V_ampl_RMS:
-            self.alia_qdev.set_ref_V_ampl(
-                V_RMS * self.alia.config.ref_RMS_factor
-            )
-            QApplication.processEvents()
+    @QtCore.pyqtSlot()
+    def update_newly_set_ref_waveform(self):
+        self.qcbx_ref_waveform.setCurrentIndex(
+            self.alia.config.ref_waveform.value
+        )
+        self.qlin_ref_V_ampl.setText("%.3f" % self.alia.config.ref_V_ampl)
+        self.qlbl_ref_is_clipping.setText(self.get_clipping_text())
+        QApplication.processEvents()
 
-    @QtCore.pyqtSlot(int)
-    def process_qcbx_ref_waveform(self, value: int):
-        try:
-            ref_waveform = Waveform(value)
-        except ValueError:
-            ref_waveform = self.alia.config.ref_waveform
-
-        if ref_waveform != self.alia.config.ref_waveform:
-            self.alia_qdev.set_ref_waveform(ref_waveform)
+        self.alia_qdev.state.reset()
+        self.clear_curves_stage_1_and_2()
 
     @QtCore.pyqtSlot()
     def update_newly_set_ref_freq(self):
         self.qlin_ref_freq.setText("%.3f" % self.alia.config.ref_freq)
+        QApplication.processEvents()
 
-        # """
         # TODO: the extra distance 'roll_off_width' to stay away from
         # f_cutoff should be calculated based on the roll-off width of the
         # filter, instead of hard-coded
-        roll_off_width = 5
-        # [Hz]
+        roll_off_width = 5  # [Hz]
         f_cutoff = 2 * self.alia.config.ref_freq - roll_off_width
         if f_cutoff > self.alia.config.F_Nyquist - roll_off_width:
             print("WARNING: Filter @ mix_X/Y can't reach desired cut-off freq.")
@@ -1725,7 +1723,6 @@ class MainWindow(QWidget):
         self.filt_2_design_GUI.update_filter_design()
         self.update_plot_filt_2_resp()
         self.plot_zoom_ROI_filt_2()
-        # """
 
         self.alia_qdev.state.reset()
         self.clear_curves_stage_1_and_2()
@@ -1733,24 +1730,37 @@ class MainWindow(QWidget):
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_offset(self):
         self.qlin_ref_V_offset.setText("%.3f" % self.alia.config.ref_V_offset)
+        self.qlbl_ref_is_clipping.setText(self.get_clipping_text())
+        QApplication.processEvents()
 
         self.alia_qdev.state.reset()
         self.clear_curves_stage_1_and_2()
 
     @QtCore.pyqtSlot()
     def update_newly_set_ref_V_ampl(self):
-        self.qlin_ref_V_ampl.setText("%.3f" % self.alia.config.ref_V_ampl)
+        """Applies to both newly set V_ampl and V_ampl_RMS"""
         self.qlin_ref_V_ampl_RMS.setText(
             "%.3f" % self.alia.config.ref_V_ampl_RMS
         )
+        self.qlin_ref_V_ampl.setText("%.3f" % self.alia.config.ref_V_ampl)
+        self.qlbl_ref_is_clipping.setText(self.get_clipping_text())
+        QApplication.processEvents()
 
         self.alia_qdev.state.reset()
         self.clear_curves_stage_1_and_2()
 
-    @QtCore.pyqtSlot()
-    def update_newly_set_ref_waveform(self):
-        self.alia_qdev.state.reset()
-        self.clear_curves_stage_1_and_2()
+    def get_clipping_text(self) -> str:
+        if (
+            self.alia.config.ref_is_clipping_HI
+            and self.alia.config.ref_is_clipping_LO
+        ):
+            return "!! HIGH & LOW !!"
+        elif self.alia.config.ref_is_clipping_HI:
+            return "!! HIGH !!"
+        elif self.alia.config.ref_is_clipping_LO:
+            return "!! LOW !!"
+        else:
+            return ""
 
     @QtCore.pyqtSlot()
     def process_qpbt_fullrange_xy(self):

@@ -44,7 +44,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  15-07-2021
+  16-07-2021
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -264,10 +264,14 @@ DvG_SerialCommand sc_data(Ser_data);
 */
 
 // Output reference signal `ref_X` parameters
-enum WAVEFORM_ENUM ref_waveform = Cosine;
-double ref_freq; // [Hz] Obtained frequency of reference signal
-double ref_offs; // [V]  Obtained voltage offset of reference signal
-double ref_ampl; // [V]  Voltage amplitude reference signal
+enum WAVEFORM_ENUM ref_waveform;
+double ref_freq;         // [Hz]    Obtained frequency of reference signal
+double ref_offs;         // [V]     Voltage offset of reference signal
+double ref_ampl;         // [V]     Voltage amplitude reference signal
+double ref_VRMS;         // [V_RMS] Voltage amplitude reference signal
+double ref_RMS_factor;   // RMS factor belonging to chosen waveform
+bool ref_is_clipping_HI; // Output reference signal is clipping high?
+bool ref_is_clipping_LO; // Output reference signal is clipping low?
 
 // Look-up table (LUT) for fast DAC
 #define MIN_N_LUT 20   // Min. allowed number of samples for one full period
@@ -280,24 +284,59 @@ bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
 #define A_REF 3.300 // [V] Analog voltage reference Arduino
 #define MAX_DAC_OUTPUT_BITVAL ((uint16_t)(pow(2, DAC_OUTPUT_BITS) - 1))
 
-void parse_freq(const char *str_value) {
-  ref_freq = atof(str_value);
-  N_LUT = (uint16_t)round(SAMPLING_RATE_Hz / ref_freq);
+void set_wave(int value) {
+  /* Set the waveform type, keeping `ref_VRMS` constant and changing `ref_ampl`
+  according to the new waveform */
+  is_LUT_dirty = true;
+  value = max(value, 0);
+  value = min(value, END_WAVEFORM_ENUM - 1);
+  ref_waveform = static_cast<WAVEFORM_ENUM>(value);
+
+  switch (ref_waveform) {
+    default:
+    case Cosine:
+      ref_RMS_factor = sqrt(2);
+      break;
+
+    case Square:
+      ref_RMS_factor = 1.;
+      break;
+
+    case Triangle:
+      ref_RMS_factor = sqrt(3);
+      break;
+  }
+
+  ref_ampl = ref_VRMS * ref_RMS_factor;
+}
+
+void set_freq(double value) {
+  is_LUT_dirty = true;
+  N_LUT = (uint16_t)round(SAMPLING_RATE_Hz / value);
   N_LUT = max(N_LUT, MIN_N_LUT);
   N_LUT = min(N_LUT, MAX_N_LUT);
   ref_freq = SAMPLING_RATE_Hz / N_LUT;
 }
 
-void parse_offs(const char *str_value) {
-  ref_offs = atof(str_value);
-  ref_offs = max(ref_offs, 0.0);
-  ref_offs = min(ref_offs, A_REF);
+void set_offs(double value) {
+  is_LUT_dirty = true;
+  ref_offs = max(value, 0.0);
+  // ref_offs = min(ref_offs, A_REF);
 }
 
-void parse_ampl(const char *str_value) {
-  ref_ampl = atof(str_value);
-  ref_ampl = max(ref_ampl, 0.0);
-  ref_ampl = min(ref_ampl, A_REF);
+void set_ampl(double value) {
+  is_LUT_dirty = true;
+  ref_ampl = max(value, 0.0);
+  // ref_ampl = min(ref_ampl, A_REF);
+  ref_VRMS = ref_ampl / ref_RMS_factor;
+}
+
+void set_VRMS(double value) {
+  is_LUT_dirty = true;
+  ref_VRMS = max(value, 0.0);
+  ref_ampl = ref_VRMS * ref_RMS_factor;
+  // ref_ampl = min(ref_ampl, A_REF);
+  // ref_VRMS = ref_ampl / ref_RMS_factor;
 }
 
 void compute_LUT(uint16_t *LUT_array) {
@@ -311,6 +350,9 @@ void compute_LUT(uint16_t *LUT_array) {
   }
 
   // Generate normalized waveform periods in the range [0, 1]
+  ref_is_clipping_HI = false;
+  ref_is_clipping_LO = false;
+
   for (int16_t i = 0; i < N_LUT; i++) {
     float j = i % N_LUT;
 
@@ -335,8 +377,15 @@ void compute_LUT(uint16_t *LUT_array) {
     }
 
     wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
-    wave = max(wave, 0.0);
-    wave = min(wave, 1.0);
+
+    if (wave < 0.0) {
+      ref_is_clipping_LO = true;
+      wave = 0.0;
+    } else if (wave > 1.0) {
+      ref_is_clipping_HI = true;
+      wave = 1.0;
+    }
+
     LUT_array[i] = (uint16_t)round(MAX_DAC_OUTPUT_BITVAL * wave);
   }
 
@@ -445,8 +494,8 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
   /* Write timestamp and `phase`-stamp of the first ADC sample of the block
   that is about to be sent out over the serial port. We need to know which
   phase angle was output on the DAC, that corresponds in time to the first ADC
-  sample of the `TX_buffer`. This is the essence of a phase-sensitive detector,
-  which is the building block of a lock-in amplifier.
+  sample of the `TX_buffer`. This is the essence of a phase-sensitive
+  detector, which is the building block of a lock-in amplifier.
   */
 
   static uint32_t startup_millis = 0; // Time when lock-in amp got turned on
@@ -532,9 +581,9 @@ void isr_psd() {
     LUT_idx = 0;
   }
 
-  // Read input signal corresponding to the DAC output of the previous timestep.
-  // This ensures that the previously set DAC output has had enough time to
-  // stabilize.
+  // Read input signal corresponding to the DAC output of the previous
+  // timestep. This ensures that the previously set DAC output has had enough
+  // time to stabilize.
   if (startup_counter >= 4) {
 #ifdef __SAMD21__
     ADC->SWTRIG.bit.START = 1;
@@ -570,8 +619,8 @@ void isr_psd() {
 
     startup_counter < 4:
       `LED_on()` using the NeoPixel library takes over the SysTick timer to
-      control the LED. This interferes with the timing stability of the ISR for
-      a few iterations. We simply wait them out.
+      control the LED. This interferes with the timing stability of the ISR
+    for a few iterations. We simply wait them out.
 
     startup_counter == 4:
       Timing, DAC output and ADC input are stable. Time to stamp the buffer.
@@ -668,10 +717,10 @@ void setup() {
 
   // ADC
   // Increase the ADC clock by setting the PRESCALER from default DIV128 to a
-  // smaller divisor. This is needed for DAQ rates larger than ~20 kHz on SAMD51
-  // and DAQ rates larger than ~10 kHz on SAMD21. Setting too small divisors
-  // will result in ADC errors. Keep as large as possible to increase ADC
-  // accuracy.
+  // smaller divisor. This is needed for DAQ rates larger than ~20 kHz on
+  // SAMD51 and DAQ rates larger than ~10 kHz on SAMD21. Setting too small
+  // divisors will result in ADC errors. Keep as large as possible to increase
+  // ADC accuracy.
 
   // analogReadResolution(ADC_INPUT_BITS);
   // analogRead(A1); // Differential(+) or single-ended
@@ -705,8 +754,8 @@ void setup() {
       ADC_CALIB_BIAS_CAL(bias) | ADC_CALIB_LINEARITY_CAL(linearity);
   // No sync needed according to `hri_adc_d21.h`
 
-  // The ADC clock must remain below 2.1 MHz, see SAMD21 datasheet Table 37-24.
-  // Hence, don't go below DIV32 @ 48 MHz.
+  // The ADC clock must remain below 2.1 MHz, see SAMD21 datasheet Table
+  // 37-24. Hence, don't go below DIV32 @ 48 MHz.
   ADC->CTRLB.bit.PRESCALER = ADC_CTRLB_PRESCALER_DIV32_Val;
   syncADC();
 
@@ -836,10 +885,11 @@ void setup() {
 
 #endif
 
-  // LUT
-  parse_freq("250.0"); // [Hz] Wanted startup frequency
-  parse_offs("1.7");   // [V]  Wanted startup offset
-  parse_ampl("1.414"); // [V]  Wanted startup amplitude
+  // Initial waveform LUT
+  set_wave(Cosine);
+  set_freq(250.0); // [Hz]    Wanted startup frequency
+  set_offs(1.6);   // [V]     Wanted startup offset
+  set_VRMS(1.0);   // [V_RMS] Wanted startup amplitude
   compute_LUT(LUT_wave);
 
   // Start the interrupt timer
@@ -879,8 +929,8 @@ void loop() {
           causes a lot of overhead, during which time the Arduino's serial-out
           buffer could potentially flood the serial-in buffer at the PC side.
           This will happen when the PC is not reading (and depleting) the
-          in-buffer as fast as possible because it is now waiting for the 'off'
-          reply to occur.
+          in-buffer as fast as possible because it is now waiting for the
+        'off' reply to occur.
         */
         noInterrupts();
         is_running = false;
@@ -889,16 +939,16 @@ void loop() {
         interrupts();
 
 #if defined ARDUINO_SAMD_ZERO && Ser_data == Serial
-        // Simply end the serial connection which directly clears the underlying
-        // TX (and RX) ringbuffer. `Flush()` on the other hand, would first send
-        // out the full TX buffer and wait for the operation to complete.
-        // NOTE: Only works on Arduino M0 Pro debugging port
+        // Simply end the serial connection which directly clears the
+        // underlying TX (and RX) ringbuffer. `Flush()` on the other hand,
+        // would first send out the full TX buffer and wait for the operation
+        // to complete. NOTE: Only works on Arduino M0 Pro debugging port
         Ser_data.end();
         Ser_data.begin(SERIAL_DATA_BAUDRATE);
 #else
         // Flush out any binary buffer data scheduled for sending, potentially
-        // flooding the receiving buffer at the PC side if `is_running` was not
-        // switched to `false` fast enough.
+        // flooding the receiving buffer at the PC side if `is_running` was
+        // not switched to `false` fast enough.
         Ser_data.flush();
 #endif
 
@@ -1041,43 +1091,35 @@ void loop() {
         } else if (strcmp(str_cmd, "ref?") == 0 || strcmp(str_cmd, "?") == 0) {
           // Report reference signal `ref_X` settings
           // clang-format off
-          Ser_data << _FLOAT(ref_freq, 3) << '\t'
+          Ser_data << WAVEFORM_STRING[ref_waveform] << '\t'
+                   << _FLOAT(ref_freq, 3) << '\t'
                    << _FLOAT(ref_offs, 3) << '\t'
                    << _FLOAT(ref_ampl, 3) << '\t'
-                   << WAVEFORM_STRING[ref_waveform] << '\t'
+                   << _FLOAT(ref_VRMS, 3) << '\t'
+                   << ref_is_clipping_HI << '\t'
+                   << ref_is_clipping_LO << '\t'
                    << N_LUT << endl;
           // clang-format on
 
         } else if (strcmp(str_cmd, "lut?") == 0 || strcmp(str_cmd, "l?") == 0) {
           // Report the LUT as a binary stream. The reported LUT will start at
           // phase = 0 deg.
-          static uint8_t buffer[MAX_N_LUT + 3] = {0};
-
-          buffer[0] = N_LUT;
-          buffer[1] = N_LUT >> 8;
-          buffer[2] = is_LUT_dirty;
-          memcpy(&buffer[3], LUT_wave, N_LUT * 2);
-          Ser_data.write((uint8_t *)buffer, N_LUT * 2 + 3);
-
-          /*
-          // Old code before using `buffer[]`:
           Ser_data.write((uint8_t *)&N_LUT, 2);
           Ser_data.write((uint8_t *)&is_LUT_dirty, 1);
           Ser_data.write((uint8_t *)LUT_wave, N_LUT * 2);
 
-          // WORK-AROUND for strange bug when ref_freq is set to 130 Hz.
+          // WORK-AROUND for strange bug when ref_freq is set to 25 or 130 Hz.
           // I suspect a byte of the `LUT_wave` array to cause havoc in the
           // serial stream, making it suspend?! Sending an ASCII character seems
           // to fix it.
           Ser_data << " ";
           Ser_data.flush();
-          */
 
         } else if (strcmp(str_cmd, "lut_ascii?") == 0 ||
                    strcmp(str_cmd, "la?") == 0) {
-          // Report the LUT as tab-delimited ASCII. The reported LUT will start
-          // at phase = 0 deg. Convenience function handy for debugging from a
-          // serial console.
+          // Report the LUT as tab-delimited ASCII. The reported LUT will
+          // start at phase = 0 deg. Convenience function handy for debugging
+          // from a serial console.
           Ser_data << N_LUT << '\t' << is_LUT_dirty << endl;
           for (uint16_t i = 0; i < N_LUT - 1; i++) {
             Ser_data << LUT_wave[i] << '\t';
@@ -1109,41 +1151,39 @@ void loop() {
           is_running = true;
           interrupts();
 
+        } else if (strncmp(str_cmd, "_wave", 5) == 0) {
+          // Set the waveform type of the reference signal.
+          // Call 'compute_LUT(LUT_wave)' for it to become effective.
+          set_wave(atoi(&str_cmd[5]));
+          Ser_data << WAVEFORM_STRING[ref_waveform] << endl;
+
         } else if (strncmp(str_cmd, "_freq", 5) == 0) {
           // Set frequency of the reference signal [Hz].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
-          is_LUT_dirty = true;
-          parse_freq(&str_cmd[5]);
-          Ser_data << _FLOAT(ref_freq, 3) << endl;
+          set_freq(atof(&str_cmd[5]));
+          Ser_data << _FLOAT(ref_freq, 4) << endl;
 
         } else if (strncmp(str_cmd, "_offs", 5) == 0) {
           // Set offset of the reference signal [V].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
-          is_LUT_dirty = true;
-          parse_offs(&str_cmd[5]);
-          Ser_data << _FLOAT(ref_offs, 3) << endl;
+          set_offs(atof(&str_cmd[5]));
+          Ser_data << _FLOAT(ref_offs, 4) << endl;
 
         } else if (strncmp(str_cmd, "_ampl", 5) == 0) {
           // Set amplitude of the reference signal [V].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
-          is_LUT_dirty = true;
-          parse_ampl(&str_cmd[5]);
-          Ser_data << _FLOAT(ref_ampl, 3) << endl;
+          set_ampl(atof(&str_cmd[5]));
+          Ser_data << _FLOAT(ref_ampl, 4) << endl;
 
-        } else if (strncmp(str_cmd, "_wave", 5) == 0) {
-          // Set the waveform type of the reference signal.
+        } else if (strncmp(str_cmd, "_vrms", 5) == 0) {
+          // Set amplitude of the reference signal [V_RMS].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
-          is_LUT_dirty = true;
-          ref_waveform = static_cast<WAVEFORM_ENUM>(atoi(&str_cmd[5]));
-          ref_waveform = static_cast<WAVEFORM_ENUM>(max(ref_waveform, 0));
-          ref_waveform = static_cast<WAVEFORM_ENUM>(
-              min(ref_waveform, END_WAVEFORM_ENUM - 1));
-          Ser_data << WAVEFORM_STRING[ref_waveform] << endl;
+          set_VRMS(atof(&str_cmd[5]));
+          Ser_data << _FLOAT(ref_VRMS, 4) << endl;
 
         } else if (strcmp(str_cmd, "compute_lut") == 0 ||
                    strcmp(str_cmd, "c") == 0) {
-          // (Re)compute the LUT based on the following known settings:
-          // ref_freq, ref_offs, ref_ampl, ref_waveform.
+          // (Re)compute the LUT based on the current reference signal settings.
           compute_LUT(LUT_wave);
           Ser_data << "!" << endl; // Reply with OKAY character '!'
         }
@@ -1165,7 +1205,8 @@ void loop() {
     the serial transmit has all the time to send out stream A, while the other
     stream B gets written to by the ISR.
   */
-  // uint8_t _TX_buffer[N_BYTES_TX_BUFFER]; // Will hold copy of volatile buffer
+  // uint8_t _TX_buffer[N_BYTES_TX_BUFFER]; // Will hold copy of volatile
+  // buffer
 
   if (is_running && (trigger_send_TX_buffer_A || trigger_send_TX_buffer_B)) {
     /*
