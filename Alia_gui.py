@@ -1695,7 +1695,7 @@ class MainWindow(QWidget):
         )
         self.qlin_ref_V_ampl.setText("%.3f" % self.alia.config.ref_V_ampl)
         self.qlbl_ref_is_clipping.setText(self.get_clipping_text())
-        QApplication.processEvents()
+        # QApplication.processEvents()
 
         self.alia_qdev.state.reset()
         self.clear_curves_stage_1_and_2()
@@ -1731,7 +1731,7 @@ class MainWindow(QWidget):
     def update_newly_set_ref_V_offset(self):
         self.qlin_ref_V_offset.setText("%.3f" % self.alia.config.ref_V_offset)
         self.qlbl_ref_is_clipping.setText(self.get_clipping_text())
-        QApplication.processEvents()
+        # QApplication.processEvents()
 
         self.alia_qdev.state.reset()
         self.clear_curves_stage_1_and_2()
@@ -1744,7 +1744,7 @@ class MainWindow(QWidget):
         )
         self.qlin_ref_V_ampl.setText("%.3f" % self.alia.config.ref_V_ampl)
         self.qlbl_ref_is_clipping.setText(self.get_clipping_text())
-        QApplication.processEvents()
+        # QApplication.processEvents()
 
         self.alia_qdev.state.reset()
         self.clear_curves_stage_1_and_2()
