@@ -751,7 +751,7 @@ class MainWindow(QWidget):
         self.pi_YT.setXRange(
             -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0, padding=0
         )
-        self.pi_YT.setYRange(-90, 90, padding=0.1)
+        self.pi_YT.setYRange(-180, 180, padding=0.1)
         self.pi_YT.setAutoVisible(x=True, y=True)
         self.pi_YT.setClipToView(True)
         self.pi_YT.request_autorange_y = False
@@ -1778,7 +1778,7 @@ class MainWindow(QWidget):
         if self.qrbt_YT_Y.isChecked():
             self.pi_YT.setYRange(-5, 5, padding=0.05)
         else:
-            self.pi_YT.setYRange(-90, 90, padding=0.1)
+            self.pi_YT.setYRange(-180, 180, padding=0.1)
 
     @QtCore.pyqtSlot()
     def process_qpbt_autorange_xy(self):
@@ -1904,13 +1904,13 @@ class MainWindow(QWidget):
         if self.qrbt_YT_Y.isChecked():
             self.pi_YT.setLimits(yMin=-5.25, yMax=5.25)
         else:
-            self.pi_YT.setLimits(yMin=-100, yMax=100)
+            self.pi_YT.setLimits(yMin=-185, yMax=185)
 
         if self.hcc_LIA_YT.size[0] == 0:
             if self.qrbt_YT_Y.isChecked():
                 self.pi_YT.setYRange(-5, 5, padding=0.05)
             else:
-                self.pi_YT.setYRange(-90, 90, padding=0.1)
+                self.pi_YT.setYRange(-180, 180, padding=0.1)
         else:
             self.pi_YT.enableAutoRange("y", True)
             self.pi_YT.enableAutoRange("y", False)

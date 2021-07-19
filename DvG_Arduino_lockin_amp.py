@@ -269,18 +269,12 @@ def lockin_DAQ_update():
         valid_slice = alia_qdev.firf_1_sig_I.rb_valid_slice
         state.time_2 = state.rb_time_1[valid_slice]
 
-        # Signal amplitude and phase reconstruction
+        # Signal amplitude: R
         np.sqrt(np.add(np.square(state.X), np.square(state.Y)), out=state.R)
 
-        # NOTE: Because `mix_X` and `mix_Y` are both of type `numpy.ndarray`, a
-        # division by `mix_X = 0` is handled correctly due to `numpy.inf`.
-        # Likewise, `numpy.arctan(numpy.inf)`` will result in pi/2. We suppress
-        # the 'RuntimeWarning: divide by zero' encountered in `true_divide()`.
-        np.seterr(divide="ignore")
-        np.divide(state.Y, state.X, out=state.T)
-        np.arctan(state.T, out=state.T)
+        # Signal phase: Theta
+        np.arctan2(state.Y, state.X, out=state.T)
         np.multiply(state.T, 180 / np.pi, out=state.T)  # [rad] to [deg]
-        np.seterr(divide="warn")
     else:
         state.time_2.fill(np.nan)
         state.R.fill(np.nan)
