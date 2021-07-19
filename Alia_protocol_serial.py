@@ -27,8 +27,8 @@ from dvg_debug_functions import dprint, print_fancy_traceback as pft
 @njit("float64[:](float64[:])", nogil=True, cache=False)
 def round_C_style(array_in: np.ndarray) -> np.ndarray:
     """
-    round_C_style([0.1 , 1.45, 1.55, -0.1 , -1.45, -1.55])
-    Out[]:  array([0.  , 1.  , 2.  , -0.  , -1.  , -2.  ])
+    round_C_style([0.1 , 1.45, 1.50, 1.55, -0.1 , -1.45, -1.55])
+    Out[]:  array([0.  , 1.  , 1.  , 2.  , -0.  , -1.  , -2.  ])
     """
     _abs = np.abs(array_in)
     _trunc = np.trunc(_abs)
@@ -115,6 +115,9 @@ class Alia(Arduino_protocol_serial.Arduino):
         the Arduino. Hence, multiply by A_REF/(2**ADC_INPUT_BITS - 1) to get
         units of [V].
         """
+        LUT_wave_X = np.array([], dtype=float)  # [V]
+        LUT_wave_Y = np.array([], dtype=float)  # [V]
+
 
         # Reference signal parameters
         ref_waveform    = Waveform.Unknown  # Waveform enum
@@ -437,6 +440,8 @@ class Alia(Arduino_protocol_serial.Arduino):
         Returns:
             True if successful, False otherwise.
         """
+        c = self.config  # Short-hand
+
         was_paused = self.lockin_paused
         if not was_paused:
             self.turn_off()
@@ -466,13 +471,13 @@ class Alia(Arduino_protocol_serial.Arduino):
             self.ser.flushInput()
             return False
 
-        self.config.N_LUT = int(N_LUT[0])
-        self.config.is_LUT_dirty = bool(is_LUT_dirty[0])
+        c.N_LUT = int(N_LUT[0])
+        c.is_LUT_dirty = bool(is_LUT_dirty[0])
 
         # Now read the remaining LUT array from the binary stream still left in
         # the serial buffer
         try:
-            ans_bytes = self.ser.read(size=self.config.N_LUT * 2)
+            ans_bytes = self.ser.read(size=c.N_LUT * 2)
         except:
             pft("'%s' I/O ERROR: Can't read bytes LUT" % self.name)
             self.ser.flushInput()
@@ -486,7 +491,7 @@ class Alia(Arduino_protocol_serial.Arduino):
 
         try:
             LUT_wave = np.array(
-                struct.unpack("<" + "H" * self.config.N_LUT, ans_bytes),
+                struct.unpack("<" + "H" * c.N_LUT, ans_bytes),
                 dtype=np.uint16,
             )
         except:
@@ -494,7 +499,51 @@ class Alia(Arduino_protocol_serial.Arduino):
             self.ser.flushInput()
             return False
 
-        self.config.LUT_wave = LUT_wave
+        c.LUT_wave = LUT_wave
+
+        # Construct single-period LUTs of ref_X and ref_Y at phase = 0
+
+        if c.ref_waveform == Waveform.Cosine:
+            phi = np.linspace(0, 2 * np.pi, num=c.N_LUT, endpoint=False)
+            lut_X = 0.5 * (1 + np.cos(phi))
+            lut_Y = 0.5 * (1 + np.sin(phi))
+
+        elif c.ref_waveform == Waveform.Square:
+            idxs_phase = np.arange(0, c.N_LUT)
+            lut_X = np.sign(np.cos(2 * np.pi * idxs_phase / c.N_LUT))
+            lut_X[lut_X < 0.0] = 0.0
+
+            if c.N_LUT & 0x1:
+                # Odd, try our best
+                lut_Y = np.interp(
+                    np.arange(c.N_LUT) - c.N_LUT / 4.0,
+                    np.arange(c.N_LUT * 2),
+                    np.tile(lut_X, 2),
+                )
+            else:
+                # Even, ideal
+                lut_Y = np.sign(np.sin(2 * np.pi * idxs_phase / c.N_LUT))
+                lut_Y[lut_Y < 0.0] = 0.0
+
+        elif c.ref_waveform == Waveform.Triangle:
+            idxs_phase = np.arange(0, c.N_LUT)
+            lut_X = 2 * np.abs(idxs_phase / c.N_LUT - 0.5)
+            lut_Y = 2 * np.abs(
+                ((idxs_phase - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 0.5
+            )
+
+        elif c.ref_waveform == Waveform.Unknown:
+            lut_X = np.full(np.nan, c.N_LUT)
+            lut_Y = np.full(np.nan, c.N_LUT)
+
+        lut_X = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_X
+        lut_Y = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_Y
+
+        lut_X.clip(0, c.A_REF, out=lut_X)
+        lut_Y.clip(0, c.A_REF, out=lut_Y)
+
+        c.LUT_wave_X = lut_X
+        c.LUT_wave_Y = lut_Y
 
         if not was_paused:
             self.turn_on()
@@ -649,9 +698,9 @@ class Alia(Arduino_protocol_serial.Arduino):
                 return False
         else:
             if (
-                not self.compute_LUT()
+                not self.query_ref()
+                or not self.compute_LUT()
                 or not self.query_LUT()
-                or not self.query_ref()
             ):
                 return False
 
@@ -854,8 +903,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
             """
             if 0:
-                phase_delay_deg = 50
-                phi = np.unwrap(phi + phase_delay_deg / 180 * np.pi)
+                phase_offset_deg = 50
+                phi = np.unwrap(phi + phase_offset_deg / 180 * np.pi)
             """
 
             counter = np.nan
@@ -910,50 +959,18 @@ class Alia(Arduino_protocol_serial.Arduino):
             time = t0 + np.arange(0, c.BLOCK_SIZE) * c.SAMPLING_PERIOD * 1e6
             time = np.asarray(time, dtype=c.return_type_time, order="C")
 
-            idxs_phase = np.arange(idx_phase, idx_phase + c.N_LUT) % c.N_LUT
-            phi = 2 * np.pi * idxs_phase / c.N_LUT
+            sig_I = np.divide(sig_I, 2 ** c.ADC_INPUT_BITS - 1, out=sig_I)
+            sig_I = np.multiply(sig_I, c.A_REF, out=sig_I)
+            if c.ADC_DIFFERENTIAL:
+                sig_I = np.multiply(sig_I, 2, out=sig_I)
 
             # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
-            """
             if 0:
-                phase_delay_deg = 50
-                phi = np.unwrap(phi + phase_delay_deg / 180 * np.pi)
-            """
+                phase_offset_deg = 120
+                idx_phase += int(np.round(phase_offset_deg / 360 * c.N_LUT))
 
-            sig_I = sig_I * c.A_REF / (2 ** c.ADC_INPUT_BITS - 1)
-            if c.ADC_DIFFERENTIAL:
-                sig_I *= 2
-
-            if c.ref_waveform == Waveform.Cosine:
-                lut_X = 0.5 * (1 + np.cos(phi))
-                lut_Y = 0.5 * (1 + np.sin(phi))
-
-            elif c.ref_waveform == Waveform.Square:
-                lut_X = round_C_style(
-                    ((1.75 * c.N_LUT - idxs_phase) % c.N_LUT) / (c.N_LUT - 1)
-                )
-                # lut_Y = round_C_style(((1.50 * c.N_LUT - idxs_phase) % c.N_LUT) /
-                #                      (c.N_LUT - 1))
-                lut_Y = np.interp(
-                    np.arange(c.N_LUT) + c.N_LUT / 4,
-                    np.arange(c.N_LUT * 2),
-                    np.tile(lut_X, 2),
-                )
-
-            elif c.ref_waveform == Waveform.Triangle:
-                lut_X = 2 * np.abs(idxs_phase / c.N_LUT - 0.5)
-                lut_Y = 2 * np.abs(
-                    ((idxs_phase - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 0.5
-                )
-
-            elif c.ref_waveform == Waveform.Unknown:
-                lut_X = np.full(np.nan, c.N_LUT)
-                lut_Y = np.full(np.nan, c.N_LUT)
-
-            lut_X = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_X
-            lut_Y = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_Y
-            lut_X.clip(0, c.A_REF, out=lut_X)
-            lut_Y.clip(0, c.A_REF, out=lut_Y)
+            lut_X = np.roll(c.LUT_wave_X, -idx_phase)
+            lut_Y = np.roll(c.LUT_wave_Y, -idx_phase)
 
             ref_X_tiled = np.tile(lut_X, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
             ref_Y_tiled = np.tile(lut_Y, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
