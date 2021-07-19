@@ -44,7 +44,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  16-07-2021
+  19-07-2021
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -354,25 +354,24 @@ void compute_LUT(uint16_t *LUT_array) {
   ref_is_clipping_LO = false;
 
   for (int16_t i = 0; i < N_LUT; i++) {
-    float j = i % N_LUT;
 
     switch (ref_waveform) {
       default:
       case Cosine:
         // N_LUT even: extrema [ 0, 1]
         // N_LUT odd : extrema [>0, 1]
-        wave = .5 * (1 + cos(M_TWOPI * j / N_LUT));
+        wave = .5 * (1 + cos(M_TWOPI * i / N_LUT));
         break;
 
       case Square:
         // Extrema guaranteed  [ 0, 1]
-        wave = round(fmod(1.75 * N_LUT - j, N_LUT) / (N_LUT - 1));
+        wave = cos(M_TWOPI * i / N_LUT) < 0. ? 0. : 1.;
         break;
 
       case Triangle:
         // N_LUT even: extrema [ 0, 1]
         // N_LUT odd : extrema [>0, 1]
-        wave = 2 * fabs(j / N_LUT - .5);
+        wave = 2 * fabs((double)i / N_LUT - .5);
         break;
     }
 
