@@ -17,29 +17,44 @@
 
 * Arduino lockin-amplifier commands
 
+  V1.0.0_VSCODE
+  -------------
+
   command             compute LUT     reply                               Remark
   --------------------------------------------------------------------------------
 
-  on																	  Start lock-in
-  _on																	  Start lock-in and reset timer to 0
+  on                                                                      Start lock-in
+  _on                                                                     Start lock-in and reset timer to 0
+  off                                                                     Stop lock-in
 
-  _freq #.###         no              none
-  _offs #.###         no              none
-  _ampl #.###         no              none
-  _wave #             no              none                                                         
-  compute_lut / c     yes             ASCII ['!']                         The reply '!' indicates success
-
-  freq #.###          yes             ASCII [freq]                        Convenience function for use in a serial terminal.
-  offs #.###          yes             ASCII [offs]                        Convenience function for use in a serial terminal.
-  ampl #.###          yes             ASCII [ampl]                        Convenience function for use in a serial terminal.
-
-  cos / sqr / saw /   yes             ASCII ['Computing LUT... done.']    Convenience functions for use in a serial terminal.
-  tri / ecg                           ASCII [waveform]
+  _freq #.###         no              ASCII [freq]
+  _offs #.###         no              ASCII [offs]
+  _ampl #.###         no              ASCII [ampl]
+  _vrms #.###         no              ASCII [ampl_RMS]
+  _wave #             no              ASCII [waveform string]                                                       
+  
+  compute_lut / c     yes             none                                (re)compute the waveform LUT
                                                             
-  ref? / ?            no              ASCII [freq, offs, ampl, waveform, N_LUT]
+  ref? / ?            yes             ASCII [waveform,                    Will also (re)compute the waveform LUT
+                                             freq,
+                                             offs,
+                                             ampl,
+                                             ampl_RMS,
+                                             is_clipping_HI,
+                                             is_clipping_LO,
+                                             N_LUT]
 
-  lut?                no              ASCII [N_LUT, is_LUT_dirty]
+  lut?                no              ASCII [N_LUT, is_LUT_dirty]         HAS BECOME OBSOLETE
                                       BINARY [LUT[]]
                                        
-  lut_ascii?          no              ASCII [N_LUT, is_LUT_dirty]
+  lut_ascii? / la?    no              ASCII [N_LUT, is_LUT_dirty]
                                       ASCII [LUT[]]
+                                      
+  t?                  no              ASCII [millis.micros]
+
+
+  V1.0.0_MICROCHIPSTUDIO
+  ----------------------
+  
+  cos / sqr / saw /   yes             ASCII ['Computing LUT... done.']    Convenience functions for use in a serial terminal.
+  tri / ecg                           ASCII [waveform]
