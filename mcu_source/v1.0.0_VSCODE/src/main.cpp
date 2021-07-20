@@ -44,7 +44,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  19-07-2021
+  20-07-2021
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -87,19 +87,19 @@ uint32_t MASK_TRIG_OUT = (1ul << g_APinDescription[PIN_TRIG_OUT].ulPin);
 // clang-format off
 #ifdef ADAFRUIT_FEATHER_M4_EXPRESS
 #  include "Adafruit_NeoPixel.h"
-  Adafruit_NeoPixel strip = Adafruit_NeoPixel(1, PIN_NEOPIXEL, NEO_GRB +
-                                              NEO_KHZ800);
-  static void LED_off() {
-    strip.setPixelColor(0, strip.Color(0, 0, 255));
-    strip.show();
-  }
-  static void LED_on() {
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(1, PIN_NEOPIXEL, NEO_GRB +
+                                            NEO_KHZ800);
+static void LED_off() {
+  strip.setPixelColor(0, strip.Color(0, 0, 255));
+  strip.show();
+}
+static void LED_on() {
   strip.setPixelColor(0, strip.Color(0, 255, 0));
   strip.show();
 }
 #else
-  static void LED_off() {digitalWrite(PIN_LED, LOW);}
-  static void LED_on()  {digitalWrite(PIN_LED, HIGH);}
+static void LED_off() {digitalWrite(PIN_LED, LOW);}
+static void LED_on()  {digitalWrite(PIN_LED, HIGH);}
 #endif
 // clang-format on
 
@@ -887,8 +887,8 @@ void setup() {
   // Initial waveform LUT
   set_wave(Cosine);
   set_freq(250.0); // [Hz]    Wanted startup frequency
-  set_offs(1.6);   // [V]     Wanted startup offset
-  set_VRMS(1.0);   // [V_RMS] Wanted startup amplitude
+  set_offs(1.65);  // [V]     Wanted startup offset
+  set_VRMS(0.5);   // [V_RMS] Wanted startup amplitude
   compute_LUT(LUT_wave);
 
   // Start the interrupt timer
@@ -987,7 +987,7 @@ void loop() {
           // clang-format on
 
         } else if (strcmp(str_cmd, "adc?") == 0) {
-          // Report ADC registers
+          // Report ADC registers, debug information
           // clang-format off
           uint8_t w = 15;
           Ser_data << _PAD(40, '-') << endl
@@ -1088,6 +1088,9 @@ void loop() {
           // clang-format on
 
         } else if (strcmp(str_cmd, "ref?") == 0 || strcmp(str_cmd, "?") == 0) {
+          // (Re)compute the LUT based on the current reference signal settings
+          compute_LUT(LUT_wave);
+
           // Report reference signal `ref_X` settings
           // clang-format off
           Ser_data << WAVEFORM_STRING[ref_waveform] << '\t'
@@ -1103,6 +1106,7 @@ void loop() {
         } else if (strcmp(str_cmd, "lut?") == 0 || strcmp(str_cmd, "l?") == 0) {
           // Report the LUT as a binary stream. The reported LUT will start at
           // phase = 0 deg.
+          // HAS BECOME OBSOLETE
           Ser_data.write((uint8_t *)&N_LUT, 2);
           Ser_data.write((uint8_t *)&is_LUT_dirty, 1);
           Ser_data.write((uint8_t *)LUT_wave, N_LUT * 2);
@@ -1179,12 +1183,6 @@ void loop() {
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_VRMS(atof(&str_cmd[5]));
           Ser_data << _FLOAT(ref_VRMS, 4) << endl;
-
-        } else if (strcmp(str_cmd, "compute_lut") == 0 ||
-                   strcmp(str_cmd, "c") == 0) {
-          // (Re)compute the LUT based on the current reference signal settings.
-          compute_LUT(LUT_wave);
-          Ser_data << "!" << endl; // Reply with OKAY character '!'
         }
       }
     }
