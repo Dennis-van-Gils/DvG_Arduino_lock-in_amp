@@ -106,18 +106,20 @@ class Alia(Arduino_protocol_serial.Arduino):
 
         # [Non-legacy]
         is_LUT_dirty = False   # Is there a pending change on the LUT?
+        """`LUT_wave` will contain a copy of the LUT array as used on the
+        Arduino side in units of bit-values as sent out over its DAC. Hence,
+        multiply by A_REF/(2**ADC_INPUT_BITS - 1) to get units of [V].
+        `LUT_wave` is not used in this Python code to reconstruct the `ref_X`
+        and `ref_Y` timeseries, but is kept as a reference for troubleshooting.
+        """
         LUT_wave = np.array([], dtype=np.uint16)
-        """LUT_wave will contain a copy of the LUT array of the current
-        reference signal waveform as used on the Arduino side. This array will
-        be used to reconstruct the ref_X and ref_Y signals, based on the phase
-        index that is sent in the header of each TX_buffer. The unit of each
-        element in the array is the bit-value that is sent out over the DAC of
-        the Arduino. Hence, multiply by A_REF/(2**ADC_INPUT_BITS - 1) to get
-        units of [V].
+        """`LUT_wave_X` and `LUT_wave_Y` will contain a single period each,
+        where `Y` is phase-shifted by 90 degrees, of the reference signal
+        as reconstructed by this Python code, based on the known reference
+        signal settings at the Arduino side. The units are in [V].
         """
         LUT_wave_X = np.array([], dtype=float)  # [V]
         LUT_wave_Y = np.array([], dtype=float)  # [V]
-
 
         # Reference signal parameters
         ref_waveform    = Waveform.Unknown  # Waveform enum
@@ -416,21 +418,11 @@ class Alia(Arduino_protocol_serial.Arduino):
     #   LUT
     # --------------------------------------------------------------------------
 
-    def compute_LUT(self) -> bool:
-        """Send command "compute_lut" to the Arduino lock-in amp to (re)compute
-        the look-up table (LUT) used for the analog output of the reference
-        signal `ref_X`. Any pending changes at the Arduino side to `ref_freq`,
-        `ref_V_offset`, `ref_V_ampl` and `ref_waveform` will become effective.
-
-        Returns:
-            True if successful, False otherwise.
-        """
-        success, _ans_str = self.safe_query("c")
-        return success
-
     def query_LUT(self) -> bool:
         """Send command "lut?" to the Arduino lock-in amp to retrieve the look-
         up table (LUT) that is used for the output reference signal `ref_X`.
+
+        HAS BECOME OBSOLETE.
 
         This method will update members:
             `config.N_LUT`
@@ -501,50 +493,6 @@ class Alia(Arduino_protocol_serial.Arduino):
 
         c.LUT_wave = LUT_wave
 
-        # Construct single-period LUTs of ref_X and ref_Y at phase = 0
-
-        if c.ref_waveform == Waveform.Cosine:
-            phi = np.linspace(0, 2 * np.pi, num=c.N_LUT, endpoint=False)
-            lut_X = 0.5 * (1 + np.cos(phi))
-            lut_Y = 0.5 * (1 + np.sin(phi))
-
-        elif c.ref_waveform == Waveform.Square:
-            idxs_phase = np.arange(0, c.N_LUT)
-            lut_X = np.sign(np.cos(2 * np.pi * idxs_phase / c.N_LUT))
-            lut_X[lut_X < 0.0] = 0.0
-
-            if c.N_LUT & 0x1:
-                # Odd, try our best
-                lut_Y = np.interp(
-                    np.arange(c.N_LUT) - c.N_LUT / 4.0,
-                    np.arange(c.N_LUT * 2),
-                    np.tile(lut_X, 2),
-                )
-            else:
-                # Even, ideal
-                lut_Y = np.sign(np.sin(2 * np.pi * idxs_phase / c.N_LUT))
-                lut_Y[lut_Y < 0.0] = 0.0
-
-        elif c.ref_waveform == Waveform.Triangle:
-            idxs_phase = np.arange(0, c.N_LUT)
-            lut_X = 2 * np.abs(idxs_phase / c.N_LUT - 0.5)
-            lut_Y = 2 * np.abs(
-                ((idxs_phase - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 0.5
-            )
-
-        elif c.ref_waveform == Waveform.Unknown:
-            lut_X = np.full(np.nan, c.N_LUT)
-            lut_Y = np.full(np.nan, c.N_LUT)
-
-        lut_X = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_X
-        lut_Y = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * lut_Y
-
-        lut_X.clip(0, c.A_REF, out=lut_X)
-        lut_Y.clip(0, c.A_REF, out=lut_Y)
-
-        c.LUT_wave_X = lut_X
-        c.LUT_wave_Y = lut_Y
-
         if not was_paused:
             self.turn_on()
 
@@ -555,8 +503,10 @@ class Alia(Arduino_protocol_serial.Arduino):
     # --------------------------------------------------------------------------
 
     def query_ref(self) -> bool:
-        """Send command "ref?" to the Arduino lock-in amp to retrieve the
-        output reference signal `ref_X` parameters.
+        """Send command "ref?" to the Arduino lock-in amp to (re)compute the
+        LUT waveform internal to the Arduino and to retrieve the reference
+        signal `ref_X` parameters from it. Subsequently, `ref_X` and `ref_Y`
+        will get recomputed on the Python side.
 
         This method will update members:
             `config.ref_waveform`
@@ -568,6 +518,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             `config.ref_is_clipping_HI`
             `config.ref_is_clipping_LO`
             `config.N_LUT`
+            `config.LUT_wave_X`
+            `config.LUT_wave_Y`
 
         Returns:
             True if successful, False otherwise.
@@ -601,14 +553,53 @@ class Alia(Arduino_protocol_serial.Arduino):
         else:
             return False
 
-        if c.ref_waveform == Waveform.Cosine:
-            c.ref_RMS_factor = np.sqrt(2)
+        if not self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
+            if c.ref_waveform == Waveform.Cosine:
+                c.ref_RMS_factor = np.sqrt(2)
+                phis = np.linspace(0, 2 * np.pi, num=c.N_LUT, endpoint=False)
+                LUT_X = 0.5 * (1 + np.cos(phis))
+                LUT_Y = 0.5 * (1 + np.sin(phis))
 
-        elif c.ref_waveform == Waveform.Square:
-            c.ref_RMS_factor = 1
+            elif c.ref_waveform == Waveform.Square:
+                c.ref_RMS_factor = 1
+                idxs = np.arange(0, c.N_LUT)
+                LUT_X = np.sign(np.cos(2 * np.pi * idxs / c.N_LUT))
+                LUT_X[LUT_X < 0.0] = 0.0
 
-        elif c.ref_waveform == Waveform.Triangle:
-            c.ref_RMS_factor = np.sqrt(3)
+                if c.N_LUT % 4 > 0:
+                    # Not an integer multiple of 4
+                    # Quadrant does not neatly exist, hence interpolate
+                    LUT_Y = np.interp(
+                        np.arange(c.N_LUT) + c.N_LUT * 3.0 / 4.0,
+                        np.arange(c.N_LUT * 2),
+                        np.tile(LUT_X, 2),
+                    )
+                else:
+                    # Perfect quadrant exists
+                    LUT_Y = np.sign(np.sin(2 * np.pi * idxs / c.N_LUT))
+                    LUT_Y[LUT_Y < 0.0] = 0.0
+
+            elif c.ref_waveform == Waveform.Triangle:
+                c.ref_RMS_factor = np.sqrt(3)
+                idxs = np.arange(0, c.N_LUT)
+                LUT_X = 2 * np.abs(idxs / c.N_LUT - 0.5)
+                LUT_Y = 2 * np.abs(
+                    ((idxs - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 0.5
+                )
+
+            elif c.ref_waveform == Waveform.Unknown:
+                c.ref_RMS_factor = np.nan
+                LUT_X = np.full(np.nan, c.N_LUT)
+                LUT_Y = np.full(np.nan, c.N_LUT)
+
+            LUT_X = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * LUT_X
+            LUT_Y = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * LUT_Y
+
+            LUT_X.clip(0, c.A_REF, out=LUT_X)
+            LUT_Y.clip(0, c.A_REF, out=LUT_Y)
+
+            c.LUT_wave_X = LUT_X
+            c.LUT_wave_Y = LUT_Y
 
         return True
 
@@ -626,9 +617,10 @@ class Alia(Arduino_protocol_serial.Arduino):
     ) -> bool:
         """Request new parameters to be set of the output reference signal
         `ref_X` at the Arduino. The Arduino will compute the new LUT, based on
-        the obtained parameters, and will send the new LUT and obtained
-        `ref_X` parameters back. The actually obtained parameters might differ
-        from the requested ones, noticably the frequency.
+        the obtained parameters, and will send the obtained `ref_X` parameters
+        back. The actually obtained parameters might differ from the requested
+        ones, noticably the frequency. Subsequently, `ref_X` and `ref_Y`
+        will get recomputed on the Python side.
 
         This method will update members:
             `config.ref_waveform`
@@ -640,8 +632,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             `config.ref_is_clipping_HI`
             `config.ref_is_clipping_LO`
             `config.N_LUT`
-            `config.is_LUT_dirty`
-            `config.LUT_wave`
+            `config.LUT_wave_X`
+            `config.LUT_wave_Y`
 
         Args:
             waveform (Waveform):
@@ -692,17 +684,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             if not success:
                 return False
 
-        if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
-            # Legacy
-            if not self.query_ref():
-                return False
-        else:
-            if (
-                not self.query_ref()
-                or not self.compute_LUT()
-                or not self.query_LUT()
-            ):
-                return False
+        if not self.query_ref():
+            return False
 
         if not was_paused:
             self.turn_on()
@@ -969,11 +952,11 @@ class Alia(Arduino_protocol_serial.Arduino):
                 phase_offset_deg = 120
                 idx_phase += int(np.round(phase_offset_deg / 360 * c.N_LUT))
 
-            lut_X = np.roll(c.LUT_wave_X, -idx_phase)
-            lut_Y = np.roll(c.LUT_wave_Y, -idx_phase)
+            LUT_X = np.roll(c.LUT_wave_X, -idx_phase)
+            LUT_Y = np.roll(c.LUT_wave_Y, -idx_phase)
 
-            ref_X_tiled = np.tile(lut_X, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
-            ref_Y_tiled = np.tile(lut_Y, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
+            ref_X_tiled = np.tile(LUT_X, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
+            ref_Y_tiled = np.tile(LUT_Y, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
 
             ref_X = np.asarray(
                 ref_X_tiled[: c.BLOCK_SIZE],
