@@ -7,7 +7,7 @@ specific firmware to turn it into a lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "16-07-2021"
+__date__ = "20-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
 
@@ -68,7 +68,7 @@ class Alia_qdev(QDeviceIO):
         signal_ref_waveform_is_set()
         signal_ref_freq_is_set()
         signal_ref_V_offset_is_set()
-        signal_ref_V_ampl_is_set()
+        signal_ref_V_ampl_is_set()    # Signals both `V_ampl` and `V_ampl_RMS`
     """
 
     signal_ref_waveform_is_set = QtCore.pyqtSignal()
