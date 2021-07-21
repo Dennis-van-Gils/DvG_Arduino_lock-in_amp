@@ -2,21 +2,21 @@
   Arduino lock-in amplifier
 
   Pins:
-    - A0: Output reference signal `ref_X`, single-ended with respect to GND
+    - A0 : Output reference signal `ref_X`, single-ended with respect to GND
 
     When `ADC_DIFFERENTIAL` = 0
     ------------------------------------------
-    - A1: Input signal `sig_I`, single-ended with respect to GND
-    - A2: Not used
+    - A1 : Input signal `sig_I`, single-ended with respect to GND
+    - A2 : Not used
 
     When `ADC_DIFFERENTIAL` = 1
     ------------------------------------------
-    - A1: Input signal `sig_I`, differential(+)
-    - A2: Input signal `sig_I`, differential(-)
+    - A1 : Input signal `sig_I`, differential(+)
+    - A2 : Input signal `sig_I`, differential(-)
 
     - D12: A digital trigger-out signal that is in sync with every full period
-    of the output reference waveform, useful for connecting up to an
-    oscilloscope.
+           of the output reference waveform, useful for connecting up to an
+           oscilloscope.
 
 
   Boards                     | MCU        | test | #define
@@ -44,7 +44,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  20-07-2021
+  21-07-2021
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -53,7 +53,7 @@
 
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
 
-// OBSERVATION: single-ended has half the noise compared to differential
+// OBSERVATION: Single-ended has half the noise compared to differential
 #define ADC_DIFFERENTIAL 0
 
 // Microcontroller unit (mcu)
@@ -277,8 +277,9 @@ bool ref_is_clipping_LO; // Output reference signal is clipping low?
 #define MIN_N_LUT 20   // Min. allowed number of samples for one full period
 #define MAX_N_LUT 1000 // Max. allowed number of samples for one full period
 uint16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
-uint16_t N_LUT;            // Current number of samples for one full period
-bool is_LUT_dirty = false; // Does the LUT have to be updated with new settings?
+uint16_t N_LUT; // Current number of samples for one full period
+// Does the LUT need to be recomputed to reflect new settings?
+bool is_LUT_dirty = false;
 
 // Analog port
 #define A_REF 3.300 // [V] Analog voltage reference Arduino
@@ -619,7 +620,7 @@ void isr_psd() {
     startup_counter < 4:
       `LED_on()` using the NeoPixel library takes over the SysTick timer to
       control the LED. This interferes with the timing stability of the ISR
-    for a few iterations. We simply wait them out.
+      for a few iterations. We simply wait them out.
 
     startup_counter == 4:
       Timing, DAC output and ADC input are stable. Time to stamp the buffer.
@@ -1104,9 +1105,9 @@ void loop() {
           // clang-format on
 
         } else if (strcmp(str_cmd, "lut?") == 0 || strcmp(str_cmd, "l?") == 0) {
+          // HAS BECOME OBSOLETE
           // Report the LUT as a binary stream. The reported LUT will start at
           // phase = 0 deg.
-          // HAS BECOME OBSOLETE
           Ser_data.write((uint8_t *)&N_LUT, 2);
           Ser_data.write((uint8_t *)&is_LUT_dirty, 1);
           Ser_data.write((uint8_t *)LUT_wave, N_LUT * 2);
@@ -1120,9 +1121,9 @@ void loop() {
 
         } else if (strcmp(str_cmd, "lut_ascii?") == 0 ||
                    strcmp(str_cmd, "la?") == 0) {
-          // Report the LUT as tab-delimited ASCII. The reported LUT will
-          // start at phase = 0 deg. Convenience function handy for debugging
-          // from a serial console.
+          // Report the LUT as tab-delimited ASCII. The reported LUT will start
+          // at phase = 0 deg. Convenience function handy for debugging from a
+          // serial console.
           Ser_data << N_LUT << '\t' << is_LUT_dirty << endl;
           for (uint16_t i = 0; i < N_LUT - 1; i++) {
             Ser_data << LUT_wave[i] << '\t';
