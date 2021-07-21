@@ -443,7 +443,7 @@ if __name__ == "__main__":
     alia.begin(
         waveform=Waveform.Cosine,
         freq=250,
-        V_offset=1.6,
+        V_offset=1.65,
         V_ampl_RMS=0.5,
     )
 
