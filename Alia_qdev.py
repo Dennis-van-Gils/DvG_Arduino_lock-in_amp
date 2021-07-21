@@ -7,7 +7,7 @@ specific firmware to turn it into a lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "20-07-2021"
+__date__ = "21-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
 
@@ -230,9 +230,7 @@ class Alia_qdev(QDeviceIO):
             Fs=dev.config.Fs,
             block_size=self.state.block_size,
             N_blocks=self.state.N_blocks,
-            firwin_cutoff=[1, 49, 51, 99, 101, 149, 151]
-            if dev.config.mcu_firmware == "ALIA v0.2.0 VSCODE"
-            else [2],
+            firwin_cutoff=[2],
             firwin_window="blackmanharris",
             firwin_pass_zero=False,
             use_CUDA=use_CUDA,
