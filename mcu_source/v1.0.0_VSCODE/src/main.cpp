@@ -930,7 +930,7 @@ void loop() {
           buffer could potentially flood the serial-in buffer at the PC side.
           This will happen when the PC is not reading (and depleting) the
           in-buffer as fast as possible because it is now waiting for the
-        'off' reply to occur.
+          'off' reply to occur.
         */
         noInterrupts();
         is_running = false;
