@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "16-07-2021"
+__date__ = "21-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -41,6 +41,7 @@ from dvg_pyqtgraph_threadsafe import HistoryChartCurve, PlotCurve, LegendSelect
 from Alia_protocol_serial import Alia, Waveform
 from Alia_qdev import Alia_qdev
 from dvg_ringbuffer_fir_filter_GUI import Filter_design_GUI
+import dvg_monkeypatch_pyqtgraph  # pylint: disable=unused-import
 
 # Constants
 UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
@@ -623,14 +624,14 @@ class MainWindow(QWidget):
         self.pi_refsig = self.pw_refsig.getPlotItem()
         apply_PlotItem_style(self.pi_refsig, "Readings", "ms", "V")
         self.pi_refsig.setXRange(
-            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0, padding=0
+            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0.01, padding=0
         )
         self.pi_refsig.setYRange(0.0, 3.3, padding=0.05)
         self.pi_refsig.setAutoVisible(x=True, y=True)
         self.pi_refsig.setClipToView(True)
         self.pi_refsig.setLimits(
-            xMin=-(c.BLOCK_SIZE + 1) * c.SAMPLING_PERIOD * 1e3,
-            xMax=0,
+            xMin=-c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3,
+            xMax=0.01,
             yMin=-3.465 if c.ADC_DIFFERENTIAL else -0.165,
             yMax=3.465,
         )
@@ -737,27 +738,27 @@ class MainWindow(QWidget):
         apply_PlotItem_style(self.pi_YT, "", "ms")
 
         self.pi_XR.setXRange(
-            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0, padding=0
+            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0.01, padding=0
         )
         self.pi_XR.setYRange(0, 5, padding=0.05)
         self.pi_XR.setAutoVisible(x=True, y=True)
         self.pi_XR.setClipToView(True)
         self.pi_XR.request_autorange_y = False
         self.pi_XR.setLimits(
-            xMin=-(c.BLOCK_SIZE + 1) * c.SAMPLING_PERIOD * 1e3,
-            xMax=0,
+            xMin=-c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3,
+            xMax=0.01,
         )
 
         self.pi_YT.setXRange(
-            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0, padding=0
+            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0.01, padding=0
         )
         self.pi_YT.setYRange(-180, 180, padding=0.1)
         self.pi_YT.setAutoVisible(x=True, y=True)
         self.pi_YT.setClipToView(True)
         self.pi_YT.request_autorange_y = False
         self.pi_YT.setLimits(
-            xMin=-(c.BLOCK_SIZE + 1) * c.SAMPLING_PERIOD * 1e3,
-            xMax=0,
+            xMin=-c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3,
+            xMax=0.01,
         )
 
         self.hcc_LIA_XR = HistoryChartCurve(
@@ -895,14 +896,14 @@ class MainWindow(QWidget):
         self.pi_filt_1 = self.pw_filt_1.getPlotItem()
         apply_PlotItem_style(self.pi_filt_1, "Filter @ sig_I", "ms", "V")
         self.pi_filt_1.setXRange(
-            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0, padding=0
+            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0.01, padding=0
         )
         self.pi_filt_1.setYRange(-3.3, 3.3, padding=0.025)
         self.pi_filt_1.setAutoVisible(x=True, y=True)
         self.pi_filt_1.setClipToView(True)
         self.pi_filt_1.setLimits(
-            xMin=-(c.BLOCK_SIZE + 1) * c.SAMPLING_PERIOD * 1e3,
-            xMax=0,
+            xMin=-c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3,
+            xMax=0.01,
             yMin=-3.465,
             yMax=3.465,
         )
@@ -986,14 +987,14 @@ class MainWindow(QWidget):
         self.pi_mixer = self.pw_mixer.getPlotItem()
         apply_PlotItem_style(self.pi_mixer, "Mixer", "ms", "V<sub>RMS</sub>")
         self.pi_mixer.setXRange(
-            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0, padding=0
+            -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0.01, padding=0
         )
         self.pi_mixer.setYRange(-5, 5, padding=0.025)
         self.pi_mixer.setAutoVisible(x=True, y=True)
         self.pi_mixer.setClipToView(True)
         self.pi_mixer.setLimits(
-            xMin=-(c.BLOCK_SIZE + 1) * c.SAMPLING_PERIOD * 1e3,
-            xMax=0,
+            xMin=-c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3,
+            xMax=0.01,
             yMin=-5.25,
             yMax=5.25,
         )
@@ -1800,7 +1801,7 @@ class MainWindow(QWidget):
                 -self.alia.config.BLOCK_SIZE
                 * self.alia.config.SAMPLING_PERIOD
                 * 1e3,
-                0,
+                0.01,
                 padding=0,
             )
 

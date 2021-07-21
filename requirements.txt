@@ -16,7 +16,7 @@ pyfftw
 #  Graphing & UI
 
 pyqt5     ~= 5.15
-pyqtgraph == 0.11.1      # Fix to version 0.11.1, because 0.12 breaks OpenGL
+pyqtgraph == 0.11.0      # Fix to version 0.11.0, because a monkey-patch specific to 0.11.0 will be applied. 0.11.1, 0.12.1 and 0.12.2 have not solved the issue and introduce other errors.
 pyopengl  ~= 3.1
 
 # Dennis van Gils
