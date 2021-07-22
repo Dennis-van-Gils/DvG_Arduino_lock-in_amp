@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "16-07-2021"
+__date__ = "22-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -57,10 +57,10 @@ class Alia(Arduino_protocol_serial.Arduino):
 
         # fmt: off
         # Microcontroller unit (mcu) info
-        mcu_firmware = None     # Firmware version
-        mcu_model    = None     # Chipset model
-        mcu_fcpu     = None     # Clock frequency
-        mcu_uid      = None     # Unique identifier of the chip (serial number)
+        mcu_firmware = None  # Firmware version
+        mcu_model    = None  # Chipset model
+        mcu_fcpu     = None  # Clock frequency
+        mcu_uid      = None  # Unique identifier of the chip (serial number)
 
         # Serial communication sentinels: start and end of message
         SOM = b"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80"
@@ -68,21 +68,15 @@ class Alia(Arduino_protocol_serial.Arduino):
         N_BYTES_SOM = len(SOM)
         N_BYTES_EOM = len(EOM)
 
-        # Data types to decode from binary streams
-        binary_type_time      = None  # [Legacy]
-        binary_type_ref_X     = None  # [Legacy]
-        binary_type_sig_I     = None  # [Legacy and non-legacy]
-        binary_type_counter   = None  # [Non-legacy]
-        binary_type_millis    = None  # [Non-legacy]
-        binary_type_micros    = None  # [Non-legacy]
-        binary_type_idx_phase = None  # [Non-legacy]
-        binary_type_sig_I     = None  # [Non-legacy]
-
-        # Return types
-        return_type_time      = None  # [Legacy and non-legacy]
-        return_type_ref_X     = None  # [Legacy]
-        return_type_ref_XY    = None  # [Non-legacy]
-        return_type_sig_I     = None  # [Legacy and non-legacy]
+        # Binary formats to decode from binary streams
+        binfrmt_time      = None  # Legacy firmware support
+        binfrmt_ref_X     = None  # Legacy firmware support
+        binfrmt_sig_I     = None
+        binfrmt_counter   = None
+        binfrmt_millis    = None
+        binfrmt_micros    = None
+        binfrmt_idx_phase = None
+        binfrmt_sig_I     = None
 
         # Lock-in amplifier CONSTANTS
         SAMPLING_PERIOD   = 0  # [s]
@@ -112,14 +106,14 @@ class Alia(Arduino_protocol_serial.Arduino):
         `LUT_wave` is not used in this Python code to reconstruct the `ref_X`
         and `ref_Y` timeseries, but is kept as a reference for troubleshooting.
         """
-        LUT_wave = np.array([], dtype=np.uint16)
+        LUT_wave = np.array([], dtype=np.uint16, order="C")
         """`LUT_wave_X` and `LUT_wave_Y` will contain a single period each,
         where `Y` is phase-shifted by 90 degrees, of the reference signal
         as reconstructed by this Python code, based on the known reference
         signal settings at the Arduino side. The units are in [V].
         """
-        LUT_wave_X = np.array([], dtype=float)  # [V]
-        LUT_wave_Y = np.array([], dtype=float)  # [V]
+        LUT_wave_X = np.array([], dtype=float,order="C")  # [V]
+        LUT_wave_Y = np.array([], dtype=float,order="C")  # [V]
 
         # Reference signal parameters
         ref_waveform    = Waveform.Unknown  # Waveform enum
@@ -209,30 +203,20 @@ class Alia(Arduino_protocol_serial.Arduino):
         print("    serial  %s" % c.mcu_uid)
         print("")
 
+        # Binary formats to decode from binary streams
         # fmt: off
         if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
-            # Legacy
-            c.binary_type_time      = "I"  # [uint32_t]
-            c.binary_type_ref_X     = "H"  # [uint16_t]
-            c.binary_type_sig_I     = "h"  # [int16_t]
-
-            c.return_type_time      = int  # Ensure signed to allow for flexible arithmetic
-            c.return_type_ref_X     = float
-            c.return_type_sig_I     = float
-
-            c.ref_waveform = Waveform["Cosine"]
-
+            # Legacy firmware support
+            c.binfrmt_time      = "I"  # [uint32_t]
+            c.binfrmt_ref_X     = "H"  # [uint16_t]
+            c.binfrmt_sig_I     = "h"  # [int16_t]
         else:
             # "ALIA v1.0.0" and above
-            c.binary_type_counter   = "I"  # [uint32_t] TX_buffer header
-            c.binary_type_millis    = "I"  # [uint32_t] TX_buffer header
-            c.binary_type_micros    = "H"  # [uint16_t] TX_buffer header
-            c.binary_type_idx_phase = "H"  # [uint16_t] TX_buffer header
-            c.binary_type_sig_I     = "h"  # [int16_t]  TX_buffer body
-
-            c.return_type_time      = np.float64
-            c.return_type_ref_XY    = np.float64
-            c.return_type_sig_I     = np.float64
+            c.binfrmt_counter   = "I"  # [uint32_t] TX_buffer header
+            c.binfrmt_millis    = "I"  # [uint32_t] TX_buffer header
+            c.binfrmt_micros    = "H"  # [uint16_t] TX_buffer header
+            c.binfrmt_idx_phase = "H"  # [uint16_t] TX_buffer header
+            c.binfrmt_sig_I     = "h"  # [int16_t]  TX_buffer body
         # fmt: on
 
         print("Lock-in constants")
@@ -240,33 +224,23 @@ class Alia(Arduino_protocol_serial.Arduino):
         success, ans_str = self.query("const?")
         if success:
             try:
+                # fmt: off
                 ans_list = ans_str.split("\t")
+                c.SAMPLING_PERIOD   = (round(float(ans_list[0])*1e-6, 9))
+                c.BLOCK_SIZE        = int(ans_list[1])
+                c.N_BYTES_TX_BUFFER = int(ans_list[2])
+                c.DAC_OUTPUT_BITS   = int(ans_list[3])
+                c.ADC_INPUT_BITS    = int(ans_list[4])
+                c.ADC_DIFFERENTIAL  = bool(int(ans_list[5]))
+                c.A_REF             = float(ans_list[6])
+
                 if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
-                    # fmt: off
-                    # Legacy
-                    c.SAMPLING_PERIOD   = float(ans_list[0]) * 1e-6
-                    c.BLOCK_SIZE        = int(ans_list[1])
-                    c.N_BYTES_TX_BUFFER = int(ans_list[2])
-                    c.N_LUT             = int(ans_list[3])
-                    c.DAC_OUTPUT_BITS   = int(ans_list[4])
-                    c.ADC_INPUT_BITS    = int(ans_list[5])
-                    c.ADC_DIFFERENTIAL  = int(ans_list[6])
-                    c.A_REF             = float(ans_list[7])
-                    # fmt: on
+                    # Legacy firmware support
+                    pass
                 else:
-                    # Round SAMPLING PERIOD to nanosecond resolution to
-                    # prevent e.g. 1.0 being stored as 0.9999999999
-                    # fmt: off
-                    c.SAMPLING_PERIOD   = (round(float(ans_list[0])*1e-6, 9))
-                    c.BLOCK_SIZE        = int(ans_list[1])
-                    c.N_BYTES_TX_BUFFER = int(ans_list[2])
-                    c.DAC_OUTPUT_BITS   = int(ans_list[3])
-                    c.ADC_INPUT_BITS    = int(ans_list[4])
-                    c.ADC_DIFFERENTIAL  = bool(int(ans_list[5]))
-                    c.A_REF             = float(ans_list[6])
-                    c.MIN_N_LUT         = int(ans_list[7])
-                    c.MAX_N_LUT         = int(ans_list[8])
-                    # fmt: on
+                    c.MIN_N_LUT     = int(ans_list[7])
+                    c.MAX_N_LUT     = int(ans_list[8])
+                # fmt: on
 
             except Exception as err:
                 pft(err)
@@ -303,7 +277,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         )
         fancy("A_ref", c.A_REF, "{:>12.3f}", "V")
         if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
-            # Legacy
+            # Legacy firmware support
             pass
         else:
             fancy("min N_LUT", c.MIN_N_LUT, "{:>12d}", "samples")
@@ -351,7 +325,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             True if successful, False otherwise.
         """
         if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
-            # Legacy
+            # Legacy firmware support
             success = self.write("on")
         else:
             success = self.write("_on" if reset_timer else "on")
@@ -485,6 +459,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             LUT_wave = np.array(
                 struct.unpack("<" + "H" * c.N_LUT, ans_bytes),
                 dtype=np.uint16,
+                order="C",
             )
         except:
             pft("'%s' I/O ERROR: Can't unpack bytes LUT" % self.name)
@@ -532,20 +507,14 @@ class Alia(Arduino_protocol_serial.Arduino):
                 ans_list = ans_str.split("\t")
 
                 # fmt: off
-                if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
-                    # Legacy
-                    c.ref_freq     = float(ans_list[0])
-                    c.ref_V_offset = float(ans_list[1])
-                    c.ref_V_ampl   = float(ans_list[2])
-                else:
-                    c.ref_waveform       = Waveform[ans_list[0]]
-                    c.ref_freq           = float(ans_list[1])
-                    c.ref_V_offset       = float(ans_list[2])
-                    c.ref_V_ampl         = float(ans_list[3])
-                    c.ref_V_ampl_RMS     = float(ans_list[4])
-                    c.ref_is_clipping_HI = bool(int(ans_list[5]))
-                    c.ref_is_clipping_LO = bool(int(ans_list[6]))
-                    c.N_LUT              = int(ans_list[7])
+                c.ref_waveform       = Waveform[ans_list[0]]
+                c.ref_freq           = float(ans_list[1])
+                c.ref_V_offset       = float(ans_list[2])
+                c.ref_V_ampl         = float(ans_list[3])
+                c.ref_V_ampl_RMS     = float(ans_list[4])
+                c.ref_is_clipping_HI = bool(int(ans_list[5]))
+                c.ref_is_clipping_LO = bool(int(ans_list[6]))
+                c.N_LUT              = int(ans_list[7])
                 # fmt: on
             except Exception as err:
                 pft(err)
@@ -553,15 +522,18 @@ class Alia(Arduino_protocol_serial.Arduino):
         else:
             return False
 
-        if not self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
-            if c.ref_waveform == Waveform.Cosine:
-                c.ref_RMS_factor = np.sqrt(2)
+        if c.ref_waveform == Waveform.Cosine:
+            c.ref_RMS_factor = np.sqrt(2)
+
+            if not c.mcu_firmware == "ALIA v0.2.0 VSCODE":
                 phis = np.linspace(0, 2 * np.pi, num=c.N_LUT, endpoint=False)
                 LUT_X = 0.5 * (1 + np.cos(phis))
                 LUT_Y = 0.5 * (1 + np.sin(phis))
 
-            elif c.ref_waveform == Waveform.Square:
-                c.ref_RMS_factor = 1
+        elif c.ref_waveform == Waveform.Square:
+            c.ref_RMS_factor = 1
+
+            if not c.mcu_firmware == "ALIA v0.2.0 VSCODE":
                 idxs = np.arange(0, c.N_LUT)
                 LUT_X = np.sign(np.cos(2 * np.pi * idxs / c.N_LUT))
                 LUT_X[LUT_X < 0.0] = 0.0
@@ -579,19 +551,24 @@ class Alia(Arduino_protocol_serial.Arduino):
                     LUT_Y = np.sign(np.sin(2 * np.pi * idxs / c.N_LUT))
                     LUT_Y[LUT_Y < 0.0] = 0.0
 
-            elif c.ref_waveform == Waveform.Triangle:
-                c.ref_RMS_factor = np.sqrt(3)
+        elif c.ref_waveform == Waveform.Triangle:
+            c.ref_RMS_factor = np.sqrt(3)
+
+            if not c.mcu_firmware == "ALIA v0.2.0 VSCODE":
                 idxs = np.arange(0, c.N_LUT)
                 LUT_X = 2 * np.abs(idxs / c.N_LUT - 0.5)
                 LUT_Y = 2 * np.abs(
                     ((idxs - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 0.5
                 )
 
-            elif c.ref_waveform == Waveform.Unknown:
-                c.ref_RMS_factor = np.nan
+        elif c.ref_waveform == Waveform.Unknown:
+            c.ref_RMS_factor = np.nan
+
+            if not c.mcu_firmware == "ALIA v0.2.0 VSCODE":
                 LUT_X = np.full(np.nan, c.N_LUT)
                 LUT_Y = np.full(np.nan, c.N_LUT)
 
+        if not c.mcu_firmware == "ALIA v0.2.0 VSCODE":
             LUT_X = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * LUT_X
             LUT_Y = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * LUT_Y
 
@@ -842,40 +819,45 @@ class Alia(Arduino_protocol_serial.Arduino):
             )
             return failed
 
-        if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
-            # Legacy
+        if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
+            # Legacy firmware support
+            end_byte_time = c.BLOCK_SIZE * struct.calcsize(c.binfrmt_time)
+            end_byte_ref_X = (
+                c.BLOCK_SIZE * struct.calcsize(c.binfrmt_ref_X) + end_byte_time
+            )
+            end_byte_sig_I = (
+                c.BLOCK_SIZE * struct.calcsize(c.binfrmt_sig_I) + end_byte_ref_X
+            )
             # fmt: off
-            end_byte_time  = c.BLOCK_SIZE * struct.calcsize(c.binary_type_time)
-            end_byte_ref_X = end_byte_time + c.BLOCK_SIZE * struct.calcsize(
-                c.binary_type_ref_X
-            )
-            end_byte_sig_I = end_byte_ref_X + c.BLOCK_SIZE * struct.calcsize(
-                c.binary_type_sig_I
-            )
             ans_bytes   = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM]
             bytes_time  = ans_bytes[0:end_byte_time]
             bytes_ref_X = ans_bytes[end_byte_time:end_byte_ref_X]
             bytes_sig_I = ans_bytes[end_byte_ref_X:end_byte_sig_I]
             # fmt: on
 
+            counter = np.nan
+
             try:
                 time = np.array(
                     struct.unpack(
-                        "<" + c.binary_type_time * c.BLOCK_SIZE, bytes_time
+                        "<" + c.binfrmt_time * c.BLOCK_SIZE, bytes_time
                     ),
-                    dtype=c.return_type_time,
+                    dtype=int,  # Ensure signed to allow for flexible arithmetic
+                    order="C",
                 )
                 ref_X_phase = np.array(
                     struct.unpack(
-                        "<" + c.binary_type_ref_X * c.BLOCK_SIZE, bytes_ref_X
+                        "<" + c.binfrmt_ref_X * c.BLOCK_SIZE, bytes_ref_X
                     ),
-                    dtype=c.return_type_ref_X,
+                    dtype=float,
+                    order="C",
                 )
                 sig_I = np.array(
                     struct.unpack(
-                        "<" + c.binary_type_sig_I * c.BLOCK_SIZE, bytes_sig_I
+                        "<" + c.binfrmt_sig_I * c.BLOCK_SIZE, bytes_sig_I
                     ),
-                    dtype=c.return_type_sig_I,
+                    dtype=float,
+                    order="C",
                 )
             except:
                 dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
@@ -884,21 +866,41 @@ class Alia(Arduino_protocol_serial.Arduino):
             phi = 2 * np.pi * ref_X_phase / c.N_LUT
 
             # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
-            """
-            if 0:
+            if 0:  # pylint: disable=using-constant-test
                 phase_offset_deg = 50
                 phi = np.unwrap(phi + phase_offset_deg / 180 * np.pi)
+
+            ref_X = np.cos(phi)
+            ref_Y = np.sin(phi)
+
+            # OVERRIDE: Only `Cosine` allowed, because `Square` and `Triangle`
+            # can not be garantueed deterministic on both Arduino and Python
+            # side due to rounding differences and the problem of computing the
+            # correct 90 degrees quadrant `ref_Y`.
+            """
+            if c.ref_waveform == Waveform.Square:
+                ref_X.fill(-1)
+                ref_X[ref_X_phase < (c.N_LUT / 4.0)] = 1.0
+                ref_X[ref_X_phase >= (c.N_LUT / 4.0 * 3.0)] = 1.0
+                ref_Y.fill(-1)
+                ref_Y[ref_X_phase < (c.N_LUT / 2.0)] = 1.0
+                ref_Y[ref_X_phase == (c.N_LUT / 2.0)] = 0.0
+
+            if c.ref_waveform == Waveform.Triangle:
+                ref_X = np.arcsin(ref_X) / np.pi * 2
+                ref_Y = np.arcsin(ref_Y) / np.pi * 2
             """
 
-            counter = np.nan
-            ref_X = (c.ref_V_offset + c.ref_V_ampl * np.cos(phi)).clip(
-                0, c.A_REF
-            )
-            ref_Y = (c.ref_V_offset + c.ref_V_ampl * np.sin(phi)).clip(
-                0, c.A_REF
-            )
-            sig_I = sig_I / (2 ** c.ADC_INPUT_BITS - 1) * c.A_REF
-            sig_I = sig_I * 2  # Compensate for differential mode of Arduino
+            np.multiply(ref_X, c.ref_V_ampl, out=ref_X)
+            np.multiply(ref_Y, c.ref_V_ampl, out=ref_Y)
+
+            ref_X = (c.ref_V_offset + ref_X).clip(0, c.A_REF)
+            ref_Y = (c.ref_V_offset + ref_Y).clip(0, c.A_REF)
+
+            sig_I = np.divide(sig_I, (1 << c.ADC_INPUT_BITS) - 1, out=sig_I)
+            sig_I = np.multiply(sig_I, c.A_REF, out=sig_I)
+            if c.ADC_DIFFERENTIAL:
+                sig_I = np.multiply(sig_I, 2, out=sig_I)
 
         else:
             # fmt: off
@@ -911,20 +913,19 @@ class Alia(Arduino_protocol_serial.Arduino):
             # fmt: on
 
             try:
-                counter = struct.unpack(
-                    "<" + c.binary_type_counter, bytes_counter
-                )
-                millis = struct.unpack("<" + c.binary_type_millis, bytes_millis)
-                micros = struct.unpack("<" + c.binary_type_micros, bytes_micros)
+                counter = struct.unpack("<" + c.binfrmt_counter, bytes_counter)
+                millis = struct.unpack("<" + c.binfrmt_millis, bytes_millis)
+                micros = struct.unpack("<" + c.binfrmt_micros, bytes_micros)
                 idx_phase = struct.unpack(
-                    "<" + c.binary_type_idx_phase, bytes_idx_phase
+                    "<" + c.binfrmt_idx_phase, bytes_idx_phase
                 )
 
                 sig_I = np.array(
                     struct.unpack(
-                        "<" + c.binary_type_sig_I * c.BLOCK_SIZE, bytes_sig_I
+                        "<" + c.binfrmt_sig_I * c.BLOCK_SIZE, bytes_sig_I
                     ),
-                    dtype=c.return_type_sig_I,
+                    dtype=float,
+                    order="C",
                 )
             except:
                 dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
@@ -940,7 +941,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             # dprint("%i %i" % (millis, micros))
             t0 = millis * 1000 + micros
             time = t0 + np.arange(0, c.BLOCK_SIZE) * c.SAMPLING_PERIOD * 1e6
-            time = np.asarray(time, dtype=c.return_type_time, order="C")
+            time = np.asarray(time, dtype=float, order="C")
 
             sig_I = np.divide(sig_I, 2 ** c.ADC_INPUT_BITS - 1, out=sig_I)
             sig_I = np.multiply(sig_I, c.A_REF, out=sig_I)
@@ -948,7 +949,7 @@ class Alia(Arduino_protocol_serial.Arduino):
                 sig_I = np.multiply(sig_I, 2, out=sig_I)
 
             # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
-            if 0:
+            if 0:  # pylint: disable=using-constant-test
                 phase_offset_deg = 120
                 idx_phase += int(np.round(phase_offset_deg / 360 * c.N_LUT))
 
@@ -960,13 +961,13 @@ class Alia(Arduino_protocol_serial.Arduino):
 
             ref_X = np.asarray(
                 ref_X_tiled[: c.BLOCK_SIZE],
-                dtype=c.return_type_ref_XY,
+                dtype=float,
                 order="C",
             )
 
             ref_Y = np.asarray(
                 ref_Y_tiled[: c.BLOCK_SIZE],
-                dtype=c.return_type_ref_XY,
+                dtype=float,
                 order="C",
             )
 
