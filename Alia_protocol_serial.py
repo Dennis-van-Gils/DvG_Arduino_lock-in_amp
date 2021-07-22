@@ -62,22 +62,6 @@ class Alia(Arduino_protocol_serial.Arduino):
         mcu_fcpu     = None  # Clock frequency
         mcu_uid      = None  # Unique identifier of the chip (serial number)
 
-        # Serial communication sentinels: start and end of message
-        SOM = b"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80"
-        EOM = b"\xff\x7f\x00\x00\xff\x7f\x00\x00\xff\x7f"
-        N_BYTES_SOM = len(SOM)
-        N_BYTES_EOM = len(EOM)
-
-        # Binary formats to decode from binary streams
-        binfrmt_time      = None  # Legacy firmware support
-        binfrmt_ref_X     = None  # Legacy firmware support
-        binfrmt_sig_I     = None
-        binfrmt_counter   = None
-        binfrmt_millis    = None
-        binfrmt_micros    = None
-        binfrmt_idx_phase = None
-        binfrmt_sig_I     = None
-
         # Lock-in amplifier CONSTANTS
         SAMPLING_PERIOD   = 0  # [s]
         BLOCK_SIZE        = 0  # Number of samples send per TX_buffer
@@ -86,17 +70,18 @@ class Alia(Arduino_protocol_serial.Arduino):
         DAC_OUTPUT_BITS   = 0  # [bits]
         ADC_INPUT_BITS    = 0  # [bits]
         ADC_DIFFERENTIAL  = 0  # [bool]
+        ADC_BITS_TO_V     = 0  # Multiplication factor
         A_REF             = 0  # [V] Analog voltage reference of the Arduino
         MIN_N_LUT         = 0  # Minimum allowed number of LUT samples
         MAX_N_LUT         = 0  # Maximum allowed number of LUT samples
 
         # Derived settings
-        Fs        = 0          # [Hz] Sampling rate
-        F_Nyquist = 0          # [Hz] Nyquist frequency
-        T_SPAN_TX_BUFFER = 0   # [s]  Time interval spanned by a single TX_buffer
+        Fs                = 0  # [Hz] Sampling rate
+        F_Nyquist         = 0  # [Hz] Nyquist frequency
+        T_SPAN_TX_BUFFER  = 0  # [s]  Time interval spanned by a single TX_buffer
 
         # Waveform look-up table (LUT) settings
-        N_LUT = 0              # Number of samples covering a full period
+        N_LUT             = 0  # Number of samples covering a full period
 
         """ OBSOLETE, kept as reference
         # `LUT_mcu` will contain a copy of the LUT array as used on the
@@ -116,14 +101,38 @@ class Alia(Arduino_protocol_serial.Arduino):
         LUT_Y = np.array([], dtype=float, order="C")  # [V]
 
         # Reference signal parameters
-        ref_waveform    = Waveform.Unknown  # Waveform enum
-        ref_freq        = 0         # [Hz]
-        ref_V_offset    = 0         # [V]
-        ref_V_ampl      = 0         # [V]
-        ref_V_ampl_RMS  = 0         # [V_RMS]
-        ref_RMS_factor  = np.nan    # RMS factor belonging to chosen waveform
-        ref_is_clipping_HI = False  # Output is set too high?
-        ref_is_clipping_LO = False  # Output is set too low?
+        ref_waveform       = Waveform.Unknown  # Waveform enum
+        ref_freq           = 0       # [Hz]
+        ref_V_offset       = 0       # [V]
+        ref_V_ampl         = 0       # [V]
+        ref_V_ampl_RMS     = 0       # [V_RMS]
+        ref_RMS_factor     = np.nan  # RMS factor belonging to chosen waveform
+        ref_is_clipping_HI = False   # Output is set too high?
+        ref_is_clipping_LO = False   # Output is set too low?
+
+        # Serial communication sentinels: Start and end of message
+        SOM = b"\x00\x80\x00\x80\x00\x80\x00\x80\x00\x80"
+        EOM = b"\xff\x7f\x00\x00\xff\x7f\x00\x00\xff\x7f"
+        N_BYTES_SOM = len(SOM)
+        N_BYTES_EOM = len(EOM)
+
+        # Binary formats to decode from binary streams
+        binfrmt_counter      = ""
+        binfrmt_millis       = ""
+        binfrmt_micros       = ""
+        binfrmt_idx_phase    = ""
+        binfrmt_sig_I        = ""
+        byte_slice_counter   = slice(0)
+        byte_slice_millis    = slice(0)
+        byte_slice_micros    = slice(0)
+        byte_slice_idx_phase = slice(0)
+        byte_slice_sig_I     = slice(0)
+
+        # Legacy firmware support for "ALIA v0.2.0 VSCODE"
+        binfrmt_time         = ""
+        binfrmt_ref_X        = ""
+        byte_slice_time      = slice(0)
+        byte_slice_ref_X     = slice(0)
         # fmt: on
 
     def __init__(
@@ -203,22 +212,6 @@ class Alia(Arduino_protocol_serial.Arduino):
         print("    serial  %s" % c.mcu_uid)
         print("")
 
-        # Binary formats to decode from binary streams
-        # fmt: off
-        if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
-            # Legacy firmware support
-            c.binfrmt_time      = "I"  # [uint32_t]
-            c.binfrmt_ref_X     = "H"  # [uint16_t]
-            c.binfrmt_sig_I     = "h"  # [int16_t]
-        else:
-            # "ALIA v1.0.0" and above
-            c.binfrmt_counter   = "I"  # [uint32_t] TX_buffer header
-            c.binfrmt_millis    = "I"  # [uint32_t] TX_buffer header
-            c.binfrmt_micros    = "H"  # [uint16_t] TX_buffer header
-            c.binfrmt_idx_phase = "H"  # [uint16_t] TX_buffer header
-            c.binfrmt_sig_I     = "h"  # [int16_t]  TX_buffer body
-        # fmt: on
-
         print("Lock-in constants")
         print("─────────────────\n")
         success, ans_str = self.query("const?")
@@ -251,6 +244,9 @@ class Alia(Arduino_protocol_serial.Arduino):
         c.Fs = round(1.0 / c.SAMPLING_PERIOD, 6)
         c.F_Nyquist = round(c.Fs / 2, 6)
         c.T_SPAN_TX_BUFFER = c.BLOCK_SIZE * c.SAMPLING_PERIOD
+        c.ADC_BITS_TO_V = c.A_REF / ((1 << c.ADC_INPUT_BITS) - 1)
+        if c.ADC_DIFFERENTIAL:
+            c.ADC_BITS_TO_V *= 2
 
         def fancy(name, value, value_format, unit=""):
             format_str = "{:>16s}  %s  {:<s}" % value_format
@@ -288,6 +284,65 @@ class Alia(Arduino_protocol_serial.Arduino):
         print("┌─────────────────────────┐")
         print("│     All systems GO!     │")
         print("└─────────────────────────┘\n")
+
+        # fmt: off
+        # Binary formats to decode from binary streams
+        if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
+            # Legacy firmware support
+            c.binfrmt_time  = "<{:d}I"  # [uint32_t]
+            c.binfrmt_ref_X = "<{:d}H"  # [uint16_t]
+            c.binfrmt_sig_I = "<{:d}h"  # [int16_t]
+
+            c.byte_slice_time = slice(
+                c.N_BYTES_SOM,
+                c.N_BYTES_SOM
+                + c.BLOCK_SIZE * struct.calcsize(c.binfrmt_time[-1]),
+            )
+            c.byte_slice_ref_X = slice(
+                c.byte_slice_time.stop,
+                c.byte_slice_time.stop
+                + c.BLOCK_SIZE * struct.calcsize(c.binfrmt_ref_X[-1]),
+            )
+            c.byte_slice_sig_I = slice(
+                c.byte_slice_ref_X.stop,
+                c.byte_slice_ref_X.stop
+                + c.BLOCK_SIZE * struct.calcsize(c.binfrmt_sig_I[-1]),
+            )
+        else:
+            # "ALIA v1.0.0" and above
+            c.binfrmt_counter   = "<I"      # [uint32_t] TX_buffer header
+            c.binfrmt_millis    = "<I"      # [uint32_t] TX_buffer header
+            c.binfrmt_micros    = "<H"      # [uint16_t] TX_buffer header
+            c.binfrmt_idx_phase = "<H"      # [uint16_t] TX_buffer header
+            c.binfrmt_sig_I     = "<{:d}h"  # [int16_t]  TX_buffer body
+
+            c.byte_slice_counter = slice(
+                c.N_BYTES_SOM,
+                c.N_BYTES_SOM
+                + struct.calcsize(c.binfrmt_counter[-1]),
+            )
+            c.byte_slice_millis = slice(
+                c.byte_slice_counter.stop,
+                c.byte_slice_counter.stop
+                + struct.calcsize(c.binfrmt_millis[-1]),
+            )
+            c.byte_slice_micros = slice(
+                c.byte_slice_millis.stop,
+                c.byte_slice_millis.stop
+                + struct.calcsize(c.binfrmt_micros[-1]),
+            )
+            c.byte_slice_idx_phase = slice(
+                c.byte_slice_micros.stop,
+                c.byte_slice_micros.stop
+                + struct.calcsize(c.binfrmt_idx_phase[-1]),
+            )
+            c.byte_slice_sig_I = slice(
+                c.byte_slice_idx_phase.stop,
+                c.byte_slice_idx_phase.stop
+                + c.BLOCK_SIZE * struct.calcsize(c.binfrmt_sig_I[-1]),
+            )
+        # fmt: on
+
         return True
 
     # --------------------------------------------------------------------------
@@ -370,9 +425,9 @@ class Alia(Arduino_protocol_serial.Arduino):
                 serial.SerialTimeoutException,
                 serial.SerialException,
             ) as err:
-                # Note though: The Serial library does not throw an
-                # exception when it actually times out! We will check for
-                # zero received bytes as indication for timeout, later.
+                # NOTE: The Serial library does not throw an exception when it
+                # actually times out! We will check for zero received bytes as
+                # indication for timeout, later.
                 pft(err, 3)
             except Exception as err:
                 pft(err, 3)
@@ -459,7 +514,7 @@ class Alia(Arduino_protocol_serial.Arduino):
 
         try:
             LUT_mcu = np.array(
-                struct.unpack("<" + "H" * c.N_LUT, ans_bytes),
+                struct.unpack("<{:d}H".format(c.N_LUT), ans_bytes),
                 dtype=np.uint16,
                 order="C",
             )
@@ -481,9 +536,9 @@ class Alia(Arduino_protocol_serial.Arduino):
     # --------------------------------------------------------------------------
 
     def query_ref(self) -> bool:
-        """Send command "ref?" to the Arduino lock-in amp to (re)compute the
-        LUT waveform internal to the Arduino and to retrieve the reference
-        signal `ref_X` parameters from it. Subsequently, `ref_X` and `ref_Y`
+        """Send command "ref?" to the Arduino lock-in amp to retrieve the
+        reference signal `ref_X` parameters from it, and to compute the
+        LUT waveform internal to the Arduino. Subsequently, `LUT_X` and `LUT_Y`
         will get recomputed on the Python side.
 
         This method will update members:
@@ -539,7 +594,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             #       Modern firmware
             # ---------------------------
 
-            # Reconstruct `ref_X` and `ref_Y` in advance
+            # Reconstruct `LUT_X` and `LUT_Y` in advance
             if c.ref_waveform == Waveform.Cosine:
                 c.ref_RMS_factor = np.sqrt(2)
 
@@ -588,8 +643,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             LUT_X.clip(0, c.A_REF, out=LUT_X)
             LUT_Y.clip(0, c.A_REF, out=LUT_Y)
 
-            c.LUT_X = np.asarray(LUT_X, dtype="float", order="C")
-            c.LUT_Y = np.asarray(LUT_Y, dtype="float", order="C")
+            c.LUT_X = np.asarray(LUT_X, dtype=float, order="C")
+            c.LUT_Y = np.asarray(LUT_Y, dtype=float, order="C")
 
         return True
 
@@ -605,12 +660,11 @@ class Alia(Arduino_protocol_serial.Arduino):
         V_ampl: Optional[float] = None,
         V_ampl_RMS: Optional[float] = None,
     ) -> bool:
-        """Request new parameters to be set of the output reference signal
-        `ref_X` at the Arduino. The Arduino will compute the new LUT, based on
-        the obtained parameters, and will send the obtained `ref_X` parameters
-        back. The actually obtained parameters might differ from the requested
-        ones, noticably the frequency. Subsequently, `ref_X` and `ref_Y`
-        will get recomputed on the Python side.
+        """Send new reference signal `ref_X` parameters to the Arduino and
+        retrieve the obtained parameters. The Arduino will compute the new LUT,
+        based on the obtained parameters. The actually obtained parameters might
+        differ from the requested ones, noticably the frequency. Subsequently,
+        `LUT_X` and `LUT_Y` will get recomputed on the Python side.
 
         This method will update members:
             `config.ref_waveform`
@@ -837,47 +891,31 @@ class Alia(Arduino_protocol_serial.Arduino):
             #       Legacy firmware
             # ---------------------------
 
-            end_byte_time = c.BLOCK_SIZE * struct.calcsize(c.binfrmt_time)
-            end_byte_ref_X = (
-                c.BLOCK_SIZE * struct.calcsize(c.binfrmt_ref_X) + end_byte_time
-            )
-            end_byte_sig_I = (
-                c.BLOCK_SIZE * struct.calcsize(c.binfrmt_sig_I) + end_byte_ref_X
-            )
-            # fmt: off
-            ans_bytes   = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM]
-            bytes_time  = ans_bytes[0:end_byte_time]
-            bytes_ref_X = ans_bytes[end_byte_time:end_byte_ref_X]
-            bytes_sig_I = ans_bytes[end_byte_ref_X:end_byte_sig_I]
-            # fmt: on
-
-            counter = np.nan
-
             try:
-                time = np.array(
-                    struct.unpack(
-                        "<" + c.binfrmt_time * c.BLOCK_SIZE, bytes_time
-                    ),
-                    dtype=int,  # Ensure signed to allow for flexible arithmetic
-                    order="C",
+                time = struct.unpack(
+                    c.binfrmt_time.format(c.BLOCK_SIZE),
+                    ans_bytes[c.byte_slice_time],
                 )
-                ref_X_phase = np.array(
-                    struct.unpack(
-                        "<" + c.binfrmt_ref_X * c.BLOCK_SIZE, bytes_ref_X
-                    ),
-                    dtype=float,
-                    order="C",
+
+                ref_X_phase = struct.unpack(
+                    c.binfrmt_ref_X.format(c.BLOCK_SIZE),
+                    ans_bytes[c.byte_slice_ref_X],
                 )
-                sig_I = np.array(
-                    struct.unpack(
-                        "<" + c.binfrmt_sig_I * c.BLOCK_SIZE, bytes_sig_I
-                    ),
-                    dtype=float,
-                    order="C",
+                sig_I = struct.unpack(
+                    c.binfrmt_sig_I.format(c.BLOCK_SIZE),
+                    ans_bytes[c.byte_slice_sig_I],
                 )
             except:
                 dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
                 return failed
+
+            # fmt: off
+            # NOTE: Ensure `time` is signed to allow for flexible arithmetic
+            counter     = np.nan
+            time        = np.array(time       , dtype=int  , order="C")
+            ref_X_phase = np.array(ref_X_phase, dtype=float, order="C")
+            sig_I       = np.array(sig_I      , dtype=float, order="C")
+            # fmt: on
 
             phi = 2 * np.pi * ref_X_phase / c.N_LUT
 
@@ -886,6 +924,7 @@ class Alia(Arduino_protocol_serial.Arduino):
                 phase_offset_deg = 50
                 phi = np.unwrap(phi + phase_offset_deg / 180 * np.pi)
 
+            # Construct `ref_X` and `ref_Y`
             ref_X = np.cos(phi)
             ref_Y = np.sin(phi)
 
@@ -913,10 +952,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             ref_X = (c.ref_V_offset + ref_X).clip(0, c.A_REF)
             ref_Y = (c.ref_V_offset + ref_Y).clip(0, c.A_REF)
 
-            sig_I = np.divide(sig_I, (1 << c.ADC_INPUT_BITS) - 1, out=sig_I)
-            sig_I = np.multiply(sig_I, c.A_REF, out=sig_I)
-            if c.ADC_DIFFERENTIAL:
-                sig_I = np.multiply(sig_I, 2, out=sig_I)
+            # Transform `sig_I` from [bits] to [V]
+            sig_I = np.multiply(sig_I, c.ADC_BITS_TO_V, out=sig_I)
 
         else:
 
@@ -924,29 +961,22 @@ class Alia(Arduino_protocol_serial.Arduino):
             #       Modern firmware
             # ---------------------------
 
-            # fmt: off
-            ans_bytes = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM] # Remove sentinels
-            bytes_counter   = ans_bytes[0:4]    # Header
-            bytes_millis    = ans_bytes[4:8]    # Header
-            bytes_micros    = ans_bytes[8:10]   # Header
-            bytes_idx_phase = ans_bytes[10:12]  # Header
-            bytes_sig_I     = ans_bytes[12:]    # Body
-            # fmt: on
-
             try:
-                counter = struct.unpack("<" + c.binfrmt_counter, bytes_counter)
-                millis = struct.unpack("<" + c.binfrmt_millis, bytes_millis)
-                micros = struct.unpack("<" + c.binfrmt_micros, bytes_micros)
-                idx_phase = struct.unpack(
-                    "<" + c.binfrmt_idx_phase, bytes_idx_phase
+                counter = struct.unpack(
+                    c.binfrmt_counter, ans_bytes[c.byte_slice_counter]
                 )
-
-                sig_I = np.array(
-                    struct.unpack(
-                        "<" + c.binfrmt_sig_I * c.BLOCK_SIZE, bytes_sig_I
-                    ),
-                    dtype=float,
-                    order="C",
+                millis = struct.unpack(
+                    c.binfrmt_millis, ans_bytes[c.byte_slice_millis]
+                )
+                micros = struct.unpack(
+                    c.binfrmt_micros, ans_bytes[c.byte_slice_micros]
+                )
+                idx_phase = struct.unpack(
+                    c.binfrmt_idx_phase, ans_bytes[c.byte_slice_idx_phase]
+                )
+                sig_I = struct.unpack(
+                    c.binfrmt_sig_I.format(c.BLOCK_SIZE),
+                    ans_bytes[c.byte_slice_sig_I],
                 )
             except:
                 dprint("'%s' I/O ERROR: Can't unpack bytes" % self.name)
@@ -957,6 +987,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             millis    = millis[0]
             micros    = micros[0]
             idx_phase = idx_phase[0]
+            sig_I     = np.array(sig_I, dtype=float, order="C")
             # fmt: on
 
             # dprint("%i %i" % (millis, micros))
@@ -964,16 +995,12 @@ class Alia(Arduino_protocol_serial.Arduino):
             time = t0 + np.arange(0, c.BLOCK_SIZE) * c.SAMPLING_PERIOD * 1e6
             time = np.asarray(time, dtype=float, order="C")
 
-            sig_I = np.divide(sig_I, 2 ** c.ADC_INPUT_BITS - 1, out=sig_I)
-            sig_I = np.multiply(sig_I, c.A_REF, out=sig_I)
-            if c.ADC_DIFFERENTIAL:
-                sig_I = np.multiply(sig_I, 2, out=sig_I)
-
             # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
             if 0:  # pylint: disable=using-constant-test
                 phase_offset_deg = 120
                 idx_phase += int(np.round(phase_offset_deg / 360 * c.N_LUT))
 
+            # Construct `ref_X` and `ref_Y`
             LUT_X = np.roll(c.LUT_X, -idx_phase)
             LUT_Y = np.roll(c.LUT_Y, -idx_phase)
 
@@ -991,6 +1018,9 @@ class Alia(Arduino_protocol_serial.Arduino):
                 dtype=float,
                 order="C",
             )
+
+            # Transform `sig_I` from [bits] to [V]
+            sig_I = np.multiply(sig_I, c.ADC_BITS_TO_V, out=sig_I)
 
         return True, counter, time, ref_X, ref_Y, sig_I
 
