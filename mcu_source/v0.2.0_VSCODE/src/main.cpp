@@ -123,19 +123,6 @@ uint16_t N_sent_buffers = 0;
     being sent, and vice-versa.
 */
 
-/* Tested settings Arduino M0 Pro
-Case A: turbo and stable on computer Onera, while only graphing and logging in
-        Python without FIR filtering
-  SAMPLING_PERIOD_us   80
-  BLOCK_SIZE          625
-  DAQ --> 12500 Hz
-Case B: stable on computer Onera, while graphing, logging and FIR filtering in
-        Python
-  SAMPLING_PERIOD_us  200
-  BLOCK_SIZE          500
-  DAQ --> 5000 Hz
-*/
-
 // Hint: Maintaining `SAMPLING_PERIOD_us x BLOCK_SIZE` = 0.1 seconds long will
 // result in a serial transmit rate of 10 blocks / s, which acts nicely with
 // the Python GUI.
@@ -439,8 +426,8 @@ void isr_psd() {
   static uint8_t startup_counter = 0;
   static uint16_t write_idx = 0; // Current write index in double buffer
   static uint32_t now_offset = 0;
-  static uint16_t LUT_idx_prev[2] = {0};
-  uint32_t now;
+  static uint16_t LUT_idx_prev = 0;
+  uint32_t now = micros();
   uint16_t LUT_idx;
   uint16_t ref_X;
   int16_t sig_I;
@@ -466,35 +453,36 @@ void isr_psd() {
     return;
   }
 
-  now = micros();
   if (startup_counter == 0) {
+    trigger_send_TX_buffer_A = false;
+    trigger_send_TX_buffer_B = false;
     write_idx = 0;
-    for (uint8_t i = 0; i < 2; i++) {
-      LUT_idx_prev[i] = 0;
-    }
   }
+
+  if (startup_counter <= 4) {
+    now_offset = now;
+    LUT_idx_prev = 0;
+  }
+
+  // Generate reference signal
+  // NOTE: `fmod()` takes a significant time, so calculate it /before/ the ADC
+  // such that the ADC and DAC conversions are near simultaneous
+  LUT_idx = (uint16_t)round(fmod(now - now_offset, T_period_micros_dbl) *
+                            LUT_micros2idx_factor);
+  ref_X = LUT_array[LUT_idx];
 
   // Read input signal corresponding to the DAC output of the previous
   // timestep. This ensures that the previously set DAC output has had enough
   // time to stabilize.
 #ifdef __SAMD21__
-  ADC->SWTRIG.bit.START = 1;
-  syncADC();
-  sig_I = ADC->RESULT.reg;
+    ADC->SWTRIG.bit.START = 1;
+    syncADC();
+    sig_I = ADC->RESULT.reg;
 #elif defined __SAMD51__
-  ADC0->SWTRIG.bit.START = 1;
-  syncADC(ADC0, ADC_SYNCBUSY_MASK);
-  sig_I = ADC0->RESULT.reg;
+    ADC0->SWTRIG.bit.START = 1;
+    syncADC(ADC0, ADC_SYNCBUSY_MASK);
+    sig_I = ADC0->RESULT.reg;
 #endif
-
-  if (startup_counter <= 1) {
-    now_offset = now;
-  }
-
-  // Generate reference signal
-  LUT_idx = (uint16_t)round(fmod(now - now_offset, T_period_micros_dbl) *
-                            LUT_micros2idx_factor);
-  ref_X = LUT_array[LUT_idx];
 
   // Output reference signal
 #ifdef __SAMD21__
@@ -503,19 +491,19 @@ void isr_psd() {
   DAC->DATA[0].reg = ref_X;
 #endif
 
-  LUT_idx_prev[1] = LUT_idx_prev[0];
-  LUT_idx_prev[0] = LUT_idx;
-
-  if (startup_counter < 3) {
+  if (startup_counter < 4) {
     startup_counter++;
     return;
-  } else if (startup_counter == 3) {
+  } else if (startup_counter == 4) {
     startup_counter++;
+    // stamp_TX_buffer(TX_buffer_A, &LUT_idx);
+    // LUT_idx++;
+    return;
   }
 
   // Store the signals
   buffer_time[write_idx] = now;
-  buffer_ref_X_phase[write_idx] = LUT_idx_prev[1];
+  buffer_ref_X_phase[write_idx] = LUT_idx_prev;
   buffer_sig_I[write_idx] = sig_I;
   write_idx++;
 
@@ -532,6 +520,8 @@ void isr_psd() {
     trigger_send_TX_buffer_B = true;
     write_idx = 0;
   }
+
+  LUT_idx_prev = LUT_idx;
 }
 
 /*------------------------------------------------------------------------------
@@ -941,8 +931,6 @@ void loop() {
           N_buffers_scheduled_to_be_sent = 0;
           N_sent_buffers = 0;
 #endif
-          trigger_send_TX_buffer_A = false;
-          trigger_send_TX_buffer_B = false;
           interrupts();
 
 #ifdef DEBUG
@@ -987,28 +975,18 @@ void loop() {
     bool fError = false;
 #endif
 
+    // NOTE: `write()` can return -1 as indication of an error, e.g. the
+    // receiving side being overrun with data.
+    // size_t w;
+
     if (trigger_send_TX_buffer_A) {
+      trigger_send_TX_buffer_A = false;
       idx = 0;
     } else {
+      trigger_send_TX_buffer_B = false;
       idx = BLOCK_SIZE;
     }
 
-// Uncomment 'noInterrupts()' and 'interrupts()' only for debugging purposes
-// to get the execution time of a complete buffer transmission without being
-// disturbed by 'isr_psd()'. Will suspend 'isr_psd()' for the duration of
-// below 'Ser_data.write()'.
-/*
-#ifdef DEBUG
-  //noInterrupts(); // Uncomment only for debugging purposes
-  uint32_t tick = micros();
-#endif
-*/
-
-// DEBUG: Trigger a dropped buffer by push-button on pin 5
-// if (digitalRead(5) == HIGH) {
-
-// Contrary to Arduino documentation, 'write' can return -1 as indication
-// of an error, e.g. the receiving side being overrun with data.
 #ifdef DEBUG
     int32_t w = Ser_data.write((uint8_t *)&SOM, N_BYTES_SOM);
     if (w == -1) {
@@ -1075,15 +1053,7 @@ void loop() {
 
 #ifdef DEBUG
     N_sent_buffers++;
-#endif
-    if (trigger_send_TX_buffer_A) {
-      trigger_send_TX_buffer_A = false;
-    }
-    if (trigger_send_TX_buffer_B) {
-      trigger_send_TX_buffer_B = false;
-    }
 
-#ifdef DEBUG
     noInterrupts();
     N_buffers_scheduled_to_be_sent--;
     if (N_buffers_scheduled_to_be_sent != 0) {
