@@ -283,7 +283,7 @@ bool is_LUT_dirty = false;
 
 // Analog port
 #define A_REF 3.300 // [V] Analog voltage reference Arduino
-#define MAX_DAC_OUTPUT_BITVAL ((uint16_t)(pow(2, DAC_OUTPUT_BITS) - 1))
+#define MAX_DAC_OUTPUT_BITVAL ((1 << DAC_OUTPUT_BITS) - 1)
 
 void set_wave(int value) {
   /* Set the waveform type, keeping `ref_VRMS` constant and changing `ref_ampl`
