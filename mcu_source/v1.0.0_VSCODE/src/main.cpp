@@ -245,7 +245,7 @@ volatile bool trigger_send_TX_buffer_B = false;
 #  define Ser_data Serial // Only Serial
 #endif
 
-// Instantiate serial command listeners
+// Instantiate serial command listener
 DvG_SerialCommand sc_data(Ser_data);
 
 /*------------------------------------------------------------------------------
@@ -284,6 +284,58 @@ bool is_LUT_dirty = false;
 // Analog port
 #define A_REF 3.300 // [V] Analog voltage reference Arduino
 #define MAX_DAC_OUTPUT_BITVAL ((1 << DAC_OUTPUT_BITS) - 1)
+
+void compute_LUT(uint16_t *LUT_array) {
+  double norm_offs = ref_offs / A_REF; // Normalized
+  double norm_ampl = ref_ampl / A_REF; // Normalized
+  double wave;
+
+  // Clear all waveform data for ease of debugging
+  for (uint16_t i = 0; i < MAX_N_LUT; i++) {
+    LUT_array[i] = 0;
+  }
+
+  // Generate normalized waveform periods in the range [0, 1]
+  ref_is_clipping_HI = false;
+  ref_is_clipping_LO = false;
+
+  for (uint16_t i = 0; i < N_LUT; i++) {
+
+    switch (ref_waveform) {
+      default:
+      case Cosine:
+        // N_LUT even: extrema [ 0, 1]
+        // N_LUT odd : extrema [>0, 1]
+        wave = .5 * (1 + cos(M_TWOPI * i / N_LUT));
+        break;
+
+      case Square:
+        // Extrema guaranteed  [ 0, 1]
+        wave = cos(M_TWOPI * i / N_LUT) < 0. ? 0. : 1.;
+        break;
+
+      case Triangle:
+        // N_LUT even: extrema [ 0, 1]
+        // N_LUT odd : extrema [>0, 1]
+        wave = 2 * fabs((double)i / N_LUT - .5);
+        break;
+    }
+
+    wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
+
+    if (wave < 0.0) {
+      ref_is_clipping_LO = true;
+      wave = 0.0;
+    } else if (wave > 1.0) {
+      ref_is_clipping_HI = true;
+      wave = 1.0;
+    }
+
+    LUT_array[i] = (uint16_t)round(MAX_DAC_OUTPUT_BITVAL * wave);
+  }
+
+  is_LUT_dirty = false;
+}
 
 void set_wave(int value) {
   /* Set the waveform type, keeping `ref_VRMS` constant and changing `ref_ampl`
@@ -338,58 +390,6 @@ void set_VRMS(double value) {
   ref_ampl = ref_VRMS * ref_RMS_factor;
   // ref_ampl = min(ref_ampl, A_REF);
   // ref_VRMS = ref_ampl / ref_RMS_factor;
-}
-
-void compute_LUT(uint16_t *LUT_array) {
-  double norm_offs = ref_offs / A_REF; // Normalized
-  double norm_ampl = ref_ampl / A_REF; // Normalized
-  double wave;
-
-  // Clear all waveform data for ease of debugging
-  for (int16_t i = 0; i < MAX_N_LUT; i++) {
-    LUT_array[i] = 0;
-  }
-
-  // Generate normalized waveform periods in the range [0, 1]
-  ref_is_clipping_HI = false;
-  ref_is_clipping_LO = false;
-
-  for (int16_t i = 0; i < N_LUT; i++) {
-
-    switch (ref_waveform) {
-      default:
-      case Cosine:
-        // N_LUT even: extrema [ 0, 1]
-        // N_LUT odd : extrema [>0, 1]
-        wave = .5 * (1 + cos(M_TWOPI * i / N_LUT));
-        break;
-
-      case Square:
-        // Extrema guaranteed  [ 0, 1]
-        wave = cos(M_TWOPI * i / N_LUT) < 0. ? 0. : 1.;
-        break;
-
-      case Triangle:
-        // N_LUT even: extrema [ 0, 1]
-        // N_LUT odd : extrema [>0, 1]
-        wave = 2 * fabs((double)i / N_LUT - .5);
-        break;
-    }
-
-    wave = (norm_offs - norm_ampl) + 2 * norm_ampl * wave;
-
-    if (wave < 0.0) {
-      ref_is_clipping_LO = true;
-      wave = 0.0;
-    } else if (wave > 1.0) {
-      ref_is_clipping_HI = true;
-      wave = 1.0;
-    }
-
-    LUT_array[i] = (uint16_t)round(MAX_DAC_OUTPUT_BITVAL * wave);
-  }
-
-  is_LUT_dirty = false;
 }
 
 /*------------------------------------------------------------------------------
