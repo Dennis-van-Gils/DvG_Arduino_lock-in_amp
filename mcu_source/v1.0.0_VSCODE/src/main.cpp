@@ -1165,25 +1165,25 @@ void loop() {
           // Set frequency of the reference signal [Hz].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_freq(atof(&str_cmd[5]));
-          Ser_data.println(ref_freq, 4);
+          Ser_data.println(ref_freq, 3);
 
         } else if (strncmp(str_cmd, "_offs", 5) == 0) {
           // Set offset of the reference signal [V].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_offs(atof(&str_cmd[5]));
-          Ser_data.println(ref_offs, 4);
+          Ser_data.println(ref_offs, 3);
 
         } else if (strncmp(str_cmd, "_ampl", 5) == 0) {
           // Set amplitude of the reference signal [V].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_ampl(atof(&str_cmd[5]));
-          Ser_data.println(ref_ampl, 4);
+          Ser_data.println(ref_ampl, 3);
 
         } else if (strncmp(str_cmd, "_vrms", 5) == 0) {
           // Set amplitude of the reference signal [V_RMS].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_VRMS(atof(&str_cmd[5]));
-          Ser_data.println(ref_VRMS, 4);
+          Ser_data.println(ref_VRMS, 3);
         }
       }
     }
