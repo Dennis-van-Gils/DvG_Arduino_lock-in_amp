@@ -1159,31 +1159,31 @@ void loop() {
           // Set the waveform type of the reference signal.
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_wave(atoi(&str_cmd[5]));
-          Ser_data << WAVEFORM_STRING[ref_waveform] << endl;
+          Ser_data.println(WAVEFORM_STRING[ref_waveform]);
 
         } else if (strncmp(str_cmd, "_freq", 5) == 0) {
           // Set frequency of the reference signal [Hz].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_freq(atof(&str_cmd[5]));
-          Ser_data << _FLOAT(ref_freq, 4) << endl;
+          Ser_data.println(ref_freq, 4);
 
         } else if (strncmp(str_cmd, "_offs", 5) == 0) {
           // Set offset of the reference signal [V].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_offs(atof(&str_cmd[5]));
-          Ser_data << _FLOAT(ref_offs, 4) << endl;
+          Ser_data.println(ref_offs, 4);
 
         } else if (strncmp(str_cmd, "_ampl", 5) == 0) {
           // Set amplitude of the reference signal [V].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_ampl(atof(&str_cmd[5]));
-          Ser_data << _FLOAT(ref_ampl, 4) << endl;
+          Ser_data.println(ref_ampl, 4);
 
         } else if (strncmp(str_cmd, "_vrms", 5) == 0) {
           // Set amplitude of the reference signal [V_RMS].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_VRMS(atof(&str_cmd[5]));
-          Ser_data << _FLOAT(ref_VRMS, 4) << endl;
+          Ser_data.println(ref_VRMS, 4);
         }
       }
     }
