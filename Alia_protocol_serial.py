@@ -13,7 +13,7 @@ __version__ = "2.0.0"
 import sys
 import struct
 from enum import Enum
-from typing import AnyStr, Optional, Tuple
+from typing import AnyStr, Optional, Tuple, Union
 import time as Time
 
 import serial
@@ -98,22 +98,22 @@ class Alia(Arduino_protocol_serial.Arduino):
         # Waveform look-up table (LUT) settings
         N_LUT = 0              # Number of samples covering a full period
 
-        # [Non-legacy]
-        is_LUT_dirty = False   # Is there a pending change on the LUT?
-        """`LUT_wave` will contain a copy of the LUT array as used on the
-        Arduino side in units of bit-values as sent out over its DAC. Hence,
-        multiply by A_REF/(2**ADC_INPUT_BITS - 1) to get units of [V].
-        `LUT_wave` is not used in this Python code to reconstruct the `ref_X`
-        and `ref_Y` timeseries, but is kept as a reference for troubleshooting.
+        """ OBSOLETE, kept as reference
+        # `LUT_mcu` will contain a copy of the LUT array as used on the
+        # microcontroller unit side in units of bit-values as sent out over its
+        # DAC. Multiply by `A_REF/(2**ADC_INPUT_BITS - 1)` to get units of [V].
+        # `LUT_mcu` is not used in this Python code to reconstruct the `ref_X`
+        # and `ref_Y` timeseries, but is kept as a reference for
+        # troubleshooting.
+        LUT_mcu = np.array([], dtype=np.uint16, order="C")
         """
-        LUT_wave = np.array([], dtype=np.uint16, order="C")
-        """`LUT_wave_X` and `LUT_wave_Y` will contain a single period each,
-        where `Y` is phase-shifted by 90 degrees, of the reference signal
-        as reconstructed by this Python code, based on the known reference
-        signal settings at the Arduino side. The units are in [V].
-        """
-        LUT_wave_X = np.array([], dtype=float,order="C")  # [V]
-        LUT_wave_Y = np.array([], dtype=float,order="C")  # [V]
+
+        # `LUT_X` and `LUT_Y` will contain a single period each of the
+        # reference signals, where `Y` is phase-shifted by 90 degrees, i.e. the
+        # quadrant. Both will get (re)computed based on the current reference
+        # signal parameters.
+        LUT_X = np.array([], dtype=float, order="C")  # [V]
+        LUT_Y = np.array([], dtype=float, order="C")  # [V]
 
         # Reference signal parameters
         ref_waveform    = Waveform.Unknown  # Waveform enum
@@ -263,10 +263,10 @@ class Alia(Arduino_protocol_serial.Arduino):
         fancy("TX buffer", c.N_BYTES_TX_BUFFER, "{:>12d}", "bytes")
         fancy("TX buffer", c.T_SPAN_TX_BUFFER, "{:>12.3f}", "s")
         fancy(
-            "TX data rate",
-            c.N_BYTES_TX_BUFFER * c.Fs / c.BLOCK_SIZE / 1024,
-            "{:>12,.1f}",
-            "kb/s",
+            "TX baud rate",
+            c.N_BYTES_TX_BUFFER * c.Fs / c.BLOCK_SIZE * 10,
+            "{:>12,.0f}",
+            "Bd",
         )
         fancy("DAC output", c.DAC_OUTPUT_BITS, "{:>12d}", "bit")
         fancy("ADC input", c.ADC_INPUT_BITS, "{:>12d}", "bit")
@@ -301,7 +301,10 @@ class Alia(Arduino_protocol_serial.Arduino):
         When running it will stop running, perform the query and resume running.
 
         Returns:
-            Tuple(success: bool, ans_str: AnyStr)
+            Tuple(
+                success: bool
+                ans_str: str | bytes | None
+            )
         """
         was_paused = self.lockin_paused
 
@@ -337,13 +340,13 @@ class Alia(Arduino_protocol_serial.Arduino):
 
     def turn_off(
         self, raises_on_timeout: bool = False
-    ) -> Tuple[bool, bool, AnyStr]:
+    ) -> Tuple[bool, bool, bytes]:
         """
         Returns:
             Tuple(
-                success: bool,
-                was_off: bool,
-                ans_bytes: AnyStr # For debugging purposes
+                success  : bool,
+                was_off  : bool,
+                ans_bytes: bytes  # For debugging purposes
             )
         """
         success = False
@@ -392,16 +395,15 @@ class Alia(Arduino_protocol_serial.Arduino):
     #   LUT
     # --------------------------------------------------------------------------
 
+    ''' OBSOLETE, kept as reference
     def query_LUT(self) -> bool:
         """Send command "lut?" to the Arduino lock-in amp to retrieve the look-
         up table (LUT) that is used for the output reference signal `ref_X`.
 
-        HAS BECOME OBSOLETE.
-
         This method will update members:
             `config.N_LUT`
             `config.is_LUT_dirty`
-            `config.LUT_wave`
+            `config.LUT_mcu`
 
         Returns:
             True if successful, False otherwise.
@@ -438,7 +440,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             return False
 
         c.N_LUT = int(N_LUT[0])
-        c.is_LUT_dirty = bool(is_LUT_dirty[0])
+        #c.is_LUT_dirty = bool(is_LUT_dirty[0])
 
         # Now read the remaining LUT array from the binary stream still left in
         # the serial buffer
@@ -456,7 +458,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             return False
 
         try:
-            LUT_wave = np.array(
+            LUT_mcu = np.array(
                 struct.unpack("<" + "H" * c.N_LUT, ans_bytes),
                 dtype=np.uint16,
                 order="C",
@@ -466,12 +468,13 @@ class Alia(Arduino_protocol_serial.Arduino):
             self.ser.flushInput()
             return False
 
-        c.LUT_wave = LUT_wave
+        c.LUT_mcu = LUT_mcu
 
         if not was_paused:
             self.turn_on()
 
         return True
+    '''
 
     # --------------------------------------------------------------------------
     #   query_ref
@@ -493,8 +496,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             `config.ref_is_clipping_HI`
             `config.ref_is_clipping_LO`
             `config.N_LUT`
-            `config.LUT_wave_X`
-            `config.LUT_wave_Y`
+            `config.LUT_X`
+            `config.LUT_Y`
 
         Returns:
             True if successful, False otherwise.
@@ -522,21 +525,34 @@ class Alia(Arduino_protocol_serial.Arduino):
         else:
             return False
 
-        if c.ref_waveform == Waveform.Cosine:
-            c.ref_RMS_factor = np.sqrt(2)
+        if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
 
-            if not c.mcu_firmware == "ALIA v0.2.0 VSCODE":
+            # ---------------------------
+            #       Legacy firmware
+            # ---------------------------
+
+            c.ref_RMS_factor = np.sqrt(2)  # Fixed to `Cosine`
+
+        else:
+
+            # ---------------------------
+            #       Modern firmware
+            # ---------------------------
+
+            # Reconstruct `ref_X` and `ref_Y` in advance
+            if c.ref_waveform == Waveform.Cosine:
+                c.ref_RMS_factor = np.sqrt(2)
+
                 phis = np.linspace(0, 2 * np.pi, num=c.N_LUT, endpoint=False)
                 LUT_X = 0.5 * (1 + np.cos(phis))
                 LUT_Y = 0.5 * (1 + np.sin(phis))
 
-        elif c.ref_waveform == Waveform.Square:
-            c.ref_RMS_factor = 1
+            elif c.ref_waveform == Waveform.Square:
+                c.ref_RMS_factor = 1
 
-            if not c.mcu_firmware == "ALIA v0.2.0 VSCODE":
                 idxs = np.arange(0, c.N_LUT)
                 LUT_X = np.sign(np.cos(2 * np.pi * idxs / c.N_LUT))
-                LUT_X[LUT_X < 0.0] = 0.0
+                LUT_X[LUT_X < 0] = 0
 
                 if c.N_LUT % 4 > 0:
                     # Not an integer multiple of 4
@@ -549,34 +565,31 @@ class Alia(Arduino_protocol_serial.Arduino):
                 else:
                     # Perfect quadrant exists
                     LUT_Y = np.sign(np.sin(2 * np.pi * idxs / c.N_LUT))
-                    LUT_Y[LUT_Y < 0.0] = 0.0
+                    LUT_Y[LUT_Y < 0] = 0
 
-        elif c.ref_waveform == Waveform.Triangle:
-            c.ref_RMS_factor = np.sqrt(3)
+            elif c.ref_waveform == Waveform.Triangle:
+                c.ref_RMS_factor = np.sqrt(3)
 
-            if not c.mcu_firmware == "ALIA v0.2.0 VSCODE":
                 idxs = np.arange(0, c.N_LUT)
                 LUT_X = 2 * np.abs(idxs / c.N_LUT - 0.5)
                 LUT_Y = 2 * np.abs(
                     ((idxs - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 0.5
                 )
 
-        elif c.ref_waveform == Waveform.Unknown:
-            c.ref_RMS_factor = np.nan
+            elif c.ref_waveform == Waveform.Unknown:
+                c.ref_RMS_factor = np.nan
 
-            if not c.mcu_firmware == "ALIA v0.2.0 VSCODE":
                 LUT_X = np.full(np.nan, c.N_LUT)
                 LUT_Y = np.full(np.nan, c.N_LUT)
 
-        if not c.mcu_firmware == "ALIA v0.2.0 VSCODE":
+            # Transform [0, 1] to [V]
             LUT_X = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * LUT_X
             LUT_Y = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * LUT_Y
-
             LUT_X.clip(0, c.A_REF, out=LUT_X)
             LUT_Y.clip(0, c.A_REF, out=LUT_Y)
 
-            c.LUT_wave_X = LUT_X
-            c.LUT_wave_Y = LUT_Y
+            c.LUT_X = np.asarray(LUT_X, dtype="float", order="C")
+            c.LUT_Y = np.asarray(LUT_Y, dtype="float", order="C")
 
         return True
 
@@ -609,8 +622,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             `config.ref_is_clipping_HI`
             `config.ref_is_clipping_LO`
             `config.N_LUT`
-            `config.LUT_wave_X`
-            `config.LUT_wave_Y`
+            `config.LUT_X`
+            `config.LUT_Y`
 
         Args:
             waveform (Waveform):
@@ -733,9 +746,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             https://stackoverflow.com/questions/17553543/pyserial-non-blocking-read-loop/38758773
         """
 
-        # fmt: off
-        timeout = serial.Timeout(self.ser._timeout)  # pylint: disable=protected-access
-        # fmt: on
+        # pylint: disable=protected-access
+        timeout = serial.Timeout(self.ser._timeout)
 
         c = bytearray(self.read_until_left_over_bytes)
         idx_EOM = -1
@@ -786,7 +798,7 @@ class Alia(Arduino_protocol_serial.Arduino):
     def listen_to_lockin_amp(
         self,
     ) -> Tuple[
-        bool, np.ndarray, np.ndarray, np.ndarray, np.ndarray, Optional[int]
+        bool, Union[int, float], np.ndarray, np.ndarray, np.ndarray, np.ndarray
     ]:
         """Reads incoming data packets coming from the lock-in amp. This method
         is blocking until it receives an EOM (end-of-message) sentinel or until
@@ -795,11 +807,11 @@ class Alia(Arduino_protocol_serial.Arduino):
         Returns:
             Tuple (
                 success: bool
-                counter: int | None
-                time   : numpy.array, units [us]
-                ref_X  : numpy.array, units [V]
-                ref_Y  : numpy.array, units [V]
-                sig_I  : numpy.array, units [V]
+                counter: int | numpy.nan
+                time   : numpy.ndarray, units [us]
+                ref_X  : numpy.ndarray, units [V]
+                ref_Y  : numpy.ndarray, units [V]
+                sig_I  : numpy.ndarray, units [V]
             )
         """
         failed = False, None, [np.nan], [np.nan], [np.nan], [np.nan]
@@ -820,7 +832,11 @@ class Alia(Arduino_protocol_serial.Arduino):
             return failed
 
         if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
-            # Legacy firmware support
+
+            # ---------------------------
+            #       Legacy firmware
+            # ---------------------------
+
             end_byte_time = c.BLOCK_SIZE * struct.calcsize(c.binfrmt_time)
             end_byte_ref_X = (
                 c.BLOCK_SIZE * struct.calcsize(c.binfrmt_ref_X) + end_byte_time
@@ -903,6 +919,11 @@ class Alia(Arduino_protocol_serial.Arduino):
                 sig_I = np.multiply(sig_I, 2, out=sig_I)
 
         else:
+
+            # ---------------------------
+            #       Modern firmware
+            # ---------------------------
+
             # fmt: off
             ans_bytes = ans_bytes[c.N_BYTES_SOM : -c.N_BYTES_EOM] # Remove sentinels
             bytes_counter   = ans_bytes[0:4]    # Header
@@ -953,8 +974,8 @@ class Alia(Arduino_protocol_serial.Arduino):
                 phase_offset_deg = 120
                 idx_phase += int(np.round(phase_offset_deg / 360 * c.N_LUT))
 
-            LUT_X = np.roll(c.LUT_wave_X, -idx_phase)
-            LUT_Y = np.roll(c.LUT_wave_Y, -idx_phase)
+            LUT_X = np.roll(c.LUT_X, -idx_phase)
+            LUT_Y = np.roll(c.LUT_Y, -idx_phase)
 
             ref_X_tiled = np.tile(LUT_X, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
             ref_Y_tiled = np.tile(LUT_Y, int(np.ceil(c.BLOCK_SIZE / c.N_LUT)))
