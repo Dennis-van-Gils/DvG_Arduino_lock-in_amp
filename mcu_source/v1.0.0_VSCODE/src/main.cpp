@@ -15,8 +15,7 @@
     - A2 : Input signal `sig_I`, differential(-)
 
     - D12: A digital trigger-out signal that is in sync with every full period
-           of the output reference waveform, useful for connecting up to an
-           oscilloscope.
+           of `ref_X`, useful for connecting up to an oscilloscope.
 
 
   Boards                     | MCU        | test | #define
@@ -44,7 +43,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  21-07-2021
+  23-07-2021
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
