@@ -38,18 +38,21 @@ Precompiled firmware for an Adafruit Feather M4 Express running at a 25 kHz samp
 You can copy over this firmware to the M4 board by using the FEATHERBOOT mount drive.
 
 ### Pin-out
+```
+    - A0 : Output reference signal `ref_X`, single-ended with respect to GND
 
-Single-ended version
-```
-A0: analog out, REF_X with respect to AGND
-A1: analog in , SIG_I with respect to AGND
+    When `ADC_DIFFERENTIAL` = 0
+    ------------------------------------------
+    - A1 : Input signal `sig_I`, single-ended with respect to GND
+    - A2 : Not used
+
+    When `ADC_DIFFERENTIAL` = 1
+    ------------------------------------------
+    - A1 : Input signal `sig_I`, differential(+)
+    - A2 : Input signal `sig_I`, differential(-)
+
+    - D12: A digital trigger-out signal that is in sync with every full period
+           of `ref_X`, useful for connecting up to an oscilloscope.
 ```
 
-Differential version
-```
-A0: analog out, REF_X with respect to AGND
-A1: analog in , SIG_I+
-A2: analog in , SIG_I-
-```
-
-###### Dennis van Gils, 02-07-2021
+###### Dennis van Gils, 23-07-2021
