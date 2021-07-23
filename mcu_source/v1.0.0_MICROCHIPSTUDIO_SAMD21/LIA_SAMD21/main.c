@@ -14,7 +14,7 @@
     - A1 : Input signal `sig_I`, differential(+)
     - A2 : Input signal `sig_I`, differential(-)
 
-    - D0 : A digital trigger-out signal that is in sync with every full period
+    - D12: A digital trigger-out signal that is in sync with every full period
            of the output reference waveform, useful for connecting up to an
            oscilloscope.
 
@@ -56,6 +56,11 @@
 
 static void LED_off() {gpio_set_pin_level(PIN_D13__LED, false);}
 static void LED_on()  {gpio_set_pin_level(PIN_D13__LED, true);}
+static void TRIG_OUT_off() {gpio_set_pin_level(PIN_D12__TRIG_OUT, false);}
+static void TRIG_OUT_on() {gpio_set_pin_level(PIN_D12__TRIG_OUT, true);}
+// static void TRIG_OUT_toggle() {
+//   gpio_set_pin_level(PIN_D12__TRIG_OUT, !gpio_get_pin_level(PIN_D12__TRIG_OUT));
+// }
 
 #define ADC_INPUT_BITS 12
 #if defined(_SAMD21_)
@@ -555,9 +560,9 @@ static void cb_DAC_0_conversion_done(struct dac_async_descriptor *const descr,
                                      const uint8_t ch) {
   // Copy a new full period of the waveform into the DAC output buffer
   if (is_running) {
-    gpio_set_pin_level(PIN_D0__TRIG_OUT, true);
+    TRIG_OUT_on();
     dac_async_write(descr, 0, LUT_wave, N_LUT);
-    gpio_set_pin_level(PIN_D0__TRIG_OUT, false);
+    TRIG_OUT_off();
   }
 }
 
@@ -644,9 +649,6 @@ void start_LIA(void) {
   TX_buffer_counter = 0;
   using_TX_buffer_A = true;
 
-  // Set TRIG_OUT to LOW
-  gpio_set_pin_level(PIN_D0__TRIG_OUT, false);
-
   is_running = true;
   timer_start(&TIMER_0);
 }
@@ -719,6 +721,7 @@ int main(void) {
 
   // Use built-in LED to signal running state of lock-in amp
   LED_off();
+  TRIG_OUT_off();
 
   // USART
   usart_async_get_io_descriptor(&USART_0, &io);
@@ -780,11 +783,11 @@ int main(void) {
           */
           is_running = false;
           LED_off();
+          TRIG_OUT_off();
 
           // Disable DAC output
           uint16_t DAC_OUTPUT_OFF[1] = {0};
           dac_async_write(&DAC_0, 0, DAC_OUTPUT_OFF, 1);
-          gpio_set_pin_level(PIN_D0__TRIG_OUT, false);
 
           // Cancel all active DMA transactions
           CRITICAL_SECTION_ENTER();

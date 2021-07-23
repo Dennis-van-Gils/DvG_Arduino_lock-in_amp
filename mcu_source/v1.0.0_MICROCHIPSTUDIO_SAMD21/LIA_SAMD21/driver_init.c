@@ -131,20 +131,6 @@ void system_init(void)
 	//init_mcu();
 	init_mcu_SAMD21_48MHz();
 
-	// GPIO on PA11
-
-	gpio_set_pin_level(PIN_D0__TRIG_OUT,
-	                   // <y> Initial level
-	                   // <id> pad_initial_level
-	                   // <false"> Low
-	                   // <true"> High
-	                   false);
-
-	// Set pin direction to output
-	gpio_set_pin_direction(PIN_D0__TRIG_OUT, GPIO_DIRECTION_OUT);
-
-	gpio_set_pin_function(PIN_D0__TRIG_OUT, GPIO_PIN_FUNCTION_OFF);
-
 	// GPIO on PA14
 
 	gpio_set_pin_direction(PIN_D4__MCK,
@@ -199,6 +185,20 @@ void system_init(void)
 	gpio_set_pin_direction(PIN_D13__LED, GPIO_DIRECTION_OUT);
 
 	gpio_set_pin_function(PIN_D13__LED, GPIO_PIN_FUNCTION_OFF);
+
+	// GPIO on PA19
+
+	gpio_set_pin_level(PIN_D12__TRIG_OUT,
+	                   // <y> Initial level
+	                   // <id> pad_initial_level
+	                   // <false"> Low
+	                   // <true"> High
+	                   false);
+
+	// Set pin direction to output
+	gpio_set_pin_direction(PIN_D12__TRIG_OUT, GPIO_DIRECTION_OUT);
+
+	gpio_set_pin_function(PIN_D12__TRIG_OUT, GPIO_PIN_FUNCTION_OFF);
 
 	ADC_0_init();
 

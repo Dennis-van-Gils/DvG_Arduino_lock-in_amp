@@ -910,12 +910,6 @@ pads:
       pad_function: F
       pad_initial_level: Low
       pad_pull_config: 'Off'
-  PIN_D0__TRIG_OUT:
-    name: PA11
-    definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::pad::PA11
-    mode: Digital output
-    user_label: PIN_D0__TRIG_OUT
-    configuration: null
   PIN_D4__MCK:
     name: PA14
     definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::pad::PA14
@@ -931,6 +925,12 @@ pads:
     definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::pad::PA17
     mode: Digital output
     user_label: PIN_D13__LED
+    configuration: null
+  PIN_D12__TRIG_OUT:
+    name: PA19
+    definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::pad::PA19
+    mode: Digital output
+    user_label: PIN_D12__TRIG_OUT
     configuration: null
   PIN_USART_TX:
     name: PB22
