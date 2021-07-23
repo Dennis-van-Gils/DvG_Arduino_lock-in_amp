@@ -130,7 +130,7 @@
           <AcmeProjectActionInfo Action="File" Source="main.c" IsConfig="false" Hash="k0AH7j+BrmdFhBPzCCMptA" />
           <AcmeProjectActionInfo Action="File" Source="driver_init.c" IsConfig="false" Hash="2xnAxjtvK9I5zGmeVxnFtA" />
           <AcmeProjectActionInfo Action="File" Source="driver_init.h" IsConfig="false" Hash="AajjcHBnGNEWm4+reZzUSA" />
-          <AcmeProjectActionInfo Action="File" Source="atmel_start_pins.h" IsConfig="false" Hash="VG/3PHOH1afT9uHVWW9u+Q" />
+          <AcmeProjectActionInfo Action="File" Source="atmel_start_pins.h" IsConfig="false" Hash="YJuVkw+BikwPRHxFPOf6Uw" />
           <AcmeProjectActionInfo Action="File" Source="examples/driver_examples.h" IsConfig="false" Hash="2uHFL4tWmDRmsFmXVWfIWw" />
           <AcmeProjectActionInfo Action="File" Source="examples/driver_examples.c" IsConfig="false" Hash="ve35U45cJDnprNer9iyCTA" />
           <AcmeProjectActionInfo Action="File" Source="hal/include/hal_timer.h" IsConfig="false" Hash="5pZVthtMl40VMvofOld2ng" />

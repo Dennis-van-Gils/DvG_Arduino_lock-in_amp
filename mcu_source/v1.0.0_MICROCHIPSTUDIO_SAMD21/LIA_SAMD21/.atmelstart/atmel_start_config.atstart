@@ -869,14 +869,7 @@ drivers:
       timer_event_control: true
       timer_prescaler: No division
       timer_tick: 50
-    optional_signals:
-    - identifier: TIMER_0:WO/2
-      pad: PA10
-      mode: PWM output
-      configuration: null
-      definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::optional_signal_definition::TCC0.WO.2
-      name: TCC0/WO/2
-      label: WO/2
+    optional_signals: []
     variant: null
     clocks:
       domain_group:
@@ -900,26 +893,6 @@ pads:
     mode: Analog
     user_label: PIN_A1__AIN
     configuration: null
-  PIN_D1__SAMPLING:
-    name: PA10
-    definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::pad::PA10
-    mode: Peripheral IO
-    user_label: PIN_D1__SAMPLING
-    configuration:
-      pad_direction: Out
-      pad_function: F
-      pad_initial_level: Low
-      pad_pull_config: 'Off'
-  PIN_D4__MCK:
-    name: PA14
-    definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::pad::PA14
-    mode: Advanced
-    user_label: PIN_D4__MCK
-    configuration:
-      pad_direction: Out
-      pad_function: H
-      pad_initial_level: Low
-      pad_pull_config: 'Off'
   PIN_D13__LED:
     name: PA17
     definition: Atmel:SAMD21_Drivers:0.0.1::SAMD21G18A-AF::pad::PA17
