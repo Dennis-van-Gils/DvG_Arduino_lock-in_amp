@@ -464,30 +464,30 @@ void get_systick_timestamp(uint32_t *stamp_millis,
   Note:
     The millis counter will roll over after 49.7 days.
   */
+  // clang-format off
   uint32_t ticks, ticks2;
   uint32_t pend, pend2;
   uint32_t count, count2;
   uint32_t _ulTickCount = millis();
 
   ticks2 = SysTick->VAL;
-  pend2 = !!(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk);
+  pend2  = !!(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk);
   count2 = _ulTickCount;
 
   do {
-    ticks = ticks2;
-    pend = pend2;
-    count = count2;
+    ticks  = ticks2;
+    pend   = pend2;
+    count  = count2;
     ticks2 = SysTick->VAL;
-    pend2 = !!(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk);
+    pend2  = !!(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk);
     count2 = _ulTickCount;
   } while ((pend != pend2) || (count != count2) || (ticks < ticks2));
 
   (*stamp_millis) = count2;
-  if (pend) {
-    (*stamp_millis)++;
-  }
+  if (pend) {(*stamp_millis)++;}
   (*stamp_micros_part) =
-      (((SysTick->LOAD - ticks) * (1048576 / (VARIANT_MCK / 1000000))) >> 20);
+    (((SysTick->LOAD - ticks) * (1048576 / (VARIANT_MCK / 1000000))) >> 20);
+  // clang-format on
 }
 
 void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
