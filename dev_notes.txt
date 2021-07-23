@@ -51,10 +51,4 @@
                                       ASCII [LUT[]]
                                       
   t?                  no              ASCII [millis.micros]
-
-
-  V1.0.0_MICROCHIPSTUDIO
-  ----------------------
-  
-  cos / sqr / saw /   yes             ASCII ['Computing LUT... done.']    Convenience functions for use in a serial terminal.
-  tri / ecg                           ASCII [waveform]
+ 
