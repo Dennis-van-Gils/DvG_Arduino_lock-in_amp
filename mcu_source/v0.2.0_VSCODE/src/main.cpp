@@ -1,10 +1,18 @@
 /*------------------------------------------------------------------------------
-Arduino lock-in amplifier
+  Arduino lock-in amplifier
 
-Pins:
-A0: output reference signal
-A1: input signal, differential +
-A2: input signal, differential -
+  Pins:
+    - A0 : Output reference signal `ref_X`, single-ended with respect to GND
+
+    When `ADC_DIFFERENTIAL` = 0
+    ------------------------------------------
+    - A1 : Input signal `sig_I`, single-ended with respect to GND
+    - A2 : Not used
+
+    When `ADC_DIFFERENTIAL` = 1
+    ------------------------------------------
+    - A1 : Input signal `sig_I`, differential(+)
+    - A2 : Input signal `sig_I`, differential(-)
 
   Boards                     | MCU        | test | #define
   ---------------------------------------------------------------------
@@ -31,7 +39,7 @@ A2: input signal, differential -
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  22-07-2019
+  23-07-2019
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -41,7 +49,7 @@ A2: input signal, differential -
 #define FIRMWARE_VERSION "ALIA v0.2.0 VSCODE"
 
 // OBSERVATION: Single-ended has half the noise compared to differential
-#define ADC_DIFFERENTIAL 1 // Leave at 1. Single-ended is not implemented
+#define ADC_DIFFERENTIAL 1
 
 // Microcontroller unit (mcu)
 #if defined __SAMD21G18A__
@@ -475,13 +483,13 @@ void isr_psd() {
   // timestep. This ensures that the previously set DAC output has had enough
   // time to stabilize.
 #ifdef __SAMD21__
-    ADC->SWTRIG.bit.START = 1;
-    syncADC();
-    sig_I = ADC->RESULT.reg;
+  ADC->SWTRIG.bit.START = 1;
+  syncADC();
+  sig_I = ADC->RESULT.reg;
 #elif defined __SAMD51__
-    ADC0->SWTRIG.bit.START = 1;
-    syncADC(ADC0, ADC_SYNCBUSY_MASK);
-    sig_I = ADC0->RESULT.reg;
+  ADC0->SWTRIG.bit.START = 1;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+  sig_I = ADC0->RESULT.reg;
 #endif
 
   // Output reference signal
