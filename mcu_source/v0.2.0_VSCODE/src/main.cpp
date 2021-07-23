@@ -105,7 +105,9 @@ static const char *WAVEFORM_STRING[] = {FOREACH_WAVEFORM(GENERATE_STRING)};
 
 // Others
 volatile bool is_running = false; // Is the lock-in amplifier running?
-char mcu_uid[33];                 // Serial number
+volatile bool trigger_reset_time = false;
+char mcu_uid[33]; // Serial number
+
 #ifdef DEBUG
 volatile uint16_t N_buffers_scheduled_to_be_sent = 0;
 uint16_t N_sent_buffers = 0;
@@ -122,13 +124,27 @@ uint16_t N_sent_buffers = 0;
     signal `sig_I` and outputs a new analog signal `ref_X` per timestep
     `SAMPLING_PERIOD_us` in microseconds.
 
-  * Double buffer
+  * Double buffer: TX_buffer_A & TX_buffer_B
 
-    The buffer that will be send each transmission is BLOCK_SIZE samples long
-    for each variable. Double the amount of memory is reserved to employ a
-    double buffer technique, where alternatingly the first buffer half
-    (buffer A) is being written to and the second buffer half (buffer B) is
-    being sent, and vice-versa.
+    Each acquired `sig_I` sample will get written to a buffer to be transmitted
+    over serial once the buffer is full. There are two of these buffers:
+    `TX_buffer_A` and `TX_buffer_B`.
+
+    The buffer that will be send each transmission is `BLOCK_SIZE` input samples
+    long. We employ a double buffer technique, where alternatingly `TX_buffer_A`
+    is being written to and `TX_buffer_B` is being sent, and vice-versa.
+
+    A full transmit buffer will contain a single block of data:
+
+    [
+      SOM,                                              {10 bytes}
+      (uint32_t) number of block being send             { 4 bytes}
+      (uint32_t) millis timestamp at start of block     { 4 bytes}
+      (uint16_t) micros part of timestamp               { 2 bytes}
+      BLOCK_SIZE x (uint16_t) `LUT_wave` indexes        {BLOCK_SIZE * 2 bytes}
+      BLOCK_SIZE x (int16_t)  ADC readings `sig_I`      {BLOCK_SIZE * 2 bytes}
+      EOM                                               {10 bytes}
+    ]
 */
 
 // Hint: Maintaining `SAMPLING_PERIOD_us x BLOCK_SIZE` = 0.1 seconds long will
@@ -139,30 +155,39 @@ uint16_t N_sent_buffers = 0;
 
 const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
 
-// clang-format off
-const uint16_t DOUBLE_BLOCK_SIZE = 2 * BLOCK_SIZE;
-volatile uint32_t buffer_time       [DOUBLE_BLOCK_SIZE] = {0};
-volatile uint16_t buffer_ref_X_phase[DOUBLE_BLOCK_SIZE] = {0};
-volatile int16_t  buffer_sig_I      [DOUBLE_BLOCK_SIZE] = {0};
-
 // Serial transmission sentinels: start and end of message
 const char SOM[] = {0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80};
 const char EOM[] = {0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f, 0x00, 0x00, 0xff, 0x7f};
 
-const uint8_t  N_BYTES_SOM = sizeof(SOM);
-const uint16_t N_BYTES_TIME        = BLOCK_SIZE*sizeof(buffer_time[0]);
-const uint16_t N_BYTES_REF_X_PHASE = BLOCK_SIZE*sizeof(buffer_ref_X_phase[0]);
-const uint16_t N_BYTES_SIG_I       = BLOCK_SIZE*sizeof(buffer_sig_I[0]);
-const uint8_t  N_BYTES_EOM = sizeof(EOM);
-const uint32_t N_BYTES_TX_BUFFER = N_BYTES_SOM +
-                                   N_BYTES_TIME +
-                                   N_BYTES_REF_X_PHASE +
-                                   N_BYTES_SIG_I +
-                                   N_BYTES_EOM;
-// clang-format on
+// clang-format off
+#define N_BYTES_SOM     (sizeof(SOM))
+#define N_BYTES_COUNTER (4)
+#define N_BYTES_MILLIS  (4)
+#define N_BYTES_MICROS  (2)
+#define N_BYTES_PHASE   (BLOCK_SIZE * 2)
+#define N_BYTES_SIG_I   (BLOCK_SIZE * 2)
+#define N_BYTES_EOM     (sizeof(EOM))
 
+#define N_BYTES_TX_BUFFER (N_BYTES_SOM     + \
+                           N_BYTES_COUNTER + \
+                           N_BYTES_MILLIS  + \
+                           N_BYTES_MICROS  + \
+                           N_BYTES_PHASE   + \
+                           N_BYTES_SIG_I   + \
+                           N_BYTES_EOM)
+
+volatile static uint8_t TX_buffer_A[N_BYTES_TX_BUFFER] = {0};
+volatile static uint8_t TX_buffer_B[N_BYTES_TX_BUFFER] = {0};
+volatile uint32_t TX_buffer_counter = 0;
 volatile bool trigger_send_TX_buffer_A = false;
 volatile bool trigger_send_TX_buffer_B = false;
+
+#define TX_BUFFER_OFFSET_COUNTER (N_BYTES_SOM)
+#define TX_BUFFER_OFFSET_MILLIS  (TX_BUFFER_OFFSET_COUNTER + N_BYTES_COUNTER)
+#define TX_BUFFER_OFFSET_MICROS  (TX_BUFFER_OFFSET_MILLIS  + N_BYTES_MILLIS)
+#define TX_BUFFER_OFFSET_PHASE   (TX_BUFFER_OFFSET_MICROS  + N_BYTES_MICROS)
+#define TX_BUFFER_OFFSET_SIG_I   (TX_BUFFER_OFFSET_PHASE   + N_BYTES_PHASE)
+// clang-format on
 
 /*------------------------------------------------------------------------------
   Serial
@@ -179,38 +204,12 @@ volatile bool trigger_send_TX_buffer_B = false;
 // Define for writing debugging info to the terminal of the second serial port.
 // Note: The board needs a second serial port to be used besides the main serial
 // port which is assigned to sending buffers of lock-in amp data.
+
+#define SERIAL_DATA_BAUDRATE 1e6 // Only used when Serial is UART
+
 #ifdef ARDUINO_SAMD_ZERO
 #  define DEBUG
 #endif
-
-/*
-   *** Tested scenarios
-   SAMPLING_PERIOD_us   200 [usec]
-   BLOCK_SIZE           500 [samples]
-   BAUDRATE             1e6 [only used when Serial is USART]
-   (a)
-      #define Ser_data Serial
-      Regardless of #define DEBUG
-      Only connect USB cable to programming port
-      --> Perfect timing. Timestamp jitter 0 usec
-   (b)
-      #define Ser_data Serial
-      Regardless of #define DEBUG
-      Both USB cables to programming port and native port
-      --> Timestamp jitter +\- 3 usec
-   (c)
-      #define Ser_data SerialUSB
-      Regardless of #define DEBUG
-      Only connect USB cable to native port
-      --> Timestamp jitter +\- 4 usec
-   (d)
-      #define Ser_data SerialUSB
-      Regardless of #define DEBUG
-      Both USB cables to programming port and native port
-      --> Timestamp jitter +\- 4 usec
-*/
-
-#define SERIAL_DATA_BAUDRATE 1e6 // Only used when Serial is UART
 
 #ifdef ARDUINO_SAMD_ZERO
 #  define Ser_data SerialUSB
@@ -230,7 +229,7 @@ DvG_SerialCommand sc_data(Ser_data);
 
 // Output reference signal `ref_X` parameters
 enum WAVEFORM_ENUM ref_waveform;
-double ref_freq;         // [Hz]    Obtained frequency of reference signal
+double ref_freq = 250.;  // [Hz]    Obtained frequency of reference signal
 double ref_offs;         // [V]     Voltage offset of reference signal
 double ref_ampl;         // [V]     Voltage amplitude reference signal
 double ref_VRMS;         // [V_RMS] Voltage amplitude reference signal
@@ -242,6 +241,8 @@ bool ref_is_clipping_LO; // Output reference signal is clipping low?
 uint16_t LUT_array[N_LUT] = {0}; // Look-up table allocation
 volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
 volatile double T_period_micros_dbl = 1.0 / ref_freq * 1e6;
+volatile double idx_per_iter = N_LUT / SAMPLING_RATE_Hz * ref_freq;
+volatile double idx_per_sec = N_LUT * ref_freq;
 
 // Analog port
 #define A_REF 3.300 // [V] Analog voltage reference Arduino
@@ -351,6 +352,8 @@ void set_freq(double value) {
   noInterrupts();
   LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
   T_period_micros_dbl = 1.0 / ref_freq * 1e6;
+  idx_per_iter = N_LUT / SAMPLING_RATE_Hz * ref_freq;
+  idx_per_sec = N_LUT * ref_freq;
   interrupts();
 }
 
@@ -426,25 +429,126 @@ void get_mcu_uid(char mcu_uid_out[33]) {
 }
 
 /*------------------------------------------------------------------------------
+  Time keeping
+------------------------------------------------------------------------------*/
+
+void get_systick_timestamp(uint32_t *stamp_millis,
+                           uint16_t *stamp_micros_part) {
+  /* Adapted from:
+  https://github.com/arduino/ArduinoCore-samd/blob/master/cores/arduino/delay.c
+
+  Note:
+    The millis counter will roll over after 49.7 days.
+  */
+  // clang-format off
+  uint32_t ticks, ticks2;
+  uint32_t pend, pend2;
+  uint32_t count, count2;
+  uint32_t _ulTickCount = millis();
+
+  ticks2 = SysTick->VAL;
+  pend2  = !!(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk);
+  count2 = _ulTickCount;
+
+  do {
+    ticks  = ticks2;
+    pend   = pend2;
+    count  = count2;
+    ticks2 = SysTick->VAL;
+    pend2  = !!(SCB->ICSR & SCB_ICSR_PENDSTSET_Msk);
+    count2 = _ulTickCount;
+  } while ((pend != pend2) || (count != count2) || (ticks < ticks2));
+
+  (*stamp_millis) = count2;
+  if (pend) {(*stamp_millis)++;}
+  (*stamp_micros_part) =
+    (((SysTick->LOAD - ticks) * (1048576 / (VARIANT_MCK / 1000000))) >> 20);
+  // clang-format on
+}
+
+void stamp_TX_buffer(volatile uint8_t *TX_buffer) {
+  /* Write timestamp of the first ADC sample of the block that is about to be
+  sent out over the serial port.
+  */
+
+  static uint32_t startup_millis = 0; // Time when lock-in amp got turned on
+  static uint16_t startup_micros = 0; // Time when lock-in amp got turned on
+  uint32_t millis_copy;
+  uint16_t micros_part;
+
+  get_systick_timestamp(&millis_copy, &micros_part);
+
+  if (trigger_reset_time) {
+    trigger_reset_time = false;
+    startup_millis = millis_copy;
+    startup_micros = micros_part;
+  }
+
+  // clang-format off
+  TX_buffer_counter++;
+  millis_copy -= startup_millis;
+  if (micros_part >= startup_micros) {
+    micros_part -= startup_micros;
+  } else {
+    micros_part = micros_part + 1000 - startup_micros;
+    millis_copy -= 1;
+  }
+  TX_buffer[TX_BUFFER_OFFSET_COUNTER    ] = TX_buffer_counter;
+  TX_buffer[TX_BUFFER_OFFSET_COUNTER + 1] = TX_buffer_counter >> 8;
+  TX_buffer[TX_BUFFER_OFFSET_COUNTER + 2] = TX_buffer_counter >> 16;
+  TX_buffer[TX_BUFFER_OFFSET_COUNTER + 3] = TX_buffer_counter >> 24;
+  TX_buffer[TX_BUFFER_OFFSET_MILLIS     ] = millis_copy;
+  TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 1] = millis_copy >> 8;
+  TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 2] = millis_copy >> 16;
+  TX_buffer[TX_BUFFER_OFFSET_MILLIS  + 3] = millis_copy >> 24;
+  TX_buffer[TX_BUFFER_OFFSET_MICROS     ] = micros_part;
+  TX_buffer[TX_BUFFER_OFFSET_MICROS  + 1] = micros_part >> 8;
+  // clang-format on
+}
+
+/*------------------------------------------------------------------------------
   Interrupt service routine (ISR) for phase-sentive detection (PSD)
 ------------------------------------------------------------------------------*/
 
+double mulmod(double a, uint32_t b, int mod) {
+  // To compute (a * b) % mod
+  double res = 0.;
+
+  a = fmod(a, mod);
+  while (b > 0) {
+    if (b % 2 == 1)
+      res = fmod((res + a), mod);
+
+    a = fmod((a * 2), mod);
+    b /= 2;
+  }
+
+  return fmod(res, mod);
+}
+
 void isr_psd() {
+  static uint32_t isr_counter = 0;
   static bool is_running_prev = is_running;
   static uint8_t startup_counter = 0;
-  static uint16_t write_idx = 0; // Current write index in double buffer
-  static uint32_t now_offset = 0;
+  static bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
+  static uint16_t write_idx = 0;        // Current write index of TX_buffer
   static uint16_t LUT_idx_prev = 0;
-  uint32_t now = micros();
   uint16_t LUT_idx;
   uint16_t ref_X;
-  int16_t sig_I;
+  int16_t sig_I = 0;
+
+  uint32_t millis_copy;
+  // uint32_t millis_copy_prev;
+  uint16_t micros_part;
+  // uint16_t micros_part_prev;
+  get_systick_timestamp(&millis_copy, &micros_part);
 
   if (is_running != is_running_prev) {
     is_running_prev = is_running;
 
     if (is_running) {
       startup_counter = 0;
+      isr_counter = 0;
       digitalWrite(PIN_LED, HIGH);
     } else {
       // Set output voltage to 0
@@ -464,19 +568,25 @@ void isr_psd() {
   if (startup_counter == 0) {
     trigger_send_TX_buffer_A = false;
     trigger_send_TX_buffer_B = false;
+    using_TX_buffer_A = true;
     write_idx = 0;
   }
 
   if (startup_counter <= 4) {
-    now_offset = now;
+    // now_offset = now;
     LUT_idx_prev = 0;
   }
 
   // Generate reference signal
   // NOTE: `fmod()` takes a significant time, so calculate it /before/ the ADC
   // such that the ADC and DAC conversions are near simultaneous
-  LUT_idx = (uint16_t)round(fmod(now - now_offset, T_period_micros_dbl) *
-                            LUT_micros2idx_factor);
+
+  LUT_idx = round(mulmod(idx_per_iter, isr_counter, N_LUT));
+  if (LUT_idx == 9000) {
+    // Wrap around after rounding
+    LUT_idx = 0;
+  }
+
   ref_X = LUT_array[LUT_idx];
 
   // Read input signal corresponding to the DAC output of the previous
@@ -504,32 +614,42 @@ void isr_psd() {
     return;
   } else if (startup_counter == 4) {
     startup_counter++;
-    // stamp_TX_buffer(TX_buffer_A, &LUT_idx);
+    stamp_TX_buffer(TX_buffer_A);
     // LUT_idx++;
     return;
   }
 
   // Store the signals
-  buffer_time[write_idx] = now;
-  buffer_ref_X_phase[write_idx] = LUT_idx_prev;
-  buffer_sig_I[write_idx] = sig_I;
+  // clang-format off
+  if (using_TX_buffer_A) {
+    TX_buffer_A[TX_BUFFER_OFFSET_PHASE + write_idx * 2    ] = LUT_idx_prev;
+    TX_buffer_A[TX_BUFFER_OFFSET_PHASE + write_idx * 2 + 1] = LUT_idx_prev >> 8;
+    TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
+    TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
+  } else {
+    TX_buffer_B[TX_BUFFER_OFFSET_PHASE + write_idx * 2    ] = LUT_idx_prev;
+    TX_buffer_B[TX_BUFFER_OFFSET_PHASE + write_idx * 2 + 1] = LUT_idx_prev >> 8;
+    TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
+    TX_buffer_B[TX_BUFFER_OFFSET_SIG_I + write_idx * 2 + 1] = sig_I >> 8;
+  }
   write_idx++;
+  // clang-format on
 
-  // Ready to send the buffer?
   if (write_idx == BLOCK_SIZE) {
-#ifdef DEBUG
-    N_buffers_scheduled_to_be_sent++;
-#endif
-    trigger_send_TX_buffer_A = true;
-  } else if (write_idx == DOUBLE_BLOCK_SIZE) {
-#ifdef DEBUG
-    N_buffers_scheduled_to_be_sent++;
-#endif
-    trigger_send_TX_buffer_B = true;
+    if (using_TX_buffer_A) {
+      trigger_send_TX_buffer_A = true;
+      stamp_TX_buffer(TX_buffer_B);
+    } else {
+      trigger_send_TX_buffer_B = true;
+      stamp_TX_buffer(TX_buffer_A);
+    }
+
+    using_TX_buffer_A = !using_TX_buffer_A;
     write_idx = 0;
   }
 
   LUT_idx_prev = LUT_idx;
+  isr_counter++;
 }
 
 /*------------------------------------------------------------------------------
@@ -546,6 +666,18 @@ void setup() {
   // Use built-in LED to signal running state of lock-in amp
   pinMode(PIN_LED, OUTPUT);
   digitalWrite(PIN_LED, is_running);
+
+  // Prepare SOM and EOM
+  noInterrupts();
+  for (uint8_t i = 0; i < N_BYTES_SOM; i++) {
+    TX_buffer_A[i] = SOM[i];
+    TX_buffer_B[i] = SOM[i];
+  }
+  for (uint8_t i = 0; i < N_BYTES_EOM; i++) {
+    TX_buffer_A[N_BYTES_TX_BUFFER - N_BYTES_EOM + i] = EOM[i];
+    TX_buffer_B[N_BYTES_TX_BUFFER - N_BYTES_EOM + i] = EOM[i];
+  }
+  interrupts();
 
   // DAC
   analogWriteResolution(DAC_OUTPUT_BITS);
@@ -926,24 +1058,18 @@ void loop() {
           // Lock-in amp is already off and we reply with an acknowledgement
           Ser_data.print("already_off\n");
 
-#ifdef DEBUG
-          Ser_debug << "Already OFF" << endl;
-#endif
-
-        } else if ((strcmp(str_cmd, "on") == 0) ||
-                   (strcmp(str_cmd, "_on") == 0)) {
+        } else if (strcmp(str_cmd, "on") == 0) {
           // Start lock-in amp
           noInterrupts();
           is_running = true;
-#ifdef DEBUG
-          N_buffers_scheduled_to_be_sent = 0;
-          N_sent_buffers = 0;
-#endif
           interrupts();
 
-#ifdef DEBUG
-          Ser_debug << "ON" << endl;
-#endif
+        } else if (strcmp(str_cmd, "_on") == 0) {
+          // Start lock-in amp and reset the time
+          noInterrupts();
+          trigger_reset_time = true;
+          is_running = true;
+          interrupts();
 
         } else if (strncmp(str_cmd, "_wave", 5) == 0) {
           // Set the waveform type of the reference signal.
@@ -976,115 +1102,18 @@ void loop() {
 
   // Send buffer out over the serial connection
   if (is_running && (trigger_send_TX_buffer_A || trigger_send_TX_buffer_B)) {
-    uint16_t idx;
-#ifdef DEBUG
-    int32_t bytes_sent = 0;
-    uint16_t dropped_buffers = 0;
-    bool fError = false;
-#endif
-
     // NOTE: `write()` can return -1 as indication of an error, e.g. the
     // receiving side being overrun with data.
     // size_t w;
 
     if (trigger_send_TX_buffer_A) {
       trigger_send_TX_buffer_A = false;
-      idx = 0;
+      // w =
+      Ser_data.write((uint8_t *)TX_buffer_A, N_BYTES_TX_BUFFER);
     } else {
       trigger_send_TX_buffer_B = false;
-      idx = BLOCK_SIZE;
+      // w =
+      Ser_data.write((uint8_t *)TX_buffer_B, N_BYTES_TX_BUFFER);
     }
-
-#ifdef DEBUG
-    int32_t w = Ser_data.write((uint8_t *)&SOM, N_BYTES_SOM);
-    if (w == -1) {
-      fError = true;
-    } else {
-      bytes_sent += w;
-    }
-#else
-    Ser_data.write((uint8_t *)&SOM, N_BYTES_SOM);
-#endif
-
-#ifdef DEBUG
-    w = Ser_data.write((uint8_t *)&buffer_time[idx], N_BYTES_TIME);
-    if (w == -1) {
-      fError = true;
-    } else {
-      bytes_sent += w;
-    }
-#else
-    Ser_data.write((uint8_t *)&buffer_time[idx], N_BYTES_TIME);
-#endif
-
-#ifdef DEBUG
-    w = Ser_data.write((uint8_t *)&buffer_ref_X_phase[idx],
-                       N_BYTES_REF_X_PHASE);
-    if (w == -1) {
-      fError = true;
-    } else {
-      bytes_sent += w;
-    }
-#else
-    Ser_data.write((uint8_t *)&buffer_ref_X_phase[idx], N_BYTES_REF_X_PHASE);
-#endif
-
-#ifdef DEBUG
-    w = Ser_data.write((uint8_t *)&buffer_sig_I[idx], N_BYTES_SIG_I);
-    if (w == -1) {
-      fError = true;
-    } else {
-      bytes_sent += w;
-    }
-#else
-    Ser_data.write((uint8_t *)&buffer_sig_I[idx], N_BYTES_SIG_I);
-#endif
-
-#ifdef DEBUG
-    w = Ser_data.write((uint8_t *)&EOM, N_BYTES_EOM);
-    if (w == -1) {
-      fError = true;
-    } else {
-      bytes_sent += w;
-    }
-#else
-    Ser_data.write((uint8_t *)&EOM, N_BYTES_EOM);
-#endif
-    //}
-
-    /*
-    #ifdef DEBUG
-      Ser_debug << micros() - tick << endl;
-    #endif
-    //interrupts();   // Uncomment only for debugging purposes
-    */
-
-#ifdef DEBUG
-    N_sent_buffers++;
-
-    noInterrupts();
-    N_buffers_scheduled_to_be_sent--;
-    if (N_buffers_scheduled_to_be_sent != 0) {
-      dropped_buffers = N_buffers_scheduled_to_be_sent;
-      N_buffers_scheduled_to_be_sent = 0;
-    }
-    interrupts();
-
-    if ((dropped_buffers == 0) && (bytes_sent == N_BYTES_TX_BUFFER)) {
-      // Ser_debug << N_sent_buffers << ((idx == 0)?" A ":" B ") << bytes_sent;
-      // Ser_debug << " OK" << endl;
-    } else {
-      Ser_debug << N_sent_buffers << ((idx == 0) ? " A " : " B ") << bytes_sent;
-      if (dropped_buffers != 0) {
-        Ser_debug << " DROPPED " << dropped_buffers;
-      }
-      if (fError) {
-        Ser_debug << " CAN'T WRITE";
-      } else if (bytes_sent != N_BYTES_TX_BUFFER) {
-        Ser_debug << " WRONG N_BYTES SENT";
-      }
-      Ser_debug << endl;
-    }
-#endif
   }
 }

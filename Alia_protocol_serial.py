@@ -289,23 +289,35 @@ class Alia(Arduino_protocol_serial.Arduino):
         # Binary formats to decode from binary streams
         if c.mcu_firmware == "ALIA v0.2.0 VSCODE":
             # Legacy firmware support
-            c.binfrmt_time  = "<{:d}I"  # [uint32_t]
-            c.binfrmt_ref_X = "<{:d}H"  # [uint16_t]
-            c.binfrmt_sig_I = "<{:d}h"  # [int16_t]
+            c.binfrmt_counter   = "<I"      # [uint32_t] TX_buffer header
+            c.binfrmt_millis    = "<I"      # [uint32_t] TX_buffer header
+            c.binfrmt_micros    = "<H"      # [uint16_t] TX_buffer header
+            c.binfrmt_idx_phase = "<{:d}H"  # [uint16_t] TX_buffer body
+            c.binfrmt_sig_I     = "<{:d}h"  # [int16_t]  TX_buffer body
 
-            c.byte_slice_time = slice(
+            c.byte_slice_counter = slice(
                 c.N_BYTES_SOM,
                 c.N_BYTES_SOM
-                + c.BLOCK_SIZE * struct.calcsize(c.binfrmt_time[-1]),
+                + struct.calcsize(c.binfrmt_counter[-1]),
             )
-            c.byte_slice_ref_X = slice(
-                c.byte_slice_time.stop,
-                c.byte_slice_time.stop
-                + c.BLOCK_SIZE * struct.calcsize(c.binfrmt_ref_X[-1]),
+            c.byte_slice_millis = slice(
+                c.byte_slice_counter.stop,
+                c.byte_slice_counter.stop
+                + struct.calcsize(c.binfrmt_millis[-1]),
+            )
+            c.byte_slice_micros = slice(
+                c.byte_slice_millis.stop,
+                c.byte_slice_millis.stop
+                + struct.calcsize(c.binfrmt_micros[-1]),
+            )
+            c.byte_slice_idx_phase = slice(
+                c.byte_slice_micros.stop,
+                c.byte_slice_micros.stop
+                + c.BLOCK_SIZE * struct.calcsize(c.binfrmt_idx_phase[-1]),
             )
             c.byte_slice_sig_I = slice(
-                c.byte_slice_ref_X.stop,
-                c.byte_slice_ref_X.stop
+                c.byte_slice_idx_phase.stop,
+                c.byte_slice_idx_phase.stop
                 + c.BLOCK_SIZE * struct.calcsize(c.binfrmt_sig_I[-1]),
             )
         else:
@@ -382,11 +394,7 @@ class Alia(Arduino_protocol_serial.Arduino):
         Returns:
             True if successful, False otherwise.
         """
-        if self.config.mcu_firmware == "ALIA v0.2.0 VSCODE":
-            # Legacy firmware support
-            success = self.write("on")
-        else:
-            success = self.write("_on" if reset_timer else "on")
+        success = self.write("_on" if reset_timer else "on")
         if success:
             self.lockin_paused = False
             self.read_until_left_over_bytes = bytearray()
@@ -892,14 +900,18 @@ class Alia(Arduino_protocol_serial.Arduino):
             # ---------------------------
 
             try:
-                time = struct.unpack(
-                    c.binfrmt_time.format(c.BLOCK_SIZE),
-                    ans_bytes[c.byte_slice_time],
+                counter = struct.unpack(
+                    c.binfrmt_counter, ans_bytes[c.byte_slice_counter]
                 )
-
-                ref_X_phase = struct.unpack(
-                    c.binfrmt_ref_X.format(c.BLOCK_SIZE),
-                    ans_bytes[c.byte_slice_ref_X],
+                millis = struct.unpack(
+                    c.binfrmt_millis, ans_bytes[c.byte_slice_millis]
+                )
+                micros = struct.unpack(
+                    c.binfrmt_micros, ans_bytes[c.byte_slice_micros]
+                )
+                idx_phase = struct.unpack(
+                    c.binfrmt_idx_phase.format(c.BLOCK_SIZE),
+                    ans_bytes[c.byte_slice_idx_phase],
                 )
                 sig_I = struct.unpack(
                     c.binfrmt_sig_I.format(c.BLOCK_SIZE),
@@ -910,14 +922,19 @@ class Alia(Arduino_protocol_serial.Arduino):
                 return failed
 
             # fmt: off
-            # NOTE: Ensure `time` is signed to allow for flexible arithmetic
-            counter     = np.nan
-            time        = np.array(time       , dtype=int  , order="C")
-            ref_X_phase = np.array(ref_X_phase, dtype=float, order="C")
-            sig_I       = np.array(sig_I      , dtype=float, order="C")
+            counter   = counter[0]
+            millis    = millis[0]
+            micros    = micros[0]
+            idx_phase = np.array(idx_phase, dtype=int, order="C")
+            sig_I     = np.array(sig_I, dtype=float, order="C")
             # fmt: on
 
-            phi = 2 * np.pi * ref_X_phase / c.N_LUT
+            # dprint("%i %i" % (millis, micros))
+            t0 = millis * 1000 + micros
+            time = t0 + np.arange(0, c.BLOCK_SIZE) * c.SAMPLING_PERIOD * 1e6
+            time = np.asarray(time, dtype=float, order="C")
+
+            phi = 2 * np.pi * idx_phase / c.N_LUT
 
             # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
             if 0:  # pylint: disable=using-constant-test
