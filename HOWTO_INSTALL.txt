@@ -2,7 +2,7 @@
 -------------------
 
 conda update -n base -c defaults conda
-conda create -n lia -c conda-forge  --force -y python=3.8.10
+conda create -n lia -c conda-forge --force -y python=3.8.10
 conda activate lia
 pip install -r requirements.txt
 
