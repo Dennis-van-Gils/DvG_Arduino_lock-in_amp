@@ -49,7 +49,7 @@
 #define FIRMWARE_VERSION "ALIA v0.2.0 VSCODE"
 
 // OBSERVATION: Single-ended has half the noise compared to differential
-#define ADC_DIFFERENTIAL 1
+#define ADC_DIFFERENTIAL 0
 
 // Microcontroller unit (mcu)
 #if defined __SAMD21G18A__
@@ -150,8 +150,8 @@ uint16_t N_sent_buffers = 0;
 // Hint: Maintaining `SAMPLING_PERIOD_us x BLOCK_SIZE` = 0.1 seconds long will
 // result in a serial transmit rate of 10 blocks / s, which acts nicely with
 // the Python GUI.
-#define SAMPLING_PERIOD_us 200
-#define BLOCK_SIZE 500
+#define SAMPLING_PERIOD_us 49
+#define BLOCK_SIZE 2048
 
 const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
 
@@ -229,7 +229,7 @@ DvG_SerialCommand sc_data(Ser_data);
 
 // Output reference signal `ref_X` parameters
 enum WAVEFORM_ENUM ref_waveform;
-double ref_freq = 250.;  // [Hz]    Obtained frequency of reference signal
+double ref_freq;         // [Hz]    Obtained frequency of reference signal
 double ref_offs;         // [V]     Voltage offset of reference signal
 double ref_ampl;         // [V]     Voltage amplitude reference signal
 double ref_VRMS;         // [V_RMS] Voltage amplitude reference signal
@@ -237,12 +237,37 @@ double ref_RMS_factor;   // RMS factor belonging to chosen waveform
 bool ref_is_clipping_HI; // Output reference signal is clipping high?
 bool ref_is_clipping_LO; // Output reference signal is clipping low?
 
-#define N_LUT 9000 // (9000 --> 0.04 deg) Number of samples for one full period
+/* N_LUT: Number of samples for one full period.
+   MUST BE A POWER OF 2.
+
+In order to calculate the phase of the `REF_X` signal to be output by the
+interrupt service routine (ISR), we will calculate the rate at which the
+`LUT_idx` should advance for each DAQ iteration, called 'idx_per_iter`.
+
+Naive method:
+  Inside the ISR, we should multiply `idx_per_iter` with the DAQ iteration
+  counter 'iter' and afterwards take the `N_LUT` modulo and round it to the
+  nearest integer. This will give us the `LUT_idx` that should currently be
+  output.
+
+Problems with this method:
+  `iter` is uint32_t and multiplying its value with `idx_per_iter` will result
+  in a overflow when `iter` is already large.
+
+Solution, see:
+https://www.geeksforgeeks.org/how-to-avoid-overflow-in-modular-multiplication/
+  A routine exists for multiplicative modulo that prevents overflow. This
+  routine works best on integers, so we will round `idx_per_iter` towards
+  the nearest integer and, hence, we should recalculate the new corresponding
+  `ref_freq`.
+
+  Another speed improvement is to fix the modulus to a power of 2, because it
+  allows to calculate the modulo using a single bitwise `&` operation. This
+  is super fast! I.e.: x % 2n == x & (2n - 1)
+*/
+#define N_LUT 32768              // Must be power of 2
 uint16_t LUT_array[N_LUT] = {0}; // Look-up table allocation
-volatile double LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
-volatile double T_period_micros_dbl = 1.0 / ref_freq * 1e6;
-volatile double idx_per_iter = N_LUT / SAMPLING_RATE_Hz * ref_freq;
-volatile double idx_per_sec = N_LUT * ref_freq;
+volatile uint16_t idx_per_iter;  // LUT_idx per DAQ_iter, depends on `ref_freq`
 
 // Analog port
 #define A_REF 3.300 // [V] Analog voltage reference Arduino
@@ -350,10 +375,8 @@ void set_freq(double value) {
   ref_freq = max(value, 10.0);
   ref_freq = min(ref_freq, SAMPLING_RATE_Hz / 4.);
   noInterrupts();
-  LUT_micros2idx_factor = 1e-6 * ref_freq * (N_LUT - 1);
-  T_period_micros_dbl = 1.0 / ref_freq * 1e6;
-  idx_per_iter = N_LUT / SAMPLING_RATE_Hz * ref_freq;
-  idx_per_sec = N_LUT * ref_freq;
+  idx_per_iter = (uint16_t)round(N_LUT / SAMPLING_RATE_Hz * ref_freq);
+  ref_freq = SAMPLING_RATE_Hz * idx_per_iter / N_LUT;
   interrupts();
 }
 
@@ -382,6 +405,19 @@ void set_VRMS(double value) {
   noInterrupts();
   compute_LUT();
   interrupts();
+}
+
+uint32_t mulmod_int_pow2(uint16_t a, uint32_t b, uint16_t n) {
+  // Multiplicative modulo `(a * b) mod n`, safe against overflow of `a * b`.
+  // Integers only and constraint on `n` being a power of 2.
+  uint32_t sum = 0;
+  while (b) {
+    if (b & 1)
+      sum = (sum + a) & (n - 1); // sum = (sum + a) % n;
+    a = (a << 1) & (n - 1);      // a = (a << 1) % n;
+    b = b >> 1;
+  }
+  return sum;
 }
 
 /*------------------------------------------------------------------------------
@@ -510,24 +546,8 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer) {
   Interrupt service routine (ISR) for phase-sentive detection (PSD)
 ------------------------------------------------------------------------------*/
 
-double mulmod(double a, uint32_t b, int mod) {
-  // To compute (a * b) % mod
-  double res = 0.;
-
-  a = fmod(a, mod);
-  while (b > 0) {
-    if (b % 2 == 1)
-      res = fmod((res + a), mod);
-
-    a = fmod((a * 2), mod);
-    b /= 2;
-  }
-
-  return fmod(res, mod);
-}
-
 void isr_psd() {
-  static uint32_t isr_counter = 0;
+  static uint32_t DAQ_iter = 0;
   static bool is_running_prev = is_running;
   static uint8_t startup_counter = 0;
   static bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
@@ -538,9 +558,7 @@ void isr_psd() {
   int16_t sig_I = 0;
 
   uint32_t millis_copy;
-  // uint32_t millis_copy_prev;
   uint16_t micros_part;
-  // uint16_t micros_part_prev;
   get_systick_timestamp(&millis_copy, &micros_part);
 
   if (is_running != is_running_prev) {
@@ -548,7 +566,7 @@ void isr_psd() {
 
     if (is_running) {
       startup_counter = 0;
-      isr_counter = 0;
+      DAQ_iter = 0;
       digitalWrite(PIN_LED, HIGH);
     } else {
       // Set output voltage to 0
@@ -578,15 +596,7 @@ void isr_psd() {
   }
 
   // Generate reference signal
-  // NOTE: `fmod()` takes a significant time, so calculate it /before/ the ADC
-  // such that the ADC and DAC conversions are near simultaneous
-
-  LUT_idx = round(mulmod(idx_per_iter, isr_counter, N_LUT));
-  if (LUT_idx == 9000) {
-    // Wrap around after rounding
-    LUT_idx = 0;
-  }
-
+  LUT_idx = mulmod_int_pow2(idx_per_iter, DAQ_iter, N_LUT);
   ref_X = LUT_array[LUT_idx];
 
   // Read input signal corresponding to the DAC output of the previous
@@ -649,7 +659,7 @@ void isr_psd() {
   }
 
   LUT_idx_prev = LUT_idx;
-  isr_counter++;
+  DAQ_iter++;
 }
 
 /*------------------------------------------------------------------------------

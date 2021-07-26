@@ -1,0 +1,30 @@
+Multiplicative modulo algorithms `(a * b) mod n`.
+Safe against overflow of `a * b`.
+
+Results on SAMD51, Adafruit Feather M4 Express @ 120 MHz
+  Fixed `a` and `N`, varying `b`.
+
+----------------------------------------
+  DAQ_period       50.000  us
+  DAQ_rate      20000.000  Hz
+  N_LUT             32768
+
+  idx_per_iter    409.600
+     ideal            410
+  freq_ref        250.000  Hz
+     ideal        250.244  Hz
+----------------------------------------
+----------------------------------------
+mulmod_float
+28.3 us per small iter, iter 2999 = 15974.40
+65.9 us per large iter, iter 2147486647 = 2867.20
+
+----------------------------------------
+mulmod_int
+1.6 us per small iter, iter 2999 = 17174
+4.0 us per large iter, iter 2147486647 = 17174
+
+----------------------------------------
+mulmod_int_pow2
+1.2 us per small iter, iter 2999 = 17174
+3.1 us per large iter, iter 2147486647 = 17174
