@@ -43,7 +43,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  23-07-2021
+  27-07-2021
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -536,32 +536,33 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
 ------------------------------------------------------------------------------*/
 
 void isr_psd() {
-  static bool is_running_prev = is_running;
-  static uint8_t startup_counter = 0;
+  static uint32_t DAQ_iter = 0;         // Increments each time step
+  static uint16_t write_idx = 0;        // Current write index of TX_buffer
   static bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
-  static uint16_t write_idx;            // Current write index of TX_buffer
-  volatile static uint16_t LUT_idx;     // Current read index of LUT
-  uint16_t ref_X;
-  int16_t sig_I = 0;
+  static bool is_running_prev = is_running;
+  volatile static uint16_t LUT_idx; // Current read index of LUT
+  int16_t sig_I;
 
   if (is_running != is_running_prev) {
     is_running_prev = is_running;
 
     if (is_running) {
-      startup_counter = 0;
-      // Note: Turning on the LED will mess up the ISR timing momentarily
-      // because of the NeoPixel library taking over the SysTick timer. Hence,
-      // we will wait with writing to the TX_buffer for a few iterations, see
-      // the upcoming code in this `isr_psd()` routine.
-      LED_on();
+      // Just got turned on
+      DAQ_iter = 0;
+      LUT_idx = 0;
+      write_idx = 0;
+      trigger_send_TX_buffer_A = false;
+      trigger_send_TX_buffer_B = false;
+      using_TX_buffer_A = true;
+      // stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     } else {
+      // Just got turned off
       // Set output voltage to 0
 #if defined __SAMD21__
       DAC->DATA.reg = 0;
 #elif defined __SAMD51__
       DAC->DATA[0].reg = 0;
 #endif
-      LED_off();
     }
   }
 
@@ -569,69 +570,60 @@ void isr_psd() {
     return;
   }
 
-  if (startup_counter == 0) {
-    trigger_send_TX_buffer_A = false;
-    trigger_send_TX_buffer_B = false;
-    using_TX_buffer_A = true;
-    write_idx = 0;
-    LUT_idx = 0;
+  /*
+  // Stamp the next TX buffer, one time step in advance before the current TX
+  // buffer will get completely full. Stamp as soon as possible, before other
+  // DAC and ADC operations, to get close to the true start time of the current
+  // ISR call: Inside an ISR `millis` is stalled, but `micros` is not.
+  if (write_idx == BLOCK_SIZE - 1) {
+    if (using_TX_buffer_A) {
+      stamp_TX_buffer(TX_buffer_B, &LUT_idx);
+    } else {
+      stamp_TX_buffer(TX_buffer_A, &LUT_idx);
+    }
   }
+  */
 
-  // Read input signal corresponding to the DAC output of the previous
-  // timestep. This ensures that the previously set DAC output has had enough
+  // Read ADC signal `sig_I` corresponding to the DAC output of the previous
+  // time step. This ensures that the previously set DAC output has had enough
   // time to stabilize.
-  if (startup_counter >= 4) {
 #ifdef __SAMD21__
-    ADC->SWTRIG.bit.START = 1;
-    syncADC();
-    sig_I = ADC->RESULT.reg;
+  ADC->SWTRIG.bit.START = 1;
+  syncADC();
+  while (!ADC->INTFLAG.bit.RESRDY) {}
+  sig_I = ADC->RESULT.reg;
 #elif defined __SAMD51__
-    ADC0->SWTRIG.bit.START = 1;
-    syncADC(ADC0, ADC_SYNCBUSY_MASK);
-    sig_I = ADC0->RESULT.reg;
+  ADC0->SWTRIG.bit.START = 1;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+  __asm__("nop\n\t");
+  __asm__("nop\n\t");
+  __asm__("nop\n\t");
+  while (!ADC0->INTFLAG.bit.RESRDY) {}
+  sig_I = ADC0->RESULT.reg;
 #endif
-  }
 
-  // Trigger out
-  if (LUT_idx == 0) {
-    digitalWriteFast(PORT_TRIG_OUT, MASK_TRIG_OUT, HIGH);
-  } else if (LUT_idx == 1) {
-    digitalWriteFast(PORT_TRIG_OUT, MASK_TRIG_OUT, LOW);
-  }
-
-  // Output reference signal
+  // Output DAC signal `ref_X`
   // We don't have to worry about syncing, because the ISR is slow enough for
   // the DAC output to get effective every ISR call
-  ref_X = LUT_wave[LUT_idx];
 #ifdef __SAMD21__
-  DAC->DATA.reg = ref_X;
+  DAC->DATA.reg = LUT_wave[LUT_idx];
 #elif defined __SAMD51__
-  DAC->DATA[0].reg = ref_X;
+  DAC->DATA[0].reg = LUT_wave[LUT_idx];
 #endif
 
-  /*
-    startup_counter == 0:
-      No valid input signal yet, hence return. Next timestep it will be valid.
-
-    startup_counter < 4:
-      `LED_on()` using the NeoPixel library takes over the SysTick timer to
-      control the LED. This interferes with the timing stability of the ISR
-      for a few iterations. We simply wait them out.
-
-    startup_counter == 4:
-      Timing, DAC output and ADC input are stable. Time to stamp the buffer.
-  */
-  if (startup_counter < 4) {
-    startup_counter++;
+  // Start-up routine: ADC signal `sig_I` is not valid yet.
+  // It appears we need a few iterations to get the ADC machinery stabilized?!
+  if (DAQ_iter < 3) {
+    DAQ_iter++;
     return;
-  } else if (startup_counter == 4) {
-    startup_counter++;
+  } else if (DAQ_iter == 3) {
     stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     LUT_idx++;
+    DAQ_iter++;
     return;
   }
 
-  // Store the input signal
+  // Store signal in the TX buffer
   // clang-format off
   if (using_TX_buffer_A) {
     TX_buffer_A[TX_BUFFER_OFFSET_SIG_I + write_idx * 2    ] = sig_I;
@@ -643,7 +635,8 @@ void isr_psd() {
   write_idx++;
   // clang-format on
 
-  // Ready to send the buffer?
+  // Check if the TX buffer is full and ready to be send over serial. If so,
+  // stamp the other TX buffer that will be used in the next time step.
   if (write_idx == BLOCK_SIZE) {
     if (using_TX_buffer_A) {
       trigger_send_TX_buffer_A = true;
@@ -657,7 +650,15 @@ void isr_psd() {
     write_idx = 0;
   }
 
-  // Advance the reference signal waveform
+  // Trigger out
+  if (LUT_idx == 0) {
+    digitalWriteFast(PORT_TRIG_OUT, MASK_TRIG_OUT, HIGH);
+  } else if (LUT_idx == 1) {
+    digitalWriteFast(PORT_TRIG_OUT, MASK_TRIG_OUT, LOW);
+  }
+
+  // Advance the indices
+  DAQ_iter++;
   LUT_idx++;
   if (LUT_idx == N_LUT) {
     LUT_idx = 0;
@@ -928,6 +929,7 @@ void loop() {
           in-buffer as fast as possible because it is now waiting for the
           'off' reply to occur.
         */
+        LED_off();
         noInterrupts();
         is_running = false;
         trigger_send_TX_buffer_A = false;
@@ -1140,12 +1142,14 @@ void loop() {
 
         } else if (strcmp(str_cmd, "on") == 0) {
           // Start lock-in amp
+          LED_on();
           noInterrupts();
           is_running = true;
           interrupts();
 
         } else if (strcmp(str_cmd, "_on") == 0) {
           // Start lock-in amp and reset the time
+          LED_on();
           noInterrupts();
           trigger_reset_time = true;
           is_running = true;
@@ -1158,7 +1162,7 @@ void loop() {
           Ser_data.println(WAVEFORM_STRING[ref_waveform]);
 
         } else if (strncmp(str_cmd, "_freq", 5) == 0) {
-          // Set frequency of the reference signal [Hz].
+          // Set frequency of the output reference signal [Hz].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_freq(atof(&str_cmd[5]));
           Ser_data.println(ref_freq, 3);
