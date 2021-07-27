@@ -6,7 +6,7 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "02-07-2021"
+__date__ = "27-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -195,8 +195,8 @@ if __name__ == "__main__":
     print("  max    = %i usec" % np.max(time_diff))
 
     time_ = time[:-1]
-    time_gaps = time_[time_diff > 500]
-    time_gap_durations = time_diff[time_diff > 500]
+    time_gaps = time_[abs(time_diff) > 500]
+    time_gap_durations = time_diff[abs(time_diff) > 500]
     print("\nnumber of gaps > 500 usec: %i" % len(time_gaps))
     for i in range(len(time_gaps)):
         print(

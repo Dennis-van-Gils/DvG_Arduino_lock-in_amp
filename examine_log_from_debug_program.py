@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Dennis van Gils
-19-05-2021
+27-07-2021
 """
 
 import numpy as np
@@ -41,8 +41,8 @@ print("  min    = %i usec" % np.min(time_diff))
 print("  max    = %i usec" % np.max(time_diff))
 
 time_ = time[:-1]
-time_gaps = time_[time_diff > 500]
-time_gap_durations = time_diff[time_diff > 500]
+time_gaps = time_[abs(time_diff) > 500]
+time_gap_durations = time_diff[abs(time_diff) > 500]
 print("\nnumber of gaps > 500 usec: %i" % len(time_gaps))
 for i in range(len(time_gaps)):
     print(
