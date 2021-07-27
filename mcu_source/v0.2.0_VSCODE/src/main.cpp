@@ -168,8 +168,13 @@ char mcu_uid[33]; // Serial number
 // Hint: Maintaining `SAMPLING_PERIOD_us x BLOCK_SIZE` = 0.1 seconds long will
 // result in a serial transmit rate of 10 blocks / s, which acts nicely with
 // the Python GUI.
-#define SAMPLING_PERIOD_us 50
-#define BLOCK_SIZE 2000
+#ifdef __SAMD21__
+#  define SAMPLING_PERIOD_us 100
+#  define BLOCK_SIZE 1000
+#elif defined __SAMD51__
+#  define SAMPLING_PERIOD_us 50
+#  define BLOCK_SIZE 2000
+#endif
 
 const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
 
@@ -219,23 +224,12 @@ volatile bool trigger_send_TX_buffer_B = false;
     Serial    : USART
 */
 
-// Define for writing debugging info to the terminal of the second serial port.
-// Note: The board needs a second serial port to be used besides the main serial
-// port which is assigned to sending buffers of lock-in amp data.
-
 #define SERIAL_DATA_BAUDRATE 1e6 // Only used when Serial is UART
 
 #ifdef ARDUINO_SAMD_ZERO
-#  define DEBUG
-#endif
-
-#ifdef ARDUINO_SAMD_ZERO
-#  define Ser_data SerialUSB
-#  ifdef DEBUG
-#    define Ser_debug Serial
-#  endif
+#  define Ser_data Serial // Serial or SerialUSB
 #else
-#  define Ser_data Serial
+#  define Ser_data Serial // Only Serial
 #endif
 
 // Instantiate serial command listener
@@ -288,7 +282,12 @@ https://www.geeksforgeeks.org/how-to-avoid-overflow-in-modular-multiplication/
   because that way the requested `ref_freq` and the obtained 'ideal' one are
   identical to each other for all integer input without beating.
 */
-#define N_LUT 20000              // Suggest setting equal to `SAMPLING_RATE_Hz`
+#ifdef __SAMD21__
+#  define N_LUT 10000 // SAMD21 has less RAM
+#elif defined __SAMD51__
+#  define N_LUT 20000 // Suggest setting equal to `SAMPLING_RATE_Hz`
+#endif
+
 uint16_t LUT_array[N_LUT] = {0}; // Look-up table allocation
 volatile uint16_t idx_per_iter;  // LUT_idx per DAQ_iter, depends on `ref_freq`
 
@@ -300,10 +299,6 @@ void compute_LUT() {
   double norm_offs = ref_offs / A_REF; // Normalized
   double norm_ampl = ref_ampl / A_REF; // Normalized
   double wave;
-
-#ifdef DEBUG
-  Ser_debug << "Creating LUT...";
-#endif
 
   // Generate normalized waveform periods in the range [0, 1]
   ref_is_clipping_HI = false;
@@ -348,10 +343,6 @@ void compute_LUT() {
 
     LUT_array[i] = (uint16_t)round(MAX_DAC_OUTPUT_BITVAL * wave);
   }
-
-#ifdef DEBUG
-  Ser_debug << " done." << endl;
-#endif
 }
 
 void set_wave(int value) {
@@ -608,7 +599,8 @@ void isr_psd() {
   // time to stabilize.
 #ifdef __SAMD21__
   ADC->SWTRIG.bit.START = 1;
-  syncADC();
+  // syncADC();
+  while (!ADC->INTFLAG.bit.RESRDY) {}
   sig_I = ADC->RESULT.reg;
 #elif defined __SAMD51__
   ADC0->SWTRIG.bit.START = 1;
@@ -679,9 +671,6 @@ void isr_psd() {
 
 void setup() {
   Ser_data.begin(SERIAL_DATA_BAUDRATE);
-#ifdef DEBUG
-  Ser_debug.begin(9600);
-#endif
   get_mcu_uid(mcu_uid);
 
   // Use built-in LED to signal running state of lock-in amp
@@ -932,22 +921,34 @@ void loop() {
         trigger_send_TX_buffer_B = false;
         interrupts();
 
+#if defined ARDUINO_SAMD_ZERO && Ser_data == Serial
+        // Simply end the serial connection which directly clears the
+        // underlying TX (and RX) ringbuffer. `Flush()` on the other hand,
+        // would first send out the full TX buffer and wait for the operation
+        // to complete. NOTE: Only works on Arduino M0 Pro debugging port
+        Ser_data.end();
+        Ser_data.begin(SERIAL_DATA_BAUDRATE);
+#else
         // Flush out any binary buffer data scheduled for sending, potentially
-        // flooding the receiving buffer at the PC side if 'is_running' was not
-        // switched to false fast enough.
+        // flooding the receiving buffer at the PC side if `is_running` was
+        // not switched to `false` fast enough.
         Ser_data.flush();
+#endif
 
-        // Confirm at the PC side that the lock-in amp is off and is not longer
+        // Confirm at the PC side that the lock-in amp is off and is no longer
         // sending binary data. The 'off' message might still be preceded with
         // some left-over binary data when being read at the PC side.
         Ser_data.print("off\n");
+        /* NOTE:
+           Do not use the streaming library to send the 'off', like:
+             Ser_data << "off" << endl;
+           For some unknown reason this will add a ~1 second delay before the
+           serial port actually sends out 'off'.
+        */
 
         // Flush out and ignore the command
         sc_data.getCmd();
 
-#ifdef DEBUG
-        Ser_debug << "OFF" << endl;
-#endif
       } else {
         /*-------------
           Not running
@@ -1106,17 +1107,17 @@ void loop() {
           Ser_data.println(WAVEFORM_STRING[ref_waveform]);
 
         } else if (strncmp(str_cmd, "_freq", 5) == 0) {
-          // Set frequency of the output reference signal [Hz]
+          // Set frequency of the output reference signal [Hz].
           set_freq(atof(&str_cmd[5]));
           Ser_data.println(ref_freq, 3);
 
         } else if (strncmp(str_cmd, "_offs", 5) == 0) {
-          // Set voltage offset of cosine reference signal [V]
+          // Set offset of the reference signal [V].
           set_offs(atof(&str_cmd[5]));
           Ser_data.println(ref_offs, 3);
 
         } else if (strncmp(str_cmd, "_ampl", 5) == 0) {
-          // Set voltage amplitude of cosine reference signal [V]
+          // Set amplitude of the reference signal [V].
           set_ampl(atof(&str_cmd[5]));
           Ser_data.println(ref_ampl, 3);
 
