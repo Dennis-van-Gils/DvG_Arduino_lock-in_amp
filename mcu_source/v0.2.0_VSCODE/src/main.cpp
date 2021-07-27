@@ -70,6 +70,29 @@
 #  define MCU_MODEL "SAMD51G19A"
 #endif
 
+// Use built-in LED to signal running state of lock-in amp
+static __inline__ void LED_off() __attribute__((always_inline, unused));
+static __inline__ void LED_on() __attribute__((always_inline, unused));
+
+// clang-format off
+#ifdef ADAFRUIT_FEATHER_M4_EXPRESS
+#  include "Adafruit_NeoPixel.h"
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(1, PIN_NEOPIXEL, NEO_GRB +
+                                            NEO_KHZ800);
+static void LED_off() {
+  strip.setPixelColor(0, strip.Color(0, 0, 255));
+  strip.show();
+}
+static void LED_on() {
+  strip.setPixelColor(0, strip.Color(0, 255, 0));
+  strip.show();
+}
+#else
+static void LED_off() {digitalWrite(PIN_LED, LOW);}
+static void LED_on()  {digitalWrite(PIN_LED, HIGH);}
+#endif
+// clang-format on
+
 #ifdef __SAMD21__
 static inline void syncADC() {
   // Taken from `hri_adc_d21.h`
@@ -572,7 +595,6 @@ void isr_psd() {
     if (is_running) {
       startup_counter = 0;
       DAQ_iter = 0;
-      digitalWrite(PIN_LED, HIGH);
     } else {
       // Set output voltage to 0
 #if defined(__SAMD21__)
@@ -580,7 +602,6 @@ void isr_psd() {
 #elif defined(__SAMD51__)
       DAC->DATA[0].reg = 0;
 #endif
-      digitalWrite(PIN_LED, LOW);
     }
   }
 
@@ -679,8 +700,13 @@ void setup() {
   get_mcu_uid(mcu_uid);
 
   // Use built-in LED to signal running state of lock-in amp
+#ifdef ADAFRUIT_FEATHER_M4_EXPRESS
+  strip.begin();
+  strip.setBrightness(3);
+#else
   pinMode(PIN_LED, OUTPUT);
-  digitalWrite(PIN_LED, is_running);
+#endif
+  LED_off();
 
   // Prepare SOM and EOM
   noInterrupts();
@@ -914,6 +940,7 @@ void loop() {
           in-buffer as fast as possible because it is now waiting for the
           'off' reply to occur.
         */
+        LED_off();
         noInterrupts();
         is_running = false;
         trigger_send_TX_buffer_A = false;
@@ -1075,12 +1102,14 @@ void loop() {
 
         } else if (strcmp(str_cmd, "on") == 0) {
           // Start lock-in amp
+          LED_on();
           noInterrupts();
           is_running = true;
           interrupts();
 
         } else if (strcmp(str_cmd, "_on") == 0) {
           // Start lock-in amp and reset the time
+          LED_on();
           noInterrupts();
           trigger_reset_time = true;
           is_running = true;
