@@ -122,9 +122,6 @@ static inline void syncADC(const Adc *hw, uint32_t reg) {
 #  include "SAMD51_InterruptTimer.h"
 #endif
 
-// No-operation, to burn clock cycles
-#define NOP __asm("nop");
-
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
 // 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
 #define FOREACH_WAVEFORM(WAVEFORM)                                             \
