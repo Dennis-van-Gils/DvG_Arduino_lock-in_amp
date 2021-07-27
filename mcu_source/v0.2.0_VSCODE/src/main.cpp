@@ -39,7 +39,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  27-07-2019
+  27-07-2021
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -171,7 +171,7 @@ char mcu_uid[33]; // Serial number
 #ifdef __SAMD21__
 #  define SAMPLING_PERIOD_us 100
 #  define BLOCK_SIZE 1000
-#elif defined __SAMD51__
+#else
 #  define SAMPLING_PERIOD_us 50
 #  define BLOCK_SIZE 2000
 #endif
@@ -582,9 +582,9 @@ void isr_psd() {
     } else {
       // Just got turned off
       // Set output voltage to 0
-#if defined(__SAMD21__)
+#if defined __SAMD21__
       DAC->DATA.reg = 0;
-#elif defined(__SAMD51__)
+#elif defined __SAMD51__
       DAC->DATA[0].reg = 0;
 #endif
     }
@@ -1145,5 +1145,10 @@ void loop() {
       // w =
       Ser_data.write((uint8_t *)TX_buffer_B, N_BYTES_TX_BUFFER);
     }
+
+    /*
+    // DEBUG
+    Ser_data.println(w);
+    */
   }
 }
