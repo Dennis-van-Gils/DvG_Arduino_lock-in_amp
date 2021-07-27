@@ -131,11 +131,6 @@ volatile bool is_running = false; // Is the lock-in amplifier running?
 volatile bool trigger_reset_time = false;
 char mcu_uid[33]; // Serial number
 
-#ifdef DEBUG
-volatile uint16_t N_buffers_scheduled_to_be_sent = 0;
-uint16_t N_sent_buffers = 0;
-#endif
-
 /*------------------------------------------------------------------------------
   Sampling
 --------------------------------------------------------------------------------
@@ -722,8 +717,8 @@ void setup() {
   // ADC accuracy.
 
   // analogReadResolution(ADC_INPUT_BITS);
-  // analogRead(A1); // Differential(+)
-  // analogRead(A2); // Differential(-)
+  // analogRead(A1); // Differential(+) or single-ended
+  // analogRead(A2); // Differential(-) or not used
 
 #ifdef __SAMD21__
   // ADC source clock is default at 48 MHz (Generic Clock Generator 0)
@@ -909,12 +904,13 @@ void setup() {
 
 void loop() {
   char *str_cmd; // Incoming serial command string
-  uint32_t prev_millis = 0;
+  uint32_t now = millis();
+  static uint32_t prev_millis = 0;
 
   // Process incoming serial commands every N milliseconds.
   // Deliberately slowed down to improve timing stability of `isr_psd()`.
-  if ((millis() - prev_millis) > 9) {
-    prev_millis = millis();
+  if ((now - prev_millis) > 19) {
+    prev_millis = now;
 
     if (sc_data.available()) {
       if (is_running) { // Atomic read, `noInterrupts()` not required here
