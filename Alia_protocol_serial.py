@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "22-07-2021"
+__date__ = "27-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -127,12 +127,6 @@ class Alia(Arduino_protocol_serial.Arduino):
         byte_slice_micros    = slice(0)
         byte_slice_idx_phase = slice(0)
         byte_slice_sig_I     = slice(0)
-
-        # Legacy firmware support for "ALIA v0.2.0 VSCODE"
-        binfrmt_time         = ""
-        binfrmt_ref_X        = ""
-        byte_slice_time      = slice(0)
-        byte_slice_ref_X     = slice(0)
         # fmt: on
 
     def __init__(
