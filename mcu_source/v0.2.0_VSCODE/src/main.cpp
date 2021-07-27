@@ -39,7 +39,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  23-07-2019
+  27-07-2019
 ------------------------------------------------------------------------------*/
 
 #include "Arduino.h"
@@ -575,27 +575,26 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer) {
 ------------------------------------------------------------------------------*/
 
 void isr_psd() {
-  static uint32_t DAQ_iter = 0;
-  static bool is_running_prev = is_running;
-  static uint8_t startup_counter = 0;
-  static bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
+  static uint32_t DAQ_iter = 0;         // Increments each time step
   static uint16_t write_idx = 0;        // Current write index of TX_buffer
+  static bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
+  static bool is_running_prev = is_running;
   static uint16_t LUT_idx_prev = 0;
   uint16_t LUT_idx;
-  uint16_t ref_X;
-  int16_t sig_I = 0;
-
-  uint32_t millis_copy;
-  uint16_t micros_part;
-  get_systick_timestamp(&millis_copy, &micros_part);
+  int16_t sig_I;
 
   if (is_running != is_running_prev) {
     is_running_prev = is_running;
 
     if (is_running) {
-      startup_counter = 0;
+      // Just got turned on
       DAQ_iter = 0;
+      write_idx = 0;
+      trigger_send_TX_buffer_A = false;
+      trigger_send_TX_buffer_B = false;
+      using_TX_buffer_A = true;
     } else {
+      // Just got turned off
       // Set output voltage to 0
 #if defined(__SAMD21__)
       DAC->DATA.reg = 0;
@@ -609,24 +608,8 @@ void isr_psd() {
     return;
   }
 
-  if (startup_counter == 0) {
-    trigger_send_TX_buffer_A = false;
-    trigger_send_TX_buffer_B = false;
-    using_TX_buffer_A = true;
-    write_idx = 0;
-  }
-
-  if (startup_counter <= 4) {
-    // now_offset = now;
-    LUT_idx_prev = 0;
-  }
-
-  // Generate reference signal
-  LUT_idx = mulmod_int(idx_per_iter, DAQ_iter, N_LUT);
-  ref_X = LUT_array[LUT_idx];
-
-  // Read input signal corresponding to the DAC output of the previous
-  // timestep. This ensures that the previously set DAC output has had enough
+  // Read ADC signal `sig_I` corresponding to the DAC output of the previous
+  // time step. This ensures that the previously set DAC output has had enough
   // time to stabilize.
 #ifdef __SAMD21__
   ADC->SWTRIG.bit.START = 1;
@@ -634,28 +617,32 @@ void isr_psd() {
   sig_I = ADC->RESULT.reg;
 #elif defined __SAMD51__
   ADC0->SWTRIG.bit.START = 1;
-  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+  // syncADC(ADC0, ADC_SYNCBUSY_MASK);
+  while (!ADC0->INTFLAG.bit.RESRDY) {}
   sig_I = ADC0->RESULT.reg;
 #endif
 
-  // Output reference signal
+  // Calculate the phase (i.e. LUT index) of the upcoming DAC output 'ref_X`.
+  // Takes between 1.6 and 4.3 ms @ 120 MHz cpu clock, depending on how large
+  // `DAQ_iter` is.
+  LUT_idx = mulmod_int(idx_per_iter, DAQ_iter, N_LUT);
+
+  // Output DAC signal `ref_X`
 #ifdef __SAMD21__
-  DAC->DATA.reg = ref_X;
+  DAC->DATA.reg = LUT_array[LUT_idx];
 #elif defined __SAMD51__
-  DAC->DATA[0].reg = ref_X;
+  DAC->DATA[0].reg = LUT_array[LUT_idx];
 #endif
 
-  if (startup_counter < 4) {
-    startup_counter++;
-    return;
-  } else if (startup_counter == 4) {
-    startup_counter++;
+  // Start-up routine: ADC signal `sig_I` is not valid yet.
+  if (DAQ_iter < 1) {
     stamp_TX_buffer(TX_buffer_A);
-    // LUT_idx++;
+    LUT_idx_prev = LUT_idx;
+    DAQ_iter++;
     return;
   }
 
-  // Store the signals
+  // Store signals in the TX buffer
   // clang-format off
   if (using_TX_buffer_A) {
     TX_buffer_A[TX_BUFFER_OFFSET_PHASE + write_idx * 2    ] = LUT_idx_prev;
@@ -671,6 +658,8 @@ void isr_psd() {
   write_idx++;
   // clang-format on
 
+  // Check if the TX buffer is full and ready to be send over serial. If so,
+  // stamp the other TX buffer that will be used in the next time step.
   if (write_idx == BLOCK_SIZE) {
     if (using_TX_buffer_A) {
       trigger_send_TX_buffer_A = true;
@@ -684,6 +673,7 @@ void isr_psd() {
     write_idx = 0;
   }
 
+  // Advance the indices
   LUT_idx_prev = LUT_idx;
   DAQ_iter++;
 }
@@ -921,10 +911,9 @@ void loop() {
   char *str_cmd; // Incoming serial command string
   uint32_t prev_millis = 0;
 
-  // Process commands on the data channel
-  // Deliberately slowed down to once every 1 ms to improve timing stability of
-  // 'isr_psd()'.
-  if ((millis() - prev_millis) > 1) {
+  // Process incoming serial commands every N milliseconds.
+  // Deliberately slowed down to improve timing stability of `isr_psd()`.
+  if ((millis() - prev_millis) > 9) {
     prev_millis = millis();
 
     if (sc_data.available()) {
