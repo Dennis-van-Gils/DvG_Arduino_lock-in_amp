@@ -69,10 +69,10 @@ uint32_t mulmod_int_pow2(uint16_t a, uint32_t b, uint16_t n) {
   setup
 ------------------------------------------------------------------------------*/
 
-double freq_ref = 250.;             // [Hz]
+double freq_ref = 250.1;            // [Hz]
 double DAQ_period = 50;             // [us]
 double DAQ_rate = 1e6 / DAQ_period; // [Hz]
-uint16_t N_LUT = 32768;
+uint16_t N_LUT = 20000;
 
 // Derived
 double idx_per_iter = N_LUT / DAQ_rate * freq_ref;

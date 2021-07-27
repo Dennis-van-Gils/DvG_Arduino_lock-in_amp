@@ -7,24 +7,24 @@ Results on SAMD51, Adafruit Feather M4 Express @ 120 MHz
 ----------------------------------------
   DAQ_period       50.000  us
   DAQ_rate      20000.000  Hz
-  N_LUT             32768
+  N_LUT             20000
 
-  idx_per_iter    409.600
-     ideal            410
-  freq_ref        250.000  Hz
-     ideal        250.244  Hz
+  idx_per_iter    250.100
+     ideal            250
+  freq_ref        250.100  Hz
+     ideal        250.000  Hz
 ----------------------------------------
 ----------------------------------------
 mulmod_float
-28.3 us per small iter, iter 2999 = 15974.40
-65.9 us per large iter, iter 2147486647 = 2867.20
+28.3 us per small iter, iter 2999 = 10049.90
+65.3 us per large iter, iter 2147486647 = 10414.70
 
 ----------------------------------------
 mulmod_int
-1.6 us per small iter, iter 2999 = 17174
-4.0 us per large iter, iter 2147486647 = 17174
+1.6 us per small iter, iter 2999 = 9750
+4.3 us per large iter, iter 2147486647 = 1750
 
 ----------------------------------------
 mulmod_int_pow2
-1.2 us per small iter, iter 2999 = 17174
-3.1 us per large iter, iter 2147486647 = 17174
+1.2 us per small iter, iter 2999 = 22
+3.1 us per large iter, iter 2147486647 = 22

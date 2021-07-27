@@ -150,8 +150,8 @@ uint16_t N_sent_buffers = 0;
 // Hint: Maintaining `SAMPLING_PERIOD_us x BLOCK_SIZE` = 0.1 seconds long will
 // result in a serial transmit rate of 10 blocks / s, which acts nicely with
 // the Python GUI.
-#define SAMPLING_PERIOD_us 49
-#define BLOCK_SIZE 2048
+#define SAMPLING_PERIOD_us 50
+#define BLOCK_SIZE 2000
 
 const double SAMPLING_RATE_Hz = (double)1.0e6 / SAMPLING_PERIOD_us;
 
@@ -261,11 +261,16 @@ https://www.geeksforgeeks.org/how-to-avoid-overflow-in-modular-multiplication/
   the nearest integer and, hence, we should recalculate the new corresponding
   `ref_freq`.
 
-  Another speed improvement is to fix the modulus to a power of 2, because it
-  allows to calculate the modulo using a single bitwise `&` operation. This
-  is super fast! I.e.: x % 2n == x & (2n - 1)
+  Another speed improvement is to fix the modulus (i.e. `N_LUT` in this case)
+  to a power of 2, because it allows to calculate the modulo using a single
+  bitwise `&` operation. This is super fast! I.e.: x % 2n == x & (2n - 1).
+
+  HINDSIGHT: Do not use powers of 2 for `N_LUT`, because it introduces beating
+  in the output REF_X signal. Better set `N_LUT` equal to `SAMPLING_RATE_Hz`,
+  because that way the requested `ref_freq` and the obtained 'ideal' one are
+  identical to each other for all integer input without beating.
 */
-#define N_LUT 32768              // Must be power of 2
+#define N_LUT 20000              // Suggest setting equal to `SAMPLING_RATE_Hz`
 uint16_t LUT_array[N_LUT] = {0}; // Look-up table allocation
 volatile uint16_t idx_per_iter;  // LUT_idx per DAQ_iter, depends on `ref_freq`
 
@@ -407,14 +412,14 @@ void set_VRMS(double value) {
   interrupts();
 }
 
-uint32_t mulmod_int_pow2(uint16_t a, uint32_t b, uint16_t n) {
+uint32_t mulmod_int(uint16_t a, uint32_t b, uint16_t n) {
   // Multiplicative modulo `(a * b) mod n`, safe against overflow of `a * b`.
-  // Integers only and constraint on `n` being a power of 2.
+  // Integers only, /no/ constraint on `n` being a power of 2.
   uint32_t sum = 0;
   while (b) {
     if (b & 1)
-      sum = (sum + a) & (n - 1); // sum = (sum + a) % n;
-    a = (a << 1) & (n - 1);      // a = (a << 1) % n;
+      sum = (sum + a) % n;
+    a = (a << 1) % n;
     b = b >> 1;
   }
   return sum;
@@ -596,7 +601,7 @@ void isr_psd() {
   }
 
   // Generate reference signal
-  LUT_idx = mulmod_int_pow2(idx_per_iter, DAQ_iter, N_LUT);
+  LUT_idx = mulmod_int(idx_per_iter, DAQ_iter, N_LUT);
   ref_X = LUT_array[LUT_idx];
 
   // Read input signal corresponding to the DAC output of the previous
