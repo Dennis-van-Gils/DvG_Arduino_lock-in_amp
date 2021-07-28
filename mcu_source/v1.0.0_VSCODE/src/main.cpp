@@ -43,17 +43,25 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  27-07-2021
+  28-07-2021
 ------------------------------------------------------------------------------*/
-
-#include "Arduino.h"
-#include "DvG_SerialCommand.h"
-#include "Streaming.h"
-
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
 
 // OBSERVATION: Single-ended has half the noise compared to differential
 #define ADC_DIFFERENTIAL 0
+
+#include "Arduino.h"
+#include "DvG_SerialCommand.h"
+/* The Streaming library, when used as the default method to send ASCII over the
+serial connection, is observed to increase the communication time with the
+Python main program. I believe the problem lies at the microcontroller side.
+We'll refrain from using the Streaming library and instead rely on
+`sprintf(buf, ...)` in combination with `Serial.print(buf)`.
+
+To enable float support in `sprintf()` we must add the following to `setup()`:
+asm(".global _printf_float"); // Enable float support in `sprintf()` and like
+#include "Streaming.h"  // DO NOT USE
+*/
 
 // Microcontroller unit (mcu)
 #if defined __SAMD21G18A__
@@ -242,13 +250,13 @@ volatile bool trigger_send_TX_buffer_B = false;
 #define SERIAL_DATA_BAUDRATE 1e6 // Only used when Serial is UART
 
 #ifdef ARDUINO_SAMD_ZERO
-#  define Ser_data Serial // Serial or SerialUSB
+#  define Ser Serial // Serial or SerialUSB
 #else
-#  define Ser_data Serial // Only Serial
+#  define Ser Serial // Only Serial
 #endif
 
 // Instantiate serial command listener
-DvG_SerialCommand sc_data(Ser_data);
+DvG_SerialCommand sc_data(Ser);
 
 /*------------------------------------------------------------------------------
   Waveform look-up table (LUT)
@@ -682,7 +690,8 @@ void isr_psd() {
 ------------------------------------------------------------------------------*/
 
 void setup() {
-  Ser_data.begin(SERIAL_DATA_BAUDRATE);
+  asm(".global _printf_float"); // Enable float support in `sprintf()` and like
+  Ser.begin(SERIAL_DATA_BAUDRATE);
   get_mcu_uid(mcu_uid);
 
   // Use built-in LED to signal running state of lock-in amp
@@ -917,9 +926,11 @@ void setup() {
 /*------------------------------------------------------------------------------
   loop
 ------------------------------------------------------------------------------*/
+#define MAXLEN_buf 100 // Outgoing string buffer
 
 void loop() {
-  char *str_cmd; // Incoming serial command string
+  char buf[MAXLEN_buf]; // Outgoing string buffer
+  char *str_cmd;        // Incoming serial command string
   uint32_t now = millis();
   static uint32_t prev_millis = 0;
 
@@ -948,30 +959,24 @@ void loop() {
         trigger_send_TX_buffer_B = false;
         interrupts();
 
-#if defined ARDUINO_SAMD_ZERO && Ser_data == Serial
+#if defined ARDUINO_SAMD_ZERO && Ser == Serial
         // Simply end the serial connection which directly clears the
         // underlying TX (and RX) ringbuffer. `Flush()` on the other hand,
         // would first send out the full TX buffer and wait for the operation
-        // to complete. NOTE: Only works on Arduino M0 Pro debugging port
-        Ser_data.end();
-        Ser_data.begin(SERIAL_DATA_BAUDRATE);
+        // to complete. NOTE: Only works on Arduino M0 Pro debugging port.
+        Ser.end();
+        Ser.begin(SERIAL_DATA_BAUDRATE);
 #else
         // Flush out any binary buffer data scheduled for sending, potentially
         // flooding the receiving buffer at the PC side if `is_running` was
         // not switched to `false` fast enough.
-        Ser_data.flush();
+        Ser.flush();
 #endif
 
         // Confirm at the PC side that the lock-in amp is off and is no longer
         // sending binary data. The 'off' message might still be preceded with
         // some left-over binary data when being read at the PC side.
-        Ser_data.print("off\n");
-        /* NOTE:
-           Do not use the streaming library to send the 'off', like:
-             Ser_data << "off" << endl;
-           For some unknown reason this will add a ~1 second delay before the
-           serial port actually sends out 'off'.
-        */
+        Ser.print("off\n");
 
         // Flush out and ignore the command
         sc_data.getCmd();
@@ -986,78 +991,79 @@ void loop() {
 
         if (strcmp(str_cmd, "id?") == 0) {
           // Report identity string
-          Ser_data << "Arduino, Alia" << endl;
+          Ser.print("Arduino, Alia\n");
 
         } else if (strcmp(str_cmd, "mcu?") == 0) {
           // Report microcontroller information
           // clang-format off
-          Ser_data << FIRMWARE_VERSION << '\t'
-                   << MCU_MODEL << '\t'
-                   << SystemCoreClock << '\t'
-                   << mcu_uid << endl;
+          snprintf(buf, MAXLEN_buf, "%s\t%s\t%lu\t%s\n",
+                   FIRMWARE_VERSION,
+                   MCU_MODEL,
+                   VARIANT_MCK,
+                   mcu_uid);
+          Ser.print(buf);
           // clang-format on
 
         } else if (strcmp(str_cmd, "adc?") == 0) {
           // Report ADC registers, debug information
           // clang-format off
-          uint8_t w = 15;
-          Ser_data << _PAD(40, '-') << endl
+          Ser.print("----------------------------------------\n");
 #if defined __SAMD21__
-                   << "CTRLA" << endl
-                   << _WIDTH(".ENABLE", w) << "  F" << _DEC(ADC->CTRLA.bit.ENABLE) << endl
-                   << "INPUTCTRL" << endl
-                   << _WIDTH(".MUXPOS", w) << "  0x" << _HEX(ADC->INPUTCTRL.bit.MUXPOS) << endl
-                   << _WIDTH(".MUXNEG", w) << "  0x" << _HEX(ADC->INPUTCTRL.bit.MUXNEG) << endl
-                   << _WIDTH(".GAIN", w) << "  0x" << _HEX(ADC->INPUTCTRL.bit.GAIN) << endl
-                   << "REFCTRL" << endl
-                   << _WIDTH(".REFCOMP", w) << "  F" << _DEC(ADC->REFCTRL.bit.REFCOMP) << endl
-                   << _WIDTH(".REFSEL", w) << "  0x" << _HEX(ADC->REFCTRL.bit.REFSEL) << endl
-                   << "AVGCTRL" << endl
-                   << _WIDTH(".ADJRES", w) << "  0x" << _HEX(ADC->AVGCTRL.bit.ADJRES) << endl
-                   << _WIDTH(".SAMPLENUM", w) << "  0x" << _HEX(ADC->AVGCTRL.bit.SAMPLENUM) << endl
-                   << "SAMPCTRL" << endl
-                   << _WIDTH(".SAMPLEN", w) << "  " << _DEC(ADC->SAMPCTRL.bit.SAMPLEN) << endl
-                   << "CTRLB" << endl
-                   << _WIDTH(".RESSEL", w) << "  0x" << _HEX(ADC->CTRLB.bit.RESSEL) << endl
-                   << _WIDTH(".CORREN", w) << "  F" << _DEC(ADC->CTRLB.bit.CORREN) << endl
-                   << _WIDTH(".LEFTADJ", w) << "  F" <<  _DEC(ADC->CTRLB.bit.LEFTADJ) << endl
-                   << _WIDTH(".DIFFMODE", w) << "  F" << _DEC(ADC->CTRLB.bit.DIFFMODE) << endl
-                   << _WIDTH(".PRESCALER", w) << "  0x" << _HEX(ADC->CTRLB.bit.PRESCALER) << endl
-                   << "CALIB" << endl
-                   << _WIDTH(".LINEARITY_CAL", w) << "  " << _DEC(ADC->CALIB.bit.LINEARITY_CAL) << endl
-                   << _WIDTH(".BIAS_CAL", w) << "  " << _DEC(ADC->CALIB.bit.BIAS_CAL) << endl
-                   << "OFFSETCORR       " <<  _DEC(ADC->OFFSETCORR.bit.OFFSETCORR) << endl
-                   << "GAINCORR         " <<  _DEC(ADC->GAINCORR.bit.GAINCORR) << endl
+          Ser.print("CTRLA\n");
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".ENABLE"   , ADC->CTRLA.bit.ENABLE); Ser.print(buf);
+          Ser.print("INPUTCTRL\n");
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".MUXPOS"   , ADC->INPUTCTRL.bit.MUXPOS); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".MUXNEG"   , ADC->INPUTCTRL.bit.MUXNEG); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".GAIN"     , ADC->INPUTCTRL.bit.GAIN); Ser.print(buf);
+          Ser.print("REFCTRL\n");
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".REFCOMP"  , ADC->REFCTRL.bit.REFCOMP); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".REFSEL"   , ADC->REFCTRL.bit.REFSEL); Ser.print(buf);
+          Ser.print("AVGCTRL\n");
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".ADJRES"   , ADC->AVGCTRL.bit.ADJRES); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".SAMPLENUM", ADC->AVGCTRL.bit.SAMPLENUM); Ser.print(buf);
+          Ser.print("SAMPCTRL\n");
+          snprintf(buf, MAXLEN_buf, "%15s  %u\n"  , ".SAMPLEN"  , ADC->SAMPCTRL.bit.SAMPLEN); Ser.print(buf);
+          Ser.print("CTRLB\n");
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".RESSEL"   , ADC->CTRLB.bit.RESSEL); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".CORREN"   , ADC->CTRLB.bit.CORREN); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".LEFTADJ"  , ADC->CTRLB.bit.LEFTADJ); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".DIFFMODE" , ADC->CTRLB.bit.DIFFMODE); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".PRESCALER", ADC->CTRLB.bit.PRESCALER); Ser.print(buf);
+          Ser.print("CALIB\n");
+          snprintf(buf, MAXLEN_buf, "%15s  %u\n"  , ".LINEARITY_CAL", ADC->CALIB.bit.LINEARITY_CAL); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  %u\n"  , ".BIAS_CAL"     , ADC->CALIB.bit.BIAS_CAL); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "OFFSETCORR       %u\n"         , ADC->OFFSETCORR.bit.OFFSETCORR); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "GAINCORR         %u\n"         , ADC->GAINCORR.bit.GAINCORR); Ser.print(buf);
 #elif defined __SAMD51__
-                   << "INPUTCTRL" << endl
-                   << _WIDTH(".DIFFMODE", w) << "  F" << _DEC(ADC0->INPUTCTRL.bit.DIFFMODE) << endl
-                   << _WIDTH(".MUXPOS", w) << "  0x" << _HEX(ADC0->INPUTCTRL.bit.MUXPOS) << endl
-                   << _WIDTH(".MUXNEG", w) << "  0x" << _HEX(ADC0->INPUTCTRL.bit.MUXNEG) << endl
-                   << "CTRLA" << endl
-                   << _WIDTH(".ENABLE", w) << "  F" << _DEC(ADC0->CTRLA.bit.ENABLE) << endl
-                   << _WIDTH(".PRESCALER", w) << "  0x" << _HEX(ADC0->CTRLA.bit.PRESCALER) << endl
-                   << _WIDTH(".R2R", w) << "  F" << _DEC(ADC0->CTRLA.bit.R2R) << endl
-                   << "CTRLB" << endl
-                   << _WIDTH(".RESSEL", w) << "  0x" << _HEX(ADC0->CTRLB.bit.RESSEL) << endl
-                   << _WIDTH(".CORREN", w) << "  F" << _DEC(ADC0->CTRLB.bit.CORREN) << endl
-                   << _WIDTH(".LEFTADJ", w) << "  F" <<  _DEC(ADC0->CTRLB.bit.LEFTADJ) << endl
-                   << "REFCTRL" << endl
-                   << _WIDTH(".REFCOMP", w) << "  F" << _DEC(ADC0->REFCTRL.bit.REFCOMP) << endl
-                   << _WIDTH(".REFSEL", w) << "  0x" << _HEX(ADC0->REFCTRL.bit.REFSEL) << endl
-                   << "AVGCTRL" << endl
-                   << _WIDTH(".ADJRES", w) << "  0x" << _HEX(ADC0->AVGCTRL.bit.ADJRES) << endl
-                   << _WIDTH(".SAMPLENUM", w) << "  0x" << _HEX(ADC0->AVGCTRL.bit.SAMPLENUM) << endl
-                   << "SAMPCTRL" << endl
-                   << _WIDTH(".OFFCOMP", w) << "  F" << _DEC(ADC0->SAMPCTRL.bit.OFFCOMP) << endl
-                   << _WIDTH(".SAMPLEN", w) << "  " << _DEC(ADC0->SAMPCTRL.bit.SAMPLEN) << endl
-                   << "CALIB" << endl
-                   << _WIDTH(".BIASCOMP", w) << "  " << _DEC(ADC0->CALIB.bit.BIASCOMP) << endl
-                   << _WIDTH(".BIASREFBUF", w) << "  " << _DEC(ADC0->CALIB.bit.BIASREFBUF) << endl
-                   << _WIDTH(".BIASR2R", w) << "  " << _DEC(ADC0->CALIB.bit.BIASR2R) << endl
-                   << "OFFSETCORR       " <<  _DEC(ADC0->OFFSETCORR.bit.OFFSETCORR) << endl
-                   << "GAINCORR         " <<  _DEC(ADC0->GAINCORR.bit.GAINCORR) << endl
+          Ser.print("INPUTCTRL\n");
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".DIFFMODE" , ADC0->INPUTCTRL.bit.DIFFMODE); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".MUXPOS"   , ADC0->INPUTCTRL.bit.MUXPOS); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".MUXNEG"   , ADC0->INPUTCTRL.bit.MUXNEG); Ser.print(buf);
+          Ser.print("CTRLA\n");
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".ENABLE"   , ADC0->CTRLA.bit.ENABLE); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".PRESCALER", ADC0->CTRLA.bit.PRESCALER); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".R2R"      , ADC0->CTRLA.bit.R2R); Ser.print(buf);
+          Ser.print("CTRLB\n");
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".RESSEL"   , ADC0->CTRLB.bit.RESSEL); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".CORREN"   , ADC0->CTRLB.bit.CORREN); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".LEFTADJ"  , ADC0->CTRLB.bit.LEFTADJ); Ser.print(buf);
+          Ser.print("REFCTRL\n");
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".REFCOMP"  , ADC0->REFCTRL.bit.REFCOMP); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".REFSEL"   , ADC0->REFCTRL.bit.REFSEL); Ser.print(buf);
+          Ser.print("AVGCTRL\n");
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".ADJRES"   , ADC0->AVGCTRL.bit.ADJRES); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  0x%X\n", ".SAMPLENUM", ADC0->AVGCTRL.bit.SAMPLENUM); Ser.print(buf);
+          Ser.print("SAMPCTRL\n");
+          snprintf(buf, MAXLEN_buf, "%15s  F%u\n" , ".OFFCOMP"  , ADC0->SAMPCTRL.bit.OFFCOMP); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  %u\n"  , ".SAMPLEN"  , ADC0->SAMPCTRL.bit.SAMPLEN); Ser.print(buf);
+          Ser.print("CALIB\n");
+          snprintf(buf, MAXLEN_buf, "%15s  %u\n", ".BIASCOMP"   , ADC0->CALIB.bit.BIASCOMP); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  %u\n", ".BIASREFBUF" , ADC0->CALIB.bit.BIASREFBUF); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s  %u\n", ".BIASR2R"    , ADC0->CALIB.bit.BIASR2R); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "OFFSETCORR       %u\n"     , ADC0->OFFSETCORR.bit.OFFSETCORR); Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "GAINCORR         %u\n"     , ADC0->GAINCORR.bit.GAINCORR); Ser.print(buf);
 #endif
-                   << _PAD(40, '-') << endl;
+          Ser.print("----------------------------------------\n");
           // clang-format on
 
         } else if (strcmp(str_cmd, "debug?") == 0) {
@@ -1066,36 +1072,36 @@ void loop() {
           uint32_t baudrate = ceil(N_BYTES_TX_BUFFER * 10 * block_rate);
           // 8 data bits + 1 start bit + 1 stop bit = 10 bits per data byte
           // clang-format off
-          uint8_t w1 = 15;
-          uint8_t w2 = 6;
-          Ser_data << _PAD(40, '-') << endl
-                   << _WIDTH("DAQ rate", w1) << ":  "
-                   << _FLOATW(SAMPLING_RATE_Hz, 0, w2) << "  Hz" << endl
-                   << _WIDTH("ISR clock", w1) << ":  "
-                   << _FLOATW(SAMPLING_PERIOD_us, 0, w2) << "  usec" << endl
-                   << _WIDTH("Block size", w1) << ":  "
-                   << _FLOATW(BLOCK_SIZE, 0, w2) << "  samples" << endl
-                   << _WIDTH("Block size", w1) << ":  "
-                   << _FLOATW(N_BYTES_TX_BUFFER, 0, w2) << "  bytes" << endl
-                   << _WIDTH("Transmit rate", w1) << ":  "
-                   << _FLOATW(block_rate, 2, w2) << "  blocks/s" << endl
-                   << _WIDTH("Baudrate", w1) << ":  "
-                   << _FLOATW(baudrate, 0, w2) << endl
-                   << _PAD(40, '-') << endl;
+          Ser.print("----------------------------------------\n");
+          snprintf(buf, MAXLEN_buf, "%15s:%8.0f  %s\n", "DAQ rate", SAMPLING_RATE_Hz, "Hz");
+          Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s:%8d  %s\n"  , "ISR clock", SAMPLING_PERIOD_us, "usec");
+          Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s:%8d  %s\n"  , "Block size", BLOCK_SIZE, "samples");
+          Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s:%8d  %s\n"  , "Block size", N_BYTES_TX_BUFFER, "bytes");
+          Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s:%8.2f  %s\n", "Transmit rate", block_rate, "blocks/s");
+          Ser.print(buf);
+          snprintf(buf, MAXLEN_buf, "%15s:%8ld  %s\n" , "Baud rate", baudrate, "Bd");
+          Ser.print(buf);
+          Ser.print("----------------------------------------\n");
           // clang-format on
 
         } else if (strcmp(str_cmd, "const?") == 0) {
           // Report lock-in amplifier constants
           // clang-format off
-          Ser_data << SAMPLING_PERIOD_us << '\t'
-                   << BLOCK_SIZE << '\t'
-                   << N_BYTES_TX_BUFFER << '\t'
-                   << DAC_OUTPUT_BITS << '\t'
-                   << ADC_INPUT_BITS << '\t'
-                   << ADC_DIFFERENTIAL << '\t'
-                   << A_REF << '\t'
-                   << MIN_N_LUT << '\t'
-                   << MAX_N_LUT << endl;
+          snprintf(buf, MAXLEN_buf, "%u\t%u\t%u\t%u\t%u\t%u\t%.3f\t%u\t%u\n",
+                   SAMPLING_PERIOD_us,
+                   BLOCK_SIZE,
+                   N_BYTES_TX_BUFFER,
+                   DAC_OUTPUT_BITS,
+                   ADC_INPUT_BITS,
+                   ADC_DIFFERENTIAL,
+                   A_REF,
+                   MIN_N_LUT,
+                   MAX_N_LUT);
+          Ser.print(buf);
           // clang-format on
 
         } else if (strcmp(str_cmd, "ref?") == 0 || strcmp(str_cmd, "?") == 0) {
@@ -1104,41 +1110,46 @@ void loop() {
 
           // Report reference signal `ref_X` settings
           // clang-format off
-          Ser_data << WAVEFORM_STRING[ref_waveform] << '\t'
-                   << _FLOAT(ref_freq, 3) << '\t'
-                   << _FLOAT(ref_offs, 3) << '\t'
-                   << _FLOAT(ref_ampl, 3) << '\t'
-                   << _FLOAT(ref_VRMS, 3) << '\t'
-                   << ref_is_clipping_HI << '\t'
-                   << ref_is_clipping_LO << '\t'
-                   << N_LUT << endl;
+          snprintf(buf, MAXLEN_buf, "%s\t%.3f\t%.3f\t%.3f\t%.3f\t%i\t%i\t%i\n",
+                   WAVEFORM_STRING[ref_waveform],
+                   ref_freq,
+                   ref_offs,
+                   ref_ampl,
+                   ref_VRMS,
+                   ref_is_clipping_HI,
+                   ref_is_clipping_LO,
+                   N_LUT);
+          Ser.print(buf);
           // clang-format on
 
         } else if (strcmp(str_cmd, "lut?") == 0 || strcmp(str_cmd, "l?") == 0) {
           // HAS BECOME OBSOLETE
           // Report the LUT as a binary stream. The reported LUT will start at
           // phase = 0 deg.
-          Ser_data.write((uint8_t *)&N_LUT, 2);
-          Ser_data.write((uint8_t *)&is_LUT_dirty, 1);
-          Ser_data.write((uint8_t *)LUT_wave, N_LUT * 2);
+          Ser.write((uint8_t *)&N_LUT, 2);
+          Ser.write((uint8_t *)&is_LUT_dirty, 1);
+          Ser.write((uint8_t *)LUT_wave, N_LUT * 2);
 
           // WORK-AROUND for strange bug when ref_freq is set to 25 or 130 Hz.
           // I suspect a byte of the `LUT_wave` array to cause havoc in the
           // serial stream, making it suspend?! Sending an ASCII character seems
           // to fix it.
-          Ser_data << " ";
-          Ser_data.flush();
+          Ser.print(" ");
+          Ser.flush();
 
         } else if (strcmp(str_cmd, "lut_ascii?") == 0 ||
                    strcmp(str_cmd, "la?") == 0) {
           // Report the LUT as tab-delimited ASCII. The reported LUT will start
           // at phase = 0 deg. Convenience function handy for debugging from a
           // serial console.
-          Ser_data << N_LUT << '\t' << is_LUT_dirty << endl;
+          snprintf(buf, MAXLEN_buf, "%d\t%d\n", N_LUT, is_LUT_dirty);
+          Ser.print(buf);
           for (uint16_t i = 0; i < N_LUT - 1; i++) {
-            Ser_data << LUT_wave[i] << '\t';
+            snprintf(buf, MAXLEN_buf, "%d\t", LUT_wave[i]);
+            Ser.print(buf);
           }
-          Ser_data << LUT_wave[N_LUT - 1] << endl;
+          snprintf(buf, MAXLEN_buf, "%d\n", LUT_wave[N_LUT - 1]);
+          Ser.print(buf);
 
         } else if (strcmp(str_cmd, "t?") == 0) {
           // Report time
@@ -1146,11 +1157,12 @@ void loop() {
           uint16_t micros_part;
 
           get_systick_timestamp(&millis_copy, &micros_part);
-          Ser_data << millis_copy << "." << _WIDTHZ(micros_part, 3) << endl;
+          snprintf(buf, MAXLEN_buf, "%ld.%03d\n", millis_copy, micros_part);
+          Ser.print(buf);
 
         } else if (strcmp(str_cmd, "off") == 0) {
           // Lock-in amp is already off and we reply with an acknowledgement
-          Ser_data.print("already_off\n");
+          Ser.print("already_off\n");
 
         } else if (strcmp(str_cmd, "on") == 0) {
           // Start lock-in amp
@@ -1171,45 +1183,52 @@ void loop() {
           // Set the waveform type of the reference signal.
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_wave(atoi(&str_cmd[5]));
-          Ser_data.println(WAVEFORM_STRING[ref_waveform]);
+          snprintf(buf, MAXLEN_buf, "%s\n", WAVEFORM_STRING[ref_waveform]);
+          Ser.print(buf);
 
         } else if (strncmp(str_cmd, "_freq", 5) == 0) {
           // Set frequency of the output reference signal [Hz].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_freq(atof(&str_cmd[5]));
-          Ser_data.println(ref_freq, 3);
+          snprintf(buf, MAXLEN_buf, "%.3f\n", ref_freq);
+          Ser.print(buf);
 
         } else if (strncmp(str_cmd, "_offs", 5) == 0) {
           // Set offset of the reference signal [V].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_offs(atof(&str_cmd[5]));
-          Ser_data.println(ref_offs, 3);
+          snprintf(buf, MAXLEN_buf, "%.3f\n", ref_offs);
+          Ser.print(buf);
 
         } else if (strncmp(str_cmd, "_ampl", 5) == 0) {
           // Set amplitude of the reference signal [V].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_ampl(atof(&str_cmd[5]));
-          Ser_data.println(ref_ampl, 3);
+          snprintf(buf, MAXLEN_buf, "%.3f\n", ref_ampl);
+          Ser.print(buf);
 
         } else if (strncmp(str_cmd, "_vrms", 5) == 0) {
           // Set amplitude of the reference signal [V_RMS].
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_VRMS(atof(&str_cmd[5]));
-          Ser_data.println(ref_VRMS, 3);
+          snprintf(buf, MAXLEN_buf, "%.3f\n", ref_VRMS);
+          Ser.print(buf);
 
         } else if (strcmp(str_cmd, "isr?") == 0) {
           // Report the execution time durations of the previous `isr_psd()`
           // calls in microseconds.
-          for (uint16_t i = 0; i < 2 * BLOCK_SIZE; i++) {
-            Ser_data.println(isr_duration[i]);
+          for (uint16_t i = 0; i < 2 * BLOCK_SIZE - 1; i++) {
+            snprintf(buf, MAXLEN_buf, "%d\t", isr_duration[i]);
+            Ser.print(buf);
           }
+          snprintf(buf, MAXLEN_buf, "%d\n", isr_duration[2 * BLOCK_SIZE - 1]);
+          Ser.print(buf);
         }
       }
     }
   }
 
   // Send buffer out over the serial connection
-
   /* NOTE:
     Copying the volatile buffers `TX_buffer_A` and `TX_buffer_B` into a
     non-volatile extra buffer is not necessary and actually hurts performance,
@@ -1222,54 +1241,15 @@ void loop() {
     the serial transmit has all the time to send out stream A, while the other
     stream B gets written to by the ISR.
   */
-  // uint8_t _TX_buffer[N_BYTES_TX_BUFFER]; // Will hold copy of volatile
-  // buffer
-
   if (is_running && (trigger_send_TX_buffer_A || trigger_send_TX_buffer_B)) {
-    /*
-    // DEBUG
-    Ser_data.println(TX_buffer_counter);
-    Ser_data.println(
-      trigger_send_TX_buffer_A ? "\nTX_buffer_A" : "\nTX_buffer_B"
-    );
-    */
-
-    /*
-    // Copy the volatile buffer
-    noInterrupts();
-    if (trigger_send_TX_buffer_A) {
-      trigger_send_TX_buffer_A = false;
-      // memcpy(_TX_buffer, TX_buffer_A, N_BYTES_TX_BUFFER);
-      for (int16_t i = N_BYTES_TX_BUFFER - 1; i >= 0; i--) {
-        _TX_buffer[i] = TX_buffer_A[i];
-      }
-    } else {
-      trigger_send_TX_buffer_B = false;
-      // memcpy(_TX_buffer, TX_buffer_B, N_BYTES_TX_BUFFER);
-      for (int16_t i = N_BYTES_TX_BUFFER - 1; i >= 0; i--) {
-        _TX_buffer[i] = TX_buffer_B[i];
-      }
-    }
-    interrupts();
-    */
-
     // NOTE: `write()` can return -1 as indication of an error, e.g. the
     // receiving side being overrun with data.
-    // size_t w;
-
     if (trigger_send_TX_buffer_A) {
       trigger_send_TX_buffer_A = false;
-      // w =
-      Ser_data.write((uint8_t *)TX_buffer_A, N_BYTES_TX_BUFFER);
+      Ser.write((uint8_t *)TX_buffer_A, N_BYTES_TX_BUFFER);
     } else {
       trigger_send_TX_buffer_B = false;
-      // w =
-      Ser_data.write((uint8_t *)TX_buffer_B, N_BYTES_TX_BUFFER);
+      Ser.write((uint8_t *)TX_buffer_B, N_BYTES_TX_BUFFER);
     }
-
-    /*
-    // DEBUG
-    Ser_data.println(w);
-    */
   }
 }
