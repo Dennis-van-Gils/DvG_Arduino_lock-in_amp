@@ -650,7 +650,7 @@ class MainWindow(QWidget):
         )
         curves = [self.hcc_ref_X, self.hcc_ref_Y, self.hcc_sig_I]
         self.all_curves.extend(curves)
-        self.hcc_ref_X.setVisible(False)
+        self.hcc_ref_X.setVisible(True)
         self.hcc_ref_Y.setVisible(False)
         self.legend_refsig = LegendSelect(
             linked_curves=curves,
