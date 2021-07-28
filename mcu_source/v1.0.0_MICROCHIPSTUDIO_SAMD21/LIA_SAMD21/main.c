@@ -853,7 +853,7 @@ int main(void) {
             snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  0x%X\n", ".ADJRES"   , ADC->AVGCTRL.bit.ADJRES); io_print(str_buffer);
             snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  0x%X\n", ".SAMPLENUM", ADC->AVGCTRL.bit.SAMPLENUM); io_print(str_buffer);
             io_print("SAMPCTRL\n");
-            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  %u\n"  , ".REFCOMP"  , ADC->SAMPCTRL.bit.SAMPLEN); io_print(str_buffer);
+            snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  %u\n"  , ".SAMPLEN"  , ADC->SAMPCTRL.bit.SAMPLEN); io_print(str_buffer);
             io_print("CTRLB\n");
             snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  0x%X\n", ".RESSEL"   , ADC->CTRLB.bit.RESSEL); io_print(str_buffer);
             snprintf(str_buffer, MAXLEN_STR_BUFFER, "%15s  F%u\n" , ".CORREN"   , ADC->CTRLB.bit.CORREN); io_print(str_buffer);
