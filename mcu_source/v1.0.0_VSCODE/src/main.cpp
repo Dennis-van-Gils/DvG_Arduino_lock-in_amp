@@ -859,6 +859,8 @@ void setup() {
 
   // Sampling length, larger means increased max input impedance
   // default 5, stable 14 @ DIV16 & SAMPLENUM_4
+  ADC0->SAMPCTRL.bit.OFFCOMP = 0; // When set to 1, SAMPLEN must be set to 0
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
   ADC0->SAMPCTRL.bit.SAMPLEN = 14;
   syncADC(ADC0, ADC_SYNCBUSY_MASK);
 
@@ -888,9 +890,12 @@ void setup() {
   syncADC(ADC0, ADC_SYNCBUSY_MASK);
 
   /*
-  ADC0->GAINCORR.reg = (1 << 11) - 8;
+  //       [GAINCORR] [OFFSETCORR]
+  // set 1      - 11           14    Feather M4 at home
+  // set 2      -  8           18
+  ADC0->GAINCORR.reg = (1 << 11) - 11;
   syncADC(ADC0, ADC_SYNCBUSY_GAINCORR);
-  ADC0->OFFSETCORR.reg = 18;
+  ADC0->OFFSETCORR.reg = 14;
   syncADC(ADC0, ADC_SYNCBUSY_OFFSET);
   ADC0->CTRLB.bit.CORREN = 1;
   syncADC(ADC0, ADC_SYNCBUSY_MASK);
