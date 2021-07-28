@@ -25,6 +25,3 @@ FIRMWARE
 
 * Perhaps implement an auto-calibration routine by routing DAC to ADC
   internally, i.e. via the chipset itself not via a physical wire.
-
-* Copy the improved start-up routine of ALIA_V0.2.0 over to ALIA_V1.0.0. Also,
-  turn the LED on/off /outside/ of the ISR, not inside.
