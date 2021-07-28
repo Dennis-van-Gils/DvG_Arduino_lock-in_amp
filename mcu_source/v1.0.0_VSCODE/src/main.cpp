@@ -540,7 +540,7 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
 // lock-up might occur or other unspecified behavior. Tweak the DAC settings
 // (predominantly `SAMPLEN`, 'SAMPLENUM` and `PRESCALER`) to alter the execution
 // time duration.
-volatile static uint16_t isr_duration[2 * BLOCK_SIZE] = {0};
+volatile static uint16_t isr_duration[BLOCK_SIZE] = {0};
 
 void isr_psd() {
   static uint32_t DAQ_iter = 0;         // Increments each time step
@@ -655,8 +655,7 @@ void isr_psd() {
   write_idx++;
   // clang-format on
 
-  // Check if the TX buffer is full and ready to be send over serial. If so,
-  // stamp the other TX buffer that will be used in the next time step.
+  // Check if the TX buffer is full and ready to be send over serial
   if (write_idx == BLOCK_SIZE) {
     if (using_TX_buffer_A) {
       trigger_send_TX_buffer_A = true;
@@ -680,7 +679,7 @@ void isr_psd() {
       (uint16_t)((tick - SysTick->VAL) * (1048576 / (VARIANT_MCK / 1000000)) >>
                  20); // [us]
   debug_iter++;
-  if (debug_iter == 2 * BLOCK_SIZE) {
+  if (debug_iter == BLOCK_SIZE) {
     debug_iter = 0;
   }
 }
@@ -1217,11 +1216,11 @@ void loop() {
         } else if (strcmp(str_cmd, "isr?") == 0) {
           // Report the execution time durations of the previous `isr_psd()`
           // calls in microseconds.
-          for (uint16_t i = 0; i < 2 * BLOCK_SIZE - 1; i++) {
+          for (uint16_t i = 0; i < BLOCK_SIZE - 1; i++) {
             snprintf(buf, MAXLEN_buf, "%d\t", isr_duration[i]);
             Ser.print(buf);
           }
-          snprintf(buf, MAXLEN_buf, "%d\n", isr_duration[2 * BLOCK_SIZE - 1]);
+          snprintf(buf, MAXLEN_buf, "%d\n", isr_duration[BLOCK_SIZE - 1]);
           Ser.print(buf);
         }
       }
