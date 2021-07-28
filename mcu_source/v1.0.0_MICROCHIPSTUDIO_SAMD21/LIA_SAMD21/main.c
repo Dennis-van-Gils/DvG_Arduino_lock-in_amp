@@ -192,6 +192,7 @@ volatile bool using_TX_buffer_A = true; // When false: Using TX_buffer_B
 // Outgoing serial string
 #define MAXLEN_STR_BUFFER 100
 char str_buffer[MAXLEN_STR_BUFFER];
+char usb_buffer[MAXLEN_STR_BUFFER];
 struct io_descriptor* io;
 
 /*
@@ -498,6 +499,16 @@ void stamp_TX_buffer(uint8_t *TX_buffer) {
   TX_buffer[TX_BUFFER_OFFSET_PHASE      ] = idx_phase;
   TX_buffer[TX_BUFFER_OFFSET_PHASE   + 1] = idx_phase >> 8;
 }
+
+/*------------------------------------------------------------------------------
+  USB print
+------------------------------------------------------------------------------*/
+/*
+void usb_print(const char *str_msg) {
+  sprintf(usb_buffer, "%s", str_msg);
+  cdcdf_acm_write((uint8_t *) usb_buffer, strlen(usb_buffer));
+}
+*/
 
 /*------------------------------------------------------------------------------
   USART
