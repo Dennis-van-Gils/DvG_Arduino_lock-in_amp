@@ -74,14 +74,20 @@
 #  define MCU_MODEL "SAMD51G19A"
 #endif
 
+// Digital trigger-out
+#define PIN_TRIG_OUT 12
+const EPortType PORT_TRIG_OUT = g_APinDescription[PIN_TRIG_OUT].ulPort;
+const uint32_t MASK_TRIG_OUT = (1ul << g_APinDescription[PIN_TRIG_OUT].ulPin);
+static inline void TRIG_OUT_low() {
+  PORT->Group[PORT_TRIG_OUT].OUTCLR.reg = MASK_TRIG_OUT;
+}
+static inline void TRIG_OUT_high() {
+  PORT->Group[PORT_TRIG_OUT].OUTSET.reg = MASK_TRIG_OUT;
+}
+
 // Use built-in LED to signal running state of lock-in amp
 static __inline__ void LED_off() __attribute__((always_inline, unused));
 static __inline__ void LED_on() __attribute__((always_inline, unused));
-
-// Digital trigger-out
-#define PIN_TRIG_OUT 12
-EPortType PORT_TRIG_OUT = g_APinDescription[PIN_TRIG_OUT].ulPort;
-uint32_t MASK_TRIG_OUT = (1ul << g_APinDescription[PIN_TRIG_OUT].ulPin);
 
 // clang-format off
 #ifdef ADAFRUIT_FEATHER_M4_EXPRESS
@@ -433,22 +439,6 @@ void get_mcu_uid(char mcu_uid_out[33]) {
 }
 
 /*------------------------------------------------------------------------------
-  digitalWriteFast
-------------------------------------------------------------------------------*/
-
-void digitalWriteFast(EPortType port, uint32_t pinMask, uint32_t ulVal) {
-  switch (ulVal) {
-    case LOW:
-      PORT->Group[port].OUTCLR.reg = pinMask;
-      break;
-
-    default:
-      PORT->Group[port].OUTSET.reg = pinMask;
-      break;
-  }
-}
-
-/*------------------------------------------------------------------------------
   Time keeping
 ------------------------------------------------------------------------------*/
 
@@ -534,6 +524,8 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
 /*------------------------------------------------------------------------------
   Interrupt service routine (ISR) for phase-sentive detection (PSD)
 ------------------------------------------------------------------------------*/
+// We need a few iterations to get started up correcly in `isr_psd()`
+#define N_STARTUP_ITERS 2
 
 void isr_psd() {
   static uint32_t DAQ_iter = 0;         // Increments each time step
@@ -543,6 +535,22 @@ void isr_psd() {
   volatile static uint16_t LUT_idx; // Current read index of LUT
   int16_t sig_I;
 
+  // Stamp the next TX buffer, one time step in advance before the current TX
+  // buffer will get completely full. Stamp as soon as possible, before other
+  // DAC and ADC operations, to get close to the true start time of the current
+  // ISR call: Inside an ISR `millis` is stalled, but `micros` is not.
+  if (write_idx == BLOCK_SIZE - 1) {
+    if (using_TX_buffer_A) {
+      stamp_TX_buffer(TX_buffer_B, &LUT_idx);
+    } else {
+      stamp_TX_buffer(TX_buffer_A, &LUT_idx);
+    }
+  }
+  if (DAQ_iter == N_STARTUP_ITERS) {
+    stamp_TX_buffer(TX_buffer_A, &LUT_idx);
+  }
+
+  // Start / stop
   if (is_running != is_running_prev) {
     is_running_prev = is_running;
 
@@ -554,7 +562,6 @@ void isr_psd() {
       trigger_send_TX_buffer_A = false;
       trigger_send_TX_buffer_B = false;
       using_TX_buffer_A = true;
-      // stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     } else {
       // Just got turned off
       // Set output voltage to 0
@@ -570,36 +577,25 @@ void isr_psd() {
     return;
   }
 
-  /*
-  // Stamp the next TX buffer, one time step in advance before the current TX
-  // buffer will get completely full. Stamp as soon as possible, before other
-  // DAC and ADC operations, to get close to the true start time of the current
-  // ISR call: Inside an ISR `millis` is stalled, but `micros` is not.
-  if (write_idx == BLOCK_SIZE - 1) {
-    if (using_TX_buffer_A) {
-      stamp_TX_buffer(TX_buffer_B, &LUT_idx);
-    } else {
-      stamp_TX_buffer(TX_buffer_A, &LUT_idx);
-    }
-  }
-  */
-
   // Read ADC signal `sig_I` corresponding to the DAC output of the previous
   // time step. This ensures that the previously set DAC output has had enough
   // time to stabilize.
 #ifdef __SAMD21__
-  ADC->SWTRIG.bit.START = 1;
-  syncADC();
-  while (!ADC->INTFLAG.bit.RESRDY) {}
-  sig_I = ADC->RESULT.reg;
+  ADC->SWTRIG.bit.START = 1; // Request start conversion
+  syncADC();                 // Make sure conversion has been initiated
+  __asm__("nop\n\t");        // Tiny delay before we can poll RESRDY
+  __asm__("nop\n\t");
+  __asm__("nop\n\t");
+  while (!ADC->INTFLAG.bit.RESRDY) {} // Wait for result to be ready to be read
+  sig_I = ADC->RESULT.reg;            // Read result
 #elif defined __SAMD51__
-  ADC0->SWTRIG.bit.START = 1;
-  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+  ADC0->SWTRIG.bit.START = 1;       // Request start conversion
+  syncADC(ADC0, ADC_SYNCBUSY_MASK); // Make sure conversion has been initiated
+  __asm__("nop\n\t");               // Tiny delay before we can poll RESRDY
   __asm__("nop\n\t");
   __asm__("nop\n\t");
-  __asm__("nop\n\t");
-  while (!ADC0->INTFLAG.bit.RESRDY) {}
-  sig_I = ADC0->RESULT.reg;
+  while (!ADC0->INTFLAG.bit.RESRDY) {} // Wait for result to be ready to be read
+  sig_I = ADC0->RESULT.reg;            // Read result
 #endif
 
   // Output DAC signal `ref_X`
@@ -611,13 +607,18 @@ void isr_psd() {
   DAC->DATA[0].reg = LUT_wave[LUT_idx];
 #endif
 
+  // Trigger out
+  if (LUT_idx == 0) {
+    TRIG_OUT_high();
+  } else if (LUT_idx == 1) {
+    TRIG_OUT_low();
+  }
+
   // Start-up routine: ADC signal `sig_I` is not valid yet.
-  // It appears we need a few iterations to get the ADC machinery stabilized?!
-  if (DAQ_iter < 3) {
+  if (DAQ_iter < N_STARTUP_ITERS) {
     DAQ_iter++;
     return;
-  } else if (DAQ_iter == 3) {
-    stamp_TX_buffer(TX_buffer_A, &LUT_idx);
+  } else if (DAQ_iter == N_STARTUP_ITERS) {
     LUT_idx++;
     DAQ_iter++;
     return;
@@ -640,21 +641,12 @@ void isr_psd() {
   if (write_idx == BLOCK_SIZE) {
     if (using_TX_buffer_A) {
       trigger_send_TX_buffer_A = true;
-      stamp_TX_buffer(TX_buffer_B, &LUT_idx);
     } else {
       trigger_send_TX_buffer_B = true;
-      stamp_TX_buffer(TX_buffer_A, &LUT_idx);
     }
 
     using_TX_buffer_A = !using_TX_buffer_A;
     write_idx = 0;
-  }
-
-  // Trigger out
-  if (LUT_idx == 0) {
-    digitalWriteFast(PORT_TRIG_OUT, MASK_TRIG_OUT, HIGH);
-  } else if (LUT_idx == 1) {
-    digitalWriteFast(PORT_TRIG_OUT, MASK_TRIG_OUT, LOW);
   }
 
   // Advance the indices
