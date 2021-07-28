@@ -527,6 +527,13 @@ void stamp_TX_buffer(volatile uint8_t *TX_buffer, volatile uint16_t *LUT_idx) {
 // We need a few iterations to get started up correcly in `isr_psd()`
 #define N_STARTUP_ITERS 2
 
+// DEBUG info: Collects execution time durations of `isr_psd()` in microseconds.
+// They should always be smaller than the ISR period, otherwise a processor
+// lock-up might occur or other unspecified behavior. Tweak the DAC settings
+// (predominantly `SAMPLEN`, 'SAMPLENUM` and `PRESCALER`) to alter the execution
+// time duration.
+volatile static uint16_t isr_duration[2 * BLOCK_SIZE] = {0};
+
 void isr_psd() {
   static uint32_t DAQ_iter = 0;         // Increments each time step
   static uint16_t write_idx = 0;        // Current write index of TX_buffer
@@ -534,6 +541,10 @@ void isr_psd() {
   static bool is_running_prev = is_running;
   volatile static uint16_t LUT_idx; // Current read index of LUT
   int16_t sig_I;
+
+  // DEBUG info: Execution time duration
+  static uint16_t debug_iter = 0;
+  uint32_t tick = SysTick->VAL;
 
   // Stamp the next TX buffer, one time step in advance before the current TX
   // buffer will get completely full. Stamp as soon as possible, before other
@@ -655,6 +666,15 @@ void isr_psd() {
   if (LUT_idx == N_LUT) {
     LUT_idx = 0;
   }
+
+  // DEBUG info: Execution time duration
+  isr_duration[debug_iter] =
+      (uint16_t)((tick - SysTick->VAL) * (1048576 / (VARIANT_MCK / 1000000)) >>
+                 20); // [us]
+  debug_iter++;
+  if (debug_iter == 2 * BLOCK_SIZE) {
+    debug_iter = 0;
+  }
 }
 
 /*------------------------------------------------------------------------------
@@ -759,8 +779,8 @@ void setup() {
   // No sync needed according to `hri_adc_d21.h`
 
   // Sampling length, larger means increased max input impedance
-  // default 63, stable 15 @ DIV32 & SAMPLENUM_4
-  ADC->SAMPCTRL.bit.SAMPLEN = 15;
+  // default 63, stable 32 @ DIV32 & SAMPLENUM_4
+  ADC->SAMPCTRL.bit.SAMPLEN = 32;
   // No sync needed according to `hri_adc_d21.h`
 
 #  if ADC_DIFFERENTIAL == 1
@@ -830,8 +850,8 @@ void setup() {
   syncADC(ADC0, ADC_SYNCBUSY_MASK);
 
   // Sampling length, larger means increased max input impedance
-  // default 5, stable 15 @ DIV16 & SAMPLENUM_4
-  ADC0->SAMPCTRL.bit.SAMPLEN = 15;
+  // default 5, stable 14 @ DIV16 & SAMPLENUM_4
+  ADC0->SAMPCTRL.bit.SAMPLEN = 14;
   syncADC(ADC0, ADC_SYNCBUSY_MASK);
 
 #  if ADC_DIFFERENTIAL == 1
@@ -1176,6 +1196,13 @@ void loop() {
           // Call 'compute_LUT(LUT_wave)' for it to become effective.
           set_VRMS(atof(&str_cmd[5]));
           Ser_data.println(ref_VRMS, 3);
+
+        } else if (strcmp(str_cmd, "isr?") == 0) {
+          // Report the execution time durations of the previous `isr_psd()`
+          // calls in microseconds.
+          for (uint16_t i = 0; i < 2 * BLOCK_SIZE; i++) {
+            Ser_data.println(isr_duration[i]);
+          }
         }
       }
     }
