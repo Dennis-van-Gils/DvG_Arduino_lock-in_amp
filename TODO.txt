@@ -23,5 +23,4 @@ PYTHON
 FIRMWARE
 
 
-* Perhaps implement an auto-calibration routine by routing DAC to ADC
-  internally, i.e. via the chipset itself not via a physical wire.
+* Fine-tune `ADC_autocalibrate()`

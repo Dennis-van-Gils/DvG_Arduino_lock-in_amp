@@ -43,7 +43,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  28-07-2021
+  30-07-2021
 ------------------------------------------------------------------------------*/
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
 
@@ -93,28 +93,30 @@ static inline void TRIG_OUT_high() {
   PORT->Group[PORT_TRIG_OUT].OUTSET.reg = MASK_TRIG_OUT;
 }
 
-// Use built-in LED to signal running state of lock-in amp
-static __inline__ void LED_off() __attribute__((always_inline, unused));
-static __inline__ void LED_on() __attribute__((always_inline, unused));
-
-// clang-format off
+// Use built-in LED to signal the running state of lock-in amp
 #ifdef ADAFRUIT_FEATHER_M4_EXPRESS
 #  include "Adafruit_NeoPixel.h"
-Adafruit_NeoPixel strip = Adafruit_NeoPixel(1, PIN_NEOPIXEL, NEO_GRB +
-                                            NEO_KHZ800);
-static void LED_off() {
+Adafruit_NeoPixel strip =
+    Adafruit_NeoPixel(1, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
+#endif
+
+static inline void LED_off() {
+#ifdef ADAFRUIT_FEATHER_M4_EXPRESS
   strip.setPixelColor(0, strip.Color(0, 0, 255));
   strip.show();
+#else
+  digitalWrite(PIN_LED, LOW);
+#endif
 }
-static void LED_on() {
+
+static inline void LED_on() {
+#ifdef ADAFRUIT_FEATHER_M4_EXPRESS
   strip.setPixelColor(0, strip.Color(0, 255, 0));
   strip.show();
-}
 #else
-static void LED_off() {digitalWrite(PIN_LED, LOW);}
-static void LED_on()  {digitalWrite(PIN_LED, HIGH);}
+  digitalWrite(PIN_LED, HIGH);
 #endif
-// clang-format on
+}
 
 #ifdef __SAMD21__
 static inline void syncADC() {
@@ -136,6 +138,54 @@ static inline void syncADC(const Adc *hw, uint32_t reg) {
 #  include "SAMD51_InterruptTimer.h"
 #endif
 
+// Read and return a single ADC sample, software triggered
+static int16_t ADC_read_signal() {
+#ifdef __SAMD21__
+  ADC->SWTRIG.bit.START = 1; // Request start conversion
+  syncADC();                 // Make sure conversion has been initiated
+  __asm__("nop\n\t");        // Tiny delay before we can poll RESRDY
+  __asm__("nop\n\t");
+  __asm__("nop\n\t");
+  while (!ADC->INTFLAG.bit.RESRDY) {} // Wait for result ready to be read
+  return ADC->RESULT.reg;             // Read result
+#elif defined __SAMD51__
+  ADC0->SWTRIG.bit.START = 1;       // Request start conversion
+  syncADC(ADC0, ADC_SYNCBUSY_MASK); // Make sure conversion has been initiated
+  __asm__("nop\n\t");               // Tiny delay before we can poll RESRDY
+  __asm__("nop\n\t");
+  __asm__("nop\n\t");
+  while (!ADC0->INTFLAG.bit.RESRDY) {} // Wait for result ready to be read
+  return ADC0->RESULT.reg;             // Read result
+#endif
+}
+
+// Set a single DAC output value with checking for synchronization
+static void DAC_set_output(int16_t value) {
+#ifdef __SAMD21__
+  // DAC conversion time is approximately 2.85 μs, see
+  // https://microchipdeveloper.com/32arm:samd21-dac-overview
+  // Because there is no bit we can pol for knowing when the conversion has
+  // stabilized, we simply wait several clock cycles.
+  DAC->DATA.reg = value;
+  for (uint8_t i = 0; i < 144; i++) { // 144 cycles = 3.00 μs @ 48 MHz
+    __asm__("nop\n\t");
+  }
+#elif defined __SAMD51__
+  while (!DAC->STATUS.bit.READY0) {}   // Wait for DAC to become ready
+  DAC->DATA[0].reg = value;
+  while (!DAC->STATUS.bit.EOC0) {} // Wait for DAC output to stabilize
+#endif
+}
+
+// Set a single DAC output value without checking for synchronization
+static void DAC_set_output_nosync(int16_t value) {
+#ifdef __SAMD21__
+  DAC->DATA.reg = value;
+#elif defined __SAMD51__
+  DAC->DATA[0].reg = value;
+#endif
+}
+
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
 // 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
 #define FOREACH_WAVEFORM(WAVEFORM)                                             \
@@ -153,6 +203,9 @@ static const char *WAVEFORM_STRING[] = {FOREACH_WAVEFORM(GENERATE_STRING)};
 volatile bool is_running = false; // Is the lock-in amplifier running?
 volatile bool trigger_reset_time = false;
 char mcu_uid[33]; // Serial number
+
+#define MAXLEN_buf 100 // Outgoing string buffer
+char buf[MAXLEN_buf];  // Outgoing string buffer
 
 /*------------------------------------------------------------------------------
   Sampling
@@ -286,7 +339,7 @@ bool ref_is_clipping_LO; // Output reference signal is clipping low?
 // Look-up table (LUT) for fast DAC
 #define MIN_N_LUT 20   // Min. allowed number of samples for one full period
 #define MAX_N_LUT 1000 // Max. allowed number of samples for one full period
-uint16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
+int16_t LUT_wave[MAX_N_LUT] = {0}; // Look-up table allocation
 uint16_t N_LUT; // Current number of samples for one full period
 // Does the LUT need to be recomputed to reflect new settings?
 bool is_LUT_dirty = false;
@@ -295,7 +348,7 @@ bool is_LUT_dirty = false;
 #define A_REF 3.300 // [V] Analog voltage reference Arduino
 #define MAX_DAC_OUTPUT_BITVAL ((1 << DAC_OUTPUT_BITS) - 1)
 
-void compute_LUT(uint16_t *LUT_array) {
+void compute_LUT(int16_t *LUT_array) {
   double norm_offs = ref_offs / A_REF; // Normalized
   double norm_ampl = ref_ampl / A_REF; // Normalized
   double wave;
@@ -341,7 +394,7 @@ void compute_LUT(uint16_t *LUT_array) {
       wave = 1.0;
     }
 
-    LUT_array[i] = (uint16_t)round(MAX_DAC_OUTPUT_BITVAL * wave);
+    LUT_array[i] = round(MAX_DAC_OUTPUT_BITVAL * wave);
   }
 
   is_LUT_dirty = false;
@@ -375,7 +428,7 @@ void set_wave(int value) {
 
 void set_freq(double value) {
   is_LUT_dirty = true;
-  N_LUT = (uint16_t)round(SAMPLING_RATE_Hz / value);
+  N_LUT = round(SAMPLING_RATE_Hz / value);
   N_LUT = max(N_LUT, MIN_N_LUT);
   N_LUT = min(N_LUT, MAX_N_LUT);
   ref_freq = SAMPLING_RATE_Hz / N_LUT;
@@ -400,6 +453,103 @@ void set_VRMS(double value) {
   ref_ampl = ref_VRMS * ref_RMS_factor;
   // ref_ampl = min(ref_ampl, A_REF);
   // ref_VRMS = ref_ampl / ref_RMS_factor;
+}
+
+/*------------------------------------------------------------------------------
+  ADC_autocalibrate
+------------------------------------------------------------------------------*/
+
+void ADC_autocalibrate() {
+  /* Autocalibration routine for the ADC in single-ended mode.
+
+  The DAC voltage output will be internally routed to the ADC input, in addition
+  to the analog output pin [A0]. During calibration the analog output will first
+  output a low voltage, followed by a high voltage for each around 75 ms.
+
+  - It is advised to first disconnect pins [A0] and [A1].
+  - Only implemented for single-ended mode, not differential.
+  */
+#if (ADC_DIFFERENTIAL == 0)
+  const uint16_t N_samples = 2048; // Number of ADC reads to average over
+  double V_LO = A_REF * .1;        // Linear fit point, low voltage
+  double V_HI = A_REF * .9;        // Linear fit point, high voltage
+  double sig_LO = 0;               // Average read bitvalue, low voltage
+  double sig_HI = 0;               // Average read bitvalue, high voltage
+  double ideal_LO = (V_LO / A_REF * ((1 << ADC_INPUT_BITS) - 1));
+  double ideal_HI = (V_HI / A_REF * ((1 << ADC_INPUT_BITS) - 1));
+
+  // Internally route the DAC output to the ADC input and disable the
+  // calibration correction.
+#  ifdef __SAMD21__
+  ADC->INPUTCTRL.bit.MUXPOS = ADC_INPUTCTRL_MUXPOS_DAC_Val;
+  syncADC();
+  ADC->CTRLB.bit.CORREN = 0;
+  syncADC();
+#  elif defined __SAMD51__
+  ADC0->INPUTCTRL.bit.MUXPOS = ADC_INPUTCTRL_MUXPOS_DAC_Val;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+  ADC0->CTRLB.bit.CORREN = 0;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+#  endif
+  // clang-format off
+
+  // Acquire LO voltage signal
+  DAC_set_output(round(V_LO / A_REF * MAX_DAC_OUTPUT_BITVAL));
+  for (uint16_t i = 0; i < N_samples; i++) {sig_LO += ADC_read_signal();}
+  sig_LO /= N_samples;
+
+  // Acquire HI voltage signal
+  DAC_set_output(round(V_HI / A_REF * MAX_DAC_OUTPUT_BITVAL));
+  for (uint16_t i = 0; i < N_samples; i++) {sig_HI += ADC_read_signal();}
+  sig_HI /= N_samples;
+
+  DAC_set_output(0);
+
+  // Compute calibration corrections
+  // See Microchip document TB3185 at
+  // http://ww1.microchip.com/downloads/en/DeviceDoc/90003185A.pdf
+  double  gain_error     = (sig_HI - sig_LO) / (ideal_HI - ideal_LO);
+  int16_t gain_error_int = round(2048. / gain_error);
+  int16_t offset_error   = round(sig_LO - (2048. / gain_error_int * ideal_LO));
+  int16_t gaincorr   = ADC_GAINCORR_GAINCORR(gain_error_int);
+  int16_t offsetcorr = ADC_OFFSETCORR_OFFSETCORR(offset_error);
+  // clang-format on
+
+  // Enable the calibration correction and restore the ADC input
+#  ifdef __SAMD21__
+  ADC->GAINCORR.reg = gaincorr;
+  ADC->OFFSETCORR.reg = offsetcorr;
+  ADC->CTRLB.bit.CORREN = 1;
+  syncADC();
+  ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  syncADC();
+#  elif defined __SAMD51__
+  ADC0->GAINCORR.reg = gaincorr;
+  syncADC(ADC0, ADC_SYNCBUSY_GAINCORR);
+  ADC0->OFFSETCORR.reg = offsetcorr;
+  syncADC(ADC0, ADC_SYNCBUSY_OFFSET);
+  ADC0->CTRLB.bit.CORREN = 1;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+  ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+#  endif
+
+  // Report findings
+  // clang-format off
+  snprintf(buf, MAXLEN_buf, "%5.3f V reads as %5.3f V, %6.1f bitval\n",
+           V_LO, sig_LO * A_REF / ((1 << ADC_INPUT_BITS) - 1), sig_LO);
+  Ser.print(buf);
+  snprintf(buf, MAXLEN_buf, "%5.3f V reads as %5.3f V, %6.1f bitval\n",
+           V_HI, sig_HI * A_REF / ((1 << ADC_INPUT_BITS) - 1), sig_HI);
+  Ser.print(buf);
+  snprintf(buf, MAXLEN_buf, "errors: gain = %6.4f, offset = %d\n",
+           gain_error, offset_error);
+  Ser.print(buf);
+  snprintf(buf, MAXLEN_buf, "gaincorr = %d, offsetcorr = %d\n",
+           gaincorr, offsetcorr);
+  Ser.print(buf);
+  // clang-format on
+#endif
 }
 
 /*------------------------------------------------------------------------------
@@ -583,12 +733,7 @@ void isr_psd() {
       using_TX_buffer_A = true;
     } else {
       // Just got turned off
-      // Set output voltage to 0
-#if defined __SAMD21__
-      DAC->DATA.reg = 0;
-#elif defined __SAMD51__
-      DAC->DATA[0].reg = 0;
-#endif
+      DAC_set_output(0.);
     }
   }
 
@@ -599,32 +744,12 @@ void isr_psd() {
   // Read ADC signal `sig_I` corresponding to the DAC output of the previous
   // time step. This ensures that the previously set DAC output has had enough
   // time to stabilize.
-#ifdef __SAMD21__
-  ADC->SWTRIG.bit.START = 1; // Request start conversion
-  syncADC();                 // Make sure conversion has been initiated
-  __asm__("nop\n\t");        // Tiny delay before we can poll RESRDY
-  __asm__("nop\n\t");
-  __asm__("nop\n\t");
-  while (!ADC->INTFLAG.bit.RESRDY) {} // Wait for result to be ready to be read
-  sig_I = ADC->RESULT.reg;            // Read result
-#elif defined __SAMD51__
-  ADC0->SWTRIG.bit.START = 1;       // Request start conversion
-  syncADC(ADC0, ADC_SYNCBUSY_MASK); // Make sure conversion has been initiated
-  __asm__("nop\n\t");               // Tiny delay before we can poll RESRDY
-  __asm__("nop\n\t");
-  __asm__("nop\n\t");
-  while (!ADC0->INTFLAG.bit.RESRDY) {} // Wait for result to be ready to be read
-  sig_I = ADC0->RESULT.reg;            // Read result
-#endif
+  sig_I = ADC_read_signal();
 
   // Output DAC signal `ref_X`
-  // We don't have to worry about syncing, because the ISR is slow enough for
-  // the DAC output to get effective every ISR call
-#ifdef __SAMD21__
-  DAC->DATA.reg = LUT_wave[LUT_idx];
-#elif defined __SAMD51__
-  DAC->DATA[0].reg = LUT_wave[LUT_idx];
-#endif
+  // We don't worry about syncing, because the ISR is assumed slow enough for
+  // the DAC output to have caught up on the next time step.
+  DAC_set_output_nosync(LUT_wave[LUT_idx]);
 
   // Trigger out
   if (LUT_idx == 0) {
@@ -752,6 +877,7 @@ void setup() {
   // Handy calculator:
   // https://blog.thea.codes/getting-the-most-out-of-the-samd21-adc/
 
+  // Turn off ADC
   ADC->CTRLA.reg = 0;
   syncADC();
 
@@ -815,7 +941,7 @@ void setup() {
   ADC->INPUTCTRL.bit.GAIN = ADC_INPUTCTRL_GAIN_DIV2_Val;
   syncADC();
 
-  // Prepare for software-triggered acquisition
+  // Turn on ADC
   ADC->CTRLA.bit.ENABLE = 1;
   syncADC();
 
@@ -825,6 +951,7 @@ void setup() {
   // See
   // \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\wiring.c
 
+  // Turn off ADC
   ADC0->CTRLA.reg = 0;
   syncADC(ADC0, ADC_SYNCBUSY_SWRST | ADC_SYNCBUSY_ENABLE);
 
@@ -889,19 +1016,7 @@ void setup() {
   ADC0->REFCTRL.bit.REFCOMP = 0;
   syncADC(ADC0, ADC_SYNCBUSY_MASK);
 
-  /*
-  //       [GAINCORR] [OFFSETCORR]
-  // set 1      - 11           14    Feather M4 at home
-  // set 2      -  8           18
-  ADC0->GAINCORR.reg = (1 << 11) - 11;
-  syncADC(ADC0, ADC_SYNCBUSY_GAINCORR);
-  ADC0->OFFSETCORR.reg = 14;
-  syncADC(ADC0, ADC_SYNCBUSY_OFFSET);
-  ADC0->CTRLB.bit.CORREN = 1;
-  syncADC(ADC0, ADC_SYNCBUSY_MASK);
-  */
-
-  // Prepare for software-triggered acquisition
+  // Turn on ADC
   ADC0->CTRLA.bit.ENABLE = 1;
   syncADC(ADC0, ADC_SYNCBUSY_SWRST | ADC_SYNCBUSY_ENABLE);
 
@@ -913,6 +1028,8 @@ void setup() {
   set_offs(1.65);  // [V]     Wanted startup offset
   set_VRMS(0.5);   // [V_RMS] Wanted startup amplitude
   compute_LUT(LUT_wave);
+
+  ADC_autocalibrate();
 
   // Start the interrupt timer
   TC.startTimer(SAMPLING_PERIOD_us, isr_psd);
@@ -930,11 +1047,9 @@ void setup() {
 /*------------------------------------------------------------------------------
   loop
 ------------------------------------------------------------------------------*/
-#define MAXLEN_buf 100 // Outgoing string buffer
 
 void loop() {
-  char buf[MAXLEN_buf]; // Outgoing string buffer
-  char *str_cmd;        // Incoming serial command string
+  char *str_cmd; // Incoming serial command string
   uint32_t now = millis();
   static uint32_t prev_millis = 0;
 
@@ -1227,6 +1342,9 @@ void loop() {
           }
           snprintf(buf, MAXLEN_buf, "%d\n", isr_duration[BLOCK_SIZE - 1]);
           Ser.print(buf);
+
+        } else if (strcmp(str_cmd, "autocal") == 0) {
+          ADC_autocalibrate();
         }
       }
     }
