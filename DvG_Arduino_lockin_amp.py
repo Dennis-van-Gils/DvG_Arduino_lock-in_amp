@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "16-07-2021"
+__date__ = "30-07-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -451,7 +451,7 @@ if __name__ == "__main__":
     alia_qdev = Alia_qdev(
         dev=alia,
         DAQ_function=lockin_DAQ_update,
-        N_blocks=41 if alia.config.mcu_firmware == "ALIA v0.2.0 VSCODE" else 21,
+        N_blocks=21,
         use_CUDA=USE_CUDA,
         debug=DEBUG,
     )
