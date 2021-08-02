@@ -43,7 +43,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  30-07-2021
+  02-08-2021
 ------------------------------------------------------------------------------*/
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
 
@@ -52,6 +52,7 @@
 
 #include "Arduino.h"
 #include "DvG_SerialCommand.h"
+#include "FlashStorage_SAMD.h"
 /* The Streaming library, when used as the default method to send ASCII over the
 serial connection, is observed to increase the communication time with the
 Python main program. I believe the problem lies at the microcontroller side.
@@ -118,6 +119,16 @@ static inline void LED_on() {
 #endif
 }
 
+// Flash storage for the ADC calibration correction parameters
+typedef struct {
+  bool is_valid;
+  int16_t gaincorr;
+  int16_t offsetcorr;
+} Calibration;
+Calibration calibration;
+FlashStorage(flash_storage, Calibration);
+bool flash_was_read_okay = false;
+
 #ifdef __SAMD21__
 static inline void syncADC() {
   // Taken from `hri_adc_d21.h`
@@ -137,6 +148,24 @@ static inline void syncADC(const Adc *hw, uint32_t reg) {
 #  define ADC_INPUT_BITS 12
 #  include "SAMD51_InterruptTimer.h"
 #endif
+
+// Set ADC calibration
+static void ADC_set_calibration_correction(int16_t gaincorr,
+                                           int16_t offsetcorr) {
+#ifdef __SAMD21__
+  ADC->GAINCORR.reg = gaincorr;
+  ADC->OFFSETCORR.reg = offsetcorr;
+  ADC->CTRLB.bit.CORREN = 1;
+  syncADC();
+#elif defined __SAMD51__
+  ADC0->GAINCORR.reg = gaincorr;
+  syncADC(ADC0, ADC_SYNCBUSY_GAINCORR);
+  ADC0->OFFSETCORR.reg = offsetcorr;
+  syncADC(ADC0, ADC_SYNCBUSY_OFFSET);
+  ADC0->CTRLB.bit.CORREN = 1;
+  syncADC(ADC0, ADC_SYNCBUSY_MASK);
+#endif
+}
 
 // Read and return a single ADC sample, software triggered
 static int16_t ADC_read_signal() {
@@ -459,7 +488,7 @@ void set_VRMS(double value) {
   ADC_autocalibrate
 ------------------------------------------------------------------------------*/
 
-void ADC_autocalibrate() {
+Calibration ADC_autocalibrate() {
   /* Autocalibration routine for the ADC in single-ended mode.
 
   The DAC voltage output will be internally routed to the ADC input, in addition
@@ -468,6 +497,7 @@ void ADC_autocalibrate() {
 
   - It is advised to first disconnect pins [A0] and [A1].
   - Only implemented for single-ended mode, not differential.
+  - Make sure ADC and DAC are already enabled, otherwise the mcu will hang.
   */
 #if (ADC_DIFFERENTIAL == 0)
   const uint16_t N_samples = 2048; // Number of ADC reads to average over
@@ -491,8 +521,8 @@ void ADC_autocalibrate() {
   ADC0->CTRLB.bit.CORREN = 0;
   syncADC(ADC0, ADC_SYNCBUSY_MASK);
 #  endif
-  // clang-format off
 
+  // clang-format off
   // Acquire LO voltage signal
   DAC_set_output(round(V_LO / A_REF * MAX_DAC_OUTPUT_BITVAL));
   for (uint16_t i = 0; i < N_samples; i++) {sig_LO += ADC_read_signal();}
@@ -515,24 +545,22 @@ void ADC_autocalibrate() {
   int16_t offsetcorr = ADC_OFFSETCORR_OFFSETCORR(offset_error);
   // clang-format on
 
-  // Enable the calibration correction and restore the ADC input
+  // Enable the calibration correction
+  ADC_set_calibration_correction(gaincorr, offsetcorr);
+
+  // Restore the ADC input pins
 #  ifdef __SAMD21__
-  ADC->GAINCORR.reg = gaincorr;
-  ADC->OFFSETCORR.reg = offsetcorr;
-  ADC->CTRLB.bit.CORREN = 1;
-  syncADC();
   ADC->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   syncADC();
 #  elif defined __SAMD51__
-  ADC0->GAINCORR.reg = gaincorr;
-  syncADC(ADC0, ADC_SYNCBUSY_GAINCORR);
-  ADC0->OFFSETCORR.reg = offsetcorr;
-  syncADC(ADC0, ADC_SYNCBUSY_OFFSET);
-  ADC0->CTRLB.bit.CORREN = 1;
-  syncADC(ADC0, ADC_SYNCBUSY_MASK);
   ADC0->INPUTCTRL.bit.MUXPOS = g_APinDescription[A1].ulADCChannelNumber;
   syncADC(ADC0, ADC_SYNCBUSY_MASK);
 #  endif
+
+  Calibration result;
+  result.is_valid = true;
+  result.gaincorr = gaincorr;
+  result.offsetcorr = offsetcorr;
 
   // Report findings
   // clang-format off
@@ -549,6 +577,8 @@ void ADC_autocalibrate() {
            gaincorr, offsetcorr);
   Ser.print(buf);
   // clang-format on
+
+  return result;
 #endif
 }
 
@@ -1022,14 +1052,20 @@ void setup() {
 
 #endif
 
+  // Retrieve ADC calibration correction parameters from flash
+  calibration = flash_storage.read();
+  if (calibration.is_valid) {
+    ADC_set_calibration_correction(calibration.gaincorr,
+                                   calibration.offsetcorr);
+    flash_was_read_okay = true;
+  }
+
   // Initial waveform LUT
   set_wave(Cosine);
   set_freq(250.0); // [Hz]    Wanted startup frequency
   set_offs(1.65);  // [V]     Wanted startup offset
   set_VRMS(0.5);   // [V_RMS] Wanted startup amplitude
   compute_LUT(LUT_wave);
-
-  ADC_autocalibrate();
 
   // Start the interrupt timer
   TC.startTimer(SAMPLING_PERIOD_us, isr_psd);
@@ -1343,8 +1379,31 @@ void loop() {
           snprintf(buf, MAXLEN_buf, "%d\n", isr_duration[BLOCK_SIZE - 1]);
           Ser.print(buf);
 
+        } else if (strcmp(str_cmd, "flash?") == 0) {
+          // Report if the flash containing the ADC calibration correction
+          // parameters was read succesfully.
+          snprintf(buf, MAXLEN_buf, "%d\n", flash_was_read_okay);
+          Ser.print(buf);
+
+        } else if (strcmp(str_cmd, "store_autocal") == 0) {
+          // Write the ADC autocalibration results to flash. This will wear out
+          // the flash, so don't call it unnecessarily. Replies with "1\n".
+          flash_storage.write(calibration);
+          Ser.print("1\n");
+
         } else if (strcmp(str_cmd, "autocal") == 0) {
-          ADC_autocalibrate();
+          // Perform an ADC autocalibration. The results will /not/ be stored
+          // into flash automatically. Replies with multiple lines of ASCII
+          // text, describing the calibration results. The last line will
+          // read "Done.\n".
+          calibration = ADC_autocalibrate();
+          Ser.print("Done.\n");
+
+        } else if (strcmp(str_cmd, "autocal?") == 0) {
+          // Report the ADC calibration correction parameters.
+          snprintf(buf, MAXLEN_buf, "%d\t%d\t%d\n", calibration.is_valid,
+                   calibration.gaincorr, calibration.offsetcorr);
+          Ser.print(buf);
         }
       }
     }

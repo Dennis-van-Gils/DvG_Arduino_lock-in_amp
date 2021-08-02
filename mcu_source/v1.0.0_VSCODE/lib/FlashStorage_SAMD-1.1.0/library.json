@@ -1,0 +1,34 @@
+{
+  "name": "FlashStorage_SAMD",
+  "version": "1.1.0",
+  "keywords": "storage,data,flash,flashstorage,flash-storage,eeprom,emulated-eeprom",
+  "description": "The FlashStorage library aims to provide a convenient way to store and retrieve user's data using the non-volatile flash memory of SAMD21/SAMD51. It's using the buffered read and write to minimize the access to Flash. It now supports writing and reading the whole object, not just byte-and-byte.",
+  "authors": [
+    {
+      "name":  "Cristian Maglie",
+      "url":   "https://github.com/cmaglie",
+      "email": "c.maglie@bug.st"
+    },
+    {
+      "name":  "Khoi Hoang",
+      "url":   "https://github.com/khoih-prog",
+      "email": "khoih.prog@gmail.com",
+      "maintainer": true
+    }
+  ],
+  "repository":
+  {
+      "type": "git",
+      "url": "https://github.com/khoih-prog/FlashStorage_SAMD"
+  },
+  "homepage": "https://github.com/khoih-prog/FlashStorage_SAMD",
+  "export": {
+    "exclude": [
+      "linux",
+      "extras",
+      "tests"
+    ]
+  },  
+  "frameworks": "arduino",
+  "platforms": "atmelsam"
+}
