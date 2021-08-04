@@ -43,28 +43,28 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  02-08-2021
+  04-08-2021
 ------------------------------------------------------------------------------*/
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
 
-// OBSERVATION: Single-ended has half the noise compared to differential
-#define ADC_DIFFERENTIAL 0
-
+// clang-format off
 #include "Arduino.h"
 #include "DvG_SerialCommand.h"
 #include "FlashStorage_SAMD.h"
-#include "setup_adc_dac.h"
-#include "setup_serial.h"
+#include "adc_dac_init.h"
+#include "adc_dac_functions.h"
+// clang-format on
 
-/* The Streaming library, when used as the default method to send ASCII over the
+/*
+#include "Streaming.h"  // DO NOT USE
+The Streaming library, when used as the default method to send ASCII over the
 serial connection, is observed to increase the communication time with the
 Python main program. I believe the problem lies at the microcontroller side.
 We'll refrain from using the Streaming library and instead rely on
 `sprintf(buf, ...)` in combination with `Serial.print(buf)`.
 
 To enable float support in `sprintf()` we must add the following to `setup()`:
-asm(".global _printf_float"); // Enable float support in `sprintf()` and like
-#include "Streaming.h"  // DO NOT USE
+  asm(".global _printf_float"); // Enable float support in `sprintf()` and like
 */
 
 // Microcontroller unit (mcu)
@@ -86,10 +86,17 @@ asm(".global _printf_float"); // Enable float support in `sprintf()` and like
 #  define MCU_MODEL "SAMD51G19A"
 #endif
 
-// Digital trigger-out
+#ifdef __SAMD21__
+#  include "ZeroTimer.h"
+#elif defined __SAMD51__
+#  include "SAMD51_InterruptTimer.h"
+#endif
+
+// Digital trigger out
 #define PIN_TRIG_OUT 12
 const EPortType PORT_TRIG_OUT = g_APinDescription[PIN_TRIG_OUT].ulPort;
 const uint32_t MASK_TRIG_OUT = (1ul << g_APinDescription[PIN_TRIG_OUT].ulPin);
+
 static inline void TRIG_OUT_low() {
   PORT->Group[PORT_TRIG_OUT].OUTCLR.reg = MASK_TRIG_OUT;
 }
@@ -127,12 +134,6 @@ Calibration calibration;
 FlashStorage(flash_storage, Calibration);
 bool flash_was_read_okay = false;
 
-#ifdef __SAMD21__
-#  include "ZeroTimer.h"
-#elif defined __SAMD51__
-#  include "SAMD51_InterruptTimer.h"
-#endif
-
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
 // 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
 #define FOREACH_WAVEFORM(WAVEFORM)                                             \
@@ -150,6 +151,32 @@ static const char *WAVEFORM_STRING[] = {FOREACH_WAVEFORM(GENERATE_STRING)};
 volatile bool is_running = false; // Is the lock-in amplifier running?
 volatile bool trigger_reset_time = false;
 char mcu_uid[33]; // Serial number
+
+/*------------------------------------------------------------------------------
+  Serial
+--------------------------------------------------------------------------------
+
+  Arduino M0 Pro
+    Serial    : UART , Programming USB port
+    SerialUSB : USART, Native USB port
+
+  Adafruit Feather M4 Express
+    Serial    : USART
+*/
+
+#define SERIAL_DATA_BAUDRATE 1e6 // Only used when Serial is UART
+
+#ifdef ARDUINO_SAMD_ZERO
+#  define Ser Serial // Serial or SerialUSB
+#else
+#  define Ser Serial // Only Serial
+#endif
+
+#define MAXLEN_buf 100 // `printf()` string buffer
+char buf[MAXLEN_buf];  // `printf()` string buffer
+
+// Instantiate serial command listener
+DvG_SerialCommand sc_data(Ser);
 
 /*------------------------------------------------------------------------------
   Sampling
@@ -231,13 +258,6 @@ volatile bool trigger_send_TX_buffer_B = false;
 #define TX_BUFFER_OFFSET_PHASE   (TX_BUFFER_OFFSET_MICROS  + N_BYTES_MICROS)
 #define TX_BUFFER_OFFSET_SIG_I   (TX_BUFFER_OFFSET_PHASE   + N_BYTES_PHASE)
 // clang-format on
-
-/*------------------------------------------------------------------------------
-  Serial
-------------------------------------------------------------------------------*/
-
-// Instantiate serial command listener
-DvG_SerialCommand sc_data(Ser);
 
 /*------------------------------------------------------------------------------
   Waveform look-up table (LUT)
@@ -681,15 +701,9 @@ void setup() {
   */
 
   // DAC
-  analogWriteResolution(DAC_OUTPUT_BITS);
-  analogWrite(A0, 0);
+  DAC_init();
 
   // ADC
-  // Increase the ADC clock by setting the PRESCALER from default DIV128 to a
-  // smaller divisor. This is needed for DAQ rates larger than ~20 kHz on
-  // SAMD51 and DAQ rates larger than ~10 kHz on SAMD21. Setting too small
-  // divisors will result in ADC errors. Keep as large as possible to increase
-  // ADC accuracy.
   ADC_init();
 
   // Retrieve ADC calibration correction parameters from flash
