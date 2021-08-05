@@ -43,7 +43,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  04-08-2021
+  05-08-2021
 ------------------------------------------------------------------------------*/
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
 
@@ -130,8 +130,8 @@ static inline void LED_on() {
 }
 
 // Flash storage for the ADC calibration correction parameters
-Calibration calibration;
-FlashStorage(flash_storage, Calibration);
+ADC_Calibration calibration;
+FlashStorage(flash_storage, ADC_Calibration);
 bool flash_was_read_okay = false;
 
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
