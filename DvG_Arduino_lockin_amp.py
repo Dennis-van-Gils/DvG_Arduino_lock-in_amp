@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "30-07-2021"
+__date__ = "06-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -117,14 +117,6 @@ def lockin_DAQ_update():
         print("%.2f _DAQ" % (tock - alia.tick))
         alia.tick = tock
 
-    if not window.boost_fps_graphing:
-        # Prevent possible concurrent pyqtgraph.PlotWidget() redraws and GUI
-        # events when doing heavy calculations to unburden the CPU and prevent
-        # dropped buffers. Dropped graphing frames are prefereable to dropped
-        # data buffers.
-        for graph in window.all_graphs:
-            graph.setUpdatesEnabled(False)
-
     # Listen for data buffers send by the lock-in
     (
         success,
@@ -138,20 +130,6 @@ def lockin_DAQ_update():
     if not success:
         dprint("@ %s %s" % current_date_time_strings())
         return False
-
-    if window.boost_fps_graphing:
-        # Prevent possible concurrent pyqtgraph.PlotWidget() redraws and GUI
-        # events when doing heavy calculations to unburden the CPU and prevent
-        # dropped buffers. Dropped graphing frames are prefereable to dropped
-        # data blocks.
-        for graph in window.all_graphs:
-            graph.setUpdatesEnabled(False)
-
-    # HACK: Hard-coded calibration correction on the ADC
-    # TODO: Make a self-calibration procedure and store correction results
-    # on non-volatile memory of the microprocessor.
-    # dev_sig_I = state.sig_I * 0.0054 + 0.0020
-    # state.sig_I += 0.01
 
     # Detect dropped blocks
     # ---------------------
@@ -339,10 +317,6 @@ def lockin_DAQ_update():
 
     # Logging to file
     logger.update(mode="w")
-
-    # Re-enable pyqtgraph.PlotWidget() redraws and GUI events
-    for graph in window.all_graphs:
-        graph.setUpdatesEnabled(True)
 
     # Return success
     return True

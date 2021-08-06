@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "21-07-2021"
+__date__ = "06-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -15,7 +15,6 @@ import time as Time
 from PyQt5 import QtCore, QtGui
 from PyQt5.QtWidgets import (
     QApplication,
-    QCheckBox,
     QComboBox,
     QGridLayout,
     QGroupBox,
@@ -50,7 +49,7 @@ UPDATE_INTERVAL_WALL_CLOCK = 50  # 50 [ms]
 DEBUG_TIMING = False
 
 # OpenGL tested succesful in Windows & Linux, untested in MacOS
-TRY_USING_OPENGL = True if (os.name == "nt" or os.name == "posix") else False
+TRY_USING_OPENGL = True  # if (os.name == "nt" or os.name == "posix") else False
 
 if TRY_USING_OPENGL:
     try:
@@ -321,7 +320,6 @@ class MainWindow(QWidget):
         self.proc = psutil.Process(os.getpid())
         self.cpu_count = psutil.cpu_count()
         self.prev_time_CPU_load = QDateTime.currentDateTime()
-        self.boost_fps_graphing = USING_OPENGL
 
         # Collect all upcoming graphs and curves into a list
         self.all_graphs = list()
@@ -1454,31 +1452,10 @@ class MainWindow(QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
 
-        self.qchk_boost_fps_graphing = QCheckBox(
-            "Boost graphing", checked=self.boost_fps_graphing
-        )
-        self.qchk_boost_fps_graphing.clicked.connect(
-            self.process_qchk_boost_fps_graphing
-        )
-
-        # fmt: off
         grid = QGridLayout(spacing=4)
-        grid.addWidget(self.qchk_boost_fps_graphing, 0, 0)
-        grid.addWidget(
-            QLabel(
-                "Improves the graphing framerate<br>"
-                "at the expense of a higher CPU load."
-            ), 1, 0,
-        )
-        grid.addWidget(
-            QLabel(
-                "Uncheck whenever you encounter<br>"
-                "dropped samples."
-            ), 2, 0,
-        )
-        # fmt: on
+        grid.addWidget(QLabel("Empty placeholder"), 0, 0)
 
-        qgrp = QGroupBox("Python program")
+        qgrp = QGroupBox("ADC calibration")
         qgrp.setLayout(grid)
 
         # -----------------------------------
@@ -1577,6 +1554,8 @@ class MainWindow(QWidget):
         # Major visual changes upcoming. Reduce CPU overhead by momentarily
         # disabling screen repaints and GUI events.
         self.setUpdatesEnabled(False)
+        for graph in self.all_graphs:
+            graph.setUpdatesEnabled(False)
 
         alia_qdev = self.alia_qdev
         self.qlbl_update_counter.setText("%i" % alia_qdev.update_counter_DAQ)
@@ -1628,6 +1607,8 @@ class MainWindow(QWidget):
 
         # Re-enable screen repaints and GUI events
         self.setUpdatesEnabled(True)
+        for graph in self.all_graphs:
+            graph.setUpdatesEnabled(True)
 
     @QtCore.pyqtSlot()
     def clear_curves_stage_1_and_2(self):
@@ -1986,10 +1967,6 @@ class MainWindow(QWidget):
         pi_plot.enableAutoRange("y", False)
         QApplication.processEvents()
         self.setUpdatesEnabled(True)
-
-    @QtCore.pyqtSlot()
-    def process_qchk_boost_fps_graphing(self):
-        self.boost_fps_graphing = not self.boost_fps_graphing
 
 
 if __name__ == "__main__":
