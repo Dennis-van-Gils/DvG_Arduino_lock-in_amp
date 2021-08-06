@@ -20,35 +20,61 @@
   V1.0.0_VSCODE
   -------------
 
-  command             compute LUT     reply                               Remark
+  command             reply                               Remark
   --------------------------------------------------------------------------------
 
-  on                                                                      Start lock-in
-  _on                                                                     Start lock-in and reset timer to 0
-  off                                                                     Stop lock-in
-
-  _freq #.###         no              ASCII [freq]
-  _offs #.###         no              ASCII [offs]
-  _ampl #.###         no              ASCII [ampl]
-  _vrms #.###         no              ASCII [ampl_RMS]
-  _wave #             no              ASCII [waveform string]                                                       
+  on                                                      Start lock-in
+  _on                                                     Start lock-in and reset timer to 0
+  off                                                     Stop lock-in
   
-  compute_lut / c     yes             none                                (re)compute the waveform LUT
-                                                            
-  ref? / ?            yes             ASCII [waveform,                    Will also (re)compute the waveform LUT
-                                             freq,
-                                             offs,
-                                             ampl,
-                                             ampl_RMS,
-                                             is_clipping_HI,
-                                             is_clipping_LO,
-                                             N_LUT]
+  id?                 ASCII ["Arduino, Alia\n"]           Identity string
+  mcu?                ASCII [...]                         Microcontroller info
+  const?              ASCII [...]                         Lock-in constants
 
-  lut?                no              ASCII [N_LUT, is_LUT_dirty]         HAS BECOME OBSOLETE
-                                      BINARY [LUT[]]
+  _freq #.###         ASCII [(double) obtained freq]      Set requested frequency [Hz]
+  _offs #.###         ASCII [(double) obtained offs]      Set requested offset    [V]
+  _ampl #.###         ASCII [(double) obtained ampl]      Set requested amplitude [V]
+  _vrms #.###         ASCII [(double) obtained ampl_RMS]  Set requested amplitude [V_rms]
+  _wave #             ASCII [(str)    obtained waveform]  Set waveform type       [integer]
+                                                            
+  ref? / ?            ASCII [(str)    waveform,           (Re)compute the LUT based on the current reference signal
+                             (double) freq,               settings and reply with the obtained reference signal
+                             (double) offs,               parameters  
+                             (double) ampl,
+                             (double) ampl_RMS,
+                             (bool)   is_clipping_HI,
+                             (bool)   is_clipping_LO,
+                             (int)    N_LUT]
+                             
+  autocal             ASCII [multiple lines with info,    Perform an ADC autocalibration
+                             "Done.\n"]
+  
+  autocal?            ASCII [(bool) is_valid,             Report the ADC calibration correction parameters
+                             (int)  gaincorr,
+                             (int)  offsetcorr] 
+  
+  store_autocal       ASCII ["1\n"]                       Write the ADC autocalibration results to flash. This will
+                                                          wear out the flash, so don't call it unnecessarily.
+
+  lut?                ASCII [(int)  N_LUT,                HAS BECOME OBSOLETE
+                             (bool) is_LUT_dirty]
+                      BINARY [LUT[]]
+
+  FOR DEBUGGING
+  -------------
+  
+  adc?                ASCII [...]                         ADC register settings
+  
+  debug?              ASCII [...]                         Misc. debug info
                                        
-  lut_ascii? / la?    no              ASCII [N_LUT, is_LUT_dirty]
-                                      ASCII [LUT[]]
+  lut_ascii? / la?    ASCII [(int)  N_LUT,                LUT info and array in ASCII
+                             (bool) is_LUT_dirty]         
+                      ASCII [(int)  LUT[]]
                                       
-  t?                  no              ASCII [millis.micros]
+  t?                  ASCII [millis.micros]               Report current time.
+  
+  isr?                ASCII [isr_duration[]]              Reports the execution time durations of the previous
+                                                          `isr_psd()` calls in microseconds.
  
+  flash?              ASCII [flash_was_read_okay]         Was the flash read successfully during setup() and did
+                                                          it contain valid ADC calibration values?
