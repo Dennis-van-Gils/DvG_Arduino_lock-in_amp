@@ -426,6 +426,7 @@ if __name__ == "__main__":
         dev=alia,
         DAQ_function=lockin_DAQ_update,
         N_blocks=21,
+        critical_not_alive_count=3,
         use_CUDA=USE_CUDA,
         debug=DEBUG,
     )

@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "06-08-2021"
+__date__ = "10-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -21,6 +21,7 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
+    QMessageBox,
     QPushButton,
     QRadioButton,
     QSpacerItem,
@@ -1452,8 +1453,42 @@ class MainWindow(QWidget):
         # ----------------------------------------------------------------------
         # ----------------------------------------------------------------------
 
+        p = {
+            "maximumWidth": ex8,
+            "alignment": QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
+        }
+        self.qlbl_ADC_autocal_is_valid = QLabel("", **p)
+        self.qlin_ADC_gaincorr = QLineEdit("", readOnly=True, **p)
+        self.qlin_ADC_offsetcorr = QLineEdit("", readOnly=True, **p)
+        self.qpbt_ADC_perform_autocal = QPushButton("Perform autocalibration")
+        self.qpbt_ADC_perform_autocal.clicked.connect(
+            self.process_qpbt_ADC_perform_autocal
+        )
+        self.qpbt_ADC_store_autocal = QPushButton("Store calibration in flash")
+        self.qpbt_ADC_store_autocal.clicked.connect(
+            self.process_qpbt_ADC_store_autocal
+        )
+
+        self.update_qgrp_ADC_calibration()
+        self.alia_qdev.signal_ADC_autocalibration_was_performed.connect(
+            self.update_qgrp_ADC_calibration
+        )
+        self.alia_qdev.signal_ADC_autocalibration_was_stored.connect(
+            self.confirm_ADC_autocalibration_was_stored
+        )
+
+        # fmt: off
         grid = QGridLayout(spacing=4)
-        grid.addWidget(QLabel("Empty placeholder"), 0, 0)
+        grid.addWidget(QLabel("Is valid?")            , 0, 0)
+        grid.addWidget(self.qlbl_ADC_autocal_is_valid , 0, 1)
+        grid.addWidget(QLabel("Gaincorr")             , 1, 0)
+        grid.addWidget(self.qlin_ADC_gaincorr         , 1, 1)
+        grid.addWidget(QLabel("Offcorr")              , 2, 0)
+        grid.addWidget(self.qlin_ADC_offsetcorr       , 2, 1)
+        grid.addItem(QSpacerItem(0, 4)                , 3, 0)
+        grid.addWidget(self.qpbt_ADC_perform_autocal  , 4, 0, 1, 2)
+        grid.addWidget(self.qpbt_ADC_store_autocal    , 5, 0, 1, 2)
+        # fmt: on
 
         qgrp = QGroupBox("ADC calibration")
         qgrp.setLayout(grid)
@@ -1561,8 +1596,12 @@ class MainWindow(QWidget):
         self.qlbl_update_counter.setText("%i" % alia_qdev.update_counter_DAQ)
 
         if alia_qdev.worker_DAQ._paused:  # pylint: disable=protected-access
+            self.qpbt_ENA_lockin.setText("Lock-in OFF")
+            self.qpbt_ENA_lockin.setChecked(False)
             self.qlbl_DAQ_rate.setText("Blocks/s: paused")
         else:
+            self.qpbt_ENA_lockin.setText("Lock-in ON")
+            self.qpbt_ENA_lockin.setChecked(True)
             self.qlbl_DAQ_rate.setText(
                 "Blocks/s: %.1f" % alia_qdev.obtained_DAQ_rate_Hz
             )
@@ -1623,13 +1662,10 @@ class MainWindow(QWidget):
     def process_qpbt_ENA_lockin(self):
         if self.qpbt_ENA_lockin.isChecked():
             self.alia_qdev.turn_on()
-            self.qpbt_ENA_lockin.setText("Lock-in ON")
-
             self.alia_qdev.state.reset()
             self.clear_curves_stage_1_and_2()
         else:
             self.alia_qdev.turn_off()
-            self.qpbt_ENA_lockin.setText("Lock-in OFF")
 
     @QtCore.pyqtSlot(int)
     def process_qcbx_ref_waveform(self, value: int):
@@ -1898,6 +1934,57 @@ class MainWindow(QWidget):
             self.pi_YT.enableAutoRange("y", False)
             _XRange, YRange = self.pi_YT.viewRange()
             self.pi_YT.setYRange(YRange[0], YRange[1], padding=1.0)
+
+    @QtCore.pyqtSlot()
+    def update_qgrp_ADC_calibration(self):
+        c = self.alia.config  # Short-hand
+        self.qlbl_ADC_autocal_is_valid.setText(
+            "yes" if c.ADC_autocal_is_valid else "no"
+        )
+        self.qlin_ADC_gaincorr.setText("%d" % c.ADC_autocal_gaincorr)
+        self.qlin_ADC_offsetcorr.setText("%d" % c.ADC_autocal_offsetcorr)
+        self.qpbt_ADC_store_autocal.setEnabled(c.ADC_autocal_is_valid)
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_ADC_perform_autocal(self):
+        reply = QMessageBox.question(
+            self,
+            "Perform autocalibration?",
+            "You are about to perform the ADC autocalibration routine. "
+            "The DAC voltage output will be internally routed to the ADC "
+            "input, in addition to the analog output pin [A0]. During "
+            "calibration the analog output will first output a low voltage, "
+            "followed by a high voltage for each around 75 ms.\n\n"
+            "- It is advised to first disconnect pins [A0] and [A1].\n"
+            "- Only implemented for single-ended mode, not differential.\n\n"
+            "Are you sure you want to continue?",
+            QMessageBox.Ok | QMessageBox.Cancel,
+        )
+        if reply == QMessageBox.Ok:
+            self.alia_qdev.perform_ADC_autocalibration()
+
+    @QtCore.pyqtSlot()
+    def process_qpbt_ADC_store_autocal(self):
+        reply = QMessageBox.question(
+            self,
+            "Store calibration in flash?",
+            "You are about to store the ADC autocalibration results into the "
+            "flash memory of the Arduino microcontroller.\n\n"
+            "Are you sure you want to continue?",
+            QMessageBox.Ok | QMessageBox.Cancel,
+        )
+        if reply == QMessageBox.Ok:
+            self.alia_qdev.store_ADC_autocalibration()
+
+    @QtCore.pyqtSlot()
+    def confirm_ADC_autocalibration_was_stored(self):
+        QMessageBox.information(
+            self,
+            "Store calibration in flash: succesful.",
+            "The ADC autocalibration results have been stored succesfully "
+            "in the microcontroller flash.",
+            QMessageBox.Ok,
+        )
 
     # --------------------------------------------------------------------------
     # --------------------------------------------------------------------------

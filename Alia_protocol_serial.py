@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "27-07-2021"
+__date__ = "10-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -15,6 +15,7 @@ import struct
 from enum import Enum
 from typing import AnyStr, Optional, Tuple, Union
 import time as Time
+import re
 
 import serial
 import numpy as np
@@ -128,6 +129,11 @@ class Alia(Arduino_protocol_serial.Arduino):
         byte_slice_idx_phase = slice(0)
         byte_slice_sig_I     = slice(0)
         # fmt: on
+
+        # ADC autocalibration parameters
+        ADC_autocal_is_valid = False
+        ADC_autocal_gaincorr = 0
+        ADC_autocal_offsetcorr = 0
 
     def __init__(
         self,
@@ -273,6 +279,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             fancy("min N_LUT", c.MIN_N_LUT, "{:>12d}", "samples")
             fancy("max N_LUT", c.MAX_N_LUT, "{:>12d}", "samples")
 
+        self.query_ADC_autocalibration()
         self.set_ref(waveform, freq, V_offset, V_ampl, V_ampl_RMS)
 
         print("┌─────────────────────────┐")
@@ -447,6 +454,104 @@ class Alia(Arduino_protocol_serial.Arduino):
                     self.lockin_paused = True
 
         return success, was_off, ans_bytes
+
+    # --------------------------------------------------------------------------
+    #   ADC autocalibration
+    # --------------------------------------------------------------------------
+
+    def perform_ADC_autocalibration(self) -> bool:
+        """Perform the autocalibration routine for the ADC in single-ended mode.
+        The DAC voltage output will be internally routed to the ADC input, in
+        addition to the analog output pin [A0]. During calibration the analog
+        output will first output a low voltage, followed by a high voltage for
+        each around 75 ms. The results will /not/ be stored into the micro-
+        controller flash automatically. You must call method
+        `store_ADC_autocalibration()` to commit the results to flash memory.
+
+        - It is advised to first disconnect pins [A0] and [A1].
+        - Only implemented for single-ended mode, not differential.
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        print("\nADC autocalibration")
+        print("───────────────────\n")
+
+        self.set_read_termination("Done.\n")
+        success, ans_str = self.safe_query("autocal")
+        self.set_read_termination("\n")
+
+        if success:
+            print("  ", end="")
+            print(ans_str.replace("\n", "\n  "))
+            print()
+
+            # Extract gaincorr and offsetcorr from the serial output
+            gaincorr = re.findall("gaincorr = ([0-9]*)", ans_str)
+            offsetcorr = re.findall("offsetcorr = ([0-9]*)", ans_str)
+            if not gaincorr or not offsetcorr:
+                return False
+
+            self.config.ADC_autocal_is_valid = True
+            self.config.ADC_autocal_gaincorr = int(gaincorr[0])
+            self.config.ADC_autocal_offsetcorr = int(offsetcorr[0])
+
+            return True
+
+        return False
+
+    def store_ADC_autocalibration(self) -> bool:
+        """Write the ADC autocalibration results to the microcontroller flash.
+        WARNING: This will wear out the flash, so don't call it unnecessarily.
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        success, ans_str = self.safe_query("store_autocal")
+        if success and ans_str == "1":
+            print(
+                "Wrote ADC autocalibration results to microcontroller flash.\n"
+            )
+            return True
+        else:
+            print(
+                "ERROR: Failed to write ADC autocalibration results to "
+                "microcontroller flash.\n"
+            )
+            return False
+
+    def query_ADC_autocalibration(self) -> bool:
+        """Retrieve the ADC autocalibration results from the microcontroller.
+
+        Returns:
+            True if successful, False otherwise.
+        """
+        print("\nADC calibration")
+        print("───────────────\n")
+
+        success, ans_str = self.safe_query("autocal?")
+        if success:
+            try:
+                ans_list = ans_str.split("\t")
+                is_valid = bool(int(ans_list[0]))
+                gaincorr = int(ans_list[1])
+                offsetcorr = int(ans_list[2])
+            except Exception as err:
+                pft(err)
+                return False
+        else:
+            return False
+
+        print("    is valid: %s" % ("yes" if is_valid else "no"))
+        print("    gaincorr: %d" % gaincorr)
+        print("  offsetcorr: %d" % offsetcorr)
+        print()
+
+        self.config.ADC_autocal_is_valid = is_valid
+        self.config.ADC_autocal_gaincorr = gaincorr
+        self.config.ADC_autocal_offsetcorr = offsetcorr
+
+        return True
 
     # --------------------------------------------------------------------------
     #   LUT
@@ -841,6 +946,7 @@ class Alia(Arduino_protocol_serial.Arduino):
 
             except Exception as err:
                 pft(err)
+                break
 
             if timeout.expired():
                 break

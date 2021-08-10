@@ -7,7 +7,7 @@ specific firmware to turn it into a lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "21-07-2021"
+__date__ = "10-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
 
@@ -69,12 +69,16 @@ class Alia_qdev(QDeviceIO):
         signal_ref_freq_is_set()
         signal_ref_V_offset_is_set()
         signal_ref_V_ampl_is_set()    # Signals both `V_ampl` and `V_ampl_RMS`
+        signal_ADC_autocalibration_was_performed()
+        signal_ADC_autocalibration_was_stored()
     """
 
     signal_ref_waveform_is_set = QtCore.pyqtSignal()
     signal_ref_freq_is_set = QtCore.pyqtSignal()
     signal_ref_V_offset_is_set = QtCore.pyqtSignal()
     signal_ref_V_ampl_is_set = QtCore.pyqtSignal()
+    signal_ADC_autocalibration_was_performed = QtCore.pyqtSignal()
+    signal_ADC_autocalibration_was_stored = QtCore.pyqtSignal()
 
     class State:
         def __init__(self, block_size: int, N_blocks: int):
@@ -285,6 +289,13 @@ class Alia_qdev(QDeviceIO):
     def set_ref_V_ampl_RMS(self, value: float):
         self.send("set_ref_V_ampl_RMS", value)
 
+    def perform_ADC_autocalibration(self):
+        self.send("turn_off")
+        self.send("perform_ADC_autocalibration")
+
+    def store_ADC_autocalibration(self):
+        self.send("store_ADC_autocalibration")
+
     # -------------------------------------------------------------------------
     #   jobs_function
     # -------------------------------------------------------------------------
@@ -319,6 +330,14 @@ class Alia_qdev(QDeviceIO):
 
             if not was_paused:
                 self.unpause_DAQ()
+
+        elif func == "perform_ADC_autocalibration":
+            if self.dev.perform_ADC_autocalibration():
+                self.signal_ADC_autocalibration_was_performed.emit()
+
+        elif func == "store_ADC_autocalibration":
+            if self.dev.store_ADC_autocalibration():
+                self.signal_ADC_autocalibration_was_stored.emit()
 
         elif func == "turn_on":
             self.state.reset()

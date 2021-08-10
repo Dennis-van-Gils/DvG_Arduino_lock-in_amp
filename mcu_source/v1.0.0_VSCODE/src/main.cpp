@@ -43,7 +43,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  05-08-2021
+  09-08-2021
 ------------------------------------------------------------------------------*/
 #define FIRMWARE_VERSION "ALIA v1.0.0 VSCODE"
 
@@ -1066,7 +1066,7 @@ void loop() {
           snprintf(buf, MAXLEN_buf, "errors: gain = %6.4f, offset = %d\n",
                    calibration.gain_error, calibration.offset_error);
           Ser.print(buf);
-          snprintf(buf, MAXLEN_buf, "gaincorr = %d, offsetcorr = %d\n",
+          snprintf(buf, MAXLEN_buf, "=> gaincorr = %d, offsetcorr = %d\n",
                    calibration.gaincorr, calibration.offsetcorr);
           Ser.print(buf);
           Ser.print("Done.\n");
