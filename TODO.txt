@@ -3,24 +3,15 @@ PYTHON
 
 * Add support for HDF5 to allow writing log as binary file
 
-* Investigate more numba.njit to speed up calculations
-
 * Turn `dvg_fftw_convolver`, `dvg_ringbuffer_fir_filter` and
   `dvg_fftw_welchpowerspectrum.py` into new PyPi package called
   `dvg-signal-processing`
-  
-* See `timeit_np_ufunc_more.py` and observe that param `out` speeds up
-  calculations when using numpy.ufuncs like `np.multiply()` and `np.add()`
 
 * For the SSD practicum a less steep filter is asked for --> Reduce `N_blocks`,
   hence reducing `N_taps`.
-  
-* Check for the alpha-version hardware firmware (i.e. the current
-  `SSD practicum` firmware) and notify the user to flash to the
-  latest firmware first in order to continue the main Python program.
 
 
 FIRMWARE
 
 
-* Fine-tune `ADC_autocalibrate()`
+[Nothing]
