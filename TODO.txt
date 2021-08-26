@@ -11,8 +11,6 @@ PYTHON
   hence reducing `N_taps` ==> set N_blocks to 3.
   Also, do not automatically adjust the mixer cut-off frequency to (2*f - 5) Hz,
   but let the students figure out the 3dB point themselves
-  
-* Mixer is in units of V^2
 
 * Hide the AC coupling control on the mixer filter
 
