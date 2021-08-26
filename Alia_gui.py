@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "10-08-2021"
+__date__ = "26-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -300,7 +300,6 @@ def apply_PlotItem_style(pi, title="", bottom="", left="", right=""):
 FONT_MONOSPACE = QtGui.QFont("Courier")
 FONT_MONOSPACE.setFamily("Monospace")
 FONT_MONOSPACE.setStyleHint(QtGui.QFont.Monospace)
-str_V_RMS = "V<sub><b>RMS</b></sub>"
 
 # ------------------------------------------------------------------------------
 #   MainWindow
@@ -508,7 +507,7 @@ class MainWindow(QWidget):
         grid.addWidget(QLabel("V")              , i, 2); i+=1
         grid.addWidget(QLabel("ampl:", **p)     , i, 0)
         grid.addWidget(self.qlin_ref_V_ampl_RMS , i, 1)
-        grid.addWidget(QLabel(str_V_RMS)        , i, 2); i+=1
+        grid.addWidget(QLabel("V<sub><b>RMS</b></sub>"), i, 2); i+=1
         grid.addWidget(self.qlin_ref_V_ampl     , i, 1)
         grid.addWidget(QLabel("V")              , i, 2); i+=1
         grid.addWidget(QLabel("clipping?", **p) , i, 0)
@@ -733,7 +732,7 @@ class MainWindow(QWidget):
 
         self.pi_XR = self.pw_XR.getPlotItem()
         self.pi_YT = self.pw_YT.getPlotItem()
-        apply_PlotItem_style(self.pi_XR, "", "ms", "V<sub>RMS</sub>")
+        apply_PlotItem_style(self.pi_XR, "", "ms", "V")
         apply_PlotItem_style(self.pi_YT, "", "ms")
 
         self.pi_XR.setXRange(
@@ -812,12 +811,10 @@ class MainWindow(QWidget):
         self.qlin_X_avg = QLineEdit(**p)
         self.qlin_Y_avg = QLineEdit(**p)
         self.qlin_R_avg = QLineEdit(**p)
-        self.qlin_R_avg_trms = QLineEdit(**p)
         self.qlin_T_avg = QLineEdit(**p)
         self.qlin_X_avg.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_Y_avg.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_R_avg.setAlignment(QtCore.Qt.AlignRight)
-        self.qlin_R_avg_trms.setAlignment(QtCore.Qt.AlignRight)
         self.qlin_T_avg.setAlignment(QtCore.Qt.AlignRight)
 
         # fmt: off
@@ -827,16 +824,14 @@ class MainWindow(QWidget):
         grid.addItem(QSpacerItem(0, 8)     , i, 0); i+=1
         grid.addWidget(QLabel("avg X")     , i, 0)
         grid.addWidget(self.qlin_X_avg     , i, 1)
-        grid.addWidget(QLabel(str_V_RMS)   , i, 2); i+=1
+        grid.addWidget(QLabel("V")         , i, 2); i+=1
         grid.addWidget(QLabel("avg Y")     , i, 0)
         grid.addWidget(self.qlin_Y_avg     , i, 1)
-        grid.addWidget(QLabel(str_V_RMS)   , i, 2); i+=1
+        grid.addWidget(QLabel("V")         , i, 2); i+=1
         grid.addItem(QSpacerItem(0, 8)     , i, 0); i+=1
         grid.addWidget(QLabel("avg R")     , i, 0)
         grid.addWidget(self.qlin_R_avg     , i, 1)
-        grid.addWidget(QLabel(str_V_RMS)   , i, 2); i+=1
-        grid.addWidget(self.qlin_R_avg_trms, i, 1)
-        grid.addWidget(QLabel("V<sub><b>TRMS</b></sub>"), i, 2); i+=1
+        grid.addWidget(QLabel("V")         , i, 2); i+=1
         grid.addWidget(QLabel("avg \u0398"), i, 0)
         grid.addWidget(self.qlin_T_avg     , i, 1)
         grid.addWidget(QLabel("\u00B0")    , i, 2)
@@ -984,7 +979,7 @@ class MainWindow(QWidget):
         self.all_graphs.append(self.pw_mixer)
 
         self.pi_mixer = self.pw_mixer.getPlotItem()
-        apply_PlotItem_style(self.pi_mixer, "Mixer", "ms", "V<sub>RMS</sub>")
+        apply_PlotItem_style(self.pi_mixer, "Mixer", "ms", "V")
         self.pi_mixer.setXRange(
             -c.BLOCK_SIZE * c.SAMPLING_PERIOD * 1e3, 0.01, padding=0
         )
@@ -1624,7 +1619,6 @@ class MainWindow(QWidget):
         self.qlin_X_avg.setText("%.4f" % alia_qdev.state.X_avg)
         self.qlin_Y_avg.setText("%.4f" % alia_qdev.state.Y_avg)
         self.qlin_R_avg.setText("%.4f" % alia_qdev.state.R_avg)
-        self.qlin_R_avg_trms.setText("%.4f" % alia_qdev.state.R_avg_trms)
         self.qlin_T_avg.setText("%.3f" % alia_qdev.state.T_avg)
 
         if alia_qdev.firf_1_sig_I.filter_has_settled:
@@ -1870,7 +1864,7 @@ class MainWindow(QWidget):
         if self.qrbt_YT_Y.isChecked():
             self.hcc_LIA_YT.curve.setPen(self.PEN_02)
             self.pi_YT.setLabel("top", "Y")
-            self.pi_YT.setLabel("left", text="V<sub>RMS</sub>")
+            self.pi_YT.setLabel("left", text="V")
         else:
             self.hcc_LIA_YT.curve.setPen(self.PEN_03)
             self.pi_YT.setLabel("top", "%s" % chr(0x398))

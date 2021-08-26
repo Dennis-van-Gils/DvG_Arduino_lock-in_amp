@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Dennis van Gils
-19-05-2021
+26-08-2021
 """
 
 import os
@@ -76,7 +76,7 @@ PEN_04 = (1, 1, 1)
 
 ax1 = plt.subplot(3, 1, 1)
 plt.subplots_adjust(right=0.8)
-plt.plot(time / 1e3, ref_X, marker, color=PEN_01, label="ref_X")
+plt.plot(time / 1e3, ref_X, marker, color=PEN_01, label="ref_X*")
 plt.plot(time / 1e3, sig_I, marker, color=PEN_03, label="sig_I")
 plt.grid()
 plt.xlabel("time (ms)")

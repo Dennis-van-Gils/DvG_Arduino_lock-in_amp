@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "06-08-2021"
+__date__ = "26-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -172,8 +172,14 @@ def lockin_DAQ_update():
     state.rb_ref_Y.extend(state.ref_Y)
     state.rb_sig_I.extend(state.sig_I)
 
-    window.hcc_ref_X.extendData(state.time, state.ref_X)
-    window.hcc_ref_Y.extendData(state.time, state.ref_Y)
+    # Note: `ref_X` [non-dim] is transformed to `ref_X*` [V]
+    # Note: `ref_Y` [non-dim] is transformed to `ref_Y*` [V]
+    window.hcc_ref_X.extendData(
+        state.time, np.multiply(state.ref_X, c.ref_V_ampl_RMS) + c.ref_V_offset
+    )
+    window.hcc_ref_Y.extendData(
+        state.time, np.multiply(state.ref_Y, c.ref_V_ampl_RMS) + c.ref_V_offset
+    )
     window.hcc_sig_I.extendData(state.time, state.sig_I)
 
     # Stage 1
@@ -194,24 +200,8 @@ def lockin_DAQ_update():
         old_ref_Y    = state.rb_ref_Y[valid_slice]
 
         # Heterodyne mixing
-        # Equivalent to SLOW code:
-        #   mix_X =
-        #       (old_ref_X - c.ref_V_offset) / c.ref_V_ampl * c.ref_RMS_factor *
-        #       filt_I
-        #   mix_Y =
-        #       (old_ref_Y - c.ref_V_offset) / c.ref_V_ampl * c.ref_RMS_factor *
-        #       filt_I
-        np.subtract(old_ref_X, c.ref_V_offset  , out=old_ref_X)
-        np.subtract(old_ref_Y, c.ref_V_offset  , out=old_ref_Y)
-        np.divide  (old_ref_X, c.ref_V_ampl    , out=old_ref_X)
-        np.divide  (old_ref_Y, c.ref_V_ampl    , out=old_ref_Y)
-        np.multiply(old_ref_X, c.ref_RMS_factor, out=old_ref_X)
-        np.multiply(old_ref_Y, c.ref_RMS_factor, out=old_ref_Y)
-        np.multiply(old_ref_X, state.filt_I    , out=state.mix_X)
-        np.multiply(old_ref_Y, state.filt_I    , out=state.mix_Y)
-
-        # NOTE:
-        # mix_X, mix_Y, X, Y and R are now in units of [V_rms], not [V] anymore!
+        np.multiply(old_ref_X, state.filt_I, out=state.mix_X)
+        np.multiply(old_ref_Y, state.filt_I, out=state.mix_Y)
     else:
         state.time_1.fill(np.nan)
         old_sig_I = np.full(c.BLOCK_SIZE, np.nan)
@@ -262,24 +252,6 @@ def lockin_DAQ_update():
     state.Y_avg = np.mean(state.Y)
     state.R_avg = np.mean(state.R)
     state.T_avg = np.mean(state.T)
-
-    # Additionally calculate the TRUE RMS value of `R`
-    # NOTE: Don't calculate the rms value based on `np.std(state.sig_I)`
-    # because the sample size is too small, namely of length
-    # 'block_size'. This could cause the rescaled `R` value in units of
-    # V_rms to oscillate slightly whenever a non-integer number of
-    # signal periods is contained inside the block size.
-    #
-    # Instead, we base the rms value on the larger sample size as
-    # contained by the ringbuffer of `sig_I`. This sample size is
-    # `N_blocks * block_size` large, effectively averaging out the
-    # effect of any non-integer numbers of signal periods.
-    #
-    # 'block_size` is set in the microcontroller firmware.
-    # `N_blocks` is defined in the constructor of class `Alia_qdev()`.
-    state.R_avg_trms = (
-        state.R_avg / c.ref_RMS_factor * c.ref_V_ampl / np.std(state.rb_sig_I)
-    )
 
     state.rb_time_2.extend(state.time_2)
     state.rb_X.extend(state.X)
@@ -336,11 +308,11 @@ def write_header_to_log():
                 "ref_Y*[V]",
                 "sig_I[V]",
                 "filt_I[V]",
-                "mix_X[V_RMS]",
-                "mix_Y[V_RMS]",
-                "X[V_RMS]",
-                "Y[V_RMS]",
-                "R[V_RMS]",
+                "mix_X[V]",
+                "mix_Y[V]",
+                "X[V]",
+                "Y[V]",
+                "R[V]",
                 "T[deg]",
             )
         )
@@ -352,16 +324,21 @@ def write_header_to_log():
 def write_data_to_log():
     if alia_qdev.firf_2_mix_X.filter_has_settled:
         # All filters have settled --> green light
-        N = alia.config.BLOCK_SIZE
+        c = alia.config
+        N = c.BLOCK_SIZE
         state = alia_qdev.state
         idx_offset = alia_qdev.firf_1_sig_I.rb_valid_slice.start
 
         # tick = Time.perf_counter()
+        # Note: `ref_X` [non-dim] is transformed to `ref_X*` [V]
+        # Note: `ref_Y` [non-dim] is transformed to `ref_Y*` [V]
         data = np.asmatrix(
             [
                 state.rb_time[:N] / 1e6,
-                state.rb_ref_X[:N],
-                state.rb_ref_Y[:N],
+                np.multiply(state.rb_ref_X[:N], c.ref_V_ampl_RMS)
+                + c.ref_V_offset,
+                np.multiply(state.rb_ref_Y[:N], c.ref_V_ampl_RMS)
+                + c.ref_V_offset,
                 state.rb_sig_I[:N],
                 state.rb_filt_I[idx_offset : idx_offset + N],
                 state.rb_mix_X[idx_offset : idx_offset + N],

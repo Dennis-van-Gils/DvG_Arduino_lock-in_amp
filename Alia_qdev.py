@@ -7,7 +7,7 @@ specific firmware to turn it into a lock-in amplifier.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_dev_Arduino"
-__date__ = "10-08-2021"
+__date__ = "26-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
 
@@ -122,7 +122,6 @@ class Alia_qdev(QDeviceIO):
             self.X_avg      = np.nan  # [V_RMS]
             self.Y_avg      = np.nan  # [V_RMS]
             self.R_avg      = np.nan  # [V_RMS]
-            self.R_avg_trms = np.nan  # [V_TRMS], i.e. 'True RMS'
             self.T_avg      = np.nan  # [deg]
             # fmt: on
 

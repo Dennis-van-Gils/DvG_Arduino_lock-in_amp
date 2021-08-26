@@ -6,7 +6,7 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "27-07-2021"
+__date__ = "26-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -64,7 +64,8 @@ if __name__ == "__main__":
     N_SETS = 3
     N_REPS = 41
 
-    N_deque = alia.config.BLOCK_SIZE * N_REPS
+    c = alia.config
+    N_deque = c.BLOCK_SIZE * N_REPS
     deque_time = deque(maxlen=N_deque)
     deque_ref_X = deque(maxlen=N_deque)
     deque_ref_Y = deque(maxlen=N_deque)
@@ -107,6 +108,11 @@ if __name__ == "__main__":
                 if fVerbose:
                     print("%3d: %d" % (i_rep, N_samples))
 
+                # Note: `ref_X` [non-dim] is transformed to `ref_X*` [V]
+                # Note: `ref_Y` [non-dim] is transformed to `ref_Y*` [V]
+                ref_X = np.multiply(ref_X, c.ref_V_ampl_RMS) + c.ref_V_offset
+                ref_Y = np.multiply(ref_Y, c.ref_V_ampl_RMS) + c.ref_V_offset
+
                 f_log.write("samples received: %i\n" % N_samples)
                 for i in range(N_samples):
                     f_log.write(
@@ -148,7 +154,7 @@ if __name__ == "__main__":
             ax.plot(np_time / 1e3, deque_sig_I, ".-r")
             ax.set(
                 xlabel="time (ms)",
-                ylabel="y",
+                ylabel="voltage (V)",
                 title=(str_info1 + "\n" + str_info2),
             )
             ax.grid()

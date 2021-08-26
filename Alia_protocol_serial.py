@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "10-08-2021"
+__date__ = "26-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -97,9 +97,10 @@ class Alia(Arduino_protocol_serial.Arduino):
         # `LUT_X` and `LUT_Y` will contain a single period each of the
         # reference signals, where `Y` is phase-shifted by 90 degrees, i.e. the
         # quadrant. Both will get (re)computed based on the current reference
-        # signal parameters.
-        LUT_X = np.array([], dtype=float, order="C")  # [V]
-        LUT_Y = np.array([], dtype=float, order="C")  # [V]
+        # signal parameters. Both `LUT_X` and `LUT_Y` are non-dimensional and
+        # can directly be used for heterodyne mixing.
+        LUT_X = np.array([], dtype=float, order="C")  # [non-dim]
+        LUT_Y = np.array([], dtype=float, order="C")  # [non-dim]
 
         # Reference signal parameters
         ref_waveform       = Waveform.Unknown  # Waveform enum
@@ -693,7 +694,7 @@ class Alia(Arduino_protocol_serial.Arduino):
             #       Legacy firmware
             # ---------------------------
 
-            c.ref_RMS_factor = np.sqrt(2)  # Fixed to `Cosine`
+            pass
 
         else:
 
@@ -702,19 +703,18 @@ class Alia(Arduino_protocol_serial.Arduino):
             # ---------------------------
 
             # Reconstruct `LUT_X` and `LUT_Y` in advance
+            # Interval [-1, 1]
             if c.ref_waveform == Waveform.Cosine:
                 c.ref_RMS_factor = np.sqrt(2)
-
-                phis = np.linspace(0, 2 * np.pi, num=c.N_LUT, endpoint=False)
-                LUT_X = 0.5 * (1 + np.cos(phis))
-                LUT_Y = 0.5 * (1 + np.sin(phis))
+                idxs = np.arange(0, c.N_LUT)
+                LUT_X = np.cos(2 * np.pi * idxs / c.N_LUT)
+                LUT_Y = np.sin(2 * np.pi * idxs / c.N_LUT)
 
             elif c.ref_waveform == Waveform.Square:
                 c.ref_RMS_factor = 1
-
                 idxs = np.arange(0, c.N_LUT)
                 LUT_X = np.sign(np.cos(2 * np.pi * idxs / c.N_LUT))
-                LUT_X[LUT_X < 0] = 0
+                LUT_X[LUT_X == 0] = -1
 
                 if c.N_LUT % 4 > 0:
                     # Not an integer multiple of 4
@@ -727,15 +727,16 @@ class Alia(Arduino_protocol_serial.Arduino):
                 else:
                     # Perfect quadrant exists
                     LUT_Y = np.sign(np.sin(2 * np.pi * idxs / c.N_LUT))
-                    LUT_Y[LUT_Y < 0] = 0
+                    LUT_Y[LUT_Y == 0] = -1
 
             elif c.ref_waveform == Waveform.Triangle:
                 c.ref_RMS_factor = np.sqrt(3)
-
                 idxs = np.arange(0, c.N_LUT)
-                LUT_X = 2 * np.abs(idxs / c.N_LUT - 0.5)
-                LUT_Y = 2 * np.abs(
-                    ((idxs - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 0.5
+                LUT_X = 2 * np.abs(2 * idxs / c.N_LUT - 1) - 1
+                LUT_Y = (
+                    2
+                    * np.abs(2 * ((idxs - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 1)
+                    - 1
                 )
 
             elif c.ref_waveform == Waveform.Unknown:
@@ -744,11 +745,9 @@ class Alia(Arduino_protocol_serial.Arduino):
                 LUT_X = np.full(np.nan, c.N_LUT)
                 LUT_Y = np.full(np.nan, c.N_LUT)
 
-            # Transform [0, 1] to [V]
-            LUT_X = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * LUT_X
-            LUT_Y = (c.ref_V_offset - c.ref_V_ampl) + 2 * c.ref_V_ampl * LUT_Y
-            LUT_X.clip(0, c.A_REF, out=LUT_X)
-            LUT_Y.clip(0, c.A_REF, out=LUT_Y)
+            # Scale the interval [-1, 1] with the RMS factor
+            LUT_X *= c.ref_RMS_factor
+            LUT_Y *= c.ref_RMS_factor
 
             c.LUT_X = np.asarray(LUT_X, dtype=float, order="C")
             c.LUT_Y = np.asarray(LUT_Y, dtype=float, order="C")
@@ -971,8 +970,8 @@ class Alia(Arduino_protocol_serial.Arduino):
                 success: bool
                 counter: int | numpy.nan
                 time   : numpy.ndarray, units [us]
-                ref_X  : numpy.ndarray, units [V]
-                ref_Y  : numpy.ndarray, units [V]
+                ref_X  : numpy.ndarray, units [non-dim]
+                ref_Y  : numpy.ndarray, units [non-dim]
                 sig_I  : numpy.ndarray, units [V]
             )
         """
@@ -1042,15 +1041,21 @@ class Alia(Arduino_protocol_serial.Arduino):
                 phi = np.unwrap(phi + phase_offset_deg / 180 * np.pi)
 
             # Construct `ref_X` and `ref_Y`
-            ref_X = np.cos(phi)
-            ref_Y = np.sin(phi)
 
+            """
+            if c.ref_waveform == Waveform.Cosine:
             # OVERRIDE: Only `Cosine` allowed, because `Square` and `Triangle`
             # can not be garantueed deterministic on both Arduino and Python
             # side due to rounding differences and the problem of computing the
             # correct 90 degrees quadrant `ref_Y`.
             """
+            c.ref_RMS_factor = np.sqrt(2)
+            ref_X = np.cos(phi)
+            ref_Y = np.sin(phi)
+
+            """
             if c.ref_waveform == Waveform.Square:
+                c.ref_RMS_factor = 1
                 ref_X.fill(-1)
                 ref_X[ref_X_phase < (c.N_LUT / 4.0)] = 1.0
                 ref_X[ref_X_phase >= (c.N_LUT / 4.0 * 3.0)] = 1.0
@@ -1059,15 +1064,14 @@ class Alia(Arduino_protocol_serial.Arduino):
                 ref_Y[ref_X_phase == (c.N_LUT / 2.0)] = 0.0
 
             if c.ref_waveform == Waveform.Triangle:
+                c.ref_RMS_factor = np.sqrt(3)
                 ref_X = np.arcsin(ref_X) / np.pi * 2
                 ref_Y = np.arcsin(ref_Y) / np.pi * 2
             """
 
-            np.multiply(ref_X, c.ref_V_ampl, out=ref_X)
-            np.multiply(ref_Y, c.ref_V_ampl, out=ref_Y)
-
-            ref_X = (c.ref_V_offset + ref_X).clip(0, c.A_REF)
-            ref_Y = (c.ref_V_offset + ref_Y).clip(0, c.A_REF)
+            # Scale the interval [-1, 1] with the RMS factor
+            np.multiply(ref_X, c.ref_RMS_factor, out=ref_X)
+            np.multiply(ref_Y, c.ref_RMS_factor, out=ref_Y)
 
             # Transform `sig_I` from [bits] to [V]
             sig_I = np.multiply(sig_I, c.ADC_BITS_TO_V, out=sig_I)
