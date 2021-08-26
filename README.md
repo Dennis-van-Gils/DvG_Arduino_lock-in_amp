@@ -8,10 +8,10 @@ See [here](screenshots/) for more screenshots.
 
 Current specs microcontroller firmware:
 - Support for SAMD21 or SAMD51 chipsets
-- True analog-out waveform generator (REF_X* between 0 to 3.3 V)
+- True analog-out waveform generator (`REF_X*` between 0 to 3.3 V)
 - Two modes available for the analog-in data-acquisition. Determined by a flag set in the firmware:
-    - Single-ended (SIG_I between 0 to 3.3 V)
-    - Differential (SIG_I between -3.3 to 3.3 V)
+    - Single-ended (`SIG_I` between 0 to 3.3 V)
+    - Differential (`SIG_I` between -3.3 to 3.3 V)
 - ADC & DAC operate at sampling rates of 10 kHz and above
 - Double-buffered binary-data transmission over USB to a PC running Python
 
