@@ -1387,7 +1387,8 @@ class MainWindow(QWidget):
 
         # QGROUP: Filter design
         self.filt_2_design_GUI = Filter_design_GUI(
-            [self.alia_qdev.firf_2_mix_X, self.alia_qdev.firf_2_mix_Y]
+            [self.alia_qdev.firf_2_mix_X, self.alia_qdev.firf_2_mix_Y],
+            hide_ACDC_coupling_controls=True,
         )
         self.filt_2_design_GUI.signal_filter_design_updated.connect(
             self.update_plot_filt_2_resp

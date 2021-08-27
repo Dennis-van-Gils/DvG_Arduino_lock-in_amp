@@ -6,7 +6,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils"
-__date__ = "29-05-2021"
+__date__ = "27-08-2021"
 __version__ = "1.0.0"
 # pylint: disable=invalid-name, missing-function-docstring
 
@@ -48,6 +48,7 @@ class Filter_design_GUI(QtCore.QObject):
     def __init__(
         self,
         firf: Union[RingBuffer_FIR_Filter, List[RingBuffer_FIR_Filter]],
+        hide_ACDC_coupling_controls: bool = False,
         parent=None,
     ):
         super().__init__(parent=parent)
@@ -60,13 +61,13 @@ class Filter_design_GUI(QtCore.QObject):
         self.firfs: List[RingBuffer_FIR_Filter] = firf
         self.qgrp = QtWid.QGroupBox("FIR filter design")
         self.qtbl_bandstop_cellChanged_lock = False  # Work-around flag
-        self.create_GUI()
+        self.create_GUI(hide_ACDC_coupling_controls=hide_ACDC_coupling_controls)
 
     # --------------------------------------------------------------------------
     #   create_GUI
     # --------------------------------------------------------------------------
 
-    def create_GUI(self):
+    def create_GUI(self, hide_ACDC_coupling_controls):
         # QGROUP: Filter design controls
 
         # Textbox widths for fitting N 'x' characters using the current font
@@ -149,12 +150,13 @@ class Filter_design_GUI(QtCore.QObject):
         # fmt: off
         i = 0
         grid = QtWid.QGridLayout(spacing=4)
-        grid.addWidget(QtWid.QLabel("Input coupling AC/DC:") , i, 0, 1, 3); i += 1
-        grid.addWidget(self.qpbt_coupling                    , i, 0, 1, 3); i += 1
-        grid.addWidget(QtWid.QLabel("Cutoff:")               , i, 0)
-        grid.addWidget(self.qlin_DC_cutoff                   , i, 1)
-        grid.addWidget(QtWid.QLabel("Hz")                    , i, 2)      ; i += 1
-        grid.addItem(QtWid.QSpacerItem(0, 12)                , i, 0, 1, 3); i += 1
+        if not hide_ACDC_coupling_controls:
+            grid.addWidget(QtWid.QLabel("Input coupling AC/DC:"), i, 0, 1, 3); i += 1
+            grid.addWidget(self.qpbt_coupling                   , i, 0, 1, 3); i += 1
+            grid.addWidget(QtWid.QLabel("Cutoff:")              , i, 0)
+            grid.addWidget(self.qlin_DC_cutoff                  , i, 1)
+            grid.addWidget(QtWid.QLabel("Hz")                   , i, 2)      ; i += 1
+            grid.addItem(QtWid.QSpacerItem(0, 12)               , i, 0, 1, 3); i += 1
         grid.addWidget(QtWid.QLabel("Band-stop ranges [Hz]:"), i, 0, 1, 3); i += 1
         grid.addWidget(self.qtbl_bandstop                    , i, 0, 1, 3); i += 1
         grid.addItem(QtWid.QSpacerItem(0, 8)                 , i, 0, 1, 3); i += 1
