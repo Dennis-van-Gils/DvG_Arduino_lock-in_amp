@@ -6,7 +6,7 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "26-08-2021"
+__date__ = "31-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         freq=250,
         V_offset=1.5,
         V_ampl=1,
-        waveform=Waveform.Cosine,
+        waveform=Waveform.Sine,
     )
 
     if fDrawPlot:

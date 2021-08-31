@@ -23,38 +23,26 @@ if __name__ == "__main__":
     lut_saw = np.full(N_LUT, np.nan)
     lut_tri = np.full(N_LUT, np.nan)
 
-    # Generate normalized waveform periods in the range [0, 1]
+    # Generate waveforms
     for i in range(N_LUT):
-        # -- Cosine
-        # N_LUT even: [ 0, 1]
-        # N_LUT odd : [>0, 1]
-        lut_cos[i] = 0.5 * (1 + np.cos(2 * np.pi * i / N_LUT))
-
-        # C equivalent
-        # wave = .5 * (1. + cos(M_TWOPI * i / N_LUT));
+        # -- Sine
+        # N_LUT integer multiple of 4: extrema [-1, 1], symmetric
+        # N_LUT others               : extrema <-1, 1>, symmetric
+        lut_cos[i] = np.sin(2 * np.pi * i / N_LUT)
 
         # -- Square
-        # Guaranteed  [ 0, 1]
-        # lut_sqr[i] = np.round((N_LUT - i) / N_LUT)
-        lut_sqr[i] = np.round(((1.75 * N_LUT - i) % N_LUT) / (N_LUT - 1))
-
-        # C equivalent
-        # wave = round(fmod(1.75 * N_LUT - i, N_LUT) / (N_LUT - 1));
+        # N_LUT even                 : extrema [-1, 1], symmetric
+        # N_LUT odd                  : extrema [-1, 1], asymmetric !!!
+        lut_sqr[i] = 1 if i / N_LUT < 0.5 else -1
 
         # -- Sawtooth
-        # Guaranteed  [ 0, 1]
-        lut_saw[i] = 1 - i / (N_LUT - 1)
-
-        # C equivalent
-        # wave = 1 - (float) i / (N_LUT - 1);
+        #
+        lut_saw[i] = 2 * i / (N_LUT - 1) - 1
 
         # -- Triangle
-        # N_LUT even: [ 0, 1]
-        # N_LUT odd : [>0, 1]
-        lut_tri[i] = 2 * np.abs(i / N_LUT - 0.5)
-
-        # C equivalent
-        # wave = 2. * fabs((float) i / N_LUT - .5);
+        # N_LUT integer multiple of 4: extrema [-1, 1], symmetric
+        # N_LUT others               : extrema <-1, 1>, symmetric
+        lut_tri[i] = np.arcsin(np.sin(2 * np.pi * i / N_LUT)) / np.pi * 2
 
     x_cos = np.resize(lut_cos, BLOCK_SIZE)
     x_sqr = np.resize(lut_sqr, BLOCK_SIZE)
@@ -62,10 +50,10 @@ if __name__ == "__main__":
     x_tri = np.resize(lut_tri, BLOCK_SIZE)
 
     print("N_LUT: %i" % N_LUT)
-    print("Cosine  : [%6.4f, %6.4f]" % (min(x_cos), max(x_cos)))
-    print("Square  : [%6.4f, %6.4f]" % (min(x_sqr), max(x_sqr)))
-    print("Sawtooth: [%6.4f, %6.4f]" % (min(x_saw), max(x_saw)))
-    print("Triangle: [%6.4f, %6.4f]" % (min(x_tri), max(x_tri)))
+    print("Sine    : [%7.4f, %7.4f]" % (min(x_cos), max(x_cos)))
+    print("Square  : [%7.4f, %7.4f]" % (min(x_sqr), max(x_sqr)))
+    print("Sawtooth: [%7.4f, %7.4f]" % (min(x_saw), max(x_saw)))
+    print("Triangle: [%7.4f, %7.4f]" % (min(x_tri), max(x_tri)))
 
     t = np.arange(BLOCK_SIZE) * SAMPLING_PERIOD
     plt.plot(t, np.zeros(BLOCK_SIZE), "-k")
@@ -77,4 +65,4 @@ if __name__ == "__main__":
     plt.plot(t, x_tri, ".-")
 
     plt.xlim([0, 3 / ref_freq])
-
+    plt.show()

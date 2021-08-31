@@ -6,7 +6,7 @@ Minimal running example for trouble-shooting library
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "02-07-2021"
+__date__ = "31-08-2021"
 __version__ = "2.0.0"
 
 import sys
@@ -339,7 +339,7 @@ if __name__ == "__main__":
         print("Exiting...\n")
         sys.exit(0)
 
-    alia.begin(freq=109.8, V_offset=1.5, V_ampl=0.5, waveform=Waveform.Cosine)
+    alia.begin(freq=109.8, V_offset=1.5, V_ampl=0.5, waveform=Waveform.Sine)
 
     # Create workers and threads
     alia_qdev = Alia_qdev(
