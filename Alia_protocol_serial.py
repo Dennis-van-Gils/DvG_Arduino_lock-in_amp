@@ -6,7 +6,7 @@ connection.
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "26-08-2021"
+__date__ = "31-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=bare-except, broad-except, pointless-string-statement, invalid-name
 
@@ -42,7 +42,7 @@ def round_C_style(array_in: np.ndarray) -> np.ndarray:
 class Waveform(Enum):
     # fmt: off
     Unknown  = -1
-    Cosine   = 0
+    Sine     = 0
     Square   = 1
     Triangle = 2
     # fmt: on
@@ -475,6 +475,11 @@ class Alia(Arduino_protocol_serial.Arduino):
         Returns:
             True if successful, False otherwise.
         """
+
+        if self.config.mcu_firmware == "ALIA v1.0.0 MICROCHIPSTUDIO":
+            # Not implemented in this firmware
+            return False
+
         print("\nADC autocalibration")
         print("───────────────────\n")
 
@@ -508,6 +513,11 @@ class Alia(Arduino_protocol_serial.Arduino):
         Returns:
             True if successful, False otherwise.
         """
+
+        if self.config.mcu_firmware == "ALIA v1.0.0 MICROCHIPSTUDIO":
+            # Not implemented in this firmware
+            return False
+
         success, ans_str = self.safe_query("store_autocal")
         if success and ans_str == "1":
             print(
@@ -527,6 +537,11 @@ class Alia(Arduino_protocol_serial.Arduino):
         Returns:
             True if successful, False otherwise.
         """
+
+        if self.config.mcu_firmware == "ALIA v1.0.0 MICROCHIPSTUDIO":
+            # Not implemented in this firmware
+            return False
+
         print("\nADC calibration")
         print("───────────────\n")
 
@@ -703,49 +718,41 @@ class Alia(Arduino_protocol_serial.Arduino):
             # ---------------------------
 
             # Reconstruct `LUT_X` and `LUT_Y` in advance
-            # Interval [-1, 1]
-            if c.ref_waveform == Waveform.Cosine:
+            idxs = np.arange(0, c.N_LUT)
+            phis = 2 * np.pi * idxs / c.N_LUT  # [0, 2*pi>
+
+            if c.ref_waveform == Waveform.Sine:
+                # N_LUT integer multiple of 4: extrema [-1, 1], symmetric
+                # N_LUT others               : extrema <-1, 1>, symmetric
                 c.ref_RMS_factor = np.sqrt(2)
-                idxs = np.arange(0, c.N_LUT)
-                LUT_X = np.cos(2 * np.pi * idxs / c.N_LUT)
-                LUT_Y = np.sin(2 * np.pi * idxs / c.N_LUT)
+                LUT_X = np.sin(phis)
+                LUT_Y = np.cos(phis)
 
             elif c.ref_waveform == Waveform.Square:
+                # N_LUT even                 : extrema [-1, 1], symmetric
+                # N_LUT odd                  : extrema [-1, 1], asymmetric !!!
                 c.ref_RMS_factor = 1
-                idxs = np.arange(0, c.N_LUT)
-                LUT_X = np.sign(np.cos(2 * np.pi * idxs / c.N_LUT))
-                LUT_X[LUT_X == 0] = -1
-
-                if c.N_LUT % 4 > 0:
-                    # Not an integer multiple of 4
-                    # Quadrant does not neatly exist, hence interpolate
-                    LUT_Y = np.interp(
-                        np.arange(c.N_LUT) + c.N_LUT * 3.0 / 4.0,
-                        np.arange(c.N_LUT * 2),
-                        np.tile(LUT_X, 2),
-                    )
-                else:
-                    # Perfect quadrant exists
-                    LUT_Y = np.sign(np.sin(2 * np.pi * idxs / c.N_LUT))
-                    LUT_Y[LUT_Y == 0] = -1
+                LUT_X = np.ones(c.N_LUT)
+                LUT_X[int(np.ceil(c.N_LUT / 2)) :] = -1
+                LUT_Y = np.interp(
+                    np.arange(c.N_LUT) + c.N_LUT / 4.0,
+                    np.arange(c.N_LUT * 2),
+                    np.tile(LUT_X, 2),
+                )
 
             elif c.ref_waveform == Waveform.Triangle:
+                # N_LUT integer multiple of 4: extrema [-1, 1], symmetric
+                # N_LUT others               : extrema <-1, 1>, symmetric
                 c.ref_RMS_factor = np.sqrt(3)
-                idxs = np.arange(0, c.N_LUT)
-                LUT_X = 2 * np.abs(2 * idxs / c.N_LUT - 1) - 1
-                LUT_Y = (
-                    2
-                    * np.abs(2 * ((idxs - c.N_LUT / 4) % c.N_LUT) / c.N_LUT - 1)
-                    - 1
-                )
+                LUT_X = np.arcsin(np.sin(phis)) / np.pi * 2
+                LUT_Y = 1 - np.arccos(np.cos(phis)) / np.pi * 2
 
             elif c.ref_waveform == Waveform.Unknown:
                 c.ref_RMS_factor = np.nan
-
                 LUT_X = np.full(np.nan, c.N_LUT)
                 LUT_Y = np.full(np.nan, c.N_LUT)
 
-            # Scale the interval [-1, 1] with the RMS factor
+            # Scale the LUTs [-1, 1] with the RMS factor
             LUT_X *= c.ref_RMS_factor
             LUT_Y *= c.ref_RMS_factor
 
@@ -787,7 +794,7 @@ class Alia(Arduino_protocol_serial.Arduino):
 
         Args:
             waveform (Waveform):
-                Enumeration decoding a waveform type, like cosine, square or
+                Enumeration decoding a waveform type, like sine, square or
                 triangle wave.
 
             freq (float):
@@ -1040,18 +1047,18 @@ class Alia(Arduino_protocol_serial.Arduino):
                 phase_offset_deg = 50
                 phi = np.unwrap(phi + phase_offset_deg / 180 * np.pi)
 
-            # Construct `ref_X` and `ref_Y`
+            # Reconstruct `ref_X` and `ref_Y`
 
             """
-            if c.ref_waveform == Waveform.Cosine:
-            # OVERRIDE: Only `Cosine` allowed, because `Square` and `Triangle`
+            if c.ref_waveform == Waveform.Sine:
+            # OVERRIDE: Only `Sine` allowed, because `Square` and `Triangle`
             # can not be garantueed deterministic on both Arduino and Python
             # side due to rounding differences and the problem of computing the
             # correct 90 degrees quadrant `ref_Y`.
             """
             c.ref_RMS_factor = np.sqrt(2)
-            ref_X = np.cos(phi)
-            ref_Y = np.sin(phi)
+            ref_X = np.sin(phi)
+            ref_Y = np.cos(phi)
 
             """
             if c.ref_waveform == Waveform.Square:
@@ -1069,7 +1076,7 @@ class Alia(Arduino_protocol_serial.Arduino):
                 ref_Y = np.arcsin(ref_Y) / np.pi * 2
             """
 
-            # Scale the interval [-1, 1] with the RMS factor
+            # Scale the LUTs [-1, 1] with the RMS factor
             np.multiply(ref_X, c.ref_RMS_factor, out=ref_X)
             np.multiply(ref_Y, c.ref_RMS_factor, out=ref_Y)
 
@@ -1118,8 +1125,8 @@ class Alia(Arduino_protocol_serial.Arduino):
 
             # DEBUG test: Add artificial phase delay between ref_X/Y and sig_I
             if 0:  # pylint: disable=using-constant-test
-                phase_offset_deg = 120
-                idx_phase += int(np.round(phase_offset_deg / 360 * c.N_LUT))
+                phase_offset_deg = 10
+                idx_phase += int(np.floor(phase_offset_deg / 360 * c.N_LUT))
 
             # Construct `ref_X` and `ref_Y`
             LUT_X = np.roll(c.LUT_X, -idx_phase)
@@ -1169,7 +1176,7 @@ if __name__ == "__main__":
 
     alia.begin(
         freq=220,
-        waveform=Waveform.Cosine,
+        waveform=Waveform.Sine,
     )
     # alia.begin()
     alia.turn_on(reset_timer=True)

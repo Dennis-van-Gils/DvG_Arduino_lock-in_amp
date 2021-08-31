@@ -39,7 +39,7 @@
   \.platformio\packages\framework-arduino-samd-adafruit\cores\arduino\startup.c
 
   Dennis van Gils
-  05-08-2021
+  31-08-2021
 ------------------------------------------------------------------------------*/
 #define FIRMWARE_VERSION "ALIA v0.2.0 VSCODE"
 
@@ -118,9 +118,9 @@ FlashStorage(flash_storage, ADC_Calibration);
 bool flash_was_read_okay = false;
 
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
-// 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
+// 'WAVEFORM_STRING[Sine]' to give the string 'Sine'
 #define FOREACH_WAVEFORM(WAVEFORM)                                             \
-  WAVEFORM(Cosine)                                                             \
+  WAVEFORM(Sine)                                                               \
   WAVEFORM(Square)                                                             \
   WAVEFORM(Triangle)                                                           \
   WAVEFORM(END_WAVEFORM_ENUM)
@@ -315,26 +315,22 @@ void compute_LUT() {
 
     switch (ref_waveform) {
       default:
-      case Cosine:
-        // N_LUT even: extrema [ 0, 1]
-        // N_LUT odd : extrema [>0, 1]
-        wave = .5 * (1 + cos(M_TWOPI * i / N_LUT));
+      case Sine:
+        // N_LUT integer multiple of 4: extrema [0, 1], symmetric
+        // N_LUT others               : extrema <0, 1>, symmetric
+        wave = (sin(M_TWOPI * i / N_LUT) + 1.) * .5;
         break;
 
       case Square:
-        // Extrema guaranteed  [ 0, 1]
-        // wave = cos(M_TWOPI * i / N_LUT) < 0. ? 0. : 1.;
-        if ((i < (N_LUT / 4.)) || (i >= (N_LUT / 4. * 3.))) {
-          wave = 1.;
-        } else {
-          wave = 0.;
-        }
+        // N_LUT even                 : extrema [0, 1], symmetric
+        // N_LUT odd                  : extrema [0, 1], asymmetric !!!
+        wave = ((double)(i) / N_LUT < 0.5 ? 1. : 0.);
         break;
 
       case Triangle:
-        // N_LUT even: extrema [ 0, 1]
-        // N_LUT odd : extrema [>0, 1]
-        wave = 2 * fabs((double)i / N_LUT - .5);
+        // N_LUT integer multiple of 4: extrema [0, 1], symmetric
+        // N_LUT others               : extrema <0, 1>, symmetric
+        wave = asin(sin(M_TWOPI * i / N_LUT)) / M_PI + .5;
         break;
     }
 
@@ -356,7 +352,7 @@ void set_wave(int value) {
   /* Set the waveform type, keeping `ref_VRMS` constant and changing `ref_ampl`
   according to the new waveform */
 
-  // OVERRIDE: Only `Cosine` allowed, because `Square` and `Triangle` can not
+  // OVERRIDE: Only `Sine` allowed, because `Square` and `Triangle` can not
   // be garantueed deterministic on both Arduino and Python side due to
   // rounding differences and the problem of computing the correct 90 degrees
   // quadrant `ref_Y`.
@@ -371,7 +367,7 @@ void set_wave(int value) {
 
   switch (ref_waveform) {
     default:
-    case Cosine:
+    case Sine:
       ref_RMS_factor = sqrt(2);
       break;
 
@@ -740,7 +736,7 @@ void setup() {
   }
 
   // Initial waveform LUT
-  set_wave(Cosine);
+  set_wave(Sine);
   set_freq(250.0); // [Hz]    Wanted startup frequency
   set_offs(1.65);  // [V]     Wanted startup offset
   set_VRMS(0.5);   // [V_RMS] Wanted startup amplitude

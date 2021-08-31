@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "26-08-2021"
+__date__ = "31-08-2021"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -200,8 +200,8 @@ def lockin_DAQ_update():
         old_ref_Y    = state.rb_ref_Y[valid_slice]
 
         # Heterodyne mixing
-        np.multiply(old_ref_X, state.filt_I, out=state.mix_X)
-        np.multiply(old_ref_Y, state.filt_I, out=state.mix_Y)
+        np.multiply(state.filt_I, old_ref_X, out=state.mix_X)
+        np.multiply(state.filt_I, old_ref_Y, out=state.mix_Y)
     else:
         state.time_1.fill(np.nan)
         old_sig_I = np.full(c.BLOCK_SIZE, np.nan)
@@ -392,7 +392,7 @@ if __name__ == "__main__":
         alia.tick = Time.perf_counter()
 
     alia.begin(
-        waveform=Waveform.Cosine,
+        waveform=Waveform.Sine,
         freq=250,
         V_offset=1.65,
         V_ampl_RMS=0.5,

@@ -12,7 +12,6 @@ PYTHON
   Also, do not automatically adjust the mixer cut-off frequency to (2*f - 5) Hz,
   but let the students figure out the 3dB point themselves
 
-* Hide the AC coupling control on the mixer filter
 
 
 FIRMWARE

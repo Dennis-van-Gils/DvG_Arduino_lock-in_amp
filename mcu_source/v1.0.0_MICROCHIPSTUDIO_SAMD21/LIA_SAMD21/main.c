@@ -22,7 +22,7 @@
     Implement https://github.com/mpflaga/Arduino-MemoryFree
 
   Dennis van Gils
-  23-07-2021
+  31-08-2021
 */
 
 #include <atmel_start.h>
@@ -70,9 +70,9 @@ static void TRIG_OUT_on() {gpio_set_pin_level(PIN_D12__TRIG_OUT, true);}
 #endif
 
 // Preprocessor trick to ensure enums and strings are in sync, so one can write
-// 'WAVEFORM_STRING[Cosine]' to give the string 'Cosine'
+// 'WAVEFORM_STRING[Sine]' to give the string 'Sine'
 #define FOREACH_WAVEFORM(WAVEFORM)                                             \
-  WAVEFORM(Cosine)                                                             \
+  WAVEFORM(Sine)                                                               \
   WAVEFORM(Square)                                                             \
   WAVEFORM(Triangle)                                                           \
   WAVEFORM(END_WAVEFORM_ENUM)
@@ -270,21 +270,22 @@ void compute_LUT(uint16_t *LUT_array) {
 
     switch (ref_waveform) {
       default:
-      case Cosine:
-        // N_LUT even: extrema [ 0, 1]
-        // N_LUT odd : extrema [>0, 1]
-        wave = .5 * (1 + cos(M_TWOPI * i / N_LUT));
+      case Sine:
+        // N_LUT integer multiple of 4: extrema [0, 1], symmetric
+        // N_LUT others               : extrema <0, 1>, symmetric
+        wave = (sin(M_TWOPI * i / N_LUT) + 1.) * .5;
         break;
 
       case Square:
-        // Extrema guaranteed  [ 0, 1]
-        wave = cos(M_TWOPI * i / N_LUT) < 0. ? 0. : 1.;
+        // N_LUT even                 : extrema [0, 1], symmetric
+        // N_LUT odd                  : extrema [0, 1], asymmetric !!!
+        wave = ((double)(i) / N_LUT < 0.5 ? 1. : 0.);
         break;
 
       case Triangle:
-        // N_LUT even: extrema [ 0, 1]
-        // N_LUT odd : extrema [>0, 1]
-        wave = 2 * fabs((double)i / N_LUT - .5);
+        // N_LUT integer multiple of 4: extrema [0, 1], symmetric
+        // N_LUT others               : extrema <0, 1>, symmetric
+        wave = asin(sin(M_TWOPI * i / N_LUT)) / M_PI + .5;
         break;
     }
 
@@ -314,7 +315,7 @@ void set_wave(int value) {
 
   switch (ref_waveform) {
     default:
-    case Cosine:
+    case Sine:
       ref_RMS_factor = sqrt(2);
       break;
 
@@ -749,7 +750,7 @@ int main(void) {
     SysTick_CTRL_ENABLE_Msk;
 
   // Initial waveform LUT
-  set_wave(Cosine);
+  set_wave(Sine);
   set_freq(250.0); // [Hz]    Wanted startup frequency
   set_offs(1.65);  // [V]     Wanted startup offset
   set_VRMS(0.5);   // [V_RMS] Wanted startup amplitude
