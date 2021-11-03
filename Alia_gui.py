@@ -26,6 +26,7 @@ from PyQt5.QtWidgets import (
     QRadioButton,
     QSpacerItem,
     QTabWidget,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -1423,7 +1424,7 @@ class MainWindow(QWidget):
 
         # Schematic diagram
         qlbl = QLabel()
-        qpix = QtGui.QPixmap("user_manual/fig_diagram.png")
+        qpix = QtGui.QPixmap("user_manual/fig_diagram__single-ended.png")
         qlbl.setPixmap(qpix)
 
         # -----------------------------------
@@ -1453,6 +1454,30 @@ class MainWindow(QWidget):
             "maximumWidth": ex8,
             "alignment": QtCore.Qt.AlignVCenter | QtCore.Qt.AlignRight,
         }
+        self.qlin_ADC_autocal_info = QTextEdit(
+            "It is advised to perform the autocalibration routine at least once"
+            " each time that the Arduino is flashed with new lock-in amplifier"
+            " firmware. This routine will try to correct the offset and linear"
+            " gain factor of the ADC such that the signal acquired by the ADC"
+            " fits best on top of the signal as output by the DAC. Typically,"
+            " this will improve the absolute accuracy of the ADC by several"
+            " millivolt.<br><br>"
+            "The calibration data (<b>offsetcorr & gaincorr</b>) should"
+            " afterwards be stored in the persistent flash memory of the"
+            " Arduino by clicking <b>'Store calibration in flash'</b>. Any"
+            " reboot of the Arduino will then automaticaly load in the last"
+            " stored calibration data. You can check if the calibration is"
+            " already loaded in by checking the value <b>'Is valid?'</b>."
+            "<br><br>"
+            "During the routine the DAC voltage output will be internally"
+            " routed to the ADC input. The DAC output will also be present at"
+            " the analog output pin [A0]. There is no need to manually connect"
+            " pin [A0] to [A1]. It is advised to first disconnect pins [A0] and"
+            " [A1] as to minimize interference from any external circuitry. The"
+            " routine will output a low voltage ~0.3 V, followed by a high"
+            " voltage ~3 V for each around 75 ms.",
+            readOnly=True,
+        )
         self.qlbl_ADC_autocal_is_valid = QLabel("", **p)
         self.qlin_ADC_gaincorr = QLineEdit("", readOnly=True, **p)
         self.qlin_ADC_offsetcorr = QLineEdit("", readOnly=True, **p)
@@ -1475,15 +1500,16 @@ class MainWindow(QWidget):
 
         # fmt: off
         grid = QGridLayout(spacing=4)
-        grid.addWidget(QLabel("Is valid?")            , 0, 0)
-        grid.addWidget(self.qlbl_ADC_autocal_is_valid , 0, 1)
-        grid.addWidget(QLabel("Gaincorr")             , 1, 0)
-        grid.addWidget(self.qlin_ADC_gaincorr         , 1, 1)
-        grid.addWidget(QLabel("Offcorr")              , 2, 0)
+        grid.addWidget(self.qlin_ADC_autocal_info     , 0, 0, 1, 3)
+        grid.addWidget(QLabel("Is valid?")            , 1, 0)
+        grid.addWidget(self.qlbl_ADC_autocal_is_valid , 1, 1)
+        grid.addWidget(QLabel("Offsetcorr")           , 2, 0)
         grid.addWidget(self.qlin_ADC_offsetcorr       , 2, 1)
-        grid.addItem(QSpacerItem(0, 4)                , 3, 0)
-        grid.addWidget(self.qpbt_ADC_perform_autocal  , 4, 0, 1, 2)
-        grid.addWidget(self.qpbt_ADC_store_autocal    , 5, 0, 1, 2)
+        grid.addWidget(QLabel("Gaincorr")             , 3, 0)
+        grid.addWidget(self.qlin_ADC_gaincorr         , 3, 1)
+        grid.addItem(QSpacerItem(0, 4)                , 4, 0)
+        grid.addWidget(self.qpbt_ADC_perform_autocal  , 5, 0, 1, 2)
+        grid.addWidget(self.qpbt_ADC_store_autocal    , 6, 0, 1, 2)
         # fmt: on
 
         qgrp = QGroupBox("ADC calibration")
@@ -1945,13 +1971,9 @@ class MainWindow(QWidget):
         reply = QMessageBox.question(
             self,
             "Perform autocalibration?",
-            "You are about to perform the ADC autocalibration routine. "
-            "The DAC voltage output will be internally routed to the ADC "
-            "input, in addition to the analog output pin [A0]. During "
-            "calibration the analog output will first output a low voltage, "
-            "followed by a high voltage for each around 75 ms.\n\n"
-            "- It is advised to first disconnect pins [A0] and [A1].\n"
-            "- Only implemented for single-ended mode, not differential.\n\n"
+            "You are about to perform the ADC autocalibration routine.\n"
+            "It is advised to first disconnect pins [A0] and [A1].\n\n"
+            # "Only implemented for single-ended mode, not differential.\n\n"
             "Are you sure you want to continue?",
             QMessageBox.Ok | QMessageBox.Cancel,
         )

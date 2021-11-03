@@ -559,8 +559,8 @@ class Alia(Arduino_protocol_serial.Arduino):
             return False
 
         print("    is valid: %s" % ("yes" if is_valid else "no"))
-        print("    gaincorr: %d" % gaincorr)
         print("  offsetcorr: %d" % offsetcorr)
+        print("    gaincorr: %d" % gaincorr)
         print()
 
         self.config.ADC_autocal_is_valid = is_valid
