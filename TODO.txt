@@ -5,6 +5,7 @@ OVERALL
     - Fixed mistake in calculating R
     - V_rms as unit for the amplitude, instead of V
     - Single-ended ADC, instead of differential
+    - Added auto-calibration routine for the ADC
     - Added square and triangular waveforms
     - Timer roll-over is increased from 71 minutes to 49 days
     - Many other stability and speed improvements on the Python side
