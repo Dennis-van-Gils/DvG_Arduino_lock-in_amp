@@ -1,3 +1,8 @@
+[![](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE.txt)
+[![](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![](https://img.shields.io/github/last-commit/Dennis-van-Gils/DvG_Arduino_lock-in_amp)]()
+<!-- [![](https://img.shields.io/github/v/release/Dennis-van-Gils/DvG_Arduino_lock-in_amp)]() -->
+
 # DvG Arduino lock-in amplifier
 This project concerns a fully fledged lock-in amplifier running on an Atmel SAMD21 (Arduino M0/M0 Pro) or SAMD51 (Adafruit Metro/Feather/ItsyBitsy M4 Express) microcontroller board in combination with a PC running Python for the graphical user interface.
 
@@ -7,7 +12,7 @@ The Arduino microcontroller will generate the reference signal `REF_X*` and subs
 See [here](screenshots/) for more screenshots.
 
 ### User manual
-A [user manual](user_manual/DvG_ALIA_Student_user_manual.pdf) with detailed instructions and troubleshooting is provided. The manual is part of the lab assignments of the course 'Small Signals & Detection' of the University of Twente, Enschede, The Netherlands.
+A [user manual](user_manual/DvG_ALIA_Student_user_manual.pdf) with detailed installation instructions and troubleshooting is provided. It is part of the lab assignments 'Small Signals & Detection' of the University of Twente, Enschede, The Netherlands.
 
 ### Specifications
 Microcontroller:
@@ -17,7 +22,7 @@ Microcontroller:
 - Two modes available for the analog-in data acquisition. Determined by a flag set in the firmware:
     - Single-ended (`SIG_I` between 0 to 3.3 V), default
     - Differential (`SIG_I` between -3.3 to 3.3 V)
-- Double-buffered binary-data transmission over USB to a PC running Python
+- Double-buffered binary-data transmission over USB
 
 Python graphical user interface:
 - Separate threads for communication with the Arduino, signal processing and graphing
