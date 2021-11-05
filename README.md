@@ -59,7 +59,7 @@ Flashing firmware onto the Adafruit M4 board is super easy. Simply copy over the
 
 ### Pin-out
 For the case of an Adafruit Feather M4 Express board, see below. Other boards have a similar pin-out.
-![Pinout](user_manual/fig_Adafruit_Feather_M4_pinout.PNG)
+![pinout](user_manual/fig_Adafruit_Feather_M4_pinout.png)
 
 The provided precompiled firmware defaults to single-ended ADC, meaning `sig_I` is measured with respect to `GND`. You can adjust the flag `ADC_DIFFERENTIAL` in the `main.cpp` source code and recompile to switch to differential mode.
 ```
