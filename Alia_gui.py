@@ -5,7 +5,7 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "03-11-2021"
+__date__ = "20-01-2022"
 __version__ = "2.0.0"
 # pylint: disable=invalid-name
 
@@ -83,8 +83,8 @@ pg.setConfigOption("foreground", COLOR_GRAPH_FG)
 # Note: (Top Right Bottom Left)
 # fmt: off
 COLOR_BG           = "rgb(240, 240, 240)"
-COLOR_LED_RED      = "rgb(0  , 238, 118)"
-COLOR_LED_GREEN    = "rgb(205, 92 , 92 )"
+COLOR_LED_GREEN    = "rgb(0  , 238, 118)"
+COLOR_LED_RED      = "rgb(205, 92 , 92 )"
 COLOR_GROUP_BG     = "rgb(252, 208, 173)"
 COLOR_READ_ONLY    = "rgb(250, 230, 210)"
 COLOR_TAB_ACTIVE   = "rgb(207, 225, 225)"
@@ -178,14 +178,14 @@ SS_TOGGLE_BUTTON = (
         "QPushButton:disabled {"
             "color: grey;}"
         "QPushButton:checked {"
-            "background-color: " + COLOR_LED_RED + ";"
+            "background-color: " + COLOR_LED_GREEN + ";"
             "color: black;" +
             "font-weight: normal;"
             "border-style: inset;}")
 
 SS_LED_RECT = (
         "QPushButton {"
-            "background-color: " + COLOR_LED_GREEN + ";"
+            "background-color: " + COLOR_LED_RED + ";"
             "border: 1px solid grey;"
             "min-height: 30px;"
             "min-width: 60px;"
@@ -194,7 +194,7 @@ SS_LED_RECT = (
             "border-radius: 10px;"
             "color: black}"
         "QPushButton::checked {"
-            "background-color: " + COLOR_LED_RED + "}")
+            "background-color: " + COLOR_LED_GREEN + "}")
 # fmt: on
 
 
