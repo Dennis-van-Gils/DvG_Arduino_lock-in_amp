@@ -16,7 +16,7 @@ pyfftw
 #  Graphing & UI
 
 pyqt5     ~= 5.15
-pyqtgraph == 0.11.0      # Fix to version 0.11.0, because a monkey-patch specific to 0.11.0 will be applied. 0.11.1, 0.12.1 and 0.12.2 have not solved the issue and introduce other errors.
+pyqtgraph == 0.11.0      # Fix to version 0.11.0, because a monkeypatch specific to 0.11.0 will be applied. This has superior OpenGL performance as compared to 0.11.1 to 0.12.3
 pyopengl  ~= 3.1
 
 # Dennis van Gils
@@ -26,4 +26,5 @@ dvg-devices              ~= 1.0
 dvg-pyqt-filelogger      ~= 1.1
 dvg-qdeviceio            ~= 1.0
 dvg-ringbuffer           ~= 1.0
+dvg-pyqtgraph-monkeypatch~= 2.0
 dvg-pyqtgraph-threadsafe ~= 3.1
