@@ -26,9 +26,7 @@ PYTHON
   Also, do not automatically adjust the mixer cut-off frequency to (2*f - 5) Hz,
   but let the students figure out the 3dB point themselves
 
-* Implement use of the new `dvg-pyqt-controls` PyPi v2.0 package. Remove
-  stylesheets and `create_Toggle_button()` etc defined in `Alia_gui.py` and use
-  `dvg-pyqt-controls` instead.
+
 
 FIRMWARE
 
