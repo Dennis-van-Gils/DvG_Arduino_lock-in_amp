@@ -6,7 +6,7 @@ Changelog
 * Upgraded from 5 kHz to 25 kHz sampling rate
 * Fixed mistake in calculating `R`
 * `V_rms` as unit for the amplitude, instead of `V`
-* Single-ended ADC, instead of differential
+* Single-ended ADC as default, instead of differential
 * Added auto-calibration routine for the ADC
 * Added square and triangular waveforms
 * Timer roll-over is increased from 71 minutes to 49 days
