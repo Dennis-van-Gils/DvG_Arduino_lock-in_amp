@@ -5,8 +5,8 @@
 __author__ = "Dennis van Gils"
 __authoremail__ = "vangils.dennis@gmail.com"
 __url__ = "https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp"
-__date__ = "20-01-2022"
-__version__ = "2.0.0"
+__date__ = "03-02-2022"
+__version__ = "1.0.0"
 # pylint: disable=invalid-name
 
 import os
