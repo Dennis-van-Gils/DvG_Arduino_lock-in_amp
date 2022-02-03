@@ -1,7 +1,8 @@
-[![](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE.txt)
-[![](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![](https://img.shields.io/github/v/release/Dennis-van-Gils/DvG_Arduino_lock-in_amp)]()
+[![](https://requires.io/github/Dennis-van-Gils/DvG_Arduino_lock-in_amp/requirements.svg?branch=master)](https://requires.io/github/Dennis-van-Gils/DvG_Arduino_lock-in_amp/requirements/?branch=master)
 [![](https://img.shields.io/github/last-commit/Dennis-van-Gils/DvG_Arduino_lock-in_amp)]()
-<!-- [![](https://img.shields.io/github/v/release/Dennis-van-Gils/DvG_Arduino_lock-in_amp)]() -->
+[![](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![](https://img.shields.io/badge/License-MIT-purple.svg)](LICENSE.txt)
 
 # DvG Arduino lock-in amplifier
 This project concerns a fully fledged lock-in amplifier running on an Atmel SAMD21 (Arduino M0/M0 Pro) or SAMD51 (Adafruit Metro/Feather/ItsyBitsy M4 Express) microcontroller board in combination with a PC running Python for the graphical user interface.
