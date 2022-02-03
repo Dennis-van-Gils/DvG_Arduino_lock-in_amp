@@ -23,26 +23,28 @@ real-time signals, interactive filter design and real-time power spectra.
 The project is part of the lab assignments 'Small Signals & Detection' of the
 University of Twente, Enschede, The Netherlands. A
 `user manual <user_manual/DvG_ALIA_Student_user_manual.pdf>`__
-with detailed installation instructions and troubleshooting is provided. The
-lock-in amplfier can be used for scientific research in the lab as wel.
+with detailed installation instructions and troubleshooting is provided. This
+lock-in amplifier can very well be used for scientific research in the lab.
 
-It consists of an Atmel SAMD51 microprocessor board (e.g. an Adafruit M4 Express
-board like the Feather or ItsyBitsy) in combination with a PC running Python for
-the graphical user interface and signal post-processing. Support for the slower
-Atmel SAMD21 microprocessor is also provided (e.g. an Arduino M0 Pro), but is
-not recommended.
-
-The microcontroller will generate the reference signal ``REF_X*`` and
-subsequently acquires the input signal ``SIG_I``. This data is sent over USB to
-a PC running the graphical user interface in Python. The interface shows the
-waveform graphs of the signals in real-time, performs the heterodyne mixing and
-filtering of the signals, and provides logging to disk.
+It consists of a PC/laptop running Python for the graphical user interface and
+signal post-processing in combination with a microcontroller board for the
+phase-locked signal generation and acquisition. The preffered microcontroller is
+an Atmel SAMD51 microprocessor (e.g. an Adafruit M4 Express board like the
+Feather or ItsyBitsy), but support for the slower Atmel SAMD21 microprocessor is
+also provided (e.g. an Arduino M0 Pro).
 
 |Screenshot| See `here <screenshots/>`__ for more screenshots.
 
 
 Specifications
 ~~~~~~~~~~~~~~
+
+The microcontroller will generate the reference signal ``REF_X*`` and
+subsequently acquires the input signal ``SIG_I``. This data is sent over USB to
+a PC running the graphical user interface in Python. The interface shows the
+waveform graphs of the signals in real-time, performs the heterodyne mixing and
+filtering of the signals (i.e. the lock-in technique), and provides logging to
+disk.
 
 Microcontroller:
 
@@ -55,10 +57,11 @@ Microcontroller:
    -  Single-ended (``SIG_I`` between 0 to 3.3 V), default
    -  Differential (``SIG_I`` between -3.3 to 3.3 V)
 
--  Double-buffered binary-data transmission over USB
+-  Optimized data transmission over USB (double-buffered binary-data stream)
 
-Python graphical user interface:
+Python program:
 
+-  Graphical user interface
 -  Separate threads for communication with the Arduino, signal
    processing and graphing
 -  Accelerated mathematical operations based on
@@ -67,7 +70,7 @@ Python graphical user interface:
    `SciPy <https://scipy.org/>`__
 -  OpenGL hardware-accelerated graphing
 -  Zero-phase distortion FIR filters
--  Scans over all serial ports to automatically connect to the Arduino
+-  Automatically connects to the Arduino by scanning over all ports
 -  Tested under Windows 10 and Ubuntu 18.04.2 (Linux)
 
 Prerequisites
