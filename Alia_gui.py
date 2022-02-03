@@ -395,7 +395,7 @@ class MainWindow(QWidget):
         self.qpbt_exit.setMinimumHeight(30)
 
         p = {"alignment": QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter}
-        vbox_right = QVBoxLayout()
+        vbox_right = QVBoxLayout(spacing=4)
         vbox_right.addWidget(self.qpbt_exit)
         vbox_right.addStretch(1)
         self.qlbl_GitHub = QLabel(
@@ -408,7 +408,7 @@ class MainWindow(QWidget):
         self.qlbl_GitHub.setOpenExternalLinks(True)
         vbox_right.addWidget(self.qlbl_GitHub)
         vbox_right.addWidget(QLabel(__author__, **p))
-        vbox_right.addWidget(QLabel(__date__, **p))
+        vbox_right.addWidget(QLabel("v%s" % __version__, **p))
 
         # Round up frame
         hbox_header = QHBoxLayout()
