@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) [2021] [Dennis P.M. van Gils]
+Copyright (c) [2022] [Dennis P.M. van Gils]
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
