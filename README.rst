@@ -11,32 +11,35 @@
 .. image:: https://img.shields.io/badge/License-MIT-purple.svg
     :target: LICENSE.txt
     :alt: MIT License
-    
-    
+
+
 DvG Arduino lock-in amplifier
 =============================
 
-This project concerns a fully fledged lock-in amplifier running on an
-Atmel SAMD21 (Arduino M0/M0 Pro) or SAMD51 (Adafruit
-Metro/Feather/ItsyBitsy M4 Express) microcontroller board in combination
-with a PC running Python for the graphical user interface.
+A fully fledged lock-in amplifier running at a 25 kHz sampling rate at 12-bit
+analog resolution with an extensive graphical user interface showing
+real-time signals, interactive filter design and real-time power spectra.
 
-The Arduino microcontroller will generate the reference signal
-``REF_X*`` and subsequently acquires the input signal ``SIG_I``. This
-data is sent over USB to a PC running the graphical user interface in
-Python. The interface shows the waveform graphs of the signals in
-real-time, performs the heterodyne mixing and filtering of the signals
-similar to a lock-in amplifier, and provides logging to disk.
+The project is part of the lab assignments 'Small Signals & Detection' of the
+University of Twente, Enschede, The Netherlands. A
+`user manual <user_manual/DvG_ALIA_Student_user_manual.pdf>`__
+with detailed installation instructions and troubleshooting is provided. The
+lock-in amplfier can be used for scientific research in the lab as wel.
+
+It consists of an Atmel SAMD51 microprocessor board (e.g. an Adafruit M4 Express
+board like the Feather or ItsyBitsy) in combination with a PC running Python for
+the graphical user interface and signal post-processing. Support for the slower
+Atmel SAMD21 microprocessor is also provided (e.g. an Arduino M0 Pro), but is
+not recommended.
+
+The microcontroller will generate the reference signal ``REF_X*`` and
+subsequently acquires the input signal ``SIG_I``. This data is sent over USB to
+a PC running the graphical user interface in Python. The interface shows the
+waveform graphs of the signals in real-time, performs the heterodyne mixing and
+filtering of the signals, and provides logging to disk.
 
 |Screenshot| See `here <screenshots/>`__ for more screenshots.
 
-User manual
-~~~~~~~~~~~
-
-A `user manual <user_manual/DvG_ALIA_Student_user_manual.pdf>`__ with
-detailed installation instructions and troubleshooting is provided. It
-is part of the lab assignments 'Small Signals & Detection' of the
-University of Twente, Enschede, The Netherlands.
 
 Specifications
 ~~~~~~~~~~~~~~
@@ -100,18 +103,17 @@ compile the code for yourself. They can be found in the
 folder. See the table below for suggested firmware to use best. For
 other boards you'll have to compile the code yourself.
 
-+-------------------------+-------------------------+---------------+
-| Board                   | Firmware                | Sampling rate |
-+=========================+=========================+===============+
-| Arduino M0 Pro          | \\v1.0.0_V              | 10 kHz        |
-|                         | SCODE\mzeropro__10kHz\\ |               |
-+-------------------------+-------------------------+---------------+
-| Arduino M0 Pro          | \\v1.0.0_MICROCHIPS     | 20 kHz        |
-|                         | TUDIO\mzeropro__20kHz\\ |               |
-+-------------------------+-------------------------+---------------+
-| Adafruit Feather M4     | \\v1.0.0_VSCODE\adafr   | 25 kHz        |
-| Express                 | uit_feather_m4__25kHz\\ |               |
-+-------------------------+-------------------------+---------------+
++---------------------+---------------------------------------------+---------------+
+| Board               | Firmware folder: \\mcu_firmware             | Sampling rate |
++=====================+=============================================+===============+
+| Arduino M0 Pro      | \\v1.0.0_VSCODE\\mzeropro__10kHz            | 10 kHz        |
++---------------------+---------------------------------------------+---------------+
+| Arduino M0 Pro      | \\v1.0.0_MICROCHIPSTUDIO\\mzeropro__20kHz   | 20 kHz        |
++---------------------+---------------------------------------------+---------------+
+| Adafruit Feather M4 | \\v1.0.0_VSCODE\\adafruit_feather_m4__25kHz | 25 kHz        |
+| Express (preferred) |                                             |               |
++---------------------+---------------------------------------------+---------------+
+
 
 Flashing firmware onto the Adafruit M4 board is super easy. Simply copy
 over the file
