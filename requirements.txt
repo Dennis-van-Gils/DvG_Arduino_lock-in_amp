@@ -15,8 +15,11 @@ pyfftw
 
 #  Graphing & UI
 
+# Fix to version 0.11.0, because a monkeypatch specific to 0.11.0 will be applied.
+# This has superior OpenGL performance as compared to 0.11.1 to 0.12.3.
+pyqtgraph == 0.11.0   # rq.filter: ==0.11.0
+
 pyqt5     ~= 5.15
-pyqtgraph == 0.11.0      # Fix to version 0.11.0, because a monkeypatch specific to 0.11.0 will be applied. This has superior OpenGL performance as compared to 0.11.1 to 0.12.3
 pyopengl  ~= 3.1
 
 # Dennis van Gils
