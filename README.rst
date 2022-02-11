@@ -49,7 +49,7 @@ disk.
 Microcontroller:
 
 -  Support for Atmel SAMD21 or SAMD51 chipsets
--  The ADC & DAC operate at sampling rates of 20 kHz and above
+-  The ADC & DAC are locked in phase and operate at sampling rates of 20 kHz and above
 -  True analog-out waveform generator (``REF_X*`` between 0 to 3.3 V)
 -  Two modes available for the analog-in data acquisition. Determined by
    a flag set in the firmware:
