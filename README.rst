@@ -76,7 +76,7 @@ Python program:
 Prerequisites
 ~~~~~~~~~~~~~
 
-| Python 3.8
+| Python 3.8+
 | Preferred distribution: Anaconda full or Miniconda
 
 Installation instructions in Anaconda Prompt:
