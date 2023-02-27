@@ -1,6 +1,8 @@
 .. image:: https://img.shields.io/github/v/release/Dennis-van-Gils/DvG_Arduino_lock-in_amp
+    :target: https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp
     :alt: Latest release
 .. image:: https://img.shields.io/github/last-commit/Dennis-van-Gils/DvG_Arduino_lock-in_amp
+    :target: https://github.com/Dennis-van-Gils/DvG_Arduino_lock-in_amp
     :alt: Last commit
 .. image:: https://img.shields.io/badge/code%20style-black-000000.svg
     :target: https://github.com/psf/black
@@ -8,7 +10,6 @@
 .. image:: https://img.shields.io/badge/License-MIT-purple.svg
     :target: LICENSE.txt
     :alt: MIT License
-
 
 DvG Arduino lock-in amplifier
 =============================
