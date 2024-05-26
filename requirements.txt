@@ -2,9 +2,11 @@
 
 pip
 ipython
-mkl
 psutil
 pyserial  ~= 3.5
+
+# `mkl` got commented out. Can speed up `numpy` calculations on Intel machines, but not mandatory.
+# mkl
 
 #  Scientific
 
