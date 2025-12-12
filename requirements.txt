@@ -10,8 +10,8 @@ pyserial  ~= 3.5
 
 #  Scientific
 
-numpy
-numba
+numpy     == 1.21.0    # Must lock version, because newer versions have removed support for `np.float`, breaking manually zooming into pyqtgraph graphs.
+numba     == 0.53.1
 scipy
 pyfftw
 
